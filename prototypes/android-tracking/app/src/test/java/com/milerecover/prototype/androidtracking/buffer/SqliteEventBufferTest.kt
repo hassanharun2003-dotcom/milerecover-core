@@ -12,16 +12,18 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import androidx.test.core.app.ApplicationProvider
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class SqliteEventBufferTest {
   private lateinit var context: Context
   private lateinit var buffer: SqliteEventBuffer
 
   @Before
   fun setup() {
-    context = RuntimeEnvironment.getApplication()
+    context = ApplicationProvider.getApplicationContext()
     buffer = SqliteEventBuffer(context)
     buffer.clearAll()
   }
