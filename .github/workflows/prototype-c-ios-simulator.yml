@@ -97,11 +97,11 @@ jobs:
       - name: Check iOS scaffold readiness
         id: scaffold
         run: |
-          if [ -f ios/Podfile ] && ls ios/*.xcworkspace 1>/dev/null 2>&1; then
+          if [ -f ios/Podfile ] && ls ios/*.xcodeproj 1>/dev/null 2>&1; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::iOS RN scaffold missing (Podfile / xcworkspace). See ios/IOS_CLOUD_BUILD_READINESS.md"
+            echo "::warning::iOS RN scaffold missing (Podfile / xcodeproj). See ios/IOS_CLOUD_BUILD_READINESS.md"
           fi
 
       - name: Install CocoaPods
@@ -125,11 +125,32 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee ios-simulator-build.log
 
+      - name: Run simulator tests
+        if: steps.scaffold.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          WS=$(ls ios/*.xcworkspace | head -1)
+          SCHEME=$(xcodebuild -list -workspace "$WS" | awk '/Schemes:/{getline; print; exit}' | xargs)
+          if xcodebuild -list -workspace "$WS" | grep -q MileRecoverProtoBridgeCTests; then
+            SIM=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)
+            xcodebuild test \
+              -workspace "$WS" \
+              -scheme "$SCHEME" \
+              -sdk iphonesimulator \
+              -destination "platform=iOS Simulator,name=${SIM}" \
+              -configuration Debug \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              2>&1 | tee ios-simulator-test.log
+          else
+            echo "No test target found — skipping xcodebuild test" | tee ios-simulator-test.log
+          fi
+
       - name: Record scaffold blocker
         if: steps.scaffold.outputs.ready != 'true'
         run: |
           mkdir -p harness/output
-          echo '{"status":"blocked","reason":"Missing Podfile and/or xcworkspace — RN iOS scaffold required"}' > harness/output/ios-ci-blocker.json
+          echo '{"status":"blocked","reason":"Missing Podfile and/or xcodeproj — RN iOS scaffold required"}' > harness/output/ios-ci-blocker.json
 
       - name: Swift syntax check (fallback when scaffold missing)
         if: steps.scaffold.outputs.ready != 'true'
@@ -150,6 +171,7 @@ jobs:
           name: prototype-c-ios-build-logs
           path: |
             prototypes/native-bridge/ios-simulator-build.log
+            prototypes/native-bridge/ios-simulator-test.log
             prototypes/native-bridge/ios-swift-syntax.log
             prototypes/native-bridge/harness/output/ios-ci-blocker.json
           if-no-files-found: ignore
