@@ -53,6 +53,12 @@ jobs:
       - name: Run JVM unit tests
         run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
 
+      - name: Print unit test failures
+        if: failure()
+        run: |
+          find app/build/test-results -name '*.xml' -print -exec head -80 {} \; 2>/dev/null || true
+          find app/build/reports/tests -name 'index.html' 2>/dev/null || true
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
