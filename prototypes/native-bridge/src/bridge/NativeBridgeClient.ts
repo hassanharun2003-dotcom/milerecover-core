@@ -34,6 +34,7 @@ export type BridgeConnectionState = 'disconnected' | 'connecting' | 'connected' 
 
 export class NativeBridgeClient {
   private listenerCount = 0;
+  private jsHandledEventIds = new Set<string>();
   connectionState: BridgeConnectionState = 'disconnected';
   lastError: BridgeErrorEnvelope | null = null;
 
@@ -76,6 +77,15 @@ export class NativeBridgeClient {
     return this.listenerCount;
   }
 
+  /** Register an event ID after successful JS handling — required before native ack. */
+  markJsHandled(eventId: string): void {
+    this.jsHandledEventIds.add(eventId);
+  }
+
+  clearJsHandledRegistry(): void {
+    this.jsHandledEventIds.clear();
+  }
+
   async pullPending(batchSize = MAX_BATCH_SIZE): Promise<FetchPendingResult | BridgeErrorEnvelope> {
     if (!this.nativeModule) {
       return {
@@ -112,7 +122,28 @@ export class NativeBridgeClient {
         contractVersion: String(CONTRACT_MAJOR_VERSION),
       };
     }
-    return this.nativeModule.acknowledgeEvents(eventIds);
+    const eligible: string[] = [];
+    const notJsHandled: string[] = [];
+    for (const id of eventIds) {
+      if (this.jsHandledEventIds.has(id)) eligible.push(id);
+      else notJsHandled.push(id);
+    }
+    if (eligible.length === 0) {
+      return {
+        acknowledged: [],
+        alreadyAcknowledged: [],
+        unknown: notJsHandled,
+        failed: [],
+      };
+    }
+    const nativeResult = await this.nativeModule.acknowledgeEvents(eligible);
+    if ('code' in nativeResult) {
+      return nativeResult;
+    }
+    return {
+      ...nativeResult,
+      unknown: [...nativeResult.unknown, ...notJsHandled],
+    };
   }
 
   get jsSupportedVersions(): readonly number[] {

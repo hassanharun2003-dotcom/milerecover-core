@@ -1,0 +1,65 @@
+{
+  "$schema": "description",
+  "version": "1.0.0",
+  "description": "Basic import boundary guard — not a complete architecture verifier.",
+  "packages": {
+    "domain": {
+      "path": "packages/domain",
+      "mayImportFrom": [],
+      "mustNotImportFrom": [
+        "react",
+        "react-native",
+        "apps/",
+        "prototypes/",
+        "@react-native",
+        "axios",
+        "fetch",
+        "sqlite",
+        "realm",
+        "watermelon",
+        "posthog",
+        "sentry",
+        "mapbox"
+      ]
+    },
+    "contracts": {
+      "path": "packages/contracts",
+      "mayImportFrom": ["packages/domain"],
+      "mustNotImportFrom": [
+        "react",
+        "react-native",
+        "apps/",
+        "prototypes/",
+        "axios",
+        "sqlite",
+        "mapbox",
+        "posthog",
+        "sentry"
+      ]
+    },
+    "config": {
+      "path": "packages/config",
+      "mayImportFrom": ["packages/domain"],
+      "mustNotImportFrom": ["apps/", "prototypes/", "react-native"]
+    },
+    "testing": {
+      "path": "packages/testing",
+      "mayImportFrom": ["packages/domain", "packages/contracts"],
+      "mustNotImportFrom": ["apps/mobile", "prototypes/"]
+    },
+    "mobile": {
+      "path": "apps/mobile",
+      "mayImportFrom": ["packages/domain", "packages/contracts", "packages/config"],
+      "mustNotImportFrom": ["prototypes/"]
+    },
+    "backend": {
+      "path": "apps/backend",
+      "mayImportFrom": ["packages/domain", "packages/contracts", "packages/config"],
+      "mustNotImportFrom": ["prototypes/", "react-native"]
+    }
+  },
+  "rules": [
+    "prototypes must not be imported by apps/ or packages/ unless promoted via ADR",
+    "tooling must not contain product domain behavior"
+  ]
+}

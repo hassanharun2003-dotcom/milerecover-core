@@ -1,0 +1,21 @@
+{
+  "objects": {
+    "Trip": {
+      "primaryKey": "id",
+      "mutable": ["status", "purposeNote", "distanceMeters", "updatedAtMs"],
+      "immutable": ["id", "createdAtMs"]
+    },
+    "EvidenceItem": {
+      "primaryKey": "id",
+      "insertOnly": true
+    },
+    "AuditEvent": {
+      "primaryKey": "id",
+      "appendOnly": true
+    },
+    "NativeEventInbox": {
+      "primaryKey": "id",
+      "notes": "Potential conflict with parallel SQLite writer"
+    }
+  }
+}

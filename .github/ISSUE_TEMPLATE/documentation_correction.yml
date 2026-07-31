@@ -1,0 +1,31 @@
+name: Documentation correction
+description: Fix inaccurate or contradictory documentation
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: file
+    attributes:
+      label: Affected document(s)
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is wrong or contradictory?
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: Proposed correction
+
+  - type: checkboxes
+    id: hierarchy
+    attributes:
+      label: Hierarchy check
+      options:
+        - label: Correction does not override Constitution, Trust Rules, PRD, or locked decisions
+          required: true

@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-07-31T21:42:00Z",
+  "purpose": "Repository integrity and baseline-green gate",
+  "previousCheckpoint": {
+    "commit": "aa835a0",
+    "tag": "checkpoint/prototype-c-android-24-of-24",
+    "note": "Incomplete — only Prototype C + lane setup (80 files); Phase 0 docs and Prototype B absent"
+  },
+  "integrityFindings": {
+    "rootPackageJsonMissingCause": "OneDrive dehydration — Phase 0 files were written in prior session but not hydrated locally; first git init only staged Prototype C paths",
+    "firstCheckpointIncomplete": true,
+    "oneDriveReparsePoints": "All top-level directories showed ReparsePoint attributes; 191 files restored from agent transcript",
+    "prototypeBOnDiskBeforeRestore": "Only local.properties (gitignored); 38 source files after transcript hydration",
+    "trackedAtFirstCheckpoint": 80,
+    "restoredFromTranscript": 191
+  },
+  "tests": {
+    "rootCheckAll": "pass",
+    "prototypeCTypecheck": "pass",
+    "prototypeCJest": "39/39 pass",
+    "prototypeCBenchmark": "pass",
+    "deviceValidationEvidence": "24/24 pass exit 0",
+    "validatorSmokeTest": "pass"
+  },
+  "jestFix": {
+    "test": "bridge-client.test.ts — failed JS handling does not acknowledge",
+    "rootCause": "implementation defect — acknowledgeHandled forwarded all IDs to native buffer without JS-handled gate",
+    "fix": "NativeBridgeClient.markJsHandled + filter unregistered IDs to unknown; matches App.tsx pull-then-ack flow"
+  },
+  "deferredWork": [
+    "GitHub remote backup — gh CLI not installed",
+    "GitHub Actions execution — requires remote push",
+    "iOS RN scaffold — out of scope this package",
+    "Full device-validation raw .txt archives remain local-only (gitignored)"
+  ],
+  "mergeReadiness": "ready-for-parallel-build-packages"
+}

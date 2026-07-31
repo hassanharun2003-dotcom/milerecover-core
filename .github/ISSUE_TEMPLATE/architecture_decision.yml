@@ -1,0 +1,45 @@
+name: Architecture decision
+description: Propose an engineering ADR (not a product Decision Log entry)
+title: "[ADR]: "
+labels: ["architecture"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Product decisions belong in [Decision Log](docs/Decision%20Log.md).
+        Engineering decisions belong in [docs/adr/](docs/adr/).
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+    validations:
+      required: true
+
+  - type: textarea
+    id: decision
+    attributes:
+      label: Proposed decision
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation evidence required
+      description: Prototype letter, benchmark, or spike if not yet validated.
+
+  - type: checkboxes
+    id: locked
+    attributes:
+      label: Confirmations
+      options:
+        - label: Does not override Product DNA, Trust Rules, PRD, or locked DEC entries
+          required: true

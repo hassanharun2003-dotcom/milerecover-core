@@ -1,0 +1,87 @@
+name: Technical validation prototype
+description: Propose a disposable validation prototype (TIP §25)
+title: "[Prototype]: "
+labels: ["prototype"]
+body:
+  - type: input
+    id: tip-id
+    attributes:
+      label: TIP prototype letter (A–J)
+      placeholder: e.g. A
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question answered
+    validations:
+      required: true
+
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Minimal scope
+    validations:
+      required: true
+
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria
+    validations:
+      required: true
+
+  - type: textarea
+    id: failure
+    attributes:
+      label: Failure criteria
+    validations:
+      required: true
+
+  - type: textarea
+    id: devices
+    attributes:
+      label: Devices / environments
+    validations:
+      required: true
+
+  - type: textarea
+    id: data
+    attributes:
+      label: Data collected
+      description: Synthetic only unless authorized internal validation protocol applies.
+    validations:
+      required: true
+
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy restrictions
+    validations:
+      required: true
+
+  - type: textarea
+    id: artifact
+    attributes:
+      label: Expected artifact
+    validations:
+      required: true
+
+  - type: dropdown
+    id: disposition
+    attributes:
+      label: Planned disposition
+      options:
+        - Discard after report
+        - Archive read-only
+        - Promote after ADR review
+    validations:
+      required: true

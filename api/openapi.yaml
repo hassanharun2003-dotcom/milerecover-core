@@ -1,0 +1,223 @@
+openapi: 3.1.0
+info:
+  title: MileRecover API
+  version: 1.0.0
+  description: |
+    MileRecover REST API — sync, auth, recovery suggestions, and bounded AI assist.
+
+    **Status:** Starter specification for the operating-system repository.
+    Implementation lives in the application/backend repository when development begins.
+
+    Philosophy: offline-first capture on device; API syncs evidence — never invents mileage.
+
+    Full narrative spec: ../architecture/API.md
+  contact:
+    name: MileRecover Engineering
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.staging.milerecover.com/v1
+    description: Staging
+  - url: https://api.milerecover.com/v1
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Sync
+    description: Bidirectional offline-first sync
+  - name: Trips
+    description: Trip validation (sync preferred over direct CRUD)
+  - name: Recovery
+    description: Recovery suggestions — user must accept to create trips
+  - name: AI
+    description: Assist-only endpoints; cannot create trips
+  - name: User
+    description: Profile, data export, deletion
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register with email
+      security: []
+      responses:
+        '201':
+          description: Registration initiated
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      security: []
+      responses:
+        '200':
+          description: Tokens returned
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      responses:
+        '200':
+          description: New access token
+
+  /sync/push:
+    post:
+      tags: [Sync]
+      summary: Upload mutation batch from client
+      description: |
+        Client pushes ordered mutations. Server validates Trust Rules (e.g. rejects ai-only trips).
+      responses:
+        '200':
+          description: Mutations applied or conflicts returned
+        '422':
+          description: Trust rule violation (TRUST_RULE_VIOLATION)
+
+  /sync/pull:
+    get:
+      tags: [Sync]
+      summary: Download delta since cursor
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Change set and new cursor
+
+  /trips/validate:
+    post:
+      tags: [Trips]
+      summary: Pre-flight Trust Rules validation
+      responses:
+        '200':
+          description: Valid
+        '422':
+          description: Invalid — see error code
+
+  /recovery/suggestions:
+    get:
+      tags: [Recovery]
+      summary: List pending recovery suggestions
+      description: Suggestions are not trips until user accepts each entry.
+      responses:
+        '200':
+          description: Suggestion list
+
+  /recovery/suggestions/{id}/accept:
+    post:
+      tags: [Recovery]
+      summary: Accept one recovery suggestion
+      description: Creates trip with source=recovered; requires user confirmation timestamp.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Trip created from suggestion
+
+  /recovery/suggestions/{id}/dismiss:
+    post:
+      tags: [Recovery]
+      summary: Dismiss recovery suggestion permanently
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Dismissed
+
+  /ai/purpose/suggest:
+    post:
+      tags: [AI]
+      summary: Suggest business purpose text (assist only)
+      description: |
+        Returns provisional suggestion. User must confirm before export.
+        AI cannot create trips.
+      responses:
+        '200':
+          description: Suggestion with model version and disclaimer
+
+  /user/me:
+    get:
+      tags: [User]
+      summary: Current user profile and subscription
+      responses:
+        '200':
+          description: User profile
+    delete:
+      tags: [User]
+      summary: Request account deletion
+      responses:
+        '202':
+          description: Deletion scheduled
+
+  /user/data-export:
+    post:
+      tags: [User]
+      summary: Request GDPR/CCPA data export
+      responses:
+        '202':
+          description: Export job queued
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - TRUST_RULE_VIOLATION
+                - SYNC_CONFLICT
+                - RATE_LIMITED
+                - SUBSCRIPTION_REQUIRED
+            message:
+              type: string
+            details:
+              type: object
+
+  parameters:
+    DeviceId:
+      name: X-Device-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AppVersion:
+      name: X-App-Version
+      in: header
+      schema:
+        type: string
+    Platform:
+      name: X-Platform
+      in: header
+      schema:
+        type: string
+        enum: [ios, android]

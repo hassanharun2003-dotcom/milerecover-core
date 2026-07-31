@@ -1,0 +1,67 @@
+{
+  "candidate": "sqlite-typed",
+  "engine": "sql.js (SQLite WASM — structural stand-in for typed SQL layer + SQLCipher hook)",
+  "measuredAt": "2026-07-31T12:33:57.847Z",
+  "status": "measured",
+  "scenarios": {
+    "txn_trip_evidence_audit": {
+      "status": "measured",
+      "stats": {
+        "count": 20,
+        "minMs": 0.5783999999999878,
+        "maxMs": 14.631599999999992,
+        "avgMs": 2.220399999999991,
+        "p50Ms": 1.0570000000000164,
+        "p95Ms": 14.631599999999992
+      },
+      "unit": "ms"
+    },
+    "native_inbox_burst": {
+      "status": "measured",
+      "insert500Ms": 63.32479999999998,
+      "pendingRead50Ms": 1.6884999999999764,
+      "unit": "ms"
+    },
+    "review_queue_read": {
+      "status": "measured",
+      "durationMs": 1.4536000000000513,
+      "rowCount": 40,
+      "unit": "ms"
+    },
+    "audit_trail_query": {
+      "status": "measured",
+      "durationMs": 0.5943999999999505,
+      "unit": "ms"
+    },
+    "migration_v1_v2": {
+      "status": "measured",
+      "durationMs": 1.988399999999956,
+      "rowCountBefore": 50,
+      "rowCountAfter": 50,
+      "migration": {
+        "skipped": false
+      },
+      "sampleServerVersion": 1,
+      "unit": "ms"
+    },
+    "crash_rollback": {
+      "status": "measured",
+      "rolledBack": true,
+      "orphanTrips": 0,
+      "pass": true
+    },
+    "encryption_compatibility": {
+      "status": "pending",
+      "note": "SQLCipher native spike required on Android/iOS — not measured in sql.js harness"
+    },
+    "rn_observation_latency": {
+      "status": "pending",
+      "note": "Requires React Native host with typed repository or WatermelonDB observer"
+    }
+  },
+  "notes": [
+    "sql.js validates SQL transaction semantics, not native mobile performance.",
+    "Encryption measured separately — SQLCipher requires native mobile spike (pending).",
+    "React Native bridge latency not measured in this harness."
+  ]
+}

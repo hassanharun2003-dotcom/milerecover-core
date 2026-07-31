@@ -1,0 +1,49 @@
+name: Feature implementation
+description: Propose or track a product feature (requires readiness criteria)
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: prd
+    attributes:
+      label: PRD reference
+      description: Link to PRD section or user story
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Subscription tier
+      options:
+        - Free
+        - Plus
+        - Pro
+        - Rescue (one-time)
+        - Cross-tier / platform
+    validations:
+      required: true
+
+  - type: textarea
+    id: offline
+    attributes:
+      label: Offline behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: ready
+    attributes:
+      label: Definition of Ready (TIP §29)
+      options:
+        - label: Trust Rules impact assessed
+        - label: Privacy and security impact assessed
+        - label: Dependencies and phase prerequisites identified
+        - label: No locked product decision contradicted

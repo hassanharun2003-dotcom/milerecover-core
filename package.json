@@ -1,0 +1,17 @@
+{
+  "name": "milerecover",
+  "version": "0.0.0-phase0",
+  "private": true,
+  "description": "MileRecover monorepo — Phase 0 engineering foundations. No production application builds yet.",
+  "scripts": {
+    "check:docs": "node tooling/scripts/check-required-files.js",
+    "check:boundaries": "node tooling/scripts/check-boundaries.js",
+    "check:sensitive-files": "node tooling/scripts/check-sensitive-files.js",
+    "check:links": "node tooling/scripts/check-doc-links.js",
+    "check:all": "node tooling/scripts/check-all.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "UNLICENSED"
+}

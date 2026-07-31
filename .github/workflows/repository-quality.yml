@@ -1,0 +1,54 @@
+name: Repository quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: repository-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  foundation-checks:
+    name: Phase 0 foundation checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify foundation files exist
+        run: node tooling/scripts/check-required-files.js
+
+      - name: Boundary guard
+        run: node tooling/scripts/check-boundaries.js
+
+      - name: Sensitive filename guard
+        run: node tooling/scripts/check-sensitive-files.js
+
+      - name: Documentation links
+        run: node tooling/scripts/check-doc-links.js
+
+      - name: Validate package.json
+        run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json OK')"
+
+      - name: Validate boundary rules schema
+        run: node -e "JSON.parse(require('fs').readFileSync('tooling/schemas/boundary-rules.json','utf8')); console.log('boundary-rules.json OK')"
+
+      - name: Confirm no dependency installation
+        run: |
+          test ! -d node_modules
+          test ! -f pnpm-lock.yaml
+          test ! -f package-lock.json
+          test ! -f yarn.lock
+          echo "No lockfiles or node_modules (Phase 0 policy OK)"

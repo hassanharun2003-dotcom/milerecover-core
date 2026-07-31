@@ -61,6 +61,9 @@ prototypes/android-tracking/**/*.db
 prototypes/android-tracking/**/*.db-*
 prototypes/android-tracking/**/device-evidence/
 prototypes/android-tracking/**/raw-diagnostics/
+prototypes/android-tracking/**/sensitive-export/
+prototypes/android-tracking/**/research-export/
+prototypes/android-tracking/local.properties
 
 # Harness generated output (regenerable)
 prototypes/native-bridge/harness/output/

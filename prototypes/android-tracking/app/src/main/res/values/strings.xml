@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">MR Proto B — Android Tracking</string>
+  <string name="prototype_warning">Technical validation prototype. Not MileRecover production software.</string>
+  <string name="notification_channel_name">Prototype location validation</string>
+  <string name="notification_title">MileRecover Prototype B — location validation active</string>
+  <string name="notification_text">Foreground service collecting calibration-only location evidence.</string>
+</resources>

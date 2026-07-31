@@ -1,0 +1,42 @@
+name: Security concern
+description: Report a security or privacy issue (no secrets in the issue)
+title: "[Security]: "
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do **not** paste secrets, tokens, or real user data.
+        See [SECURITY.md](../SECURITY.md) for reporting guidance.
+
+  - type: textarea
+    id: concern
+    attributes:
+      label: Concern summary
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Estimated severity
+      options:
+        - Critical — active exposure or data leak risk
+        - High — exploitable with meaningful impact
+        - Medium — defense-in-depth gap
+        - Low — hardening suggestion
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact (synthetic example only)
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: No secret material included in this issue
+          required: true

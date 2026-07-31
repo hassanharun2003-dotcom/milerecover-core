@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "description": "Prototype D benchmark harness — local-database validation only",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "benchmark": "node run-all.mjs",
+    "benchmark:sqlite": "node candidates/sqlite-typed/benchmark.mjs",
+    "generate:fixtures": "node ../fixtures/generate-synthetic-dataset.mjs"
+  },
+  "dependencies": {
+    "sql.js": "1.10.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

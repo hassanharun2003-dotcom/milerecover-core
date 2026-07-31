@@ -1,0 +1,25 @@
+# MileRecover repository formatting — Phase 0
+# Native Swift/Kotlin/Android Gradle may use platform-specific formatters later.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{json,yaml,yml,md,mdx}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{swift,kt,kts,gradle}]
+# Platform tools own formatting; do not force two-space here
+indent_style = unset
+indent_size = unset
+
+[Makefile]
+indent_style = tab

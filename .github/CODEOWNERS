@@ -1,0 +1,33 @@
+# CODEOWNERS — replace placeholders before external collaboration
+#
+# GitHub CODEOWNERS requires @org/team or @username handles.
+# Do not invent GitHub usernames. Assign real owners before opening the repo externally.
+#
+# Conceptual ownership map:
+#
+# | Area                         | Owner role              |
+# |------------------------------|-------------------------|
+# | apps/mobile (shared RN)      | Mobile Engineering Lead |
+# | Native iOS tracking          | iOS Native Lead         |
+# | Native Android tracking      | Android Native Lead     |
+# | apps/backend                 | Backend Lead            |
+# | packages/contracts           | Mobile + Backend Leads  |
+# | packages/domain              | Mobile Engineering Lead |
+# | Security / privacy docs      | Security + Founders     |
+# | docs/ (product)              | Product / Founders      |
+# | architecture/                | Engineering / Architecture |
+# | .github/workflows            | Engineering / Release   |
+# | Subscription / entitlement   | Backend + Product       |
+# | planning/Technical Implementation Plan | Engineering Lead |
+#
+# Example (uncomment and replace when handles exist):
+# /apps/mobile/                    @milerecover/mobile-leads
+# /prototypes/ios-tracking/        @milerecover/ios-native
+# /prototypes/android-tracking/    @milerecover/android-native
+# /apps/backend/                   @milerecover/backend
+# /packages/contracts/             @milerecover/mobile-leads @milerecover/backend
+# /packages/domain/                @milerecover/mobile-leads
+# /docs/                           @milerecover/product
+# /architecture/                   @milerecover/architecture
+# /SECURITY.md                     @milerecover/security
+# /.github/                        @milerecover/release-ops

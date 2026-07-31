@@ -34,6 +34,7 @@ describe('bridge behavior', () => {
       const handled = handler.handle(pull.events[0]);
       expect(handled.ok).toBe(true);
       if (handled.ok) {
+        client.markJsHandled(handled.result.event.eventId);
         const ack = await client.acknowledgeHandled([handled.result.event.eventId]);
         expect('acknowledged' in ack && ack.acknowledged.length).toBe(1);
       }
@@ -52,7 +53,22 @@ describe('bridge behavior', () => {
       expect(handled.ok).toBe(false);
       const ack = await client.acknowledgeHandled([e.eventId]);
       expect('unknown' in ack && ack.unknown).toContain(e.eventId);
+      expect('acknowledged' in ack && ack.acknowledged).toEqual([]);
     }
+  });
+
+  it('markJsHandled is required before native acknowledgment', async () => {
+    const buffer = new PrototypeEventBuffer();
+    const e = createSyntheticEvent({ sessionId: 's', sequenceNumber: 2 });
+    buffer.insert(e);
+    const client = new NativeBridgeClient(createMockNativeModule(buffer));
+    const pull = await client.pullPending(10);
+    expect('events' in pull && pull.events.length).toBe(1);
+    const ackWithoutMark = await client.acknowledgeHandled([e.eventId]);
+    expect('unknown' in ackWithoutMark && ackWithoutMark.unknown).toContain(e.eventId);
+    client.markJsHandled(e.eventId);
+    const ackWithMark = await client.acknowledgeHandled([e.eventId]);
+    expect('acknowledged' in ackWithMark && ackWithMark.acknowledged).toContain(e.eventId);
   });
 
   it('JS restart simulation clears handler idempotency only', async () => {

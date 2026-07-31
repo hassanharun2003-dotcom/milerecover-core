@@ -1,0 +1,52 @@
+[
+  {
+    "id": "txn_trip_evidence_audit",
+    "description": "Single transaction: insert trip + immutable evidence + append-only audit",
+    "success": "All three rows present or none after rollback on forced failure",
+    "candidates": ["sqlite-typed", "native-sqlite-kotlin"]
+  },
+  {
+    "id": "native_inbox_burst",
+    "description": "Bulk insert 500 native inbox events simulating GPS batch capture",
+    "parameters": { "rowCount": 500 },
+    "success": "All rows inserted; pending count query < 200ms on reference device (pending measurement)",
+    "candidates": ["sqlite-typed", "native-sqlite-kotlin"]
+  },
+  {
+    "id": "review_queue_read",
+    "description": "Read pending trips for Review tab simulation",
+    "parameters": { "limit": 50 },
+    "success": "Query returns pending trips ordered by updated_at_ms",
+    "candidates": ["sqlite-typed", "native-sqlite-kotlin", "watermelon", "realm"]
+  },
+  {
+    "id": "audit_trail_query",
+    "description": "Fetch append-only audit history for one trip entity",
+    "success": "All audit events for entity_id returned in created_at order",
+    "candidates": ["sqlite-typed", "native-sqlite-kotlin", "watermelon", "realm"]
+  },
+  {
+    "id": "migration_v1_v2",
+    "description": "Add server_version column to trips without data loss",
+    "success": "Row count unchanged; new column readable",
+    "candidates": ["sqlite-typed", "native-sqlite-kotlin"]
+  },
+  {
+    "id": "crash_rollback",
+    "description": "Simulate incomplete transaction — database must not partial-commit trip without audit",
+    "success": "Rollback leaves zero orphan evidence rows",
+    "candidates": ["sqlite-typed", "native-sqlite-kotlin"]
+  },
+  {
+    "id": "encryption_compatibility",
+    "description": "Document/implement encryption wrapper compatibility per candidate",
+    "success": "SQLCipher or equivalent documented with spike status",
+    "candidates": ["sqlite-typed", "watermelon", "realm", "native-sqlite-kotlin", "native-sqlite-swift"]
+  },
+  {
+    "id": "rn_observation_latency",
+    "description": "React Native read after native write",
+    "success": "Pending — requires RN host (WatermelonDB / typed repo / Realm)",
+    "candidates": ["watermelon", "realm", "sqlite-typed"]
+  }
+]

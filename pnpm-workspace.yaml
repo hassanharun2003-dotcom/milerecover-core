@@ -1,0 +1,7 @@
+# MileRecover workspace — Phase 0
+# Engineering tooling choice (see docs/adr/0001-monorepo-workspace.md).
+# Packages are placeholders until dependencies are intentionally added.
+
+packages:
+  - "apps/*"
+  - "packages/*"

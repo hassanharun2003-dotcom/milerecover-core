@@ -1,0 +1,47 @@
+# Text normalization
+* text=auto eol=lf
+
+# Markdown and docs
+*.md text diff=markdown
+*.mdx text
+
+# Config
+*.json text
+*.yaml text
+*.yml text
+*.toml text
+*.editorconfig text
+*.gitignore text
+*.gitattributes text
+
+# Scripts
+*.js text
+*.mjs text
+*.cjs text
+*.sh text
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+
+# Native / mobile binaries
+*.apk binary
+*.aab binary
+*.ipa binary
+*.keystore binary
+*.mobileprovision binary
+
+# Generated markers (when introduced)
+*.generated.js linguist-generated=true
+*.generated.ts linguist-generated=true

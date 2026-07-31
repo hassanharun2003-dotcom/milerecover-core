@@ -1,0 +1,265 @@
+{
+  "disclaimer": "Synthetic data only. No real locations. controlled_evidence omitted in committed sample.",
+  "tripCount": 5,
+  "trips": [
+    {
+      "id": "34d3a854-f479-4e8b-809d-a83c525daa03",
+      "status": "pending",
+      "distance_meters": 1000,
+      "purpose_note": "Synthetic purpose 0",
+      "created_at_ms": 1785499367084,
+      "updated_at_ms": 1785499367084,
+      "deleted_at_ms": null
+    },
+    {
+      "id": "b6b40436-94bb-4606-a608-c4c27d1c99b7",
+      "status": "confirmed",
+      "distance_meters": 1017,
+      "purpose_note": "Synthetic purpose 1",
+      "created_at_ms": 1785499307086,
+      "updated_at_ms": 1785499337086,
+      "deleted_at_ms": null
+    },
+    {
+      "id": "460abb25-78ee-416f-aec4-cc757664e4fe",
+      "status": "confirmed",
+      "distance_meters": 1034,
+      "purpose_note": "Synthetic purpose 2",
+      "created_at_ms": 1785499247086,
+      "updated_at_ms": 1785499307086,
+      "deleted_at_ms": null
+    },
+    {
+      "id": "1a59b71a-37fc-4b24-a49f-4a9fed988fcc",
+      "status": "confirmed",
+      "distance_meters": 1051,
+      "purpose_note": "Synthetic purpose 3",
+      "created_at_ms": 1785499187086,
+      "updated_at_ms": 1785499277086,
+      "deleted_at_ms": null
+    },
+    {
+      "id": "e79cd7e7-b8d3-4078-909a-ece902fb61a1",
+      "status": "confirmed",
+      "distance_meters": 1068,
+      "purpose_note": "Synthetic purpose 4",
+      "created_at_ms": 1785499127086,
+      "updated_at_ms": 1785499247086,
+      "deleted_at_ms": null
+    }
+  ],
+  "evidence": [
+    {
+      "id": "fa63b7f7-ce54-463c-8ba9-e1cdae1cc327",
+      "trip_id": "34d3a854-f479-4e8b-809d-a83c525daa03",
+      "evidence_type": "location_batch",
+      "payload_json": {
+        "type": "synthetic_location_batch",
+        "point": {
+          "lat": 10,
+          "lng": 10,
+          "label": "SYNTHETIC_POINT_0"
+        },
+        "accuracy_m": 12
+      },
+      "immutable_hash": "27c56c7ee55bbda0",
+      "created_at_ms": 1785499367086
+    },
+    {
+      "id": "eeb981b5-8204-494e-ae91-0e3920607ed7",
+      "trip_id": "b6b40436-94bb-4606-a608-c4c27d1c99b7",
+      "evidence_type": "location_batch",
+      "payload_json": {
+        "type": "synthetic_location_batch",
+        "point": {
+          "lat": 10.001,
+          "lng": 10.001,
+          "label": "SYNTHETIC_POINT_1"
+        },
+        "accuracy_m": 13
+      },
+      "immutable_hash": "9feea0c816944595",
+      "created_at_ms": 1785499367086
+    },
+    {
+      "id": "59adb618-ba69-4d33-bad0-1d7082fd3592",
+      "trip_id": "460abb25-78ee-416f-aec4-cc757664e4fe",
+      "evidence_type": "location_batch",
+      "payload_json": {
+        "type": "synthetic_location_batch",
+        "point": {
+          "lat": 10.002,
+          "lng": 10.002,
+          "label": "SYNTHETIC_POINT_2"
+        },
+        "accuracy_m": 14
+      },
+      "immutable_hash": "3ff70f2caf05fddd",
+      "created_at_ms": 1785499367086
+    },
+    {
+      "id": "549a130e-534f-46d1-9226-3dc739e0a46c",
+      "trip_id": "1a59b71a-37fc-4b24-a49f-4a9fed988fcc",
+      "evidence_type": "location_batch",
+      "payload_json": {
+        "type": "synthetic_location_batch",
+        "point": {
+          "lat": 10.003,
+          "lng": 10.003,
+          "label": "SYNTHETIC_POINT_3"
+        },
+        "accuracy_m": 15
+      },
+      "immutable_hash": "e058368bf0976cf5",
+      "created_at_ms": 1785499367086
+    },
+    {
+      "id": "262218db-d812-42e6-90e3-36771f385683",
+      "trip_id": "e79cd7e7-b8d3-4078-909a-ece902fb61a1",
+      "evidence_type": "location_batch",
+      "payload_json": {
+        "type": "synthetic_location_batch",
+        "point": {
+          "lat": 10.004,
+          "lng": 10.004,
+          "label": "SYNTHETIC_POINT_4"
+        },
+        "accuracy_m": 16
+      },
+      "immutable_hash": "5810f2ef4278f066",
+      "created_at_ms": 1785499367086
+    }
+  ],
+  "inbox": [
+    {
+      "id": "623c912a-92b7-455a-8919-2793ec7eeea9",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 1,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "99b0d29c-5b25-414e-94e7-b64a7bfb9cbf",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 2,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "43004b13-0a5e-4ac6-8f2d-0a7935fe30d9",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 3,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "e05a857b-ac48-47af-a5ca-6afc199fdd4e",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 4,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "69ff0351-1091-46dc-9e8f-a376b7a29039",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 5,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "7087ff46-fd20-4dca-9ac3-6afb03a1d045",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 6,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "d21675a4-85dc-4d81-b4f6-97b0c54f848e",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 7,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "d4f95b7e-9f19-4a70-89a7-a5f6d20d6f2b",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 8,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "b528f498-f625-486b-b694-64e08b8029dc",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 9,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "PENDING",
+      "persisted_at_ms": 1785499367087
+    },
+    {
+      "id": "3692d626-e977-4211-acca-6824c76bd1e0",
+      "session_id": "c229288b-666f-4346-a833-e59edacd83e3",
+      "sequence_number": 10,
+      "event_type": "location_sample_recorded",
+      "sanitized_metadata_json": {
+        "lat_bucket": "bucket_1000",
+        "accuracy_m": "12.0"
+      },
+      "controlled_evidence_json": "[OMITTED — generated locally only]",
+      "processing_state": "ACKNOWLEDGED",
+      "persisted_at_ms": 1785499367087
+    }
+  ]
+}
