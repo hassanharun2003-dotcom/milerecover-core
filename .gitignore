@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Secrets and local credentials
+.env
+.env.*
+*.pem
+*.p12
+*.mobileprovision
+**/local.properties
+**/keystore.properties
+**/google-services.json
+**/GoogleService-Info.plist
+secrets/
+credentials/
+
+# Device-specific / session artifacts (never commit)
+**/wireless-adb-session.json
+**/adb-pairing.json
+**/*pairing-code*
+**/*device-serial-cache*
+
+# Build outputs
+**/build/
+**/dist/
+**/.gradle/
+**/.cxx/
+**/DerivedData/
+**/*.apk
+**/*.aab
+**/*.ipa
+**/*.dSYM.zip
+**/intermediates/
+**/outputs/apk/
+**/outputs/bundle/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# React Native / Metro
+.metro-health-check*
+*.log
+npm-debug.log*
+
+# Prototype device validation captures (keep machine-readable summary only)
+prototypes/native-bridge/device-validation-*/**
+!prototypes/native-bridge/device-validation-20260731-134617/
+prototypes/native-bridge/device-validation-20260731-134617/*
+!prototypes/native-bridge/device-validation-20260731-134617/validation-summary.json
+
+# Prototype B device DB and raw diagnostics
+prototypes/android-tracking/**/*.db
+prototypes/android-tracking/**/*.db-*
+prototypes/android-tracking/**/device-evidence/
+prototypes/android-tracking/**/raw-diagnostics/
+
+# Harness generated output (regenerable)
+prototypes/native-bridge/harness/output/
+
+# Lane merge reports (local)
+tooling/lanes/reports/
+
+# OneDrive / OS
+~$*
+*.tmp
+
+# Transcript extraction scratch
+.transcript-extract/

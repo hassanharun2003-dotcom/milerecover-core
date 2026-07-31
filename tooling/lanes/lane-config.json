@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "checkpointBranch": "milestone/android-validation",
+  "checkpointTag": "checkpoint/prototype-c-android-24-of-24",
+  "contractVersion": {
+    "bridgeApi": "1.0.0-prototype-c",
+    "schemaMajor": 1
+  },
+  "lanes": {
+    "android": {
+      "branch": "milestone/android-validation",
+      "allowedPaths": [
+        "prototypes/android-tracking/**",
+        "prototypes/native-bridge/android/**",
+        "prototypes/native-bridge/scripts/dev-android*.ps1",
+        "prototypes/native-bridge/scripts/run-device*.ps1",
+        "prototypes/native-bridge/scripts/evaluate-device-evidence.ps1",
+        "prototypes/native-bridge/scripts/test-device-validation-lib.ps1",
+        "prototypes/native-bridge/scripts/stop-dev-android.ps1",
+        "prototypes/native-bridge/ANDROID_*.md",
+        "prototypes/native-bridge/device-validation-20260731-134617/validation-summary.json",
+        ".github/workflows/prototype-android*.yml"
+      ],
+      "requiredTests": [
+        "prototypes/native-bridge:npm run typecheck",
+        "prototypes/native-bridge:powershell scripts/test-device-validation-lib.ps1"
+      ]
+    },
+    "ios": {
+      "branch": "milestone/ios-readiness",
+      "allowedPaths": [
+        "prototypes/native-bridge/ios/**",
+        "prototypes/ios-tracking/**",
+        "prototypes/native-bridge/scripts/ios/**",
+        "prototypes/native-bridge/IOS_*.md",
+        ".github/workflows/prototype-c-ios-simulator.yml"
+      ],
+      "requiredTests": [
+        "prototypes/native-bridge:npm run typecheck",
+        "prototypes/native-bridge:npm run test:contract"
+      ]
+    },
+    "shared": {
+      "branch": "milestone/shared-contracts",
+      "allowedPaths": [
+        "prototypes/native-bridge/contract/**",
+        "prototypes/native-bridge/src/**",
+        "prototypes/native-bridge/fixtures/**",
+        "prototypes/native-bridge/__tests__/**",
+        "prototypes/native-bridge/harness/**",
+        "prototypes/native-bridge/*.md",
+        "prototypes/native-bridge/package.json",
+        "prototypes/native-bridge/package-lock.json",
+        "prototypes/native-bridge/tsconfig.json",
+        "prototypes/native-bridge/jest.config.js",
+        "prototypes/native-bridge/babel.config.js",
+        "prototypes/native-bridge/App.tsx",
+        "prototypes/native-bridge/index.js",
+        "planning/Parallel Mobile Development Plan.md",
+        "planning/Lane Ownership Boundaries.md",
+        "tooling/lanes/**"
+      ],
+      "requiredTests": [
+        "prototypes/native-bridge:npm run typecheck",
+        "prototypes/native-bridge:npm test"
+      ]
+    }
+  },
+  "forbiddenPaths": [
+    "apps/**",
+    "packages/**",
+    "api/**",
+    "docs/Product DNA/**",
+    "docs/PRD/**",
+    "docs/pricing/**",
+    "docs/subscriptions/**",
+    "design/**"
+  ],
+  "forbiddenPatterns": [
+    "192\\.168\\.\\d+\\.\\d+:\\d+",
+    "pairing.?code",
+    "BEGIN (RSA |EC )?PRIVATE KEY",
+    "api[_-]?key\\s*=",
+    "password\\s*=\\s*['\"][^'\"]+['\"]"
+  ]
+}

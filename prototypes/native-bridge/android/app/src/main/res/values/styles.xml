@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">MR Proto Bridge C</string>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar" />
+</resources>

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "jsx": "react-native",
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@contract/*": ["contract/*"]
+    }
+  },
+  "include": ["contract/**/*", "src/**/*", "App.tsx", "__tests__/**/*"],
+  "exclude": ["node_modules", "android", "ios", "harness"]
+}

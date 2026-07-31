@@ -1,0 +1,226 @@
+﻿{
+    "generatedAt":  "2026-07-31T21:34:40.6330677Z",
+    "runMode":  "evidence-only",
+    "evidenceDir":  "C:\\Users\\User\\OneDrive\\Documents\\milerecover-core\\prototypes\\native-bridge\\device-validation-20260731-134617",
+    "scenarioCount":  24,
+    "passed":  24,
+    "failed":  0,
+    "scenarios":  [
+                      {
+                          "scenario":  1,
+                          "name":  "App installs and launches",
+                          "status":  "pass",
+                          "expectedResult":  "Validation UI loaded with Connection: connected",
+                          "observedResult":  "Connection: connected; banner present",
+                          "evidenceFile":  "Final_refresh_stats.txt",
+                          "evidenceSource":  "uiautomator"
+                      },
+                      {
+                          "scenario":  2,
+                          "name":  "Empty-buffer fetch",
+                          "status":  "pass",
+                          "expectedResult":  "Fetch without ack: fetched 0, hasMore=false, seq=[]",
+                          "observedResult":  "log: Fetch without ack: fetched 0",
+                          "evidenceFile":  "Empty-buffer_fetch.txt + Five_remain_pending.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  3,
+                          "name":  "Generate one synthetic event",
+                          "status":  "pass",
+                          "expectedResult":  "pendingCount=1 after generate",
+                          "observedResult":  "pendingCount=1",
+                          "evidenceFile":  "Generate_1_event.txt",
+                          "evidenceSource":  "stats"
+                      },
+                      {
+                          "scenario":  4,
+                          "name":  "Fetch pending event",
+                          "status":  "pass",
+                          "expectedResult":  "Fetch + ack (full): fetched 1, seq=[1]",
+                          "observedResult":  "log: Fetch + ack (full): fetched 1",
+                          "evidenceFile":  "Fetch_and_ack_one.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  5,
+                          "name":  "Verify contract version and sequence",
+                          "status":  "pass",
+                          "expectedResult":  "Contract verify PASS â€” API 1.0.0-prototype-c, major 1",
+                          "observedResult":  "log: Contract verify PASS",
+                          "evidenceFile":  "Contract_header.txt + Fetch_and_ack_one.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  6,
+                          "name":  "Acknowledge one event",
+                          "status":  "pass",
+                          "expectedResult":  "Auto-ack all fetched: ack=1",
+                          "observedResult":  "log: ack=1",
+                          "evidenceFile":  "Fetch_and_ack_one.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  7,
+                          "name":  "Verify pending count becomes zero",
+                          "status":  "pass",
+                          "expectedResult":  "pendingCount=0 after single-event ack",
+                          "observedResult":  "pendingCount=0",
+                          "evidenceFile":  "Pending_zero_after_ack.txt",
+                          "evidenceSource":  "stats"
+                      },
+                      {
+                          "scenario":  8,
+                          "name":  "Generate ten-event burst",
+                          "status":  "pass",
+                          "expectedResult":  "pendingCount=10 after generate exactly 10",
+                          "observedResult":  "pendingCount=10",
+                          "evidenceFile":  "Generate_exactly_10.txt",
+                          "evidenceSource":  "stats"
+                      },
+                      {
+                          "scenario":  9,
+                          "name":  "Fetch in ordered batch",
+                          "status":  "pass",
+                          "expectedResult":  "Fetch without ack: fetched 10, seq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]",
+                          "observedResult":  "log: fetched 10 ordered seq=[1..10]",
+                          "evidenceFile":  "Ordered_fetch_ten.txt + Duplicate_counter.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  10,
+                          "name":  "Partially acknowledge five",
+                          "status":  "pass",
+                          "expectedResult":  "Ack first 5: ack=5",
+                          "observedResult":  "log: Ack first 5: ack=5",
+                          "evidenceFile":  "Ack_first_5.txt + Duplicate_counter.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  11,
+                          "name":  "Verify five remain pending",
+                          "status":  "pass",
+                          "expectedResult":  "acknowledgedCount=5 with Last fetch cached: 10 events (5 unacked in cache)",
+                          "observedResult":  "acknowledgedCount=5; Last fetch cached: 10 events",
+                          "evidenceFile":  "Five_remain_pending.txt + Ack_first_5.txt",
+                          "evidenceSource":  "stats+uiautomator"
+                      },
+                      {
+                          "scenario":  12,
+                          "name":  "Acknowledge remaining five",
+                          "status":  "pass",
+                          "expectedResult":  "Ack remaining 5: ack=5; final acknowledgedCount=10, pendingCount=0",
+                          "observedResult":  "stats: pendingCount=0 acknowledgedCount=10; log: Ack remaining 5: ack=5",
+                          "evidenceFile":  "All_ten_acked.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "stats+logcat"
+                      },
+                      {
+                          "scenario":  13,
+                          "name":  "Generate events while JS observation is stopped",
+                          "status":  "pass",
+                          "expectedResult":  "Push observation stopped; pendingCount=10 after generate",
+                          "observedResult":  "pendingCount=10; observation stopped",
+                          "evidenceFile":  "Generate_10_while_stopped.txt + Stop_push_observation.txt",
+                          "evidenceSource":  "stats+uiautomator"
+                      },
+                      {
+                          "scenario":  14,
+                          "name":  "Restart observation",
+                          "status":  "pass",
+                          "expectedResult":  "Push observation: ACTIVE",
+                          "observedResult":  "log: Push observation: ACTIVE",
+                          "evidenceFile":  "Restart_push_observation.txt + Duplicate_counter.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  15,
+                          "name":  "Confirm events remain available through pull",
+                          "status":  "pass",
+                          "expectedResult":  "Fetch without ack: fetched 10 after observation restart",
+                          "observedResult":  "log: Fetch without ack: fetched 10",
+                          "evidenceFile":  "Pull_without_push.txt + Duplicate_counter.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  16,
+                          "name":  "Simulate JavaScript reload",
+                          "status":  "pass",
+                          "expectedResult":  "JS handler state cleared â€” native buffer unchanged",
+                          "observedResult":  "log: JS handler state cleared",
+                          "evidenceFile":  "Simulate_JS_restart.txt + Duplicate_counter.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  17,
+                          "name":  "Confirm unacknowledged events replay",
+                          "status":  "pass",
+                          "expectedResult":  "Replay pull log or ack-able cache message",
+                          "observedResult":  "log: replay pull/cache path confirmed",
+                          "evidenceFile":  "Replay_unacknowledged.txt + Duplicate_counter.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  18,
+                          "name":  "Simulate duplicate insertion",
+                          "status":  "pass",
+                          "expectedResult":  "Duplicate simulation: rejected=true OR duplicateRejectedCount incremented",
+                          "observedResult":  "log: Duplicate simulation: rejected=true",
+                          "evidenceFile":  "Duplicate_insertion.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  19,
+                          "name":  "Confirm duplicate is rejected or visibly counted",
+                          "status":  "pass",
+                          "expectedResult":  "duplicateRejectedCount\u003e=1",
+                          "observedResult":  "duplicateRejectedCount=1",
+                          "evidenceFile":  "Duplicate_counter.txt",
+                          "evidenceSource":  "stats"
+                      },
+                      {
+                          "scenario":  20,
+                          "name":  "Simulate unsupported schema",
+                          "status":  "pass",
+                          "expectedResult":  "Unsupported schema: rejected=true OR rejectedCount incremented",
+                          "observedResult":  "log: Unsupported schema: rejected=true",
+                          "evidenceFile":  "Unsupported_schema.txt + Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat"
+                      },
+                      {
+                          "scenario":  21,
+                          "name":  "Confirm event is rejected and not automatically acknowledged",
+                          "status":  "pass",
+                          "expectedResult":  "rejectedCount\u003e=1; pendingCount\u003e=1 (rejection not auto-acked)",
+                          "observedResult":  "rejectedCount=1 pendingCount=1",
+                          "evidenceFile":  "Rejected_not_acked.txt",
+                          "evidenceSource":  "stats"
+                      },
+                      {
+                          "scenario":  22,
+                          "name":  "Export sanitized diagnostics",
+                          "status":  "pass",
+                          "expectedResult":  "Diagnostics exported with privacy PASS",
+                          "observedResult":  "Diagnostics exported",
+                          "evidenceFile":  "Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "logcat+uiautomator"
+                      },
+                      {
+                          "scenario":  23,
+                          "name":  "Confirm no coordinate fields appear",
+                          "status":  "pass",
+                          "expectedResult":  "Coordinate privacy check: PASS; no latitude/longitude in preview",
+                          "observedResult":  "Coordinate privacy check: PASS; no coordinate fields",
+                          "evidenceFile":  "Export_diagnostics___privacy.txt",
+                          "evidenceSource":  "uiautomator"
+                      },
+                      {
+                          "scenario":  24,
+                          "name":  "Clear prototype data",
+                          "status":  "pass",
+                          "expectedResult":  "pendingCount=0 and acknowledgedCount=0 after clear",
+                          "observedResult":  "pendingCount=0 acknowledgedCount=0",
+                          "evidenceFile":  "Final_clear_data.txt + Clear_prototype_data__baseline_.txt",
+                          "evidenceSource":  "stats"
+                      }
+                  ]
+}

@@ -1,0 +1,245 @@
+{
+  "generatedAt": "2026-07-31T12:17:42.260Z",
+  "events": [
+    {
+      "eventId": "cee09a7f-073a-44f8-ac48-1e333ecfdb71",
+      "schemaVersion": 1,
+      "eventType": "location_evidence",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 1,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262259,
+      "elapsedRealtimeMs": 1,
+      "persistenceTimestamp": 1785500262259,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 1,
+        "latitude": 10.0001,
+        "longitude": 10.0001
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "9f1a8ecf-cffc-4b99-bf5b-f21f7ad43759",
+      "schemaVersion": 1,
+      "eventType": "location_evidence",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 2,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 2,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 2,
+        "latitude": 10.0002,
+        "longitude": 10.0002
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "4f79ffd3-14b6-4a8a-a22c-d78a40d176b2",
+      "schemaVersion": 1,
+      "eventType": "motion_signal",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 3,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 3,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 3,
+        "latitude": 10.0003,
+        "longitude": 10.0003
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "d37c4b92-fe3e-40f3-9c40-c2a425931d2c",
+      "schemaVersion": 1,
+      "eventType": "location_evidence",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 4,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 4,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 4,
+        "latitude": 10.0004,
+        "longitude": 10.0004
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "ec7a0d4b-9ced-4154-abeb-89f085bd1a04",
+      "schemaVersion": 1,
+      "eventType": "location_evidence",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 5,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 5,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 5,
+        "latitude": 10.0005,
+        "longitude": 10.0005
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "7c8cbca7-9ac2-4983-abdd-068f1fbb55b0",
+      "schemaVersion": 1,
+      "eventType": "motion_signal",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 6,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 6,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 6,
+        "latitude": 10.0006,
+        "longitude": 10.0006
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "157b7fa4-095e-45cd-9868-ca770eaac305",
+      "schemaVersion": 1,
+      "eventType": "location_evidence",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 7,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 7,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 7,
+        "latitude": 10.0007,
+        "longitude": 10.0007
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "89830dce-137e-4af3-9274-fba9ab177217",
+      "schemaVersion": 1,
+      "eventType": "location_evidence",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 8,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 8,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 8,
+        "latitude": 10.0008,
+        "longitude": 10.0008
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "19ce329b-f5d5-4451-a36e-3ef5ccf19baf",
+      "schemaVersion": 1,
+      "eventType": "motion_signal",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 9,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 9,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 9,
+        "latitude": 10.0009,
+        "longitude": 10.0009
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    },
+    {
+      "eventId": "94b2dbc4-e3eb-4bc7-99d3-4a4e203fe8ff",
+      "schemaVersion": 1,
+      "eventType": "location_evidence",
+      "sessionId": "proto-session-synthetic",
+      "sequenceNumber": 10,
+      "sourcePlatform": "unknown",
+      "sourceComponent": "fixture-generator",
+      "wallClockTimestamp": 1785500262260,
+      "elapsedRealtimeMs": 10,
+      "persistenceTimestamp": 1785500262260,
+      "payload": {
+        "synthetic": true,
+        "gridStep": 10,
+        "latitude": 10.001,
+        "longitude": 10.001
+      },
+      "diagnosticMetadata": {
+        "synthetic": "true",
+        "generator": "prototype-c-fixture"
+      },
+      "deliveryAttemptCount": 0,
+      "acknowledgmentState": "pending"
+    }
+  ]
+}

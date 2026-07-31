@@ -1,0 +1,2 @@
+# sdk.dir is machine-specific — copy to local.properties (gitignored)
+# sdk.dir=C\:\\Users\\YourUser\\AppData\\Local\\Android\\Sdk

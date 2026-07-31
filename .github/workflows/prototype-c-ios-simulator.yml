@@ -1,0 +1,156 @@
+name: Prototype C iOS Simulator Validation
+
+on:
+  push:
+    branches:
+      - milestone/ios-readiness
+    paths:
+      - 'prototypes/native-bridge/ios/**'
+      - 'prototypes/native-bridge/contract/**'
+      - 'prototypes/native-bridge/src/**'
+      - 'prototypes/native-bridge/__tests__/**'
+      - 'prototypes/native-bridge/package.json'
+      - 'prototypes/native-bridge/package-lock.json'
+      - '.github/workflows/prototype-c-ios-simulator.yml'
+  pull_request:
+    paths:
+      - 'prototypes/native-bridge/ios/**'
+      - 'prototypes/native-bridge/contract/**'
+      - 'prototypes/native-bridge/src/**'
+      - 'prototypes/native-bridge/__tests__/**'
+      - 'prototypes/native-bridge/package.json'
+      - 'prototypes/native-bridge/package-lock.json'
+      - '.github/workflows/prototype-c-ios-simulator.yml'
+
+concurrency:
+  group: prototype-c-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node-validation:
+    name: Node contract tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prototypes/native-bridge
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: prototypes/native-bridge/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Contract tests
+        run: npm run test:contract
+
+      - name: Privacy tests
+        run: npm run test:privacy
+
+      - name: Upload node test summary
+        if: always()
+        run: |
+          mkdir -p harness/output
+          npm run typecheck 2>&1 | tee harness/output/ci-typecheck.log || true
+          npm run test:contract 2>&1 | tee harness/output/ci-contract-test.log || true
+
+      - name: Upload node validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prototype-c-node-validation-log
+          path: |
+            prototypes/native-bridge/harness/output/ci-typecheck.log
+            prototypes/native-bridge/harness/output/ci-contract-test.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  ios-simulator-build:
+    name: iOS simulator build (unsigned)
+    runs-on: macos-latest
+    needs: node-validation
+    defaults:
+      run:
+        working-directory: prototypes/native-bridge
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: prototypes/native-bridge/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Check iOS scaffold readiness
+        id: scaffold
+        run: |
+          if [ -f ios/Podfile ] && ls ios/*.xcworkspace 1>/dev/null 2>&1; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::iOS RN scaffold missing (Podfile / xcworkspace). See ios/IOS_CLOUD_BUILD_READINESS.md"
+          fi
+
+      - name: Install CocoaPods
+        if: steps.scaffold.outputs.ready == 'true'
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build for iOS Simulator (unsigned)
+        if: steps.scaffold.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          WS=$(ls ios/*.xcworkspace | head -1)
+          SCHEME=$(xcodebuild -list -workspace "$WS" | awk '/Schemes:/{getline; print; exit}' | xargs)
+          xcodebuild \
+            -workspace "$WS" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee ios-simulator-build.log
+
+      - name: Record scaffold blocker
+        if: steps.scaffold.outputs.ready != 'true'
+        run: |
+          mkdir -p harness/output
+          echo '{"status":"blocked","reason":"Missing Podfile and/or xcworkspace — RN iOS scaffold required"}' > harness/output/ios-ci-blocker.json
+
+      - name: Swift syntax check (fallback when scaffold missing)
+        if: steps.scaffold.outputs.ready != 'true'
+        run: |
+          set +e
+          LOG=ios-swift-syntax.log
+          : > "$LOG"
+          for f in ios/PrototypeBridge/*.swift; do
+            echo "Checking $f" | tee -a "$LOG"
+            xcrun swiftc -typecheck "$f" 2>> "$LOG"
+          done
+          echo "Swift standalone typecheck attempted — full RN linkage requires scaffold" >> "$LOG"
+
+      - name: Upload iOS build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prototype-c-ios-build-logs
+          path: |
+            prototypes/native-bridge/ios-simulator-build.log
+            prototypes/native-bridge/ios-swift-syntax.log
+            prototypes/native-bridge/harness/output/ios-ci-blocker.json
+          if-no-files-found: ignore
+          retention-days: 14
