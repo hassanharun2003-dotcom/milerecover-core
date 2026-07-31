@@ -117,25 +117,37 @@ jobs:
         if: steps.scaffold.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          WS=$(ls ios/*.xcworkspace | head -1)
-          SCHEME=$(xcodebuild -list -workspace "$WS" | awk '/Schemes:/{getline; print; exit}' | xargs)
-          xcodebuild \
-            -workspace "$WS" \
-            -scheme "$SCHEME" \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            build 2>&1 | tee ios-simulator-build.log
+          WS="ios/MileRecoverProtoBridgeC.xcworkspace"
+          SCHEME="MileRecoverProtoBridgeC"
+          if [ ! -d "$WS" ]; then
+            WS="ios/MileRecoverProtoBridgeC.xcodeproj"
+            xcodebuild \
+              -project "$WS" \
+              -scheme "$SCHEME" \
+              -sdk iphonesimulator \
+              -configuration Debug \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build 2>&1 | tee ios-simulator-build.log
+          else
+            xcodebuild \
+              -workspace "$WS" \
+              -scheme "$SCHEME" \
+              -sdk iphonesimulator \
+              -configuration Debug \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build 2>&1 | tee ios-simulator-build.log
+          fi
 
       - name: Run simulator tests
         if: steps.scaffold.outputs.ready == 'true'
         continue-on-error: true
         run: |
           set -euo pipefail
-          WS=$(ls ios/*.xcworkspace | head -1)
-          SCHEME=$(xcodebuild -list -workspace "$WS" | awk '/Schemes:/{getline; print; exit}' | xargs)
-          if xcodebuild -list -workspace "$WS" | grep -q MileRecoverProtoBridgeCTests; then
+          WS="ios/MileRecoverProtoBridgeC.xcworkspace"
+          SCHEME="MileRecoverProtoBridgeC"
+          if [ -d "$WS" ]; then
             SIM=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)
             xcodebuild test \
               -workspace "$WS" \
@@ -147,7 +159,7 @@ jobs:
               CODE_SIGNING_REQUIRED=NO \
               2>&1 | tee ios-simulator-test.log
           else
-            echo "No test target found — skipping xcodebuild test" | tee ios-simulator-test.log
+            echo "Workspace missing after pod install — skipping xcodebuild test" | tee ios-simulator-test.log
           fi
 
       - name: Record scaffold blocker
