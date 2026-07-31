@@ -28,7 +28,6 @@ credentials/
 **/.gradle/
 **/.cxx/
 **/DerivedData/
-**/Pods/
 **/*.apk
 **/*.aab
 **/*.ipa
