@@ -6,6 +6,7 @@ import com.milerecover.prototype.androidtracking.model.ProcessingState
 enum class InsertResult {
   INSERTED,
   DUPLICATE_REJECTED,
+  SCHEMA_REJECTED,
 }
 
 interface EventBuffer {
@@ -16,6 +17,7 @@ interface EventBuffer {
   fun fetchOrderedPending(limit: Int = Int.MAX_VALUE): List<NativeEvent>
   fun fetchOrderedAll(limit: Int = Int.MAX_VALUE): List<NativeEvent>
   fun acknowledge(eventId: String): Boolean
+  fun markFailed(eventId: String): Boolean
   fun replayPending(): List<NativeEvent>
   fun clearAll()
   fun maxSequenceForSession(sessionId: String): Long

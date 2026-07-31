@@ -52,10 +52,24 @@ Output: `app/build/outputs/apk/debug/app-debug.apk` (local only — **do not com
 
 ```bash
 cd prototypes/android-tracking
-./gradlew test
+./gradlew testDebugUnitTest    # JVM / Robolectric (no device)
+./gradlew test                 # alias for all unit tests
 ```
 
+**CI:** Pushes to `milestone/android-validation` run [prototype-android-jvm.yml](../../.github/workflows/prototype-android-jvm.yml) (`:app:testDebugUnitTest`, JDK 17, no physical device).
+
+Coverage highlights:
+
+| Area | Location |
+|---|---|
+| SQLite buffer (Robolectric) | `app/src/test/.../buffer/SqliteEventBufferTest.kt` |
+| In-memory buffer | `InMemoryEventBufferTest.kt` |
+| Schema ingest gate | `EventIngestGate.kt` |
+| Synthetic replay fixtures | `fixtures/synthetic-device-db/` |
+
 Tests use synthetic data only. See `app/src/test/`.
+
+**Extended device lifecycle** (FGS restart, process death, recovery): [EXTENDED_LIFECYCLE_VALIDATION.md](./EXTENDED_LIFECYCLE_VALIDATION.md) and [scripts/run-lifecycle-validation.ps1](./scripts/run-lifecycle-validation.ps1).
 
 ---
 
@@ -164,6 +178,8 @@ Informs Phase 3 native module — not automatic promotion.
 ## Related documents
 
 - [VALIDATION_RUNBOOK.md](./VALIDATION_RUNBOOK.md)
+- [EXTENDED_LIFECYCLE_VALIDATION.md](./EXTENDED_LIFECYCLE_VALIDATION.md)
+- [BATTERY_MEASUREMENT_METHODOLOGY.md](./BATTERY_MEASUREMENT_METHODOLOGY.md)
 - [RESULTS.md](./RESULTS.md)
 - [Technical Implementation Plan.md](../../planning/Technical%20Implementation%20Plan.md) §25-B
 - [Native Tracking Engine.md](../../architecture/Native%20Tracking%20Engine.md)

@@ -1,0 +1,57 @@
+{
+  "prototypeVersion": "0.1.0-prototype-b",
+  "schemaVersion": 1,
+  "sessionId": "synthetic-session-002",
+  "description": "Synthetic location samples with bucketed metadata only — no exact lat/lng",
+  "events": [
+    {
+      "eventId": "syn-loc-001",
+      "schemaVersion": 1,
+      "eventType": "location_sample_recorded",
+      "wallClockMs": 1700000100000,
+      "elapsedRealtimeMs": 200000,
+      "sequenceNumber": 10,
+      "sessionId": "synthetic-session-002",
+      "sourceComponent": "LOCATION_PROVIDER",
+      "sanitizedMetadata": {
+        "lat_bucket": "bucket_3777",
+        "lng_bucket": "bucket_-1224",
+        "accuracy_m": "15.0",
+        "provider": "fused_synthetic"
+      },
+      "processingState": "PENDING"
+    },
+    {
+      "eventId": "syn-loc-002",
+      "schemaVersion": 1,
+      "eventType": "location_sample_recorded",
+      "wallClockMs": 1700000115000,
+      "elapsedRealtimeMs": 215000,
+      "sequenceNumber": 11,
+      "sessionId": "synthetic-session-002",
+      "sourceComponent": "LOCATION_PROVIDER",
+      "sanitizedMetadata": {
+        "lat_bucket": "bucket_3778",
+        "lng_bucket": "bucket_-1223",
+        "accuracy_m": "12.5",
+        "provider": "fused_synthetic"
+      },
+      "processingState": "PENDING"
+    },
+    {
+      "eventId": "syn-loc-003",
+      "schemaVersion": 1,
+      "eventType": "location_unavailable",
+      "wallClockMs": 1700000130000,
+      "elapsedRealtimeMs": 230000,
+      "sequenceNumber": 12,
+      "sessionId": "synthetic-session-002",
+      "sourceComponent": "LOCATION_PROVIDER",
+      "sanitizedMetadata": {
+        "reason": "synthetic_gap",
+        "duration_ms": "5000"
+      },
+      "processingState": "PENDING"
+    }
+  ]
+}

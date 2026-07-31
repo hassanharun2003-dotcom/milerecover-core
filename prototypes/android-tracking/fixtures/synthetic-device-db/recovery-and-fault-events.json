@@ -1,0 +1,67 @@
+{
+  "prototypeVersion": "0.1.0-prototype-b",
+  "schemaVersion": 1,
+  "sessionId": "synthetic-session-003",
+  "description": "Synthetic recovery and fault events for lifecycle harness replay — no PII",
+  "events": [
+    {
+      "eventId": "syn-rec-001",
+      "schemaVersion": 1,
+      "eventType": "process_recovery",
+      "wallClockMs": 1700000200000,
+      "elapsedRealtimeMs": 300000,
+      "sequenceNumber": 20,
+      "sessionId": "synthetic-session-003",
+      "sourceComponent": "SESSION_MANAGER",
+      "sanitizedMetadata": {
+        "pending_count": "3",
+        "recovery_reason": "synthetic_process_death"
+      },
+      "processingState": "PENDING"
+    },
+    {
+      "eventId": "syn-rec-002",
+      "schemaVersion": 1,
+      "eventType": "boot_recovery_evaluated",
+      "wallClockMs": 1700000210000,
+      "elapsedRealtimeMs": 310000,
+      "sequenceNumber": 21,
+      "sessionId": "synthetic-session-003",
+      "sourceComponent": "BOOT_RECEIVER",
+      "sanitizedMetadata": {
+        "session_requested": "true",
+        "fgs_restart_attempted": "false"
+      },
+      "processingState": "PENDING"
+    },
+    {
+      "eventId": "syn-rec-003",
+      "schemaVersion": 1,
+      "eventType": "duplicate_rejected",
+      "wallClockMs": 1700000220000,
+      "elapsedRealtimeMs": 320000,
+      "sequenceNumber": 22,
+      "sessionId": "synthetic-session-003",
+      "sourceComponent": "EVENT_BUFFER",
+      "sanitizedMetadata": {
+        "idempotency_key": "synthetic-dup-key"
+      },
+      "processingState": "ACKNOWLEDGED"
+    },
+    {
+      "eventId": "syn-rec-004",
+      "schemaVersion": 1,
+      "eventType": "prototype_fault",
+      "wallClockMs": 1700000230000,
+      "elapsedRealtimeMs": 330000,
+      "sequenceNumber": 23,
+      "sessionId": "synthetic-session-003",
+      "sourceComponent": "FOREGROUND_SERVICE",
+      "sanitizedMetadata": {
+        "fault_code": "SYNTHETIC_OEM_KILL",
+        "recoverable": "true"
+      },
+      "processingState": "FAILED"
+    }
+  ]
+}

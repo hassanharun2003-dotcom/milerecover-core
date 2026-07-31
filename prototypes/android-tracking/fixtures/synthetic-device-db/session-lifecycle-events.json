@@ -1,0 +1,44 @@
+{
+  "prototypeVersion": "0.1.0-prototype-b",
+  "schemaVersion": 1,
+  "sessionId": "synthetic-session-001",
+  "description": "Synthetic lifecycle events for buffer/replay validation — no real coordinates",
+  "events": [
+    {
+      "eventId": "syn-001",
+      "schemaVersion": 1,
+      "eventType": "session_requested",
+      "wallClockMs": 1700000000000,
+      "elapsedRealtimeMs": 100000,
+      "sequenceNumber": 1,
+      "sessionId": "synthetic-session-001",
+      "sourceComponent": "UI",
+      "sanitizedMetadata": { "operator": "synthetic" },
+      "processingState": "PENDING"
+    },
+    {
+      "eventId": "syn-002",
+      "schemaVersion": 1,
+      "eventType": "service_starting",
+      "wallClockMs": 1700000001500,
+      "elapsedRealtimeMs": 101500,
+      "sequenceNumber": 2,
+      "sessionId": "synthetic-session-001",
+      "sourceComponent": "FOREGROUND_SERVICE",
+      "sanitizedMetadata": { "reason": "validation_start" },
+      "processingState": "PENDING"
+    },
+    {
+      "eventId": "syn-003",
+      "schemaVersion": 1,
+      "eventType": "service_active",
+      "wallClockMs": 1700000003000,
+      "elapsedRealtimeMs": 103000,
+      "sequenceNumber": 3,
+      "sessionId": "synthetic-session-001",
+      "sourceComponent": "FOREGROUND_SERVICE",
+      "sanitizedMetadata": { "fg_visible": "true" },
+      "processingState": "PENDING"
+    }
+  ]
+}

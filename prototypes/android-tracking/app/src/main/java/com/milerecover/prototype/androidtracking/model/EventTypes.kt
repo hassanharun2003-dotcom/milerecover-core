@@ -20,6 +20,7 @@ object EventTypes {
 enum class ProcessingState {
   PENDING,
   ACKNOWLEDGED,
+  FAILED,
 }
 
 enum class TrackingState {

@@ -49,6 +49,8 @@ class SqliteEventBuffer(context: Context) :
   }
 
   override fun insert(event: NativeEvent): InsertResult {
+    EventIngestGate.validateForInsert(event)?.let { return it }
+
     val db = writableDatabase
     db.beginTransaction()
     try {
@@ -137,6 +139,30 @@ class SqliteEventBuffer(context: Context) :
     }
   }
 
+  override fun markFailed(eventId: String): Boolean {
+    val db = writableDatabase
+    db.beginTransaction()
+    try {
+      val cursor = db.rawQuery(
+        "SELECT event_json FROM events WHERE event_id = ? AND processing_state = ?",
+        arrayOf(eventId, ProcessingState.PENDING.name),
+      )
+      cursor.use {
+        if (!it.moveToFirst()) return false
+        val event = NativeEventSerializer.deserialize(it.getString(0))
+        val failed = event.copy(processingState = ProcessingState.FAILED)
+        db.execSQL(
+          "UPDATE events SET processing_state = ?, event_json = ? WHERE event_id = ?",
+          arrayOf(ProcessingState.FAILED.name, NativeEventSerializer.serialize(failed), eventId),
+        )
+      }
+      db.setTransactionSuccessful()
+      return true
+    } finally {
+      db.endTransaction()
+    }
+  }
+
   override fun replayPending(): List<NativeEvent> = fetchOrderedPending()
 
   override fun clearAll() {
@@ -202,6 +228,8 @@ class InMemoryEventBuffer : EventBuffer {
   private val idempotencyIndex = mutableMapOf<String, String>()
 
   override fun insert(event: NativeEvent): InsertResult {
+    EventIngestGate.validateForInsert(event)?.let { return it }
+
     event.idempotencyKey?.let { key ->
       if (idempotencyIndex.containsKey(key)) {
         duplicateCount++
@@ -242,6 +270,13 @@ class InMemoryEventBuffer : EventBuffer {
     val existing = events[eventId] ?: return false
     if (existing.processingState != ProcessingState.PENDING) return false
     events[eventId] = existing.copy(processingState = ProcessingState.ACKNOWLEDGED)
+    return true
+  }
+
+  override fun markFailed(eventId: String): Boolean {
+    val existing = events[eventId] ?: return false
+    if (existing.processingState != ProcessingState.PENDING) return false
+    events[eventId] = existing.copy(processingState = ProcessingState.FAILED)
     return true
   }
 
