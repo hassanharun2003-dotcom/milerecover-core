@@ -1,5 +1,9 @@
 {
-  "generatedAt": "2026-07-31T21:42:00Z",
+  "generatedAt": "2026-07-31T21:46:00Z",
+  "reconciliationCommit": "c479b79",
+  "reconciliationTag": "checkpoint/mobile-parallel-ready",
+  "currentHead": "04c5a14",
+  "laneConfigCommit": "04c5a14",
   "purpose": "Repository integrity and baseline-green gate",
   "previousCheckpoint": {
     "commit": "aa835a0",
@@ -33,5 +37,12 @@
     "iOS RN scaffold — out of scope this package",
     "Full device-validation raw .txt archives remain local-only (gitignored)"
   ],
-  "mergeReadiness": "ready-for-parallel-build-packages"
+  "mergeReadiness": "ready-for-parallel-build-packages",
+  "laneSafety": {
+    "verifiedAt": "2026-07-31T21:45:33Z",
+    "android": { "branch": "milestone/android-validation", "head": "04c5a14", "mergeReadiness": "ready", "blockers": 0 },
+    "ios": { "branch": "milestone/ios-readiness", "head": "04c5a14", "mergeReadiness": "ready", "blockers": 0 },
+    "shared": { "branch": "milestone/shared-contracts", "head": "04c5a14", "mergeReadiness": "ready", "blockers": 0 }
+  },
+  "trackedFilesAtHead": 276
 }
