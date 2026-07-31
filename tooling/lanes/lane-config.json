@@ -1,7 +1,10 @@
 {
   "schemaVersion": 1,
-  "checkpointBranch": "milestone/android-validation",
-  "checkpointTag": "checkpoint/prototype-c-android-24-of-24",
+  "checkpointBranch": "main",
+  "checkpointTag": "checkpoint/mobile-parallel-ready",
+  "previousCheckpointTag": "checkpoint/prototype-c-android-24-of-24",
+  "previousCheckpointCommit": "aa835a0",
+  "reconciliationCommit": "c479b79",
   "contractVersion": {
     "bridgeApi": "1.0.0-prototype-c",
     "schemaMajor": 1
