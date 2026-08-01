@@ -1,5 +1,4 @@
 import XCTest
-@testable import MileRecoverProtoBridgeC
 
 final class BridgeVersionTests: XCTestCase {
   func testContractMajorIsOne() {

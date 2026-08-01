@@ -1,5 +1,4 @@
 import XCTest
-@testable import MileRecoverProtoBridgeC
 
 final class PrototypeEventBufferTests: XCTestCase {
   private var tempURL: URL!

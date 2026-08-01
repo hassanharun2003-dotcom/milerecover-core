@@ -12,7 +12,8 @@ LOG_DIR="${EVIDENCE_DIR}/logs"
 mkdir -p "${EVIDENCE_DIR}" "${LOG_DIR}"
 
 WS="${IOS_DIR}/MileRecoverProtoBridgeC.xcworkspace"
-SCHEME="MileRecoverProtoBridgeC"
+APP_SCHEME="MileRecoverProtoBridgeC"
+LOGIC_SCHEME="MileRecoverProtoBridgeCLogicTests"
 SDK="iphonesimulator"
 CONFIG="Debug"
 BUILD_LOG="${LOG_DIR}/simulator-build.log"
@@ -63,6 +64,8 @@ write_summary() {
   "nativeTests": {
     "status": "${test_status}",
     "log": "${TEST_LOG#${IOS_DIR}/}",
+    "scheme": "${LOGIC_SCHEME}",
+    "hostlessLogicTarget": true,
     "skippedUiTest": "MileRecoverProtoBridgeCTests/testRendersWelcomeScreen",
     "suites": [
       "PrototypeEventBufferTests",
@@ -84,9 +87,6 @@ on_exit() {
 trap on_exit EXIT
 
 cd "${BRIDGE_DIR}"
-
-echo "Bundling JS for offline XCTest host launch (Metro CLI — no packager)..."
-node "${IOS_DIR}/scripts/bundle-offline-js.cjs"
 
 if [ ! -f "${IOS_DIR}/Podfile" ] || [ ! -d "${IOS_DIR}/MileRecoverProtoBridgeC.xcodeproj" ]; then
   echo "error: iOS scaffold missing (Podfile / xcodeproj)" >&2
@@ -127,10 +127,10 @@ fi
 echo "Using simulator: ${simulator_name} (${simulator_udid})"
 xcrun simctl boot "${simulator_udid}" 2>/dev/null || true
 
-echo "Building for iOS Simulator (unsigned)..."
+echo "Building RN app for iOS Simulator (unsigned build gate)..."
 if xcodebuild \
   -workspace "${WS}" \
-  -scheme "${SCHEME}" \
+  -scheme "${APP_SCHEME}" \
   -sdk "${SDK}" \
   -configuration "${CONFIG}" \
   CODE_SIGNING_ALLOWED=NO \
@@ -143,20 +143,16 @@ else
   exit 1
 fi
 
-echo "Running native XCTest (Swift suites only; Metro UI test skipped)..."
+echo "Running hostless native logic XCTest (${LOGIC_SCHEME})..."
 set +e
 xcodebuild test \
   -workspace "${WS}" \
-  -scheme "${SCHEME}" \
+  -scheme "${LOGIC_SCHEME}" \
   -sdk "${SDK}" \
   -destination "platform=iOS Simulator,id=${simulator_udid}" \
   -configuration "${CONFIG}" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
-  -skip-testing:MileRecoverProtoBridgeCTests/MileRecoverProtoBridgeCTests/testRendersWelcomeScreen \
-  -only-testing:MileRecoverProtoBridgeCTests/PrototypeEventBufferTests \
-  -only-testing:MileRecoverProtoBridgeCTests/DiagnosticSanitizerTests \
-  -only-testing:MileRecoverProtoBridgeCTests/BridgeVersionTests \
   2>&1 | tee "${TEST_LOG}"
 test_exit=$?
 set -e
