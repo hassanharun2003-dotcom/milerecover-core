@@ -78,6 +78,8 @@ jobs:
         uses: android-actions/setup-android@v3
       - name: Install mobile dependencies
         run: npm ci
+      - name: Configure Android SDK path
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" >> android/local.properties
       - name: Assemble debug APK
         run: |
           set -euo pipefail
@@ -114,14 +116,20 @@ jobs:
           cache-dependency-path: apps/mobile/package-lock.json
       - name: Install mobile dependencies
         run: npm ci
+      - name: Install Ruby gems for CocoaPods
+        run: bundle install
       - name: Install CocoaPods
         run: |
           set -euo pipefail
           cd ios
-          if ! command -v pod >/dev/null 2>&1; then
-            sudo gem install cocoapods --no-document
+          export NODE_BINARY=$(command -v node)
+          bundle exec pod install --repo-update 2>&1 | tee ../pod-install.log
+          pod_status=${PIPESTATUS[0]}
+          if [ "$pod_status" -ne 0 ]; then
+            echo "::error::pod install failed with exit code $pod_status"
+            cat ../pod-install.log
+            exit "$pod_status"
           fi
-          pod install --repo-update 2>&1 | tee ../pod-install.log
           test -d MileRecover.xcworkspace
       - name: Build for iOS Simulator (unsigned)
         run: |
