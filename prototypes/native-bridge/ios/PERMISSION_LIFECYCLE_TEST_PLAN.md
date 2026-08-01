@@ -2,7 +2,24 @@
 
 **Scope:** Simulator and local Mac validation only. No TestFlight, no production entitlements.  
 **Bundle ID:** `com.milerecover.prototype.nativebridge`  
-**Last updated:** 31 July 2026
+**Last updated:** 1 August 2026
+
+---
+
+## Simulator vs physical iPhone matrix
+
+| Scenario | iOS Simulator | Physical iPhone |
+|----------|---------------|-----------------|
+| Native XCTest (buffer, sanitizer, versions) | **Automated** — `ios/scripts/run-simulator-validation.sh` | Manual — requires dev cert + device UDID |
+| Unsigned `xcodebuild` build | **CI (macos-latest)** | Not supported without signing |
+| Metro UI test (`testRendersWelcomeScreen`) | Skipped in Package 2 CI (`-skip-testing`) | Optional manual with Metro |
+| Permission prompts (L1) | Simulator — no dialogs expected | Device — same prototype scope |
+| Lifecycle L2–L6 (background, terminate, relaunch) | Partial — simulator supports background/terminate | Full fidelity on device |
+| File buffer persistence (`prototype_c_bridge.json`) | Covered by `PrototypeEventBufferTests` + simulator container | Manual spot-check |
+| TestFlight / distribution | **Out of scope** | **Out of scope (Package 2)** |
+| Evidence artifact | `ci-evidence/package-2-validation-summary.json` | Manual `device-validation-*/validation-summary.json` |
+
+**Package 2 pass bar:** native XCTest green on simulator; Metro welcome-screen test excluded from CI.
 
 ---
 
@@ -103,11 +120,13 @@ Mirror Android `test-three-relaunches.ps1` intent:
 
 GitHub Actions workflow `.github/workflows/prototype-c-ios-simulator.yml`:
 
-- **Build:** unsigned simulator when `Podfile` + `.xcodeproj` exist
-- **Test:** `xcodebuild test` when `MileRecoverProtoBridgeCTests` target present
-- **Artifacts:** build/test logs uploaded; no signing secrets
+- **Build + test:** `ios/scripts/run-simulator-validation.sh` (unsigned simulator)
+- **Native XCTest:** `PrototypeEventBufferTests`, `DiagnosticSanitizerTests`, `BridgeVersionTests`
+- **Skipped in CI:** `MileRecoverProtoBridgeCTests/testRendersWelcomeScreen` (Metro UI)
+- **Artifacts:** `ci-evidence/package-2-validation-summary.json` + logs
+- **No signing secrets**
 
-Full lifecycle scenarios L2–L6 require manual Mac runs until native unit tests cover buffer persistence.
+Lifecycle scenarios L2–L6 on **physical iPhone** remain manual until a device lane is added.
 
 ---
 

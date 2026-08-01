@@ -13,10 +13,18 @@ final class PrototypeEventBuffer {
   private var rejectedCount = 0
   private let queue = DispatchQueue(label: "com.milerecover.prototype.nativebridge.buffer")
 
+  /// Production default — Application Support file path.
   init() {
     let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    fileURL = dir.appendingPathComponent("prototype_c_bridge.json")
+    self.init(fileURL: dir.appendingPathComponent("prototype_c_bridge.json"))
+  }
+
+  /// Test-only injectable backing store (isolated temp files in XCTest).
+  init(fileURL: URL) {
+    self.fileURL = fileURL
+    let parent = fileURL.deletingLastPathComponent()
+    try? FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
     loadFromDisk()
   }
 

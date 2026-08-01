@@ -8,6 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		00E356F31AD99517003FC87E /* MileRecoverProtoBridgeCTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 00E356F21AD99517003FC87E /* MileRecoverProtoBridgeCTests.m */; };
+		C2B2C3D41A68108700A75B01 /* PrototypeEventBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B2C3D41A68108700A75B01 /* PrototypeEventBufferTests.swift */; };
+		C2B2C3D41A68108700A75B02 /* DiagnosticSanitizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B2C3D41A68108700A75B02 /* DiagnosticSanitizerTests.swift */; };
+		C2B2C3D41A68108700A75B03 /* BridgeVersionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B2C3D41A68108700A75B03 /* BridgeVersionTests.swift */; };
+		C2B2C3D41A68108700A75B04 /* SyntheticEventGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B2C3D41A68108700A75B04 /* SyntheticEventGenerator.swift */; };
 		0C80B921A6F3F58F76C31292 /* libPods-MileRecoverProtoBridgeC.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-MileRecoverProtoBridgeC.a */; };
 		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
@@ -35,6 +39,10 @@
 		00E356EE1AD99517003FC87E /* MileRecoverProtoBridgeCTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MileRecoverProtoBridgeCTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00E356F11AD99517003FC87E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		00E356F21AD99517003FC87E /* MileRecoverProtoBridgeCTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MileRecoverProtoBridgeCTests.m; sourceTree = "<group>"; };
+		D2B2C3D41A68108700A75B01 /* PrototypeEventBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeEventBufferTests.swift; sourceTree = "<group>"; };
+		D2B2C3D41A68108700A75B02 /* DiagnosticSanitizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticSanitizerTests.swift; sourceTree = "<group>"; };
+		D2B2C3D41A68108700A75B03 /* BridgeVersionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeVersionTests.swift; sourceTree = "<group>"; };
+		D2B2C3D41A68108700A75B04 /* SyntheticEventGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntheticEventGenerator.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* MileRecoverProtoBridgeC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MileRecoverProtoBridgeC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = MileRecoverProtoBridgeC/AppDelegate.h; sourceTree = "<group>"; };
 		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = MileRecoverProtoBridgeC/AppDelegate.mm; sourceTree = "<group>"; };
@@ -82,6 +90,10 @@
 			isa = PBXGroup;
 			children = (
 				00E356F21AD99517003FC87E /* MileRecoverProtoBridgeCTests.m */,
+				D2B2C3D41A68108700A75B01 /* PrototypeEventBufferTests.swift */,
+				D2B2C3D41A68108700A75B02 /* DiagnosticSanitizerTests.swift */,
+				D2B2C3D41A68108700A75B03 /* BridgeVersionTests.swift */,
+				D2B2C3D41A68108700A75B04 /* SyntheticEventGenerator.swift */,
 				00E356F01AD99517003FC87E /* Supporting Files */,
 			);
 			path = MileRecoverProtoBridgeCTests;
@@ -412,6 +424,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				00E356F31AD99517003FC87E /* MileRecoverProtoBridgeCTests.m in Sources */,
+				C2B2C3D41A68108700A75B01 /* PrototypeEventBufferTests.swift in Sources */,
+				C2B2C3D41A68108700A75B02 /* DiagnosticSanitizerTests.swift in Sources */,
+				C2B2C3D41A68108700A75B03 /* BridgeVersionTests.swift in Sources */,
+				C2B2C3D41A68108700A75B04 /* SyntheticEventGenerator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -463,6 +479,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.milerecover.prototype.nativebridge.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MileRecoverProtoBridgeC.app/MileRecoverProtoBridgeC";
 			};
 			name = Debug;
@@ -487,6 +504,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.milerecover.prototype.nativebridge.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MileRecoverProtoBridgeC.app/MileRecoverProtoBridgeC";
 			};
 			name = Release;

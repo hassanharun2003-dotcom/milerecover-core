@@ -122,46 +122,14 @@ jobs:
           test -d MileRecoverProtoBridgeC.xcworkspace
           test -f Podfile.lock
 
-      - name: Build for iOS Simulator (unsigned)
+      - name: Run native simulator validation (Package 2)
         if: steps.scaffold.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          WS="ios/MileRecoverProtoBridgeC.xcworkspace"
-          SCHEME="MileRecoverProtoBridgeC"
-          if [ ! -d "$WS" ]; then
-            echo "::error::Missing CocoaPods workspace at $WS — pod install did not produce a buildable scaffold"
-            exit 1
-          fi
-          xcodebuild \
-            -workspace "$WS" \
-            -scheme "$SCHEME" \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            build 2>&1 | tee ios-simulator-build.log
-
-      - name: Run simulator tests
-        if: steps.scaffold.outputs.ready == 'true'
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          WS="ios/MileRecoverProtoBridgeC.xcworkspace"
-          SCHEME="MileRecoverProtoBridgeC"
-          if [ -d "$WS" ]; then
-            SIM=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)
-            xcodebuild test \
-              -workspace "$WS" \
-              -scheme "$SCHEME" \
-              -sdk iphonesimulator \
-              -destination "platform=iOS Simulator,name=${SIM}" \
-              -configuration Debug \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              2>&1 | tee ios-simulator-test.log
-          else
-            echo "Workspace missing after pod install — skipping xcodebuild test" | tee ios-simulator-test.log
-          fi
+          chmod +x ios/scripts/run-simulator-validation.sh
+          ./ios/scripts/run-simulator-validation.sh 2>&1 | tee ios-simulator-test.log
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
 
       - name: Record scaffold blocker
         if: steps.scaffold.outputs.ready != 'true'
@@ -187,10 +155,11 @@ jobs:
         with:
           name: prototype-c-ios-build-logs
           path: |
-            prototypes/native-bridge/ios-simulator-build.log
             prototypes/native-bridge/ios-simulator-test.log
             prototypes/native-bridge/pod-install.log
             prototypes/native-bridge/ios-swift-syntax.log
             prototypes/native-bridge/harness/output/ios-ci-blocker.json
+            prototypes/native-bridge/ios/ci-evidence/package-2-validation-summary.json
+            prototypes/native-bridge/ios/ci-evidence/logs/
           if-no-files-found: ignore
           retention-days: 14
