@@ -1,6 +1,7 @@
 package com.milerecover.prototype.androidtracking.buffer
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.milerecover.prototype.androidtracking.model.NativeEvent
@@ -92,7 +93,7 @@ class SqliteEventBuffer(context: Context) :
       db.setTransactionSuccessful()
       return InsertResult.INSERTED
     } catch (e: Exception) {
-      if (e.message?.contains("UNIQUE", ignoreCase = true) == true) {
+      if (isUniqueConstraintViolation(e)) {
         incrementStat(db, STAT_DUPLICATE)
         db.setTransactionSuccessful()
         return InsertResult.DUPLICATE_REJECTED
@@ -201,10 +202,25 @@ class SqliteEventBuffer(context: Context) :
   }
 
   private fun incrementStat(db: SQLiteDatabase, key: String) {
-    db.execSQL(
-      "INSERT INTO buffer_stats(key, value) VALUES(?, 1) ON CONFLICT(key) DO UPDATE SET value = value + 1",
-      arrayOf(key),
-    )
+    db.rawQuery("SELECT value FROM buffer_stats WHERE key = ?", arrayOf(key)).use { cursor ->
+      if (cursor.moveToFirst()) {
+        db.execSQL("UPDATE buffer_stats SET value = value + 1 WHERE key = ?", arrayOf(key))
+      } else {
+        db.execSQL("INSERT INTO buffer_stats(key, value) VALUES(?, 1)", arrayOf(key))
+      }
+    }
+  }
+
+  private fun isUniqueConstraintViolation(error: Throwable): Boolean {
+    var current: Throwable? = error
+    while (current != null) {
+      if (current is SQLiteConstraintException) return true
+      val message = current.message.orEmpty()
+      if (message.contains("UNIQUE", ignoreCase = true)) return true
+      if (message.contains("constraint failed", ignoreCase = true)) return true
+      current = current.cause
+    }
+    return false
   }
 
   private fun getStat(key: String): Int {
