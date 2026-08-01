@@ -1,0 +1,5 @@
+# Local Gradle wrapper bootstrap — see GRADLE_WRAPPER.md
+# gradle-wrapper.properties is committed; scripts and JAR are generated locally.
+gradlew
+gradlew.bat
+gradle/wrapper/gradle-wrapper.jar
