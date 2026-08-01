@@ -1,5 +1,4 @@
 import Foundation
-@testable import MileRecoverProtoBridgeC
 
 /// Synthetic event generator — grid coordinates only, not real locations.
 enum SyntheticEventGenerator {

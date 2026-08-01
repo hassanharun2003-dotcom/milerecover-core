@@ -122,18 +122,42 @@ jobs:
           test -d MileRecoverProtoBridgeC.xcworkspace
           test -f Podfile.lock
 
-      - name: Run native simulator validation (Package 2)
+      - name: Build for iOS Simulator (unsigned)
         if: steps.scaffold.outputs.ready == 'true'
-        timeout-minutes: 25
         run: |
           set -euo pipefail
-          chmod +x ios/scripts/run-simulator-validation.sh
-          ./ios/scripts/run-simulator-validation.sh 2>&1 | tee ios-simulator-test.log
-          if grep -q "TEST FAILED" ios-simulator-test.log; then
-            echo "::error::Native logic XCTest failed"
-            tail -n 80 ios-simulator-test.log
-            exit 1
-          fi
+          WS="ios/MileRecoverProtoBridgeC.xcworkspace"
+          SCHEME="MileRecoverProtoBridgeC"
+          xcodebuild \
+            -workspace "$WS" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee ios-simulator-build.log
+
+      - name: Run Package 2 logic XCTest (hostless)
+        if: steps.scaffold.outputs.ready == 'true'
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project ios/MileRecoverProtoBridgeC.xcodeproj \
+            -scheme MileRecoverProtoBridgeCLogicTests \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            2>&1 | tee ios-logic-test.log
+          mkdir -p ios/ci-evidence/logs
+          cp ios-logic-test.log ios/ci-evidence/logs/simulator-test.log
+          node ios/scripts/write-package-2-summary.cjs \
+            --branch "${GITHUB_REF_NAME}" \
+            --build-log ios-simulator-build.log \
+            --test-log ios-logic-test.log \
+            --out ios/ci-evidence/package-2-validation-summary.json
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
 
@@ -161,7 +185,8 @@ jobs:
         with:
           name: prototype-c-ios-build-logs
           path: |
-            prototypes/native-bridge/ios-simulator-test.log
+            prototypes/native-bridge/ios-simulator-build.log
+            prototypes/native-bridge/ios-logic-test.log
             prototypes/native-bridge/pod-install.log
             prototypes/native-bridge/ios-swift-syntax.log
             prototypes/native-bridge/harness/output/ios-ci-blocker.json
