@@ -3,6 +3,7 @@ name: Prototype C iOS Simulator Validation
 on:
   push:
     branches:
+      - main
       - milestone/ios-readiness
     paths:
       - 'prototypes/native-bridge/ios/**'

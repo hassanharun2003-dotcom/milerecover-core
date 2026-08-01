@@ -3,6 +3,7 @@ name: Prototype Android JVM Tests
 on:
   push:
     branches:
+      - main
       - milestone/android-validation
     paths:
       - 'prototypes/android-tracking/**'
