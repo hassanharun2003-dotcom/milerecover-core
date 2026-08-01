@@ -4,7 +4,7 @@
 **Second session:** 31 July 2026 — **successful re-test**  
 **Device:** Samsung SM-A166U (wireless debugging)  
 **Tooling:** Android Studio Quail 3  
-**Status:** Core lifecycle/ack fixes **validated on device** — extended runbook scenarios **remaining**
+**Status:** Core lifecycle/ack fixes **validated on device** — Package 2 harness + Robolectric session tests **added**
 
 ---
 
@@ -49,16 +49,31 @@
 
 ---
 
-## Open issues
+## Package 2 automated findings (August 2026)
+
+| Area | JVM/Robolectric | Physical harness |
+|---|---|---|
+| Session start/stop prefs | **Pass** — `SessionManagerTest` | Scenario B/H when `-Execute` |
+| Idempotency (service start/stop) | **Pass** — `SessionManagerTest` | Scenario H |
+| Process recreation + pending buffer | **Pass** — `ProcessRecreationTest` | Scenario F/G |
+| Schema ingest gate | **Pass** — `EventIngestGateTest` | N/A (logic-only) |
+| FGS redelivery heuristic | **Fixed** — `START_FLAG_REDELIVERY` in `TrackingForegroundService` | Scenario F (optional `process_recovery`) |
+| Reboot recovery | N/A | **Blocked** in harness (scenario I) |
+| Battery optimization | N/A | **Detect only** (scenario J) |
+
+---
+
+## Open issues (physical device)
 
 | Area | Status |
 |---|---|
+| Package 2 harness A–J | **Run required** — connect device, `-Execute` |
 | Background location | **Not validated** |
 | Activity recognition | **Not validated** |
 | Movement / controlled drives | **Not validated** |
-| Process death recovery | **Not validated** |
-| Device reboot / boot receiver | **Not validated** |
-| Battery optimization restrictions | **Not validated** |
+| Process death recovery (device) | **Harness ready** — scenarios F/G |
+| Device reboot / boot receiver | **Blocked** in harness — manual scenario I |
+| Battery optimization restrictions | **Detect only** — scenario J |
 | Multi-device OEM matrix | **Not validated** |
 | Long-session event loss | **Not validated** |
 
@@ -66,9 +81,9 @@
 
 ## Root causes (first pass — historical)
 
-### 1. Defective redelivery heuristic (**confirmed in code review**)
+### 1. Defective redelivery heuristic (**fixed in Package 2**)
 
-`intentIsRedelivery()` returned `locationCollector != null` after assignment on every start → forced `RECOVERING`.
+`intentIsRedelivery()` returned `locationCollector != null` after assignment on every start → forced `RECOVERING`. Replaced with `START_FLAG_REDELIVERY` from `onStartCommand` flags.
 
 ### 2. Async stop vs immediate UI refresh
 

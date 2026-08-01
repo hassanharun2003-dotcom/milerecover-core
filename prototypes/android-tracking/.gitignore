@@ -3,3 +3,6 @@
 gradlew
 gradlew.bat
 gradle/wrapper/gradle-wrapper.jar
+
+# Device validation run artifacts (summary JSON is committed)
+device-validation/runs/

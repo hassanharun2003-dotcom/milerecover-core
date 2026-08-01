@@ -1,7 +1,19 @@
 # Prototype B — Device validation results
 
-**Status:** Second physical-device pass **successful** — core FGS/lifecycle/ack path validated on SM-A166U  
+**Status:** Package 2 JVM/Robolectric suite added; physical Package 2 harness available  
 **Production promotion:** Not approved
+
+---
+
+## Package 2 automated evidence (August 2026)
+
+| Layer | Count | Status |
+|---|---|---|
+| Pure JVM (`EventIngestGateTest`) | 2 | **Pass** (30/30 local Gradle run) |
+| Robolectric (session, buffer, diagnostics, process recreation) | 28 | **Pass** (same task, 30/30 total) |
+| Physical device (scenarios A–J) | See summary JSON | **Blocked** — adb available, no device connected at Package 2 run |
+
+**Evidence separation:** JVM/Robolectric results are produced by Gradle XML under `app/build/test-results/`. Physical scenarios are **never** inferred from Robolectric passes — only from harness JSON + `device-validation/runs/` artifacts.
 
 ---
 
@@ -130,7 +142,7 @@ First pass identified lifecycle/UI defects. Fixes applied; second pass above con
 |---|---|
 | Stage 1 build (SM-A166U) | **Pass** |
 | Stage 3 physical-device (core FGS/lifecycle/ack) | **Pass** (pass 2) |
-| Stage 3 remaining (background, movement, process death, reboot, battery) | **Not run** |
+| Stage 3 remaining (background, movement, process death, reboot, battery) | **Harness ready** — run Package 2 script; reboot scenario blocked in automation |
 | Stage 4 movement controls | **Not run** |
 | Gate pass (full) | **Open** |
 
@@ -140,14 +152,12 @@ See [Android Prototype Validation Gate.md](../../planning/Android%20Prototype%20
 
 ## Remaining Prototype B work
 
+- Execute Package 2 physical harness on SM-A166U (`run-package-2-device-validation.ps1 -Execute`)
 - Background location validation
 - Activity recognition validation
 - Movement testing (controlled drives)
-- Process death
-- Device reboot
-- Battery optimization validation
+- Manual reboot scenario (I) when adb repair path documented
 - Broader device matrix (non-Samsung reference device)
-- Sanitized diagnostic export on device (if not yet run)
 
 ---
 
@@ -174,4 +184,4 @@ See [Android Prototype Validation Gate.md](../../planning/Android%20Prototype%20
 
 ---
 
-*Last updated: second physical-device pass, 31 July 2026.*
+*Last updated: Package 2 Android lane — August 2026.*

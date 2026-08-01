@@ -1,0 +1,131 @@
+﻿{
+    "package":  "com.milerecover.prototype.androidtracking",
+    "validationPackage":  "package-2-android-lifecycle",
+    "generatedAtUtc":  "2026-08-01T12:30:23.5162580Z",
+    "executeMode":  false,
+    "device":  {
+                   "connected":  false,
+                   "manufacturer":  null,
+                   "serial":  "",
+                   "model":  null
+               },
+    "evidenceRoot":  "C:\\Dev\\milerecover-worktrees\\android\\prototypes\\android-tracking\\device-validation\\runs\\20260801-053023",
+    "evidenceLayers":  {
+                           "jvmPure":  "Gradle :app:testDebugUnitTest - EventIngestGateTest (no Robolectric)",
+                           "robolectric":  "Gradle :app:testDebugUnitTest - SessionManager, ProcessRecreation, SqliteEventBuffer, etc.",
+                           "physicalDevice":  "This harness - adb scenarios A-J",
+                           "notSimulatable":  "OEM task removal, reboot/wireless adb repair, force-stop UX"
+                       },
+    "scenarios":  [
+                      {
+                          "id":  "A",
+                          "title":  "Clean start",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5087219Z"
+                      },
+                      {
+                          "id":  "B",
+                          "title":  "Start lifecycle",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5152516Z"
+                      },
+                      {
+                          "id":  "C",
+                          "title":  "App background",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5152516Z"
+                      },
+                      {
+                          "id":  "D",
+                          "title":  "Screen off/on",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5152516Z"
+                      },
+                      {
+                          "id":  "E",
+                          "title":  "Task removal",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5152516Z"
+                      },
+                      {
+                          "id":  "F",
+                          "title":  "Ordinary process death",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5152516Z"
+                      },
+                      {
+                          "id":  "G",
+                          "title":  "Pending-event recovery",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5162580Z"
+                      },
+                      {
+                          "id":  "H",
+                          "title":  "Idempotent start/stop",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5162580Z"
+                      },
+                      {
+                          "id":  "I",
+                          "title":  "Reboot preparation",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5162580Z"
+                      },
+                      {
+                          "id":  "J",
+                          "title":  "Battery optimization state",
+                          "status":  "blocked",
+                          "reason":  "No adb device connected",
+                          "evidencePaths":  [
+
+                                            ],
+                          "evidenceLayer":  "physical-device",
+                          "executedAtUtc":  "2026-08-01T12:30:23.5162580Z"
+                      }
+                  ]
+}

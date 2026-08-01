@@ -8,6 +8,19 @@ Record results using [DEVICE_RESULT_TEMPLATE.md](./DEVICE_RESULT_TEMPLATE.md). U
 
 ---
 
+## Evidence layers (Package 2)
+
+| Layer | Command / artifact | Scope |
+|---|---|---|
+| **Pure JVM** | `./gradlew :app:testDebugUnitTest` — `EventIngestGateTest` | Schema gate without Android framework |
+| **Robolectric** | Same Gradle task — session, buffer, diagnostics tests | SharedPreferences + SQLite on JVM |
+| **Physical device** | `.\scripts\run-package-2-device-validation.ps1 -Execute` | Scenarios A–J; writes [device-validation/package-2-validation-summary.json](./device-validation/package-2-validation-summary.json) |
+| **Not simulatable** | Manual runbook steps | Force-stop UX, reboot, OEM recents, controlled drives |
+
+CI ([prototype-android-jvm.yml](../../.github/workflows/prototype-android-jvm.yml)) covers JVM/Robolectric only.
+
+---
+
 ## Platform limitations (read first)
 
 | Scenario | Android behavior |
@@ -318,5 +331,6 @@ Separate action — only for internal research. Confirm dialog required. Never c
 ## Reporting
 
 1. Fill [DEVICE_RESULT_TEMPLATE.md](./DEVICE_RESULT_TEMPLATE.md)
-2. Update [RESULTS.md](./RESULTS.md)
-3. File GitHub prototype issue if follow-up required
+2. Run [scripts/run-package-2-device-validation.ps1](./scripts/run-package-2-device-validation.ps1) for Package 2 scenarios A–J
+3. Update [RESULTS.md](./RESULTS.md) and [FINDINGS.md](./FINDINGS.md)
+4. File GitHub prototype issue if follow-up required
