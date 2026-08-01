@@ -42,6 +42,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MileRecoverProtoBridgeC/Info.plist; sourceTree = "<group>"; };
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = MileRecoverProtoBridgeC/main.m; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = MileRecoverProtoBridgeC/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D1B2C3D41A68108700A75B01 /* MileRecoverProtoBridgeC-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MileRecoverProtoBridgeC-Bridging-Header.h"; path = "MileRecoverProtoBridgeC/MileRecoverProtoBridgeC-Bridging-Header.h"; sourceTree = "<group>"; };
 		19F6CBCC0A4E27FBF8BF4A61 /* libPods-MileRecoverProtoBridgeC-MileRecoverProtoBridgeCTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MileRecoverProtoBridgeC-MileRecoverProtoBridgeCTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B4392A12AC88292D35C810B /* Pods-MileRecoverProtoBridgeC.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MileRecoverProtoBridgeC.debug.xcconfig"; path = "Target Support Files/Pods-MileRecoverProtoBridgeC/Pods-MileRecoverProtoBridgeC.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-MileRecoverProtoBridgeC.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MileRecoverProtoBridgeC.release.xcconfig"; path = "Target Support Files/Pods-MileRecoverProtoBridgeC/Pods-MileRecoverProtoBridgeC.release.xcconfig"; sourceTree = "<group>"; };
@@ -104,6 +105,7 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				D1B2C3D41A68108700A75B01 /* MileRecoverProtoBridgeC-Bridging-Header.h */,
 			);
 			name = MileRecoverProtoBridgeC;
 			sourceTree = "<group>";
@@ -511,6 +513,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.milerecover.prototype.nativebridge;
 				PRODUCT_NAME = MileRecoverProtoBridgeC;
+				SWIFT_OBJC_BRIDGING_HEADER = "MileRecoverProtoBridgeC/MileRecoverProtoBridgeC-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -538,6 +541,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.milerecover.prototype.nativebridge;
 				PRODUCT_NAME = MileRecoverProtoBridgeC;
+				SWIFT_OBJC_BRIDGING_HEADER = "MileRecoverProtoBridgeC/MileRecoverProtoBridgeC-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};

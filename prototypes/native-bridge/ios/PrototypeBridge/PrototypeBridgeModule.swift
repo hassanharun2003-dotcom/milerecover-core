@@ -1,5 +1,4 @@
 import Foundation
-import React
 
 /// Legacy Native Module — semantic parity with Android PrototypeBridgeModule.
 @objc(PrototypeBridgeModule)
