@@ -149,7 +149,7 @@ xcodebuild test \
   -project "${IOS_DIR}/MileRecoverProtoBridgeC.xcodeproj" \
   -scheme "${LOGIC_SCHEME}" \
   -sdk "${SDK}" \
-  -destination "platform=iOS Simulator,name=${simulator_name}" \
+  -destination "generic/platform=iOS Simulator" \
   -configuration "${CONFIG}" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \

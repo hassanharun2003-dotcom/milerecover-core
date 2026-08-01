@@ -124,10 +124,16 @@ jobs:
 
       - name: Run native simulator validation (Package 2)
         if: steps.scaffold.outputs.ready == 'true'
+        timeout-minutes: 25
         run: |
           set -euo pipefail
           chmod +x ios/scripts/run-simulator-validation.sh
           ./ios/scripts/run-simulator-validation.sh 2>&1 | tee ios-simulator-test.log
+          if grep -q "TEST FAILED" ios-simulator-test.log; then
+            echo "::error::Native logic XCTest failed"
+            tail -n 80 ios-simulator-test.log
+            exit 1
+          fi
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
 
