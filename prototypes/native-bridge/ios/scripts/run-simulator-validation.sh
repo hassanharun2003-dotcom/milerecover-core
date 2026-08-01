@@ -85,14 +85,21 @@ trap on_exit EXIT
 
 cd "${BRIDGE_DIR}"
 
-echo "Bundling JS for offline XCTest host launch (no Metro)..."
+echo "Bundling JS for offline XCTest host launch (Metro CLI — no packager)..."
 BUNDLE_OUT="${IOS_DIR}/MileRecoverProtoBridgeC/main.jsbundle"
-npx react-native bundle \
+node node_modules/metro/src/cli.js build index.js \
   --platform ios \
-  --dev false \
-  --entry-file index.js \
-  --bundle-output "${BUNDLE_OUT}" \
-  --assets-dest "${IOS_DIR}/MileRecoverProtoBridgeC"
+  --out "${IOS_DIR}/MileRecoverProtoBridgeC" \
+  --config metro.config.js
+if [ -f "${IOS_DIR}/MileRecoverProtoBridgeC/index.js.bundle" ]; then
+  mv "${IOS_DIR}/MileRecoverProtoBridgeC/index.js.bundle" "${BUNDLE_OUT}"
+elif [ -f "${IOS_DIR}/MileRecoverProtoBridgeC/main.jsbundle.js" ]; then
+  mv "${IOS_DIR}/MileRecoverProtoBridgeC/main.jsbundle.js" "${BUNDLE_OUT}"
+elif [ ! -f "${BUNDLE_OUT}" ]; then
+  echo "error: metro bundle output not found" >&2
+  exit 1
+fi
+test -f "${BUNDLE_OUT}"
 
 if [ ! -f "${IOS_DIR}/Podfile" ] || [ ! -d "${IOS_DIR}/MileRecoverProtoBridgeC.xcodeproj" ]; then
   echo "error: iOS scaffold missing (Podfile / xcodeproj)" >&2
@@ -153,8 +160,6 @@ xcodebuild test \
   -configuration "${CONFIG}" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
-  -test-timeouts-enabled YES \
-  -maximum-concurrent-test-simulator-destinations 1 \
   -skip-testing:MileRecoverProtoBridgeCTests/MileRecoverProtoBridgeCTests/testRendersWelcomeScreen \
   -only-testing:MileRecoverProtoBridgeCTests/PrototypeEventBufferTests \
   -only-testing:MileRecoverProtoBridgeCTests/DiagnosticSanitizerTests \
