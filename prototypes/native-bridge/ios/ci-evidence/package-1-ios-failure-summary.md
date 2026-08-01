@@ -16,8 +16,9 @@
 
 **Target:** `MileRecoverProtoBridgeC`  
 **Phase:** Swift compile (`PrototypeBridgeModule.swift`)  
-**Error class:** `No such module 'React'` — RN CocoaPods are static libraries; Swift cannot `import React` without a module map.  
-**Downstream:** Obj-C `RCT_EXTERN_MODULE` registration requires a concrete Swift `RCTEventEmitter` subclass.
+**Error class (run `30696242923` @ `4b5362c`):** Swift compile — `'nil' is not compatible with expected argument type 'Any'` in `clearPrototypeData` (`resolve(nil)`). Xcode exit **65**.
+
+**Prior error class (run `30696030032` @ `00dec05`):** `No such module 'React'` — fixed via Obj-C bridging header (removed `import React`).
 
 ## Prior defect (run `30673874293` @ `9140b15`)
 
@@ -27,9 +28,10 @@
 
 1. Add `MileRecoverProtoBridgeC-Bridging-Header.h` with React headers; set `SWIFT_OBJC_BRIDGING_HEADER` in pbxproj
 2. Remove `import React` from Swift; expose RN types via bridging header
-3. Remove `#if canImport(React)` guard; implement `startObserving()` / `stopObserving()`
-4. Remove `UIRequiredDeviceCapabilities` arm64 restriction from Info.plist
-5. CI workflow: explicit workspace/scheme paths (`MileRecoverProtoBridgeC`)
+3. Replace `resolve(nil)` with `resolve(NSNull())` in `clearPrototypeData`
+4. Remove `#if canImport(React)` guard; implement `startObserving()` / `stopObserving()`
+5. Remove `UIRequiredDeviceCapabilities` arm64 restriction from Info.plist
+6. CI workflow: fail on pod install errors; require workspace (no bare xcodeproj fallback)
 
 ## Verification pending
 

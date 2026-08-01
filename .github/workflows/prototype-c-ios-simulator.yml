@@ -107,11 +107,19 @@ jobs:
       - name: Install CocoaPods
         if: steps.scaffold.outputs.ready == 'true'
         run: |
+          set -euo pipefail
           cd ios
           if ! command -v pod >/dev/null 2>&1; then
             sudo gem install cocoapods --no-document
           fi
           pod install --repo-update 2>&1 | tee ../pod-install.log
+          pod_status=${PIPESTATUS[0]}
+          if [ "$pod_status" -ne 0 ]; then
+            echo "::error::pod install failed with exit code $pod_status"
+            exit "$pod_status"
+          fi
+          test -d MileRecoverProtoBridgeC.xcworkspace
+          test -f Podfile.lock
 
       - name: Build for iOS Simulator (unsigned)
         if: steps.scaffold.outputs.ready == 'true'
@@ -120,25 +128,17 @@ jobs:
           WS="ios/MileRecoverProtoBridgeC.xcworkspace"
           SCHEME="MileRecoverProtoBridgeC"
           if [ ! -d "$WS" ]; then
-            WS="ios/MileRecoverProtoBridgeC.xcodeproj"
-            xcodebuild \
-              -project "$WS" \
-              -scheme "$SCHEME" \
-              -sdk iphonesimulator \
-              -configuration Debug \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              build 2>&1 | tee ios-simulator-build.log
-          else
-            xcodebuild \
-              -workspace "$WS" \
-              -scheme "$SCHEME" \
-              -sdk iphonesimulator \
-              -configuration Debug \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              build 2>&1 | tee ios-simulator-build.log
+            echo "::error::Missing CocoaPods workspace at $WS — pod install did not produce a buildable scaffold"
+            exit 1
           fi
+          xcodebuild \
+            -workspace "$WS" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee ios-simulator-build.log
 
       - name: Run simulator tests
         if: steps.scaffold.outputs.ready == 'true'

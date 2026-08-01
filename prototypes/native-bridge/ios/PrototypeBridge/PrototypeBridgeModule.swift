@@ -55,7 +55,7 @@ class PrototypeBridgeModule: RCTEventEmitter {
 
   @objc func clearPrototypeData(_ resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
     buffer.clearAll()
-    resolve(nil)
+    resolve(NSNull())
   }
 
   private func emitHint() {
