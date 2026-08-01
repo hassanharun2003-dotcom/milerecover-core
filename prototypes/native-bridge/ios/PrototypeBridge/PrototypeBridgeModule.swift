@@ -1,10 +1,7 @@
 import Foundation
-
-#if canImport(React)
 import React
 
 /// Legacy Native Module — semantic parity with Android PrototypeBridgeModule.
-/// **Compile validation pending** — requires Xcode + CocoaPods RN host on macOS.
 @objc(PrototypeBridgeModule)
 class PrototypeBridgeModule: RCTEventEmitter {
 
@@ -15,6 +12,14 @@ class PrototypeBridgeModule: RCTEventEmitter {
 
   override func supportedEvents() -> [String]! {
     ["PrototypeEventsAvailable"]
+  }
+
+  override func startObserving() {
+    hasListeners = true
+  }
+
+  override func stopObserving() {
+    hasListeners = false
   }
 
   @objc func getBridgeApiVersion(_ resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
@@ -85,5 +90,3 @@ private extension NativeEventEnvelope {
     ]
   }
 }
-
-#endif
