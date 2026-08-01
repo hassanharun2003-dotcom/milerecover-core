@@ -97,25 +97,40 @@ jobs:
       - name: Check iOS scaffold readiness
         id: scaffold
         run: |
-          if [ -f ios/Podfile ] && ls ios/*.xcworkspace 1>/dev/null 2>&1; then
+          if [ -f ios/Podfile ] && ls ios/*.xcodeproj 1>/dev/null 2>&1; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::iOS RN scaffold missing (Podfile / xcworkspace). See ios/IOS_CLOUD_BUILD_READINESS.md"
+            echo "::warning::iOS RN scaffold missing (Podfile / xcodeproj). See ios/IOS_CLOUD_BUILD_READINESS.md"
           fi
 
       - name: Install CocoaPods
         if: steps.scaffold.outputs.ready == 'true'
         run: |
+          set -euo pipefail
           cd ios
-          pod install --repo-update
+          if ! command -v pod >/dev/null 2>&1; then
+            sudo gem install cocoapods --no-document
+          fi
+          pod install --repo-update 2>&1 | tee ../pod-install.log
+          pod_status=${PIPESTATUS[0]}
+          if [ "$pod_status" -ne 0 ]; then
+            echo "::error::pod install failed with exit code $pod_status"
+            exit "$pod_status"
+          fi
+          test -d MileRecoverProtoBridgeC.xcworkspace
+          test -f Podfile.lock
 
       - name: Build for iOS Simulator (unsigned)
         if: steps.scaffold.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          WS=$(ls ios/*.xcworkspace | head -1)
-          SCHEME=$(xcodebuild -list -workspace "$WS" | awk '/Schemes:/{getline; print; exit}' | xargs)
+          WS="ios/MileRecoverProtoBridgeC.xcworkspace"
+          SCHEME="MileRecoverProtoBridgeC"
+          if [ ! -d "$WS" ]; then
+            echo "::error::Missing CocoaPods workspace at $WS — pod install did not produce a buildable scaffold"
+            exit 1
+          fi
           xcodebuild \
             -workspace "$WS" \
             -scheme "$SCHEME" \
@@ -125,11 +140,33 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee ios-simulator-build.log
 
+      - name: Run simulator tests
+        if: steps.scaffold.outputs.ready == 'true'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          WS="ios/MileRecoverProtoBridgeC.xcworkspace"
+          SCHEME="MileRecoverProtoBridgeC"
+          if [ -d "$WS" ]; then
+            SIM=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)
+            xcodebuild test \
+              -workspace "$WS" \
+              -scheme "$SCHEME" \
+              -sdk iphonesimulator \
+              -destination "platform=iOS Simulator,name=${SIM}" \
+              -configuration Debug \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              2>&1 | tee ios-simulator-test.log
+          else
+            echo "Workspace missing after pod install — skipping xcodebuild test" | tee ios-simulator-test.log
+          fi
+
       - name: Record scaffold blocker
         if: steps.scaffold.outputs.ready != 'true'
         run: |
           mkdir -p harness/output
-          echo '{"status":"blocked","reason":"Missing Podfile and/or xcworkspace — RN iOS scaffold required"}' > harness/output/ios-ci-blocker.json
+          echo '{"status":"blocked","reason":"Missing Podfile and/or xcodeproj — RN iOS scaffold required"}' > harness/output/ios-ci-blocker.json
 
       - name: Swift syntax check (fallback when scaffold missing)
         if: steps.scaffold.outputs.ready != 'true'
@@ -150,6 +187,8 @@ jobs:
           name: prototype-c-ios-build-logs
           path: |
             prototypes/native-bridge/ios-simulator-build.log
+            prototypes/native-bridge/ios-simulator-test.log
+            prototypes/native-bridge/pod-install.log
             prototypes/native-bridge/ios-swift-syntax.log
             prototypes/native-bridge/harness/output/ios-ci-blocker.json
           if-no-files-found: ignore
