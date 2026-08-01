@@ -142,11 +142,22 @@ jobs:
         timeout-minutes: 10
         run: |
           set -euo pipefail
-          xcodebuild test \
+          SIM="$(xcrun simctl list devices available | grep -m1 'iPhone' | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)"
+          echo "Using simulator: ${SIM}"
+          xcodebuild build-for-testing \
             -project ios/MileRecoverProtoBridgeC.xcodeproj \
             -scheme MileRecoverProtoBridgeCLogicTests \
             -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination "platform=iOS Simulator,name=${SIM}" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            2>&1 | tee ios-logic-build.log
+          xcodebuild test-without-building \
+            -project ios/MileRecoverProtoBridgeC.xcodeproj \
+            -scheme MileRecoverProtoBridgeCLogicTests \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=${SIM}" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
