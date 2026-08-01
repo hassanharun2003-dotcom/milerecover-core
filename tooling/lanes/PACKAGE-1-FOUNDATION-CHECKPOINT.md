@@ -1,7 +1,7 @@
 # Package 1 — Mobile foundation checkpoint
 
 **Tag:** `checkpoint/mobile-foundation-package-1-complete`  
-**Integrated main:** `4ec257f` (post `.env.example` CI fix; merge base `e54af39`)  
+**Integrated main:** `382595d` (`.env.example` CI fix; iOS merge `e54af39`; Android FF `82c6608`)  
 **Rollback baseline:** `a963de0` · lane tags `checkpoint/android-package-1-start`, `checkpoint/ios-package-1-start`
 
 ---
@@ -38,7 +38,7 @@
 |----------|-----|--------|
 | Prototype Android JVM Tests | 30697802109 @ `b3481a3` | success |
 | Prototype C iOS Simulator Validation | 30697802106 @ `b3481a3` | success |
-| Repository quality | pending @ `4ec257f` | re-triggered after `.env.example` fix |
+| Repository quality | 30698275933 @ `382595d` | success |
 
 ## Deferred (Package 2+)
 
