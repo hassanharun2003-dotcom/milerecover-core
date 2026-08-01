@@ -1,8 +1,9 @@
-import type { OnboardingProgress, ReviewItem, TripRecord } from '@milerecover/domain';
+import type { OnboardingProgress, ReviewItem, TripRecord, AppStartupPhase, RecoveryCandidate } from '@milerecover/domain';
 import type { TrackingEngineState } from '@milerecover/domain';
 
 export interface MileRecoverAppState {
   hydrated: boolean;
+  startupPhase: AppStartupPhase;
   loadError: string | null;
   dataStale: boolean;
   onboardingComplete: boolean;
@@ -11,6 +12,7 @@ export interface MileRecoverAppState {
   lastConfirmedCaptureAt: number | null;
   lastSyncAt: number | null;
   trips: TripRecord[];
+  recoveryCandidates: RecoveryCandidate[];
   reviewItems: ReviewItem[];
   tripsTodayCount: number;
   periodConfirmedBusinessMiles: number;
@@ -21,7 +23,8 @@ export interface MileRecoverAppState {
 export function createInitialAppState(now: number = Date.now()): MileRecoverAppState {
   const year = new Date(now).getFullYear();
   return {
-    hydrated: true,
+    hydrated: false,
+    startupPhase: 'restoring',
     loadError: null,
     dataStale: false,
     onboardingComplete: false,
@@ -34,6 +37,7 @@ export function createInitialAppState(now: number = Date.now()): MileRecoverAppS
     lastConfirmedCaptureAt: null,
     lastSyncAt: null,
     trips: [],
+    recoveryCandidates: [],
     reviewItems: [],
     tripsTodayCount: 0,
     periodConfirmedBusinessMiles: 0,

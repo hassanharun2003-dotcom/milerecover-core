@@ -8,3 +8,4 @@ export * from './trips/types';
 export * from './proof/summary';
 export * from './onboarding/progression';
 export * from './store/types';
+export * from './persistence';

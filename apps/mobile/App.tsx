@@ -4,16 +4,24 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from './src/store/AppContext';
 import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { RootTabs } from './src/navigation/RootTabs';
+import { StartupGate } from './src/components/StartupGate';
 
 function RootNavigator() {
-  const { state } = useApp();
-  if (!state.onboardingComplete) {
-    return <OnboardingFlow />;
-  }
+  const { state, retryRestore, resetLocalData } = useApp();
+
   return (
-    <NavigationContainer>
-      <RootTabs />
-    </NavigationContainer>
+    <StartupGate
+      phase={state.startupPhase}
+      loadError={state.loadError}
+      onRetry={retryRestore}
+      onConfirmReset={resetLocalData}
+    >
+      {!state.onboardingComplete ? <OnboardingFlow /> : (
+        <NavigationContainer>
+          <RootTabs />
+        </NavigationContainer>
+      )}
+    </StartupGate>
   );
 }
 

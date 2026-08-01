@@ -1,0 +1,151 @@
+name: Package 3 mobile validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/domain/**'
+      - 'packages/config/**'
+      - 'package.json'
+      - '.github/workflows/package-3-mobile.yml'
+  push:
+    branches:
+      - milestone/**
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/domain/**'
+      - 'packages/config/**'
+      - 'package.json'
+      - '.github/workflows/package-3-mobile.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-3-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-checks:
+    name: Shared Package 3 checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Root repository checks
+        run: npm run check:all
+      - name: Install domain dependencies
+        working-directory: packages/domain
+        run: npm ci
+      - name: Domain typecheck
+        working-directory: packages/domain
+        run: npm run typecheck
+      - name: Domain tests
+        working-directory: packages/domain
+        run: npm test
+      - name: Install config dependencies
+        working-directory: packages/config
+        run: npm ci
+      - name: Config typecheck
+        working-directory: packages/config
+        run: npm run typecheck
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci
+      - name: Mobile typecheck
+        working-directory: apps/mobile
+        run: npm run typecheck
+
+  android-debug:
+    name: Android debug assemble
+    runs-on: ubuntu-latest
+    needs: shared-checks
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install mobile dependencies
+        run: npm ci
+      - name: Assemble debug APK
+        run: |
+          set -euo pipefail
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee ../android-assemble.log
+          if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+            echo "::error::Android assembleDebug failed"
+            tail -n 60 ../android-assemble.log
+            exit 1
+          fi
+      - name: Upload Android build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-3-android-assemble-log
+          path: apps/mobile/android-assemble.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  ios-simulator:
+    name: iOS simulator build (unsigned)
+    runs-on: macos-latest
+    needs: shared-checks
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - name: Install mobile dependencies
+        run: npm ci
+      - name: Install CocoaPods
+        run: |
+          set -euo pipefail
+          cd ios
+          if ! command -v pod >/dev/null 2>&1; then
+            sudo gem install cocoapods --no-document
+          fi
+          pod install --repo-update 2>&1 | tee ../pod-install.log
+          test -d MileRecover.xcworkspace
+      - name: Build for iOS Simulator (unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace ios/MileRecover.xcworkspace \
+            -scheme MileRecover \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee ios-simulator-build.log
+          if grep -q "BUILD FAILED" ios-simulator-build.log; then
+            echo "::error::Unsigned iOS simulator build failed"
+            grep -E "error:|fatal error:|BUILD FAILED" ios-simulator-build.log | tail -n 40 || true
+            exit 65
+          fi
+      - name: Upload iOS build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-3-ios-build-log
+          path: |
+            apps/mobile/ios-simulator-build.log
+            apps/mobile/pod-install.log
+          if-no-files-found: ignore
+          retention-days: 14
