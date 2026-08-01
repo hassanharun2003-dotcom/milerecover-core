@@ -8,7 +8,10 @@
     "check:boundaries": "node tooling/scripts/check-boundaries.js",
     "check:sensitive-files": "node tooling/scripts/check-sensitive-files.js",
     "check:links": "node tooling/scripts/check-doc-links.js",
-    "check:all": "node tooling/scripts/check-all.js"
+    "check:all": "node tooling/scripts/check-all.js",
+    "test:domain": "npm --prefix packages/domain test",
+    "typecheck:domain": "npm --prefix packages/domain run typecheck",
+    "typecheck:mobile": "npm --prefix apps/mobile run typecheck"
   },
   "engines": {
     "node": ">=20.0.0"

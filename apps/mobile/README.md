@@ -1,36 +1,32 @@
 # Mobile application (`apps/mobile`)
 
-**Status:** Phase 0 placeholder — React Native **not initialized**
+**Status:** Package 3 — production vertical slice (in progress)
 
-Future home of the MileRecover React Native application (DEC-001).
+React Native **0.76.5** application shell with five-tab navigation, onboarding, and domain-driven screens.
 
-## Responsibilities
+## Architecture
 
-- Shared presentation and navigation (four tabs — DEC-007)
-- Product orchestration, review, proof, profile flows
-- Domain service wiring, sync client, export UI
-- Native bridge consumption (typed contracts)
+- **UI:** `src/screens/*`, `src/navigation/RootTabs.tsx`
+- **State:** `src/store/AppContext.tsx` — no fake mileage; empty until persistence wired
+- **Selectors:** `src/selectors/*` → `@milerecover/domain`
+- **Tokens:** `@milerecover/config`
 
-## Must not own
+## Run (local)
 
-- Operating-system background location execution (Swift/Kotlin native modules)
-- Raw GPS sampling or tracking state machine
-- Backend business logic
+```bash
+cd apps/mobile
+npm install
+npm start
+# separate terminal
+npm run android   # or ios on macOS
+```
 
-## Prohibited in Phase 0
+## Package 3 scope
 
-- `react-native init`, Expo production scaffold, UI screens
-- Tracking implementation, subscriptions, recovery UI
+Implemented: onboarding, Home, Review, Add (manual stub), Proof, Profile shells.  
+Deferred: native project init (android/ios folders), persistence, bridge promotion, device validation.
 
-## Entry criteria
+## Must not
 
-Phase 0 exit + Phase 3+ for production shell (see TIP §26).
-
-## Promotion
-
-Native modules attach here in later phases — not copied from `prototypes/` without ADR review.
-
-## References
-
-- [architecture/Frontend.md](../architecture/Frontend.md)
-- [adr/0002-application-boundaries.md](../docs/adr/0002-application-boundaries.md)
+- Import from `prototypes/` (ADR-0003)
+- Show fabricated trips, savings, or protection scores
