@@ -52,14 +52,14 @@ class TrackingForegroundService : Service() {
         return START_NOT_STICKY
       }
       ACTION_START, null -> {
-        handleStart(intent?.getStringExtra(EXTRA_SESSION_ID))
+        handleStart(intent?.getStringExtra(EXTRA_SESSION_ID), flags)
       }
     }
     // START_STICKY documented: system may restart after crash; we validate session on redelivery
     return START_STICKY
   }
 
-  private fun handleStart(explicitSessionId: String?) {
+  private fun handleStart(explicitSessionId: String?, startFlags: Int) {
     val permissions = PermissionHelper.snapshot(this)
     if (!permissions.canTrackInForeground()) {
       sessionManager.appendEvent(
@@ -96,15 +96,13 @@ class TrackingForegroundService : Service() {
 
     locationCollector = LocationCollector(this, sessionManager).also { it.start(sessionId) }
 
-    if (intentIsRedelivery()) {
+    if (isRedelivery(startFlags)) {
       sessionManager.markRecovering(sessionId, "service_redelivery")
     }
   }
 
-  private fun intentIsRedelivery(): Boolean {
-    // Heuristic: if service active but collector was recreated
-    return locationCollector != null
-  }
+  private fun isRedelivery(startFlags: Int): Boolean =
+    (startFlags and START_FLAG_REDELIVERY) != 0
 
   private fun recordBatteryState(sessionId: String) {
     val snap = BatteryOptimizationHelper.snapshot(this)
