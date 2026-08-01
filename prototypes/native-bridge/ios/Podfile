@@ -14,11 +14,12 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
-target 'MileRecoverProtoBridgeC' do
-  config = use_native_modules!
+# PrototypeBridge sources are wired manually in the Xcode project — no CLI autolinking required.
+react_native_path = '../node_modules/react-native'
 
+target 'MileRecoverProtoBridgeC' do
   use_react_native!(
-    :path => config[:reactNativePath],
+    :path => react_native_path,
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
@@ -32,7 +33,7 @@ target 'MileRecoverProtoBridgeC' do
     # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(
       installer,
-      config[:reactNativePath],
+      react_native_path,
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
