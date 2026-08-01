@@ -229,7 +229,7 @@
 		};
 		L0G1C0ED1AD99517003FC87E /* MileRecoverProtoBridgeCLogicTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = L0G1C0021AD99517003FC87E /* Build configuration list for PBXNativeTarget "MileRecoverProtoBridgeCLogicTests" */;
+			buildConfigurationList = L0G1C0081AD99517003FC87E /* Build configuration list for PBXNativeTarget "MileRecoverProtoBridgeCLogicTests" */;
 			buildPhases = (
 				L0G1C0EA1AD99517003FC87E /* Sources */,
 				L0G1C0EB1AD99517003FC87E /* Frameworks */,
@@ -826,7 +826,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		L0G1C0021AD99517003FC87E /* Build configuration list for PBXNativeTarget "MileRecoverProtoBridgeCLogicTests" */ = {
+		L0G1C0081AD99517003FC87E /* Build configuration list for PBXNativeTarget "MileRecoverProtoBridgeCLogicTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				L0G1C0F61AD99517003FC87E /* Debug */,
