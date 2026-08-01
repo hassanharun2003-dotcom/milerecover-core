@@ -3,3 +3,6 @@ build/
 DerivedData/
 *.xcuserstate
 *.xcuserdata
+MileRecoverProtoBridgeC/main.jsbundle
+MileRecoverProtoBridgeC/main.jsbundle.js
+MileRecoverProtoBridgeC/index.js.bundle
