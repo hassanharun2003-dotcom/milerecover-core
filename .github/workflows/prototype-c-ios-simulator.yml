@@ -136,32 +136,40 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee ios-simulator-build.log
+          if grep -q "BUILD FAILED" ios-simulator-build.log; then
+            echo "::error::Unsigned simulator app build failed"
+            grep -E "error:|fatal error:|BUILD FAILED" ios-simulator-build.log | tail -n 40 || true
+            exit 65
+          fi
 
       - name: Run Package 2 logic XCTest (hostless)
         if: steps.scaffold.outputs.ready == 'true'
         timeout-minutes: 10
         run: |
           set -euo pipefail
-          SIM="$(xcrun simctl list devices available | grep -m1 'iPhone' | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)"
-          echo "Using simulator: ${SIM}"
-          xcodebuild build-for-testing \
+          SIM_LINE="$(xcrun simctl list devices available | grep -m1 "iPhone" || true)"
+          if [ -z "${SIM_LINE}" ]; then
+            echo "::error::No iPhone simulator available"
+            exit 1
+          fi
+          SIM_UDID="$(echo "${SIM_LINE}" | sed -nE 's/.*\(([A-Fa-f0-9-]{36})\).*/\1/p')"
+          SIM_NAME="$(echo "${SIM_LINE}" | sed -E 's/^[[:space:]]*//;s/ \([A-Fa-f0-9-]{36}\).*//')"
+          echo "Using simulator: ${SIM_NAME} (${SIM_UDID})"
+          xcrun simctl boot "${SIM_UDID}" 2>/dev/null || true
+          xcodebuild test \
             -project ios/MileRecoverProtoBridgeC.xcodeproj \
             -scheme MileRecoverProtoBridgeCLogicTests \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=${SIM}" \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            2>&1 | tee ios-logic-build.log
-          xcodebuild test-without-building \
-            -project ios/MileRecoverProtoBridgeC.xcodeproj \
-            -scheme MileRecoverProtoBridgeCLogicTests \
-            -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=${SIM}" \
+            -destination "platform=iOS Simulator,id=${SIM_UDID}" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             2>&1 | tee ios-logic-test.log
+          if grep -q "TEST FAILED" ios-logic-test.log; then
+            echo "::error::Hostless logic XCTest failed"
+            grep -E "error:|failed on|TEST FAILED" ios-logic-test.log | tail -n 40 || true
+            exit 65
+          fi
           mkdir -p ios/ci-evidence/logs
           cp ios-logic-test.log ios/ci-evidence/logs/simulator-test.log
           node ios/scripts/write-package-2-summary.cjs \
