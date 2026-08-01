@@ -14,7 +14,7 @@ final class PrototypeEventBuffer {
   private let queue = DispatchQueue(label: "com.milerecover.prototype.nativebridge.buffer")
 
   /// Production default — Application Support file path.
-  init() {
+  convenience init() {
     let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     self.init(fileURL: dir.appendingPathComponent("prototype_c_bridge.json"))

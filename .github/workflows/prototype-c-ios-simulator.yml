@@ -128,6 +128,7 @@ jobs:
           set -euo pipefail
           WS="ios/MileRecoverProtoBridgeC.xcworkspace"
           SCHEME="MileRecoverProtoBridgeC"
+          set +e
           xcodebuild \
             -workspace "$WS" \
             -scheme "$SCHEME" \
@@ -136,8 +137,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee ios-simulator-build.log
-          if grep -q "BUILD FAILED" ios-simulator-build.log; then
-            echo "::error::Unsigned simulator app build failed"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$build_status" -ne 0 ] || grep -q "BUILD FAILED" ios-simulator-build.log; then
+            echo "::error::Unsigned simulator app build failed (exit ${build_status})"
             grep -E "error:|fatal error:|BUILD FAILED" ios-simulator-build.log | tail -n 40 || true
             exit 65
           fi
@@ -156,6 +159,7 @@ jobs:
           SIM_NAME="$(echo "${SIM_LINE}" | sed -E 's/^[[:space:]]*//;s/ \([A-Fa-f0-9-]{36}\).*//')"
           echo "Using simulator: ${SIM_NAME} (${SIM_UDID})"
           xcrun simctl boot "${SIM_UDID}" 2>/dev/null || true
+          set +e
           xcodebuild test \
             -project ios/MileRecoverProtoBridgeC.xcodeproj \
             -scheme MileRecoverProtoBridgeCLogicTests \
@@ -165,9 +169,11 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             2>&1 | tee ios-logic-test.log
-          if grep -q "TEST FAILED" ios-logic-test.log; then
-            echo "::error::Hostless logic XCTest failed"
-            grep -E "error:|failed on|TEST FAILED" ios-logic-test.log | tail -n 40 || true
+          test_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$test_status" -ne 0 ] || grep -qE "TEST FAILED|Testing failed" ios-logic-test.log; then
+            echo "::error::Hostless logic XCTest failed (exit ${test_status})"
+            grep -E "error:|failed on|TEST FAILED|Testing failed" ios-logic-test.log | tail -n 40 || true
             exit 65
           fi
           mkdir -p ios/ci-evidence/logs
