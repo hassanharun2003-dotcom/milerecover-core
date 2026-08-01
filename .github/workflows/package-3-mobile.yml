@@ -80,11 +80,18 @@ jobs:
         run: npm ci
       - name: Install Android SDK components
         run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;26.1.10909125"
       - name: Configure Android SDK path
         run: printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" >> android/local.properties
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses || true
+      - name: Verify React Native config (Android job)
+        run: npx react-native config
+      - name: Gradle project diagnose
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew :app:properties --no-daemon 2>&1 | tee ../android-diagnose.log || true
       - name: Assemble debug APK
         run: |
           set -euo pipefail
@@ -121,6 +128,8 @@ jobs:
           cache-dependency-path: apps/mobile/package-lock.json
       - name: Install mobile dependencies
         run: npm ci
+      - name: Verify React Native config
+        run: npx react-native config
       - name: Install CocoaPods
         run: |
           set -euo pipefail
