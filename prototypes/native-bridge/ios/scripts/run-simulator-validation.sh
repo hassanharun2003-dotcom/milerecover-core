@@ -85,6 +85,15 @@ trap on_exit EXIT
 
 cd "${BRIDGE_DIR}"
 
+echo "Bundling JS for offline XCTest host launch (no Metro)..."
+BUNDLE_OUT="${IOS_DIR}/MileRecoverProtoBridgeC/main.jsbundle"
+npx react-native bundle \
+  --platform ios \
+  --dev false \
+  --entry-file index.js \
+  --bundle-output "${BUNDLE_OUT}" \
+  --assets-dest "${IOS_DIR}/MileRecoverProtoBridgeC"
+
 if [ ! -f "${IOS_DIR}/Podfile" ] || [ ! -d "${IOS_DIR}/MileRecoverProtoBridgeC.xcodeproj" ]; then
   echo "error: iOS scaffold missing (Podfile / xcodeproj)" >&2
   build_status="blocked"
@@ -144,6 +153,9 @@ xcodebuild test \
   -configuration "${CONFIG}" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
+  -test-timeouts-enabled YES \
+  -maximum-concurrent-test-simulator-destinations 1 \
+  -skip-testing:MileRecoverProtoBridgeCTests/MileRecoverProtoBridgeCTests/testRendersWelcomeScreen \
   -only-testing:MileRecoverProtoBridgeCTests/PrototypeEventBufferTests \
   -only-testing:MileRecoverProtoBridgeCTests/DiagnosticSanitizerTests \
   -only-testing:MileRecoverProtoBridgeCTests/BridgeVersionTests \

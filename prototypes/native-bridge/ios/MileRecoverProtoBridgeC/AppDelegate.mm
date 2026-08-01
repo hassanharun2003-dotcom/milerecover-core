@@ -22,6 +22,13 @@
 - (NSURL *)bundleURL
 {
 #if DEBUG
+  // Package 2 CI: XCTest host must launch without Metro — use prebundled JS when present.
+  if ([NSProcessInfo processInfo].environment[@"XCTestConfigurationFilePath"] != nil) {
+    NSURL *offlineBundle = [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
+    if (offlineBundle != nil) {
+      return offlineBundle;
+    }
+  }
   return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];
 #else
   return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
