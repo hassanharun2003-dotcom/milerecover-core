@@ -86,20 +86,7 @@ trap on_exit EXIT
 cd "${BRIDGE_DIR}"
 
 echo "Bundling JS for offline XCTest host launch (Metro CLI — no packager)..."
-BUNDLE_OUT="${IOS_DIR}/MileRecoverProtoBridgeC/main.jsbundle"
-node node_modules/metro/src/cli.js build index.js \
-  --platform ios \
-  --out "${IOS_DIR}/MileRecoverProtoBridgeC" \
-  --config metro.config.js
-if [ -f "${IOS_DIR}/MileRecoverProtoBridgeC/index.js.bundle" ]; then
-  mv "${IOS_DIR}/MileRecoverProtoBridgeC/index.js.bundle" "${BUNDLE_OUT}"
-elif [ -f "${IOS_DIR}/MileRecoverProtoBridgeC/main.jsbundle.js" ]; then
-  mv "${IOS_DIR}/MileRecoverProtoBridgeC/main.jsbundle.js" "${BUNDLE_OUT}"
-elif [ ! -f "${BUNDLE_OUT}" ]; then
-  echo "error: metro bundle output not found" >&2
-  exit 1
-fi
-test -f "${BUNDLE_OUT}"
+node "${IOS_DIR}/scripts/bundle-offline-js.cjs"
 
 if [ ! -f "${IOS_DIR}/Podfile" ] || [ ! -d "${IOS_DIR}/MileRecoverProtoBridgeC.xcodeproj" ]; then
   echo "error: iOS scaffold missing (Podfile / xcodeproj)" >&2
@@ -129,8 +116,14 @@ if [ -z "${simulator_line}" ]; then
   exit 1
 fi
 
-simulator_udid="$(echo "${simulator_line}" | sed -nE 's/.*\(([A-F0-9-]+)\).*/\1/p')"
+simulator_udid="$(echo "${simulator_line}" | sed -nE 's/.*\(([A-Fa-f0-9-]+)\).*/\1/p')"
 simulator_name="$(echo "${simulator_line}" | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)"
+if [ -z "${simulator_udid}" ]; then
+  echo "error: could not parse simulator UDID from: ${simulator_line}" >&2
+  build_status="failed"
+  test_status="skipped"
+  exit 1
+fi
 echo "Using simulator: ${simulator_name} (${simulator_udid})"
 xcrun simctl boot "${simulator_udid}" 2>/dev/null || true
 
