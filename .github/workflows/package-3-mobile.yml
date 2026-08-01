@@ -78,6 +78,9 @@ jobs:
         uses: android-actions/setup-android@v3
       - name: Install mobile dependencies
         run: npm ci
+      - name: Install Android SDK components
+        run: |
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
       - name: Configure Android SDK path
         run: printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" >> android/local.properties
       - name: Accept Android SDK licenses
@@ -87,10 +90,10 @@ jobs:
           set -euo pipefail
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=x86_64 2>&1 | tee ../android-assemble.log
+          ./gradlew assembleDebug --no-daemon --stacktrace -PreactNativeArchitectures=x86_64 2>&1 | tee ../android-assemble.log
           if [ "${PIPESTATUS[0]}" -ne 0 ]; then
             echo "::error::Android assembleDebug failed"
-            tail -n 60 ../android-assemble.log
+            tail -n 120 ../android-assemble.log
             exit 1
           fi
       - name: Upload Android build log

@@ -15,7 +15,7 @@ if linkage != nil
 end
 
 target 'MileRecover' do
-  config = use_native_modules!
+  config = use_native_modules!(['node', '-e', "process.chdir('..');process.argv=['','','config'];require('@react-native-community/cli').run()"])
 
   use_react_native!(
     :path => config[:reactNativePath],
