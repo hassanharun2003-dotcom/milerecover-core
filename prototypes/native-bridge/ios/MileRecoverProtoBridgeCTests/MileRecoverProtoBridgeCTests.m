@@ -28,6 +28,8 @@
 
 - (void)testRendersWelcomeScreen
 {
+  // Package 2: native XCTest gate only — Metro UI smoke is manual (see PERMISSION_LIFECYCLE_TEST_PLAN.md).
+  XCTSkip(@"Requires Metro packager; skipped in Package 2 automated CI.");
   UIViewController *vc = [[[RCTSharedApplication() delegate] window] rootViewController];
   NSDate *date = [NSDate dateWithTimeIntervalSinceNow:TIMEOUT_SECONDS];
   BOOL foundElement = NO;

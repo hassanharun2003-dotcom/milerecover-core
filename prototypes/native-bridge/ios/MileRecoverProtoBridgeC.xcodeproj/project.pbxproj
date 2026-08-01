@@ -529,6 +529,7 @@
 					"-ObjC",
 					"-lc++",
 				);
+				ENABLE_TESTABILITY = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.milerecover.prototype.nativebridge;
 				PRODUCT_NAME = MileRecoverProtoBridgeC;
 				SWIFT_OBJC_BRIDGING_HEADER = "MileRecoverProtoBridgeC/MileRecoverProtoBridgeC-Bridging-Header.h";

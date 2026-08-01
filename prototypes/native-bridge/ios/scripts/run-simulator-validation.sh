@@ -115,9 +115,8 @@ fi
 
 simulator_udid="$(echo "${simulator_line}" | sed -nE 's/.*\(([A-F0-9-]+)\).*/\1/p')"
 simulator_name="$(echo "${simulator_line}" | sed -E 's/^[[:space:]]*//;s/ \([^)]*\)//' | xargs)"
-echo "Booting simulator: ${simulator_name} (${simulator_udid})"
+echo "Using simulator: ${simulator_name} (${simulator_udid})"
 xcrun simctl boot "${simulator_udid}" 2>/dev/null || true
-open -a Simulator --args -CurrentDeviceUDID "${simulator_udid}" 2>/dev/null || true
 
 echo "Building for iOS Simulator (unsigned)..."
 if xcodebuild \
@@ -135,7 +134,7 @@ else
   exit 1
 fi
 
-echo "Running native XCTest (skipping Metro UI test)..."
+echo "Running native XCTest (Swift suites only; Metro UI test skipped)..."
 set +e
 xcodebuild test \
   -workspace "${WS}" \
@@ -145,7 +144,9 @@ xcodebuild test \
   -configuration "${CONFIG}" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
-  -skip-testing:MileRecoverProtoBridgeCTests/testRendersWelcomeScreen \
+  -only-testing:MileRecoverProtoBridgeCTests/PrototypeEventBufferTests \
+  -only-testing:MileRecoverProtoBridgeCTests/DiagnosticSanitizerTests \
+  -only-testing:MileRecoverProtoBridgeCTests/BridgeVersionTests \
   2>&1 | tee "${TEST_LOG}"
 test_exit=$?
 set -e
