@@ -146,10 +146,10 @@ fi
 echo "Running hostless native logic XCTest (${LOGIC_SCHEME})..."
 set +e
 xcodebuild test \
-  -workspace "${WS}" \
+  -project "${IOS_DIR}/MileRecoverProtoBridgeC.xcodeproj" \
   -scheme "${LOGIC_SCHEME}" \
   -sdk "${SDK}" \
-  -destination "platform=iOS Simulator,id=${simulator_udid}" \
+  -destination "platform=iOS Simulator,name=${simulator_name}" \
   -configuration "${CONFIG}" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
