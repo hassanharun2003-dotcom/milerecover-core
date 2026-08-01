@@ -6,6 +6,7 @@ node_modules/
 # Secrets and local credentials
 .env
 .env.*
+!.env.example
 *.pem
 *.p12
 *.mobileprovision

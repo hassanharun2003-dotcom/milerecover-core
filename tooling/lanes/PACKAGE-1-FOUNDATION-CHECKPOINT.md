@@ -1,7 +1,7 @@
 # Package 1 — Mobile foundation checkpoint
 
 **Tag:** `checkpoint/mobile-foundation-package-1-complete`  
-**Integrated main:** see tag annotation (post-push SHA)  
+**Integrated main:** `4ec257f` (post `.env.example` CI fix; merge base `e54af39`)  
 **Rollback baseline:** `a963de0` · lane tags `checkpoint/android-package-1-start`, `checkpoint/ios-package-1-start`
 
 ---
@@ -31,6 +31,14 @@
 | Evidence-only bridge reevaluation | 24/24 |
 | Validator smoke test | 24/24 |
 | Android JVM/Robolectric | 20/20 |
+
+## Main-branch CI (post-integration)
+
+| Workflow | Run | Result |
+|----------|-----|--------|
+| Prototype Android JVM Tests | 30697802109 @ `b3481a3` | success |
+| Prototype C iOS Simulator Validation | 30697802106 @ `b3481a3` | success |
+| Repository quality | pending @ `4ec257f` | re-triggered after `.env.example` fix |
 
 ## Deferred (Package 2+)
 
