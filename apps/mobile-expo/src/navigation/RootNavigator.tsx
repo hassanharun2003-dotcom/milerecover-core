@@ -4,6 +4,7 @@ import { colors } from '@milerecover/config';
 import { RootTabs } from './RootTabs';
 import { BringExistingMileageScreen } from '../screens/import/BringExistingMileageScreen';
 import { ImportExceptionReviewScreen, ImportPreviewScreen } from '../screens/import/ImportPreviewScreen';
+import { AboutScreen } from '../screens/about/AboutScreen';
 import {
   ExportReportScreen,
   HelpSupportScreen,
@@ -43,6 +44,7 @@ export function RootNavigator() {
       <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} options={{ title: 'Preview' }} />
       <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Plans' }} />
       <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: 'Help' }} />
+      <Stack.Screen name="About" component={AboutScreen} options={{ title: 'About' }} />
     </Stack.Navigator>
   );
 }

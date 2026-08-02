@@ -13,6 +13,7 @@ export const SUPPORTING_STACK_ROUTES = [
   'ReportPreview',
   'PlanSelection',
   'HelpSupport',
+  'About',
 ] as const;
 
 export type SupportingStackRoute = (typeof SUPPORTING_STACK_ROUTES)[number];
@@ -50,4 +51,5 @@ export type RootStackParamList = {
   ReportPreview: { format: 'csv' | 'pdf' | 'reimbursement' | 'log' };
   PlanSelection: { source?: 'profile' | 'upgrade' };
   HelpSupport: undefined;
+  About: undefined;
 };

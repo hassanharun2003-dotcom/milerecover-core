@@ -7,6 +7,8 @@ import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { StartupGate } from './src/components/StartupGate';
 
+import { UpdateProvider } from './src/updates/UpdateProvider';
+
 function AppRoot() {
   const { state, retryRestore, resetLocalData } = useApp();
 
@@ -33,7 +35,9 @@ export default function App() {
     <SafeAreaProvider>
       <AppProvider>
         <ProductProvider>
-          <AppRoot />
+          <UpdateProvider>
+            <AppRoot />
+          </UpdateProvider>
         </ProductProvider>
       </AppProvider>
     </SafeAreaProvider>

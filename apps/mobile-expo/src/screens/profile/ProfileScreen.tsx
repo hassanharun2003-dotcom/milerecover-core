@@ -68,7 +68,7 @@ export function ProfileScreen() {
       <ListSection title="Trust and privacy">
         <ListRow label="Data and privacy" />
         <ListRow label="Help center" onPress={() => navigation.navigate('HelpSupport')} />
-        <ListRow label="About MileRecover" />
+        <ListRow label="About MileRecover" onPress={() => navigation.navigate('About')} />
       </ListSection>
 
       {product.showDevTools ? (

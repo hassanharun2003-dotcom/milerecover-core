@@ -13,6 +13,8 @@
     "deps:validate": "npx expo install --check",
     "config:validate": "expo config --type public",
     "export:validate": "expo export --platform android --output-dir .expo-export-check",
+    "update:preview": "eas update --channel preview --non-interactive",
+    "update:production": "eas update --channel production --non-interactive",
     "prebuild:android": "expo prebuild --platform android --no-install",
     "prebuild:ios": "expo prebuild --platform ios --no-install"
   },
@@ -25,8 +27,10 @@
     "@react-navigation/native": "^7.3.14",
     "@react-navigation/native-stack": "^7.18.6",
     "expo": "~57.0.9",
+    "expo-constants": "~57.0.8",
     "expo-dev-client": "~57.0.10",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.11",
     "react": "19.2.3",
     "react-native": "0.86.2",
     "react-native-safe-area-context": "~5.7.0",
@@ -51,7 +55,7 @@
     "moduleNameMapper": {
       "^@milerecover/domain$": "<rootDir>/../../packages/domain/src/index.ts",
       "^@milerecover/config$": "<rootDir>/../../packages/config/src/index.ts",
-      "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1"
+      "^@babel/runtime/(.*)$": "<rootDir>/../../node_modules/@babel/runtime/$1"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*)"
