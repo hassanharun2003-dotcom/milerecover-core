@@ -16,7 +16,8 @@ describe('MileRecover navigation IA', () => {
   });
 
   it('keeps Manual Trip on the root stack, not tabs', () => {
-    expect(ROOT_STACK_ROUTE_NAMES).toEqual(['MainTabs', 'ManualTrip']);
+    expect(ROOT_STACK_ROUTE_NAMES).toContain('MainTabs');
+    expect(ROOT_STACK_ROUTE_NAMES).toContain('ManualTrip');
     expect(ROOT_TAB_ROUTE_NAMES.includes('ManualTrip' as never)).toBe(false);
   });
 

@@ -1,69 +1,85 @@
-import React from 'react';
-import { FlatList, StyleSheet, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing } from '@milerecover/config';
-import { Card, PrimaryButton, ScreenContainer, uiStyles } from '../../components/ui';
-import { selectReviewViewModel } from '../../selectors/reviewSelectors';
+import { spacing } from '@milerecover/config';
+import {
+  EmptyState,
+  ReviewCard,
+  ScrollScreen,
+  SectionHeader,
+  SegmentedControl,
+  text,
+} from '../../design-system';
+import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
+import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList } from '../../navigation/types';
 
-type ReviewNav = NativeStackNavigationProp<RootStackParamList>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function ReviewScreen() {
-  const { state } = useApp();
-  const vm = selectReviewViewModel(state);
-  const navigation = useNavigation<ReviewNav>();
+  const navigation = useNavigation<Nav>();
+  const { state, permissions } = useApp();
+  const { product, setReviewDecision, undoReviewDecision } = useProduct();
+  const experience = selectProductExperience(state, product, permissions);
+  const [segment, setSegment] = useState<'needs' | 'reviewed'>('needs');
 
-  if (vm.isEmpty) {
-    return (
-      <ScreenContainer>
-        <Text style={uiStyles.title} accessibilityRole="header">
-          Review
-        </Text>
-        <Card accessibilityLabel="Review empty state">
-          <Text style={uiStyles.body}>{vm.emptyMessage}</Text>
-          <PrimaryButton
-            label="Add manual trip"
-            onPress={() => navigation.navigate('ManualTrip')}
-            accessibilityLabel="Add manual trip"
-          />
-        </Card>
-      </ScreenContainer>
-    );
-  }
+  const pending = experience.activeReviewItems;
+  const reviewedIds = product.reviewedHistory;
 
   return (
-    <ScreenContainer>
-      <Text style={uiStyles.title} accessibilityRole="header">
-        Review
-      </Text>
-      <FlatList
-        data={vm.items}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Card accessibilityLabel={`Review item: ${item.title}`}>
-            <Text style={styles.itemTitle}>{item.title}</Text>
-            <Text style={uiStyles.body}>{item.subtitle}</Text>
-            {item.distanceMiles != null ? (
-              <Text style={styles.meta}>{item.distanceMiles.toFixed(1)} mi</Text>
-            ) : null}
-          </Card>
-        )}
+    <ScrollScreen>
+      <SectionHeader title="Review" />
+      <SegmentedControl
+        options={[
+          { label: `Needs review (${pending.length})`, value: 'needs' },
+          { label: `Reviewed (${reviewedIds.length})`, value: 'reviewed' },
+        ]}
+        value={segment}
+        onChange={setSegment}
       />
-    </ScreenContainer>
+
+      {segment === 'needs' ? (
+        pending.length === 0 ? (
+          <EmptyState
+            title="All clear"
+            body="Nothing needs your attention right now. MileRecover will surface uncertain trips here—one decision at a time."
+            actionLabel="Add manual trip"
+            onAction={() => navigation.navigate('ManualTrip')}
+          />
+        ) : (
+          pending.map((item) => (
+            <ReviewCard
+              key={item.id}
+              title={item.title}
+              subtitle={item.subtitle}
+              distance={item.distanceMiles != null ? `${item.distanceMiles.toFixed(1)} mi approximate` : 'Distance uncertain'}
+              reason={item.reason}
+              onWork={() => setReviewDecision(item.id, 'work')}
+              onPersonal={() => setReviewDecision(item.id, 'personal')}
+              onNotDrive={() => setReviewDecision(item.id, 'not_drive')}
+            />
+          ))
+        )
+      ) : (
+        reviewedIds.length === 0 ? (
+          <EmptyState title="No reviewed items yet" body="Decisions you make will appear here with the option to undo." />
+        ) : (
+          reviewedIds.map((id) => (
+            <ReviewCard
+              key={id}
+              title="Reviewed item"
+              subtitle={`Decision: ${product.reviewDecisions[id] ?? 'saved'}`}
+              distance="—"
+              reason="Tap undo if you changed your mind"
+              onWork={() => undoReviewDecision(id)}
+              onPersonal={() => undoReviewDecision(id)}
+              onNotDrive={() => undoReviewDecision(id)}
+            />
+          ))
+        )
+      )}
+    </ScrollScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  itemTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-  },
-  meta: {
-    marginTop: spacing.sm,
-    color: colors.text.secondary,
-  },
-});

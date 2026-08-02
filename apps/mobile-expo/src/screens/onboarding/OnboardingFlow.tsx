@@ -1,82 +1,184 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '@milerecover/config';
-import { Card, PrimaryButton, ScreenContainer, uiStyles } from '../../components/ui';
+import React, { useMemo } from 'react';
+import { View } from 'react-native';
+import { spacing } from '@milerecover/config';
+import { ONBOARDING_STEP_ORDER } from '../../product/types';
+import {
+  AppScreen,
+  PrimaryButton,
+  ProgressIndicator,
+  SafeAreaFooter,
+  ScrollScreen,
+  SecondaryButton,
+  SelectionCard,
+  StatusCard,
+  SummaryCard,
+  TertiaryButton,
+  text,
+} from '../../design-system';
 import { useApp } from '../../store/AppContext';
+import { useProduct } from '../../product/ProductContext';
+
+const NEED_OPTIONS = [
+  'Protect future drives',
+  'Recover possible missing mileage',
+  'Bring existing history',
+  'Prepare a report',
+];
+
+const USAGE_OPTIONS = [
+  'Employee reimbursement',
+  'Gig or independent driving',
+  'Small business',
+  'Other work driving',
+];
 
 export function OnboardingFlow() {
-  const { state, completeOnboardingStep, finishOnboarding } = useApp();
-  const step = state.onboarding.currentStep;
+  const { finishOnboarding } = useApp();
+  const {
+    product,
+    advanceOnboarding,
+    backOnboarding,
+    setOnboardingNeed,
+    setOnboardingUsage,
+    skipOptionalSetup,
+  } = useProduct();
 
-  const content = (() => {
+  const step = product.onboardingStep;
+  const stepIndex = ONBOARDING_STEP_ORDER.indexOf(step);
+
+  const content = useMemo(() => {
     switch (step) {
       case 'welcome':
         return {
           title: 'Protect every work mile.',
-          body: 'MileRecover tracks drives automatically and helps you recover trips you might have missed.',
-          primary: 'Get Started',
-          onPrimary: () => completeOnboardingStep('next'),
-        };
-      case 'location_permission':
-        return {
-          title: 'Location powers automatic protection',
-          body: 'We use your location to detect drives and find gaps. Background access lets protection continue when the app is closed.',
-          primary: 'Continue',
-          onPrimary: () => completeOnboardingStep('next'),
-        };
-      case 'motion_permission':
-        return {
-          title: 'Motion helps detect drives',
-          body: 'Activity recognition improves trip detection. You can skip this and still use manual review.',
-          primary: 'Continue',
-          secondary: 'Skip for now',
-          onPrimary: () => completeOnboardingStep('next'),
-          onSecondary: () => completeOnboardingStep('skip_motion'),
-        };
-      case 'ready_check':
-        return {
-          title: 'Check your protection setup',
-          body: 'Grant any missing permissions in Settings. You can fix tracking anytime from Profile.',
-          primary: 'Enter MileRecover',
-          onPrimary: () => {
-            completeOnboardingStep('next');
-            finishOnboarding();
+          body: 'Track new drives, notice possible gaps, and keep clear proof without babysitting another mileage app.',
+          primary: 'Protect my miles',
+          secondary: 'Bring existing mileage',
+          onPrimary: advanceOnboarding,
+          onSecondary: () => {
+            setOnboardingNeed('Bring existing history');
+            advanceOnboarding();
           },
         };
+      case 'need_selection':
+        return { mode: 'need' as const };
+      case 'usage_type':
+        return { mode: 'usage' as const };
+      case 'protection_setup':
+        return { mode: 'protection' as const };
+      case 'optional_setup':
+        return { mode: 'optional' as const };
+      case 'ready':
+        return { mode: 'ready' as const };
       default:
-        throw new Error(`Unknown onboarding step: ${String(step)}`);
+        return { mode: 'ready' as const };
     }
-  })();
+  }, [step, advanceOnboarding, setOnboardingNeed]);
+
+  const finish = () => {
+    advanceOnboarding();
+    finishOnboarding();
+  };
 
   return (
-    <ScreenContainer>
-      <Card accessibilityLabel="Onboarding step">
-        <Text style={uiStyles.title}>{content.title}</Text>
-        <Text style={[uiStyles.body, styles.bodyGap]}>{content.body}</Text>
-        <PrimaryButton label={content.primary} onPress={content.onPrimary} />
-        {'secondary' in content && content.secondary && content.onSecondary ? (
-          <Text
-            style={styles.secondary}
-            onPress={content.onSecondary}
-            accessibilityRole="button"
-            accessibilityLabel={content.secondary}
-          >
-            {content.secondary}
-          </Text>
+    <AppScreen>
+      <ScrollScreen contentStyle={{ paddingTop: spacing.lg }}>
+        <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+        {stepIndex > 0 ? <TertiaryButton label="Back" onPress={backOnboarding} /> : null}
+
+        {'title' in content && content.title ? (
+          <View>
+            <StatusCard variant="success" title={content.title} body={content.body ?? ''} />
+            <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+              <PrimaryButton label={content.primary!} onPress={content.onPrimary!} />
+              {'secondary' in content && content.secondary ? (
+                <SecondaryButton label={content.secondary} onPress={content.onSecondary!} />
+              ) : null}
+            </View>
+          </View>
         ) : null}
-      </Card>
-    </ScreenContainer>
+
+        {content.mode === 'need' ? (
+          <View>
+            <StatusCard variant="info" title="What do you need today?" body="Choose what matters most right now. You can change this later." />
+            {NEED_OPTIONS.map((opt) => (
+              <SelectionCard
+                key={opt}
+                title={opt}
+                selected={product.onboardingNeed === opt}
+                onPress={() => {
+                  setOnboardingNeed(opt);
+                  advanceOnboarding();
+                }}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {content.mode === 'usage' ? (
+          <View>
+            <StatusCard variant="info" title="How do you use work mileage?" body="This helps MileRecover speak your language—not an accountant's." />
+            {USAGE_OPTIONS.map((opt) => (
+              <SelectionCard
+                key={opt}
+                title={opt}
+                selected={product.onboardingUsage === opt}
+                onPress={() => {
+                  setOnboardingUsage(opt);
+                  advanceOnboarding();
+                }}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {content.mode === 'protection' ? (
+          <View>
+            <StatusCard
+              variant="info"
+              title="Set up your protection"
+              body="MileRecover works best with location and background protection. We will never pretend permissions are granted until you enable them."
+            />
+            <SummaryCard
+              items={[
+                { label: 'Location', value: 'Education only' },
+                { label: 'Background', value: 'Planned' },
+                { label: 'Battery', value: 'Guidance' },
+                { label: 'Offline', value: 'Supported later' },
+              ]}
+            />
+            <PrimaryButton label="Continue" onPress={advanceOnboarding} />
+          </View>
+        ) : null}
+
+        {content.mode === 'optional' ? (
+          <View>
+            <StatusCard variant="info" title="Optional setup" body="Add details when you are ready. Skipping is always safe." />
+            <SelectionCard title="Add a vehicle" body="Name the car you usually drive for work" selected={false} onPress={advanceOnboarding} />
+            <SelectionCard title="Add work locations" body="Help MileRecover understand your routine" selected={false} onPress={advanceOnboarding} />
+            <SelectionCard title="Set your work pattern" body="Optional schedule hints for recovery" selected={false} onPress={advanceOnboarding} />
+            <TertiaryButton label="Skip for now" onPress={skipOptionalSetup} />
+          </View>
+        ) : null}
+
+        {content.mode === 'ready' ? (
+          <View>
+            <StatusCard
+              variant="success"
+              title="You're all set"
+              body="Protection is configured. MileRecover will monitor your drives and surface anything that needs your attention."
+            />
+            <SummaryCard
+              items={[
+                { label: 'Monitoring', value: 'Active' },
+                { label: 'Review inbox', value: 'Ready' },
+                { label: 'Proof', value: 'When you are' },
+              ]}
+            />
+            <PrimaryButton label="Enter MileRecover" onPress={finish} />
+          </View>
+        ) : null}
+      </ScrollScreen>
+    </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  bodyGap: { marginBottom: spacing.lg },
-  secondary: {
-    marginTop: spacing.md,
-    textAlign: 'center',
-    color: colors.forest[600],
-    fontSize: 16,
-    minHeight: 48,
-    paddingVertical: spacing.sm,
-  },
-});

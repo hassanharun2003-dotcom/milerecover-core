@@ -45,6 +45,20 @@ export const colors = {
     default: '#E7E5E4',
     focus: '#2D8056',
   },
+  status: {
+    success: '#1B7D4E',
+    successBg: '#E6F5ED',
+    warning: '#B45309',
+    warningBg: '#FEF3C7',
+    danger: '#B91C1C',
+    dangerBg: '#FEE2E2',
+    info: '#236B47',
+    infoBg: '#E8F3ED',
+  },
+  header: {
+    background: '#0B2E1F',
+    border: '#13402C',
+  },
 } as const;
 
 export const spacing = {
@@ -90,6 +104,29 @@ export const touchTarget = {
   minWidth: 48,
 } as const;
 
-export const tokens = { colors, spacing, radii, typography, touchTarget };
+export const shadows = {
+  card: {
+    shadowColor: '#0B2E1F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  lifted: {
+    shadowColor: '#0B2E1F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+} as const;
+
+export const iconSize = {
+  sm: 18,
+  md: 22,
+  lg: 28,
+} as const;
+
+export const tokens = { colors, spacing, radii, typography, touchTarget, shadows, iconSize };
 
 export type ThemeTokens = typeof tokens;

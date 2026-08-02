@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from './src/store/AppContext';
+import { ProductProvider } from './src/product/ProductContext';
 import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { StartupGate } from './src/components/StartupGate';
@@ -31,7 +32,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <AppRoot />
+        <ProductProvider>
+          <AppRoot />
+        </ProductProvider>
       </AppProvider>
     </SafeAreaProvider>
   );

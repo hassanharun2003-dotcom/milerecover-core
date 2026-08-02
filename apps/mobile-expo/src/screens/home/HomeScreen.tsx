@@ -1,98 +1,114 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing } from '@milerecover/config';
-import { Card, PrimaryButton, ScreenContainer, uiStyles } from '../../components/ui';
-import { selectHomeViewModel } from '../../selectors/homeSelectors';
+import { spacing } from '@milerecover/config';
+import {
+  EvidenceRow,
+  ProtectionCard,
+  ScrollScreen,
+  SectionHeader,
+  StatusCard,
+  SummaryCard,
+  TimelineRow,
+  PrimaryButton,
+  text,
+} from '../../design-system';
+import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
-import type { RootStackParamList } from '../../navigation/types';
+import { useProduct } from '../../product/ProductContext';
+import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 
-type HomeNav = NativeStackNavigationProp<RootStackParamList>;
+type HomeNav = CompositeNavigationProp<
+  BottomTabNavigationProp<RootTabParamList, 'Home'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
-function levelColor(level: string): string {
-  switch (level) {
-    case 'protected':
-      return colors.protected[600];
-    case 'attention':
-      return colors.review[600];
-    case 'at_risk':
-    case 'limited':
-      return colors.danger[600];
+function homeVariant(scenarioState: string): 'success' | 'warning' | 'danger' | 'info' {
+  switch (scenarioState) {
+    case 'recovery_available':
+      return 'warning';
+    case 'protection_limited':
+      return 'danger';
+    case 'offline':
+      return 'info';
     default:
-      return colors.neutral[700];
+      return 'success';
   }
 }
 
 export function HomeScreen() {
-  const { state, permissions } = useApp();
-  const vm = selectHomeViewModel(state, permissions);
   const navigation = useNavigation<HomeNav>();
+  const { state, permissions } = useApp();
+  const { product } = useProduct();
+  const experience = selectProductExperience(state, product, permissions);
+  const { scenario } = experience;
+
+  const handlePrimary = () => {
+    if (scenario.primaryActionRoute === 'Review') navigation.navigate('Review');
+    else if (scenario.primaryActionRoute === 'Profile') navigation.navigate('Profile');
+    else if (scenario.primaryActionRoute === 'Proof') navigation.navigate('Proof');
+    else if (scenario.homeState === 'protection_limited') navigation.navigate('ProtectionAlert');
+  };
 
   return (
-    <ScreenContainer>
-      <Text style={uiStyles.title} accessibilityRole="header">
-        Home
-      </Text>
+    <ScrollScreen>
+      <SectionHeader title="Home" />
+      <StatusCard
+        variant={homeVariant(scenario.homeState)}
+        title={scenario.homeTitle}
+        body={scenario.homeDetail}
+        actionLabel={scenario.primaryAction ?? undefined}
+        onAction={scenario.primaryAction ? handlePrimary : undefined}
+      />
 
-      <Card accessibilityLabel={`Protection health: ${vm.protection.userLabel}`}>
-        <Text style={styles.cardLabel}>Protection Health</Text>
-        <Text style={[styles.level, { color: levelColor(vm.protection.level) }]}>
-          {vm.protection.userLabel}
-        </Text>
-        <Text style={uiStyles.body}>{vm.protection.userDetail}</Text>
-        <Text style={styles.meta}>Tracking: {state.trackingEngineState}</Text>
-      </Card>
+      <ProtectionCard>
+        <EvidenceRow label="Background access" value={scenario.homeState === 'protection_limited' ? 'Restricted' : 'On'} />
+        <EvidenceRow label="Last protection check" value={scenario.homeState === 'offline' ? 'Pending sync' : 'Just now'} />
+        <EvidenceRow label="Last drive status" value={scenario.tripsToday > 0 ? 'Recorded today' : 'Quiet so far'} />
+      </ProtectionCard>
 
-      {vm.showAlert && vm.alertMessage ? (
-        <Card accessibilityLabel="Action needed">
-          <Text style={styles.alertTitle}>Action needed</Text>
-          <Text style={uiStyles.body}>{vm.alertMessage}</Text>
-        </Card>
-      ) : null}
+      <SectionHeader title="This week" />
+      <SummaryCard
+        items={[
+          { label: 'Miles protected', value: scenario.weekSummary.milesProtected.toFixed(1) },
+          { label: 'Recovered', value: scenario.weekSummary.recoveredMiles.toFixed(1) },
+          { label: 'Ready for proof', value: scenario.weekSummary.milesReadyForProof.toFixed(1) },
+        ]}
+      />
 
-      <Card accessibilityLabel="Today summary">
-        <Text style={styles.cardLabel}>Today</Text>
-        <Text style={uiStyles.body}>{vm.todaySummary}</Text>
-        {!state.tripsTodayCount ? (
-          <PrimaryButton
-            label="Add manual trip"
-            onPress={() => navigation.navigate('ManualTrip')}
-            accessibilityLabel="Add manual trip from home"
+      <SectionHeader title="Recent activity" />
+      {scenario.activity.length === 0 ? (
+        <StatusCard
+          variant="info"
+          title="Quiet day"
+          body="Drive normally—we will surface trips in Review when something needs you."
+        />
+      ) : (
+        scenario.activity.map((event) => (
+          <TimelineRow
+            key={event.id}
+            title={event.title}
+            subtitle={event.subtitle}
+            timeLabel="Recently"
           />
-        ) : null}
-      </Card>
+        ))
+      )}
 
-      <Card accessibilityLabel="Protected mileage this period">
-        <Text style={styles.cardLabel}>{state.reportingPeriod.label}</Text>
-        <Text style={uiStyles.metric}>{vm.periodProtectedMiles.toFixed(1)} mi protected</Text>
-        <Text style={styles.meta}>Confirmed business miles only</Text>
-      </Card>
-    </ScreenContainer>
+      <SectionHeader title="Ready for proof" />
+      <View style={{ marginBottom: spacing.md }}>
+        {scenario.proofReady ? (
+          <StatusCard variant="success" title="Records look ready" body="Preview your report when you need it." actionLabel="View proof" onAction={() => navigation.navigate('Proof')} />
+        ) : (
+          <StatusCard variant="info" title="Not quite ready" body={scenario.proofBlockReason ?? 'Confirm trips to prepare proof.'} />
+        )}
+      </View>
+
+      {scenario.tripsToday === 0 && scenario.activity.length === 0 ? (
+        <PrimaryButton label="Add manual trip" onPress={() => navigation.navigate('ManualTrip')} accessibilityLabel="Add manual trip from home" />
+      ) : null}
+    </ScrollScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  cardLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.secondary,
-    marginBottom: spacing.xs,
-  },
-  level: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  meta: {
-    marginTop: spacing.sm,
-    fontSize: 13,
-    color: colors.text.secondary,
-  },
-  alertTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.review[600],
-    marginBottom: spacing.xs,
-  },
-});
