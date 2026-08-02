@@ -144,35 +144,46 @@ export function Badge({ label, variant = 'neutral' }: { label: string; variant?:
   );
 }
 
-export function PrimaryButton({ label, onPress, disabled, accessibilityLabel }: {
+export function PrimaryButton({ label, onPress, disabled, loading, accessibilityLabel }: {
+  label: string; onPress: () => void; disabled?: boolean; loading?: boolean; accessibilityLabel?: string;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.primaryBtn,
+        (disabled || loading) && styles.btnDisabled,
+        pressed && !disabled && !loading && styles.btnPressed,
+      ]}
+      onPress={onPress}
+      disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+    >
+      <Text style={styles.primaryBtnText}>{loading ? 'Working…' : label}</Text>
+    </Pressable>
+  );
+}
+
+export function SecondaryButton({ label, onPress, disabled, accessibilityLabel }: {
   label: string; onPress: () => void; disabled?: boolean; accessibilityLabel?: string;
 }) {
   return (
     <Pressable
-      style={[styles.primaryBtn, disabled && styles.btnDisabled]}
+      style={({ pressed }) => [styles.secondaryBtn, disabled && styles.btnDisabled, pressed && !disabled && styles.btnPressed]}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      <Text style={styles.primaryBtnText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-export function SecondaryButton({ label, onPress, accessibilityLabel }: {
-  label: string; onPress: () => void; accessibilityLabel?: string;
-}) {
-  return (
-    <Pressable style={styles.secondaryBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label}>
       <Text style={styles.secondaryBtnText}>{label}</Text>
     </Pressable>
   );
 }
 
-export function TertiaryButton({ label, onPress }: { label: string; onPress: () => void }) {
+export function TertiaryButton({ label, onPress, accessibilityLabel }: { label: string; onPress: () => void; accessibilityLabel?: string }) {
   return (
-    <Pressable style={styles.tertiaryBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable style={styles.tertiaryBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label}>
       <Text style={styles.tertiaryBtnText}>{label}</Text>
     </Pressable>
   );
@@ -193,14 +204,30 @@ export function StatusCard({
 }) {
   const c = statusColors(variant);
   const isAlert = variant === 'warning' || variant === 'danger';
+  const isProtected = variant === 'success';
   return (
     <View
-      style={[styles.statusCard, isAlert ? { backgroundColor: c.bg, borderColor: c.fg } : styles.statusCardProtected]}
+      style={[
+        styles.statusCard,
+        isAlert
+          ? { backgroundColor: c.bg, borderColor: c.fg }
+          : isProtected
+            ? styles.statusCardProtected
+            : { backgroundColor: c.bg, borderColor: colors.border.default },
+      ]}
       accessibilityRole="summary"
       accessibilityLabel={`${title}. ${body}`}
     >
-      <Text style={[text.subtitle, isAlert ? { color: c.fg } : styles.statusProtectedTitle]}>{title}</Text>
-      <Text style={[text.body, isAlert ? { color: colors.text.primary } : styles.statusProtectedBody, { marginTop: spacing.xs }]}>
+      <Text style={[text.subtitle, isAlert ? { color: c.fg } : isProtected ? styles.statusProtectedTitle : { color: colors.text.primary }]}>
+        {title}
+      </Text>
+      <Text
+        style={[
+          text.body,
+          isAlert ? { color: colors.text.primary } : isProtected ? styles.statusProtectedBody : { color: colors.text.secondary },
+          { marginTop: spacing.xs },
+        ]}
+      >
         {body}
       </Text>
       {actionLabel && onAction ? (
@@ -252,6 +279,8 @@ export function ReviewCard({
   subtitle,
   distance,
   reason,
+  provenance,
+  onPress,
   onWork,
   onPersonal,
   onNotDrive,
@@ -260,21 +289,36 @@ export function ReviewCard({
   subtitle: string;
   distance: string;
   reason: string;
+  provenance?: string;
+  onPress?: () => void;
   onWork: () => void;
   onPersonal: () => void;
   onNotDrive: () => void;
 }) {
   return (
-    <View style={cardBase} accessibilityRole="summary">
-      <Text style={text.subtitle}>{title}</Text>
-      <Text style={[text.body, { marginTop: spacing.xs }]}>{subtitle}</Text>
-      <Text style={[text.caption, { marginTop: spacing.sm }]}>{distance} · {reason}</Text>
+    <Pressable
+      style={({ pressed }) => [cardBase, pressed && styles.cardPressed]}
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole="summary"
+      accessibilityLabel={`${title}. ${subtitle}`}
+    >
+      <View style={styles.reviewCardTop}>
+        <MapPlaceholder />
+        <View style={{ flex: 1 }}>
+          <Text style={text.subtitle}>{title}</Text>
+          <Text style={[text.body, { marginTop: spacing.xs }]}>{subtitle}</Text>
+          <Text style={[text.caption, { marginTop: spacing.sm }]}>{distance}</Text>
+          {provenance ? <Badge label={provenance} variant="info" /> : null}
+          <Text style={[text.caption, { marginTop: spacing.xs }]}>{reason}</Text>
+        </View>
+      </View>
       <View style={styles.reviewActions}>
         <SecondaryButton label="Work" onPress={onWork} accessibilityLabel="Yes, work drive" />
         <SecondaryButton label="Personal" onPress={onPersonal} />
         <TertiaryButton label="Not a drive" onPress={onNotDrive} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -456,7 +500,118 @@ export function SafeAreaFooter({ children }: { children: React.ReactNode }) {
 }
 
 export function ProtectionCard({ children }: { children: React.ReactNode }) {
-  return <View style={[cardBase, styles.protectionCard]}>{children}</View>;
+  return <View style={[cardBase, styles.protectionCard]} accessibilityRole="summary">{children}</View>;
+}
+
+export function WelcomeHero({ title, body }: { title: string; body: string }) {
+  return (
+    <View style={styles.welcomeHero} accessibilityRole="header">
+      <View style={styles.welcomeHeroIcon}>
+        <Text style={styles.welcomeHeroIconText}>M</Text>
+      </View>
+      <Text style={text.headline}>{title}</Text>
+      <Text style={[text.body, { marginTop: spacing.md }]}>{body}</Text>
+    </View>
+  );
+}
+
+export function ChecklistRow({ label, status }: { label: string; status: 'ready' | 'pending' | 'planned' }) {
+  const mark = status === 'ready' ? '✓' : status === 'pending' ? '○' : '…';
+  const statusLabel = status === 'ready' ? 'ready' : status === 'pending' ? 'pending' : 'planned for tracking';
+  return (
+    <View style={styles.checklistRow} accessibilityRole="text" accessibilityLabel={`${label}, ${statusLabel}`}>
+      <Text style={styles.checklistMark}>{mark}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={text.body}>{label}</Text>
+        {status !== 'ready' ? <Text style={text.caption}>{status === 'pending' ? 'Enable when tracking starts' : 'Coming with tracking'}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+export function ProofHeroCard({
+  periodLabel,
+  tripCount,
+  totalMiles,
+  unresolved,
+  onPreview,
+}: {
+  periodLabel: string;
+  tripCount: number;
+  totalMiles: string;
+  unresolved: string;
+  onPreview: () => void;
+}) {
+  return (
+    <View style={styles.proofHero} accessibilityRole="summary" accessibilityLabel={`Ready for proof. ${tripCount} trips. ${totalMiles} miles.`}>
+      <Text style={[text.title, text.inverse]}>Ready for proof</Text>
+      <Text style={[text.body, styles.proofHeroSub]}>{periodLabel}</Text>
+      <View style={styles.proofHeroStats}>
+        <View style={styles.proofHeroStat}>
+          <Text style={styles.proofHeroStatValue}>{tripCount}</Text>
+          <Text style={styles.proofHeroStatLabel}>trips</Text>
+        </View>
+        <View style={styles.proofHeroStat}>
+          <Text style={styles.proofHeroStatValue}>{totalMiles}</Text>
+          <Text style={styles.proofHeroStatLabel}>miles</Text>
+        </View>
+        <View style={styles.proofHeroStat}>
+          <Text style={styles.proofHeroStatValue}>{unresolved}</Text>
+          <Text style={styles.proofHeroStatLabel}>unresolved</Text>
+        </View>
+      </View>
+      <PrimaryButton label="Preview report" onPress={onPreview} accessibilityLabel="Preview mileage report" />
+    </View>
+  );
+}
+
+export function MapPlaceholder() {
+  return (
+    <View style={styles.mapPlaceholder} accessibilityLabel="Route map preview placeholder">
+      <Text style={styles.mapPlaceholderText}>Route</Text>
+    </View>
+  );
+}
+
+export function ReviewedItemCard({
+  title,
+  subtitle,
+  decisionLabel,
+  onUndo,
+}: {
+  title: string;
+  subtitle: string;
+  decisionLabel: string;
+  onUndo: () => void;
+}) {
+  return (
+    <View style={[cardBase, { marginBottom: spacing.sm }]} accessibilityRole="summary">
+      <Text style={text.subtitle}>{title}</Text>
+      <Text style={[text.body, { marginTop: spacing.xs }]}>{subtitle}</Text>
+      <Text style={[text.caption, { marginTop: spacing.sm }]}>Decision: {decisionLabel}</Text>
+      <View style={{ marginTop: spacing.md }}>
+        <SecondaryButton label="Undo decision" onPress={onUndo} accessibilityLabel={`Undo ${decisionLabel} decision for ${title}`} />
+      </View>
+    </View>
+  );
+}
+
+export function MembershipBanner({ planName, detail }: { planName: string; detail: string }) {
+  return (
+    <View style={styles.membershipBanner} accessibilityRole="summary" accessibilityLabel={`${planName}. ${detail}`}>
+      <Text style={[text.subtitle, text.inverse]}>{planName}</Text>
+      <Text style={[text.body, styles.membershipBannerSub]}>{detail}</Text>
+    </View>
+  );
+}
+
+export function LoadingState({ message }: { message: string }) {
+  return (
+    <View style={styles.loadingState} accessibilityRole="progressbar" accessibilityLabel={message}>
+      <Text style={text.subtitle}>{message}</Text>
+      <Text style={[text.body, { marginTop: spacing.sm }]}>This usually takes a few seconds.</Text>
+    </View>
+  );
 }
 
 export function TripCard({ title, subtitle, miles }: { title: string; subtitle: string; miles: string }) {
@@ -503,6 +658,8 @@ const styles = StyleSheet.create({
   tertiaryBtn: { minHeight: touchTarget.minHeight, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
   tertiaryBtnText: { color: colors.forest[600], fontWeight: '600' },
   btnDisabled: { opacity: 0.5 },
+  btnPressed: { opacity: 0.88 },
+  cardPressed: { opacity: 0.96 },
   statusCard: { borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.md, borderWidth: 1 },
   statusCardProtected: { backgroundColor: colors.forest[800], borderColor: colors.forest[700] },
   statusProtectedTitle: { color: colors.text.inverse },
@@ -539,4 +696,39 @@ const styles = StyleSheet.create({
   formField: { borderWidth: 1, borderColor: colors.border.default, borderRadius: radii.md, padding: spacing.md, backgroundColor: colors.background.card },
   footer: { padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default, backgroundColor: colors.background.card },
   protectionCard: { backgroundColor: colors.forest[100], borderColor: colors.forest[500] },
+  welcomeHero: { marginBottom: spacing.lg },
+  welcomeHeroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.lg,
+    backgroundColor: colors.forest[700],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  welcomeHeroIconText: { color: colors.text.inverse, fontSize: 28, fontWeight: '700' },
+  checklistRow: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border.default },
+  checklistMark: { width: 24, color: colors.forest[700], fontWeight: '700', fontSize: typography.size.bodyLarge },
+  proofHero: { backgroundColor: colors.forest[800], borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.md },
+  proofHeroSub: { color: colors.forest[100], marginTop: spacing.xs },
+  proofHeroStats: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: spacing.lg },
+  proofHeroStat: { flex: 1, alignItems: 'center' },
+  proofHeroStatValue: { color: colors.text.inverse, fontSize: typography.size.title, fontWeight: '700' },
+  proofHeroStatLabel: { color: colors.forest[100], fontSize: typography.size.caption, marginTop: spacing.xs },
+  mapPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.md,
+    backgroundColor: colors.forest[100],
+    borderWidth: 1,
+    borderColor: colors.forest[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  mapPlaceholderText: { color: colors.forest[700], fontWeight: '600', fontSize: typography.size.caption },
+  reviewCardTop: { flexDirection: 'row', marginBottom: spacing.sm },
+  membershipBanner: { backgroundColor: colors.forest[800], borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.lg },
+  membershipBannerSub: { color: colors.forest[100], marginTop: spacing.xs },
+  loadingState: { ...cardBase, alignItems: 'center', paddingVertical: spacing.xl },
 });

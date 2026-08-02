@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -8,13 +8,11 @@ import { spacing } from '@milerecover/config';
 import {
   ListRow,
   ListSection,
-  PrimaryButton,
+  ProofHeroCard,
   ScrollScreen,
   SectionHeader,
   SecondaryButton,
   StatusCard,
-  SummaryCard,
-  text,
 } from '../../design-system';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
@@ -43,7 +41,9 @@ export function ProofScreen() {
           actionLabel="Resolve items"
           onAction={() => navigation.navigate('Review')}
         />
-        <SecondaryButton label="Preview current records" onPress={() => navigation.navigate('ReportPreview', { format: 'log' })} />
+        <View style={{ marginTop: spacing.sm }}>
+          <SecondaryButton label="Preview current records" onPress={() => navigation.navigate('ReportPreview', { format: 'log' })} />
+        </View>
       </ScrollScreen>
     );
   }
@@ -51,26 +51,26 @@ export function ProofScreen() {
   return (
     <ScrollScreen>
       <SectionHeader title="Proof" />
-      <View style={{ backgroundColor: '#13402C', borderRadius: 16, padding: spacing.lg, marginBottom: spacing.md }}>
-        <Text style={[text.title, { color: '#fff' }]}>Ready for proof</Text>
-        <Text style={[text.body, { color: '#E8F3ED', marginTop: spacing.xs }]}>
-          {state.reportingPeriod.label}
-        </Text>
-        <SummaryCard
-          items={[
-            { label: 'Verified trips', value: String(scenario.trips.length) },
-            { label: 'Total miles', value: scenario.periodMiles.toFixed(1) },
-            { label: 'Unresolved', value: '0' },
-          ]}
-        />
-        <PrimaryButton label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'reimbursement' })} />
-      </View>
+      <ProofHeroCard
+        periodLabel={state.reportingPeriod.label}
+        tripCount={scenario.trips.length}
+        totalMiles={scenario.periodMiles.toFixed(1)}
+        unresolved="0"
+        onPreview={() => navigation.navigate('ReportPreview', { format: 'reimbursement' })}
+      />
 
       <ListSection title="Included in this period">
-        <ListRow label="Automatically recorded" value={`${scenario.trips.length} trips`} />
-        <ListRow label="User-confirmed recovery" value={`${scenario.weekSummary.recoveredMiles.toFixed(1)} mi`} />
-        <ListRow label="Imported trips" value={scenario.id === 'imported_history' ? '214' : '—'} />
+        <ListRow label="Verified trips" value={`${scenario.trips.length} recorded`} />
+        <ListRow label="Recovered trips" value={`${scenario.weekSummary.recoveredMiles.toFixed(1)} mi`} />
+        <ListRow label="Imported trips" value={scenario.id === 'imported_history' ? '214 organized' : '—'} />
         <ListRow label="Manual entries" value={String(product.manualTrips.length)} />
+        <ListRow label="Adjustments" value="None pending" />
+      </ListSection>
+
+      <ListSection title="Evidence">
+        <ListRow label="Route summaries" value="Available" />
+        <ListRow label="Work locations" value="Optional" />
+        <ListRow label="Photos and notes" value="When added" />
       </ListSection>
 
       <ListSection title="Export">

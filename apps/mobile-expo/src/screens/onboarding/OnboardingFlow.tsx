@@ -4,16 +4,16 @@ import { spacing } from '@milerecover/config';
 import { ONBOARDING_STEP_ORDER } from '../../product/types';
 import {
   AppScreen,
+  ChecklistRow,
   PrimaryButton,
   ProgressIndicator,
-  SafeAreaFooter,
   ScrollScreen,
   SecondaryButton,
   SelectionCard,
   StatusCard,
   SummaryCard,
   TertiaryButton,
-  text,
+  WelcomeHero,
 } from '../../design-system';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
@@ -51,7 +51,7 @@ export function OnboardingFlow() {
       case 'welcome':
         return {
           title: 'Protect every work mile.',
-          body: 'Track new drives, notice possible gaps, and keep clear proof without babysitting another mileage app.',
+          body: 'We track new drives, find what others miss, and help you prove every mile with confidence.',
           primary: 'Protect my miles',
           secondary: 'Bring existing mileage',
           onPrimary: advanceOnboarding,
@@ -84,11 +84,11 @@ export function OnboardingFlow() {
     <AppScreen>
       <ScrollScreen contentStyle={{ paddingTop: spacing.lg }}>
         <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
-        {stepIndex > 0 ? <TertiaryButton label="Back" onPress={backOnboarding} /> : null}
+        {stepIndex > 0 ? <TertiaryButton label="Back" onPress={backOnboarding} accessibilityLabel="Go back to previous onboarding step" /> : null}
 
         {'title' in content && content.title ? (
           <View>
-            <StatusCard variant="success" title={content.title} body={content.body ?? ''} />
+            <WelcomeHero title={content.title} body={content.body ?? ''} />
             <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
               <PrimaryButton label={content.primary!} onPress={content.onPrimary!} />
               {'secondary' in content && content.secondary ? (
@@ -100,7 +100,7 @@ export function OnboardingFlow() {
 
         {content.mode === 'need' ? (
           <View>
-            <StatusCard variant="info" title="What do you need today?" body="Choose what matters most right now. You can change this later." />
+            <StatusCard variant="info" title="What do you need today?" body="One choice is enough. You can change this later." />
             {NEED_OPTIONS.map((opt) => (
               <SelectionCard
                 key={opt}
@@ -137,15 +137,18 @@ export function OnboardingFlow() {
             <StatusCard
               variant="info"
               title="Set up your protection"
-              body="MileRecover works best with location and background protection. We will never pretend permissions are granted until you enable them."
+              body="MileRecover works best with location and background access. We never pretend permissions are granted until you enable them."
             />
-            <SummaryCard
-              items={[
-                { label: 'Location', value: 'Education only' },
-                { label: 'Background', value: 'Planned' },
-                { label: 'Battery', value: 'Guidance' },
-                { label: 'Offline', value: 'Supported later' },
-              ]}
+            <View style={[cardShell, { marginBottom: spacing.md }]}>
+              <ChecklistRow label="Location access" status="pending" />
+              <ChecklistRow label="Background tracking" status="pending" />
+              <ChecklistRow label="Battery optimization" status="planned" />
+              <ChecklistRow label="Offline recording" status="planned" />
+            </View>
+            <StatusCard
+              variant="neutral"
+              title="Your data stays yours"
+              body="Trips are stored on your device first. Nothing is shared without your action."
             />
             <PrimaryButton label="Continue" onPress={advanceOnboarding} />
           </View>
@@ -165,20 +168,28 @@ export function OnboardingFlow() {
           <View>
             <StatusCard
               variant="success"
-              title="You're all set"
+              title="You're all set!"
               body="Protection is configured. MileRecover will monitor your drives and surface anything that needs your attention."
             />
             <SummaryCard
               items={[
-                { label: 'Monitoring', value: 'Active' },
-                { label: 'Review inbox', value: 'Ready' },
-                { label: 'Proof', value: 'When you are' },
+                { label: 'Background access', value: 'Ready' },
+                { label: 'Location access', value: 'Ready' },
+                { label: 'Battery optimization', value: 'Guidance saved' },
               ]}
             />
-            <PrimaryButton label="Enter MileRecover" onPress={finish} />
+            <PrimaryButton label="Go to Home" onPress={finish} accessibilityLabel="Finish onboarding and go to Home" />
           </View>
         ) : null}
       </ScrollScreen>
     </AppScreen>
   );
 }
+
+const cardShell = {
+  backgroundColor: '#FFFFFF',
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: '#E7E5E4',
+  padding: 16,
+};

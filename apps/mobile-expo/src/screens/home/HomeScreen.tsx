@@ -6,6 +6,7 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
+  Badge,
   EvidenceRow,
   ProtectionCard,
   ScrollScreen,
@@ -14,8 +15,8 @@ import {
   SummaryCard,
   TimelineRow,
   PrimaryButton,
-  text,
 } from '../../design-system';
+import type { ActivityEventKind } from '../../fixtures/scenarios';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
@@ -39,6 +40,20 @@ function homeVariant(scenarioState: string): 'success' | 'warning' | 'danger' | 
   }
 }
 
+function activityTimeLabel(timestamp: number): string {
+  const hoursAgo = Math.round((Date.now() - timestamp) / 3600000);
+  if (hoursAgo < 1) return 'Just now';
+  if (hoursAgo < 24) return `${hoursAgo}h ago`;
+  const daysAgo = Math.round(hoursAgo / 24);
+  return daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
+}
+
+function activityBadge(kind: ActivityEventKind): string | null {
+  if (kind === 'gap_found') return 'Review';
+  if (kind === 'history_imported') return 'Imported';
+  return null;
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions } = useApp();
@@ -47,15 +62,17 @@ export function HomeScreen() {
   const { scenario } = experience;
 
   const handlePrimary = () => {
+    if (scenario.primaryActionRoute === 'ProtectionAlert') {
+      navigation.navigate('ProtectionAlert');
+      return;
+    }
     if (scenario.primaryActionRoute === 'Review') navigation.navigate('Review');
     else if (scenario.primaryActionRoute === 'Profile') navigation.navigate('Profile');
     else if (scenario.primaryActionRoute === 'Proof') navigation.navigate('Proof');
-    else if (scenario.homeState === 'protection_limited') navigation.navigate('ProtectionAlert');
   };
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Home" />
       <StatusCard
         variant={homeVariant(scenario.homeState)}
         title={scenario.homeTitle}
@@ -88,21 +105,39 @@ export function HomeScreen() {
         />
       ) : (
         scenario.activity.map((event) => (
-          <TimelineRow
-            key={event.id}
-            title={event.title}
-            subtitle={event.subtitle}
-            timeLabel="Recently"
-          />
+          <View key={event.id} style={{ marginBottom: spacing.sm }}>
+            <TimelineRow
+              title={event.title}
+              subtitle={event.subtitle}
+              timeLabel={activityTimeLabel(event.timestamp)}
+            />
+            {activityBadge(event.kind) ? (
+              <View style={{ marginLeft: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.sm }}>
+                <Badge label={activityBadge(event.kind)!} variant={event.kind === 'gap_found' ? 'warning' : 'info'} />
+              </View>
+            ) : null}
+          </View>
         ))
       )}
 
       <SectionHeader title="Ready for proof" />
       <View style={{ marginBottom: spacing.md }}>
         {scenario.proofReady ? (
-          <StatusCard variant="success" title="Records look ready" body="Preview your report when you need it." actionLabel="View proof" onAction={() => navigation.navigate('Proof')} />
+          <StatusCard
+            variant="success"
+            title="Records look ready"
+            body="Preview your report when you need it."
+            actionLabel="View proof"
+            onAction={() => navigation.navigate('Proof')}
+          />
         ) : (
-          <StatusCard variant="info" title="Not quite ready" body={scenario.proofBlockReason ?? 'Confirm trips to prepare proof.'} />
+          <StatusCard
+            variant="info"
+            title="Not quite ready"
+            body={scenario.proofBlockReason ?? 'Confirm trips to prepare proof.'}
+            actionLabel={scenario.reviewItems.length > 0 ? 'Review items' : undefined}
+            onAction={scenario.reviewItems.length > 0 ? () => navigation.navigate('Review') : undefined}
+          />
         )}
       </View>
 

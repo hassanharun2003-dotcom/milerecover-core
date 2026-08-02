@@ -49,7 +49,7 @@ export interface ScenarioPresentation {
   homeTitle: string;
   homeDetail: string;
   primaryAction: string | null;
-  primaryActionRoute?: 'Review' | 'Profile' | 'Proof';
+  primaryActionRoute?: 'Review' | 'Profile' | 'Proof' | 'ProtectionAlert';
   weekSummary: WeekSummary;
   activity: ActivityEvent[];
   trips: TripRecord[];
@@ -123,7 +123,7 @@ export const DEMO_SCENARIOS: Record<DemoScenario, ScenarioPresentation> = {
     homeTitle: 'Protected',
     homeDetail: 'Everything looks good. Nothing needs your attention.',
     primaryAction: null,
-    weekSummary: { milesProtected: 42.6, recoveredMiles: 3.1, milesReadyForProof: 38.5 },
+    weekSummary: { milesProtected: 87.6, recoveredMiles: 2.0, milesReadyForProof: 12.0 },
     activity: [
       { id: 'a1', kind: 'drive_recorded', title: 'Drive recorded', subtitle: 'Airport pickup · 18.4 mi', timestamp: NOW - 3600000 },
       { id: 'a2', kind: 'work_confirmed', title: 'Work trip confirmed', subtitle: 'Downtown client visit', timestamp: NOW - 86400000 },
@@ -176,7 +176,7 @@ export const DEMO_SCENARIOS: Record<DemoScenario, ScenarioPresentation> = {
     homeTitle: 'Protection needs attention',
     homeDetail: 'Background tracking may be restricted.',
     primaryAction: 'Restore protection',
-    primaryActionRoute: 'Profile',
+    primaryActionRoute: 'ProtectionAlert',
     weekSummary: { milesProtected: 15.0, recoveredMiles: 0, milesReadyForProof: 12.0 },
     activity: [],
     trips: [trip('t1', 12.0)],
@@ -190,8 +190,8 @@ export const DEMO_SCENARIOS: Record<DemoScenario, ScenarioPresentation> = {
     id: 'offline_sync',
     label: 'Offline / sync pending',
     homeState: 'offline',
-    homeTitle: 'Sync pending',
-    homeDetail: 'Recent drives will appear when your connection returns.',
+    homeTitle: 'Saved safely offline',
+    homeDetail: 'Your recent drives are saved on this device. They will sync when your connection returns.',
     primaryAction: null,
     weekSummary: { milesProtected: 20.1, recoveredMiles: 1.5, milesReadyForProof: 18.0 },
     activity: [{ id: 'a1', kind: 'drive_recorded', title: 'Drive queued offline', subtitle: 'Will sync when online', timestamp: NOW - 1800000 }],

@@ -40,17 +40,26 @@ interface ProductContextValue {
 
 const ProductContext = createContext<ProductContextValue | null>(null);
 
-export function ProductProvider({ children }: { children: React.ReactNode }) {
-  const [product, setProduct] = useState<ProductUiState>(() => createInitialProductUiState());
-  const [hydrated, setHydrated] = useState(false);
+export function ProductProvider({
+  children,
+  initialState,
+  skipHydration = false,
+}: {
+  children: React.ReactNode;
+  initialState?: ProductUiState;
+  skipHydration?: boolean;
+}) {
+  const [product, setProduct] = useState<ProductUiState>(() => initialState ?? createInitialProductUiState());
+  const [hydrated, setHydrated] = useState(skipHydration);
 
   useEffect(() => {
+    if (skipHydration) return;
     void (async () => {
       const loaded = await loadProductUiState();
       setProduct(loaded);
       setHydrated(true);
     })();
-  }, []);
+  }, [skipHydration]);
 
   const persist = useCallback(async (next: ProductUiState) => {
     setProduct(next);
