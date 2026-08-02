@@ -1,6 +1,7 @@
 # Expo UI validation — locked product experience
 
 **Branch:** `milestone/expo-mobile-foundation`  
+**Commit:** `2480ac3` — feat: implement locked MileRecover product experience  
 **Design source:** Official MileRecover design board (green + white, four-tab IA)  
 **Status:** Laptop-side validation complete; physical device smoke partial
 
@@ -59,7 +60,8 @@ Generated via Jest selector tests (`productExperience.test.tsx` validates Protec
 
 ## Rollback point
 
-Tag before this milestone: commit `eb7aabe`
+Tag before this milestone: commit `eb7aabe`  
+**This milestone:** `2480ac3`
 
 ## Next milestone
 
