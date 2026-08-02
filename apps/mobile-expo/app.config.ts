@@ -1,6 +1,7 @@
 const config = {
   name: 'MileRecover',
   slug: 'milerecover',
+  owner: 'milerecover',
   scheme: 'milerecover',
   version: '0.1.0-expo-foundation',
   orientation: 'portrait' as const,
@@ -24,7 +25,9 @@ const config = {
   },
   plugins: ['expo-dev-client'],
   extra: {
-    eas: {},
+    eas: {
+      projectId: 'c61d0a3c-ba3d-40e1-9764-5118fa2429f3',
+    },
   },
 };
 

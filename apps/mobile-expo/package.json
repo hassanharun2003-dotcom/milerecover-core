@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@babel/runtime": "~7.29.0",
-    "@milerecover/config": "file:../../packages/config",
-    "@milerecover/domain": "file:../../packages/domain",
+    "@milerecover/config": "*",
+    "@milerecover/domain": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.18.14",
     "@react-navigation/native": "^7.3.14",
@@ -55,5 +55,6 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "packageManager": "npm@10.9.2"
 }
