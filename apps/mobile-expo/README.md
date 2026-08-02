@@ -83,12 +83,9 @@ npm run ios
 # From repository root
 npm run check:all
 npm run test:domain
-npm run typecheck:mobile-expo
-
-# From apps/mobile-expo
-npm run typecheck
-npm run config:validate
-npm test
+npm run test:mobile-expo
+npm run deps:validate   # expo install --check (monorepo-safe)
+npm run export:validate # Android static export
 ```
 
 ## Persistence

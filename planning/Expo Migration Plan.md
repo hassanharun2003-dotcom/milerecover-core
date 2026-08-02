@@ -89,8 +89,8 @@ All domain modules and persistence contract:
 | Review | ✓ | Target ✓ | Empty state |
 | Proof | ✓ | Target ✓ | Export unavailable honest |
 | Profile | ✓ | Target ✓ | Permission labels |
-| Manual add (Add tab) | ✓ | Target ✓ | Guidance stub preserved |
-| 5-tab navigation | ✓ | Target ✓ | Home, Review, Add, Proof, Profile |
+| Manual add (stack route) | ✓ | Target ✓ | Via Home/Review — not a tab |
+| 4-tab navigation | ✓ | Target ✓ | Home, Review, Proof, Profile |
 
 ---
 
@@ -115,7 +115,8 @@ Keys unchanged: `@milerecover/app-state/v1`, `@milerecover/app-state-backup/v1`
 |------|----------|
 | Library | `@react-navigation/native` + `@react-navigation/bottom-tabs` |
 | Expo Router | **Not used** |
-| Tab names | Home, Review, Add, Proof, Profile |
+| Tab names | Home, Review, Proof, Profile |
+| Manual Trip | Stack route — not a bottom tab |
 | Stack routes (future) | Trip detail, Tracking Active — deferred |
 
 ---
@@ -176,3 +177,38 @@ No data migration required — both apps use same AsyncStorage key schema but se
 ## Related commands
 
 See `apps/mobile-expo/README.md` for run and build commands.
+
+---
+
+## Milestone status (2026-08-02)
+
+| Item | Value |
+|------|--------|
+| Branch | `milestone/expo-mobile-foundation` |
+| Foundation commit | `7f167ba` — feat: add Expo mobile foundation and four-tab navigation |
+| CI workflow | `.github/workflows/expo-mobile.yml` |
+| CI run (initial) | [Run #30747164857](https://github.com/hassanharun2003-dotcom/milerecover-core/actions/runs/30747164857) — **failed** on `expo-doctor` lock-file check (monorepo false positive; lockfile lives in `apps/mobile-expo/`, not repo root) |
+| CI fix | `deps:validate` uses `npx expo install --check` instead of `expo-doctor` |
+| EAS project | **Not linked** — `eas init` pending authentication |
+| EAS project ID | *(none yet — do not invent)* |
+| Android dev build | **Not started** — blocked on EAS login |
+| Device smoke | **Pending** — requires dev-client APK install + physical device |
+| `@babel/runtime` | Pinned to `~7.29.0` (Expo SDK 57 / babel-preset-expo compatible) |
+| Unresolved warnings | `expo-doctor` lock-file check fails in monorepo when run directly; `npm warn Unknown env config "devdir"` (local npm config, non-blocking) |
+| Next milestone | EAS auth → `eas init` → Android development APK → device smoke checklist → tracking engine (deferred) |
+
+### Device smoke checklist (user observation required)
+
+1. Install and open **MileRecover** (development client — not Expo Go)
+2. Confirm no native crash or red screen
+3. Complete onboarding
+4. Confirm exactly **four** bottom tabs
+5. Open Home, Review, Proof, and Profile
+6. Open **Add manual trip** from Home or Review
+7. Confirm Manual Trip is **not** a tab
+8. Close the app completely
+9. Reopen and confirm onboarding does not repeat
+10. Clear app storage and confirm onboarding returns
+11. Check for clipped text or broken layouts
+
+**Do not mark any item passed until confirmed on device.**

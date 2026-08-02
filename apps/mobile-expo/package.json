@@ -10,7 +10,7 @@
     "ios": "expo start --dev-client --ios",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "deps:validate": "npx expo-doctor",
+    "deps:validate": "npx expo install --check",
     "config:validate": "expo config --type public",
     "export:validate": "expo export --platform android --output-dir .expo-export-check",
     "prebuild:android": "expo prebuild --platform android --no-install",
