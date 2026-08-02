@@ -187,7 +187,8 @@ See `apps/mobile-expo/README.md` for run and build commands.
 | Branch | `milestone/expo-mobile-foundation` |
 | Foundation commit | `7f167ba` — feat: add Expo mobile foundation and four-tab navigation |
 | CI workflow | `.github/workflows/expo-mobile.yml` |
-| CI run (initial) | [Run #30747164857](https://github.com/hassanharun2003-dotcom/milerecover-core/actions/runs/30747164857) — **failed** on `expo-doctor` lock-file check (monorepo false positive; lockfile lives in `apps/mobile-expo/`, not repo root) |
+| CI run (initial) | [Run #30747164857](https://github.com/hassanharun2003-dotcom/milerecover-core/actions/runs/30747164857) — **failed** on `expo-doctor` lock-file check (monorepo false positive) |
+| CI run (after fix) | [Run #30747332620](https://github.com/hassanharun2003-dotcom/milerecover-core/actions/runs/30747332620) — **success** @ `18b86ff` |
 | CI fix | `deps:validate` uses `npx expo install --check` instead of `expo-doctor` |
 | EAS project | **Not linked** — `eas init` pending authentication |
 | EAS project ID | *(none yet — do not invent)* |
