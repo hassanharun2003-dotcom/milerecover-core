@@ -186,14 +186,15 @@ See `apps/mobile-expo/README.md` for run and build commands.
 |------|--------|
 | Branch | `milestone/expo-mobile-foundation` |
 | Foundation commit | `7f167ba` — feat: add Expo mobile foundation and four-tab navigation |
+| Latest commit | `80944c6` — fix: link EAS project and configure npm workspaces for cloud builds |
 | CI workflow | `.github/workflows/expo-mobile.yml` |
 | CI run (initial) | [Run #30747164857](https://github.com/hassanharun2003-dotcom/milerecover-core/actions/runs/30747164857) — **failed** on `expo-doctor` lock-file check (monorepo false positive) |
 | CI run (after fix) | [Run #30747332620](https://github.com/hassanharun2003-dotcom/milerecover-core/actions/runs/30747332620) — **success** @ `18b86ff` |
 | CI fix | `deps:validate` uses `npx expo install --check` instead of `expo-doctor` |
-| EAS project | **Not linked** — `eas init` pending authentication |
-| EAS project ID | *(none yet — do not invent)* |
-| Android dev build | **Not started** — blocked on EAS login |
-| Device smoke | **Pending** — requires dev-client APK install + physical device |
+| EAS project | **Linked** — `@milerecover/milerecover` |
+| EAS project ID | `c61d0a3c-ba3d-40e1-9764-5118fa2429f3` |
+| Android dev build | **Success** — [Build ba9e2891](https://expo.dev/accounts/milerecover/projects/milerecover/builds/ba9e2891-f955-40d7-b3f0-e435f94cb0e2) @ `80944c6` |
+| Device smoke | **Pending** — install dev-client APK and run checklist |
 | `@babel/runtime` | Pinned to `~7.29.0` (Expo SDK 57 / babel-preset-expo compatible) |
 | Unresolved warnings | `expo-doctor` lock-file check fails in monorepo when run directly; `npm warn Unknown env config "devdir"` (local npm config, non-blocking) |
 | Next milestone | EAS auth → `eas init` → Android development APK → device smoke checklist → tracking engine (deferred) |
