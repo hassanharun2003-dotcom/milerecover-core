@@ -2,7 +2,7 @@
 export const APP_BUILD_LABEL = '0.1.0-preview.1';
 
 /** Shipped via OTA to prove preview channel connectivity. Cursor bumps this for test updates. */
-export const PREVIEW_CHANNEL_MARKER = 'Base preview build';
+export const PREVIEW_CHANNEL_MARKER = 'Preview channel connected';
 
 export type AppVariant = 'development' | 'preview' | 'production';
 

@@ -2,6 +2,24 @@
 
 One-link internal testing — no QR scans, no Metro for day-to-day UI updates.
 
+## Current preview build (install once)
+
+**Direct install URL (tap on your phone):**  
+https://expo.dev/accounts/milerecover/projects/milerecover/builds/dfb98852-77d7-4185-bdd5-a07fde5a3ad9
+
+- Build profile: `preview` (standalone — no Expo dev launcher)
+- Runtime version: `0.1.0`
+- Channel: `preview`
+- Build ID: `dfb98852-77d7-4185-bdd5-a07fde5a3ad9`
+
+## Test OTA update published
+
+After installing the preview APK above, close and reopen MileRecover. Profile → About should show **Preview marker: Preview channel connected**.
+
+- Update group: `1357ef99-936e-441d-976a-063797983aca`
+- Android update ID: `019fc42e-7f85-7c26-a72b-701172377c62`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/1357ef99-936e-441d-976a-063797983aca
+
 ## First install (or after native changes)
 
 1. Cursor runs `eas build --profile preview --platform android`.

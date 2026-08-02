@@ -13,8 +13,8 @@
     "deps:validate": "npx expo install --check",
     "config:validate": "expo config --type public",
     "export:validate": "expo export --platform android --output-dir .expo-export-check",
-    "update:preview": "eas update --channel preview --non-interactive",
-    "update:production": "eas update --channel production --non-interactive",
+    "update:preview": "eas update --channel preview --environment preview --non-interactive",
+    "update:production": "eas update --channel production --environment production --non-interactive",
     "prebuild:android": "expo prebuild --platform android --no-install",
     "prebuild:ios": "expo prebuild --platform ios --no-install"
   },
