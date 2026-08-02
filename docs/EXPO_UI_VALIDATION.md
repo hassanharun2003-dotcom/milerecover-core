@@ -1,6 +1,7 @@
 # Expo UI validation — locked product experience
 
 **Branch:** `milestone/expo-mobile-foundation`  
+**Commit:** `edc1a1e` — feat: polish and validate locked MileRecover experience  
 **Design source:** Official MileRecover design board (forest green + white, four-tab IA)  
 **Rollback point:** `74044d5` (prior polish commit baseline)
 
@@ -66,7 +67,7 @@ npm --prefix apps/mobile-expo run deps:validate    # PASS
 | Emulator launch | NOT AVAILABLE (adb/emulator not in PATH) |
 | Physical device smoke | NOT VERIFIED |
 | Prior dev APK (pre-polish) | [ba9e2891](https://expo.dev/accounts/milerecover/projects/milerecover/builds/ba9e2891-f955-40d7-b3f0-e435f94cb0e2) |
-| Updated dev APK | See EAS build section below |
+| Updated dev APK | [057f1e07](https://expo.dev/accounts/milerecover/projects/milerecover/builds/057f1e07-4e3d-4205-bd67-554979f00902) — PASS |
 
 ## iOS readiness
 
