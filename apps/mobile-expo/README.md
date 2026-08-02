@@ -27,19 +27,60 @@ Background location and native tracking (future) require a **development build**
 
 ## Install
 
+From repository root (npm workspaces):
+
 ```bash
-cd apps/mobile-expo
 npm ci
 ```
 
 ## Run (Metro + dev client)
 
-After a development build is installed on device/emulator:
+The laptop is the primary development machine. Metro runs independently of the phone — a sleeping or locked phone does not stop builds, tests, CI, or Metro on the laptop.
+
+After a development build is installed on device or emulator:
 
 ```bash
 cd apps/mobile-expo
 npm start
 ```
+
+If LAN reconnection is unreliable after the phone wakes, use tunnel mode (phone reconnects without staying awake during laptop work):
+
+```bash
+cd apps/mobile-expo
+npx expo start --dev-client --tunnel
+```
+
+Port conflict (8081 in use):
+
+```bash
+npx expo start --dev-client --port 8082
+```
+
+## Development workflow (phone screen off)
+
+- **Laptop continues:** Metro, tests, EAS builds, CI, git, and validation do not require the phone to stay awake.
+- **Automated first:** Prefer Jest, typecheck, export validation, CI, emulator, and `adb` logs over manual phone observation.
+- **Phone only when needed:** Physical-device confirmation is reserved for behavior that cannot be verified on the laptop (e.g. future background location).
+- **Sleep ≠ powered off:** A locked/sleeping phone may reconnect to Metro when opened; tracking must never be claimed while the phone is fully powered off.
+- **Not Expo Go:** Background location (future) uses development builds and native background configuration only.
+
+### Tracking engine test matrix (future milestone)
+
+When implementing background location, explicitly verify:
+
+| Condition | Expected to test |
+|-----------|------------------|
+| Screen locked | Tracking policy per ADR |
+| App backgrounded | Foreground service / iOS background modes |
+| Wi-Fi connected | Normal operation |
+| Wi-Fi disconnected | Degraded / offline behavior |
+| Mobile data active | Network path behavior |
+| Battery optimization / low power | OS throttling behavior |
+| App force-closed | Recovery or honest stop |
+| Phone restarted | Cold-start recovery |
+
+Do not claim continuous tracking when the device is powered completely off.
 
 ### Android development build
 

@@ -46,6 +46,7 @@ jobs:
         working-directory: .
         run: npm ci
       - name: Domain tests
+        working-directory: .
         run: npm run test:domain
       - name: Typecheck Expo mobile
         run: npm run typecheck
