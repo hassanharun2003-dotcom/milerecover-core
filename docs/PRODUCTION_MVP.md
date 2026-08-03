@@ -30,10 +30,12 @@ Paid entitlement is **never** granted from a local toggle. Until Play/App Store 
 - Android update ID: `019fc7b9-3dd9-7395-a053-b960bacd087d`
 - iOS update ID: `019fc7b9-3dd9-74e7-83e5-d9e5449c5418`
 - Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/198d82c4-b191-4e2b-b69d-c60275656034
-- Commit: `eac03776ee40731a7d94611d230bdbe6c38bcae8`
-- EAS Android build: _pending build finish_
-- Direct APK: _pending GitHub prerelease_
-- SHA-256: _pending_
+- Commit (OTA): `eac03776ee40731a7d94611d230bdbe6c38bcae8`
+- Docs tip: `e24460ef07eaa590042086efbdf3d318acb11354`
+- EAS Android build (queued — free-tier backlog): https://expo.dev/accounts/milerecover/projects/milerecover/builds/e606f394-8f7a-41dc-8151-77abd8a3c766
+- versionCode: `6`
+- Direct APK / GitHub prerelease: _blocked on EAS queue finishing_
+- SHA-256: _pending APK_
 
 ## Physical acceptance checklist
 
