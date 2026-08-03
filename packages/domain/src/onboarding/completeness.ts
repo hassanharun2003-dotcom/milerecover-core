@@ -91,7 +91,7 @@ export function nextIncompleteStep(state: VersionedOnboardingState): OnboardingS
   if (state.selectedPainPoints.length === 0) return 'pain_points';
   if (state.drivingPattern == null) return 'driving_pattern';
   if (!state.protectionEducationAcknowledged) return 'protection_education';
-  if (!state.permissionsEducationAcknowledged) return 'permissions_education';
+  // Name, vehicle, places, and permissions are post-Home / optional — never block entry.
   if (state.nextActionSelected == null) return 'ready';
   if (state.completedAt == null) return 'ready';
   return null;

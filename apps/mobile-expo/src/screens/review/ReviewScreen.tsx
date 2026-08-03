@@ -68,13 +68,19 @@ export function ReviewScreen() {
     restoreTrip,
     upsertRecovery,
   } = useApp();
-  const { product, pushReviewHistory, markReviewHistoryUndone } = useProduct();
+  const { product, pushReviewHistory, markReviewHistoryUndone, markFirstMissingTripSeen } = useProduct();
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const [segment, setSegment] = useState<'needs' | 'reviewed'>('needs');
   const [undoItem, setUndoItem] = useState<ReviewHistoryEntry | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = experience.activeReviewItems;
   const reviewed = product.reviewHistoryEntries.filter((entry) => !entry.undoneAt);
+
+  useEffect(() => {
+    if (pending.some((item) => item.kind === 'possible_missing_trip') && product.firstMissingTripSeenAt == null) {
+      markFirstMissingTripSeen();
+    }
+  }, [markFirstMissingTripSeen, pending, product.firstMissingTripSeenAt]);
 
   useEffect(() => {
     return () => {
@@ -154,7 +160,7 @@ export function ReviewScreen() {
         pending.length === 0 ? (
           <EmptyState
             title="You’re caught up"
-            body="We’ll let you know when something needs attention. Nothing uncertain enters a report until you decide."
+            body="We’ll be here when something needs a quick look. Nothing uncertain enters a report until you decide."
             actionLabel="Add a drive"
             onAction={() => navigation.navigate('ManualTrip')}
           />

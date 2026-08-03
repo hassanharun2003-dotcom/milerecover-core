@@ -62,7 +62,7 @@ function vehicleLookup(vehicles: { id: string; nickname: string; make: string; m
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
   const { state, setReportingPeriod } = useApp();
-  const { product } = useProduct();
+  const { product, markFirstExport, markFirstReportPreview } = useProduct();
   const [periodKind, setPeriodKind] = useState<ReportPeriodKind>(
     PERIOD_OPTIONS.some((option) => option.value === state.reportingPeriod.id)
       ? (state.reportingPeriod.id as ReportPeriodKind)
@@ -115,6 +115,10 @@ export function ProofScreen() {
       const uri = await writeTextFile(csvFilename(period.label), csv);
       const result = await shareFile(uri, 'text/csv', 'Share MileRecover CSV');
       if (!result.ok && result.reason !== 'cancelled') throw new Error(result.message);
+      if (result.ok) {
+        markFirstExport();
+        markFirstReportPreview();
+      }
       setMessage(result.ok ? 'CSV ready to share.' : result.message);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not share CSV.');
@@ -131,6 +135,10 @@ export function ProofScreen() {
     }
     const result = await generateAndSharePdf(report);
     if (result.ok || result.reason === 'cancelled') {
+      if (result.ok) {
+        markFirstExport();
+        markFirstReportPreview();
+      }
       setMessage(result.ok ? 'PDF ready to share.' : result.message);
     } else {
       setError(result.message);
@@ -144,8 +152,8 @@ export function ProofScreen() {
       {report.tripCount === 0 ? (
         <>
           <EmptyState
-            title="No work drives in this period yet"
-            body="Only drives you’ve marked as work show up here. Pending and personal stays out."
+            title="No work drives yet"
+            body="We’ll be here when your next trip starts. Only work drives you confirm show up here."
             actionLabel="Add a drive"
             onAction={() => navigation.navigate('ManualTrip')}
           />

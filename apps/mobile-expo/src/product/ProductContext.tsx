@@ -90,6 +90,12 @@ interface ProductContextValue {
   markFirstConfirmedWorkDrive: () => void;
   markFirstReportPreview: () => void;
   markFirstRecoverySeen: () => void;
+  markFirstExport: () => void;
+  markFirstMissingTripSeen: () => void;
+  markFirstRecoveredDrive: () => void;
+  markCelebratedFirstDrive: () => void;
+  markCelebratedFirstReport: () => void;
+  markCelebratedFirstRecovery: () => void;
   setPendingPostOnboardingRoute: (route: PostOnboardingRoute) => void;
   consumePendingPostOnboardingRoute: () => PostOnboardingRoute;
   completeProductOnboarding: (route?: PostOnboardingRoute) => void;
@@ -312,7 +318,6 @@ export function ProductProvider({
             { ...prev, onboardingSkippedOptional: true },
             {
               preferredName: null,
-              currentStep: 'vehicle_setup',
               completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'preferred_name']),
             },
           ),
@@ -321,7 +326,6 @@ export function ProductProvider({
         persist((prev) =>
           patchOnboardingState(prev, {
             vehicleSetupState: 'skipped',
-            currentStep: 'familiar_places',
             completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'vehicle_setup']),
           }),
         ),
@@ -329,7 +333,6 @@ export function ProductProvider({
         persist((prev) =>
           patchOnboardingState(prev, {
             familiarPlacesSetupState: 'skipped',
-            currentStep: 'protection_education',
             completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'familiar_places']),
           }),
         ),
@@ -425,6 +428,36 @@ export function ProductProvider({
           ...prev,
           firstRecoverySeenAt: prev.firstRecoverySeenAt ?? Date.now(),
         })),
+      markFirstExport: () =>
+        persist((prev) => ({
+          ...prev,
+          firstExportAt: prev.firstExportAt ?? Date.now(),
+        })),
+      markFirstMissingTripSeen: () =>
+        persist((prev) => ({
+          ...prev,
+          firstMissingTripSeenAt: prev.firstMissingTripSeenAt ?? Date.now(),
+        })),
+      markFirstRecoveredDrive: () =>
+        persist((prev) => ({
+          ...prev,
+          firstRecoveredDriveAt: prev.firstRecoveredDriveAt ?? Date.now(),
+        })),
+      markCelebratedFirstDrive: () =>
+        persist((prev) => ({
+          ...prev,
+          celebratedFirstDriveAt: prev.celebratedFirstDriveAt ?? Date.now(),
+        })),
+      markCelebratedFirstReport: () =>
+        persist((prev) => ({
+          ...prev,
+          celebratedFirstReportAt: prev.celebratedFirstReportAt ?? Date.now(),
+        })),
+      markCelebratedFirstRecovery: () =>
+        persist((prev) => ({
+          ...prev,
+          celebratedFirstRecoveryAt: prev.celebratedFirstRecoveryAt ?? Date.now(),
+        })),
       setPendingPostOnboardingRoute: (route) =>
         persist((prev) => ({ ...prev, pendingPostOnboardingRoute: route })),
       consumePendingPostOnboardingRoute: () => {
@@ -443,11 +476,25 @@ export function ProductProvider({
               ...prev,
               protectionSetupState: protection,
               pendingPostOnboardingRoute: route,
+              onboardingSkippedOptional: true,
             },
             {
               currentStep: 'ready',
-              completedSteps: uniqueSteps([...prev.onboarding.completedSteps, prev.onboarding.currentStep, 'ready']),
+              completedSteps: uniqueSteps([
+                ...prev.onboarding.completedSteps,
+                prev.onboarding.currentStep,
+                'ready',
+              ]),
               protectionEducationAcknowledged: true,
+              permissionsEducationAcknowledged: true,
+              vehicleSetupState:
+                prev.onboarding.vehicleSetupState === 'not_started'
+                  ? 'skipped'
+                  : prev.onboarding.vehicleSetupState,
+              familiarPlacesSetupState:
+                prev.onboarding.familiarPlacesSetupState === 'not_started'
+                  ? 'skipped'
+                  : prev.onboarding.familiarPlacesSetupState,
               nextActionSelected: nextAction,
               completedAt: now,
             },

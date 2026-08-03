@@ -132,7 +132,6 @@ export function ManualTripScreen() {
   const [endTime, setEndTime] = useState(initialEnd);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [addTime, setAddTime] = useState(Boolean(existing));
-  const [distanceMode, setDistanceMode] = useState<'distance' | 'places'>('distance');
   const [distance, setDistance] = useState(existing ? existing.distanceMiles.toString() : '');
   const [purpose, setPurpose] = useState(existing?.purpose ?? '');
   const [startLabel, setStartLabel] = useState(existing?.startLabel ?? '');
@@ -147,9 +146,13 @@ export function ManualTripScreen() {
       ? 'work'
       : existing?.classification === 'personal'
         ? 'personal'
-        : 'later',
+        : existing
+          ? 'later'
+          : 'work',
   );
-  const [showDetails, setShowDetails] = useState(Boolean(existing?.vehicleId || existing?.notes || existing?.evidenceMethod));
+  const [showDetails, setShowDetails] = useState(
+    Boolean(existing?.vehicleId || existing?.notes || existing?.purpose),
+  );
   const [error, setError] = useState<string | null>(null);
 
   const purposeChips = (() => {
@@ -165,6 +168,11 @@ export function ManualTripScreen() {
     }
   })();
   const customPurpose = purpose.length > 0 && !purposeChips.includes(purpose);
+  const placeChips = [
+    ...product.workLocations.map((location) => location.label),
+    'Home',
+    'Work',
+  ].filter((label, index, all) => label && all.indexOf(label) === index);
 
   const applyDateOffset = (daysBack: number) => {
     const next = new Date();
@@ -186,7 +194,7 @@ export function ManualTripScreen() {
 
   const save = () => {
     if (purpose === 'Other work drive') {
-      setError('Enter a custom purpose for Other work drive.');
+      setError('Enter a short purpose for Other work drive.');
       return;
     }
     const startAt = composeDateTime(driveDate, startTime, 9, 0);
@@ -251,81 +259,11 @@ export function ManualTripScreen() {
       <StatusCard
         variant="info"
         title={existing ? 'Edit this drive' : 'Add a drive'}
-        body="Enter the miles you know. We won’t invent a route."
+        body="Three quick steps. We won’t invent a route."
         emphasis="subtle"
       />
-      <ListSection title="When">
-        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.sm }}>
-          <SecondaryButton label="Today" onPress={() => applyDateOffset(0)} />
-          <SecondaryButton label="Yesterday" onPress={() => applyDateOffset(1)} />
-          <SecondaryButton label="Pick date" onPress={() => setShowDatePicker((value) => !value)} />
-        </View>
-        <EvidenceRow label="Selected date" value={formatDateLocal(driveDate.getTime())} />
-        {showDatePicker ? (
-          <DateTimePicker
-            value={driveDate}
-            mode="date"
-            onChange={(_, selected) => {
-              if (selected) setDriveDate(selected);
-            }}
-          />
-        ) : null}
-        <SelectionCard
-          title="Add time"
-          body={addTime ? 'Start and end time are included.' : 'Optional. Date alone uses a simple default time window.'}
-          selected={addTime}
-          onPress={() => setAddTime((value) => !value)}
-        />
-        {addTime ? (
-          <>
-            <Text style={[text.caption, { marginBottom: spacing.xs }]}>Start time</Text>
-            <DateTimePicker value={startTime} mode="time" onChange={(_, selected) => selected && setStartTime(selected)} />
-            <Text style={[text.caption, { marginBottom: spacing.xs }]}>End time</Text>
-            <DateTimePicker value={endTime} mode="time" onChange={(_, selected) => selected && setEndTime(selected)} />
-          </>
-        ) : null}
-      </ListSection>
 
-      <ListSection title="Distance">
-        <FormField label="Miles" value={distance} onChangeText={setDistance} placeholder="0.0" />
-        <SelectionCard
-          title="Add start & end labels"
-          body="Optional. Helps explain the drive — you still enter the miles."
-          selected={distanceMode === 'places'}
-          onPress={() => setDistanceMode(distanceMode === 'places' ? 'distance' : 'places')}
-        />
-        {distanceMode === 'places' ? (
-          <>
-            <FormField label="Start" value={startLabel} onChangeText={setStartLabel} placeholder="Home" />
-            <FormField label="End" value={endLabel} onChangeText={setEndLabel} placeholder="Client office" />
-            {product.workLocations.map((location) => (
-              <View key={location.id} style={{ marginBottom: spacing.sm }}>
-                <SecondaryButton label={`Start: ${location.label}`} onPress={() => setStartLabel(location.label)} />
-                <SecondaryButton label={`End: ${location.label}`} onPress={() => setEndLabel(location.label)} />
-              </View>
-            ))}
-          </>
-        ) : null}
-      </ListSection>
-
-      <ListSection title="Purpose">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-          {purposeChips.map((chip) => (
-            <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
-          ))}
-        </View>
-        {purpose && purpose !== 'Other work drive' ? <EvidenceRow label="Selected purpose" value={purpose} /> : null}
-        {purpose === 'Other work drive' || customPurpose ? (
-          <FormField
-            label="Custom purpose"
-            value={purpose === 'Other work drive' ? '' : purpose}
-            onChangeText={(value) => setPurpose(value.trim() ? value : 'Other work drive')}
-            placeholder="Describe the work drive"
-          />
-        ) : null}
-      </ListSection>
-
-      <ListSection title="Work or personal?">
+      <ListSection title="1 · Work or personal?">
         <SegmentedControl
           value={classification}
           onChange={setClassification}
@@ -337,17 +275,94 @@ export function ManualTripScreen() {
         />
       </ListSection>
 
+      <ListSection title="2 · Start & end">
+        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.sm }}>
+          <SecondaryButton label="Today" onPress={() => applyDateOffset(0)} />
+          <SecondaryButton label="Yesterday" onPress={() => applyDateOffset(1)} />
+          <SecondaryButton label="Pick date" onPress={() => setShowDatePicker((value) => !value)} />
+        </View>
+        <EvidenceRow label="Date" value={formatDateLocal(driveDate.getTime())} />
+        {showDatePicker ? (
+          <DateTimePicker
+            value={driveDate}
+            mode="date"
+            onChange={(_, selected) => {
+              if (selected) setDriveDate(selected);
+            }}
+          />
+        ) : null}
+        <FormField label="Start" value={startLabel} onChangeText={setStartLabel} placeholder="Where you started" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm }}>
+          {placeChips.map((chip) => (
+            <SecondaryButton key={`start-${chip}`} label={chip} onPress={() => setStartLabel(chip)} />
+          ))}
+        </View>
+        <FormField label="End" value={endLabel} onChangeText={setEndLabel} placeholder="Where you finished" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {placeChips.map((chip) => (
+            <SecondaryButton key={`end-${chip}`} label={chip} onPress={() => setEndLabel(chip)} />
+          ))}
+        </View>
+      </ListSection>
+
+      <ListSection title="3 · Distance">
+        <FormField label="Miles" value={distance} onChangeText={setDistance} placeholder="0.0" />
+      </ListSection>
+
       <SelectionCard
         title="More details"
-        body="Optional vehicle, notes, and how you know the miles."
+        body="Purpose, time, vehicle, notes — optional."
         selected={showDetails}
         onPress={() => setShowDetails((value) => !value)}
       />
       {showDetails ? (
         <>
+          <ListSection title="Purpose">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+              {purposeChips.map((chip) => (
+                <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
+              ))}
+            </View>
+            {purpose && purpose !== 'Other work drive' ? (
+              <EvidenceRow label="Selected purpose" value={purpose} />
+            ) : null}
+            {purpose === 'Other work drive' || customPurpose ? (
+              <FormField
+                label="Custom purpose"
+                value={purpose === 'Other work drive' ? '' : purpose}
+                onChangeText={(value) => setPurpose(value.trim() ? value : 'Other work drive')}
+                placeholder="Describe the work drive"
+              />
+            ) : null}
+          </ListSection>
+          <SelectionCard
+            title="Add time"
+            body={addTime ? 'Start and end time are included.' : 'Optional. Date alone is fine.'}
+            selected={addTime}
+            onPress={() => setAddTime((value) => !value)}
+          />
+          {addTime ? (
+            <>
+              <Text style={[text.caption, { marginBottom: spacing.xs }]}>Start time</Text>
+              <DateTimePicker
+                value={startTime}
+                mode="time"
+                onChange={(_, selected) => selected && setStartTime(selected)}
+              />
+              <Text style={[text.caption, { marginBottom: spacing.xs }]}>End time</Text>
+              <DateTimePicker
+                value={endTime}
+                mode="time"
+                onChange={(_, selected) => selected && setEndTime(selected)}
+              />
+            </>
+          ) : null}
           {product.vehicles.length > 0 ? (
             <ListSection title="Vehicle">
-              <EvidenceRow label="Selected" value={vehicleId ? vehicleLookup(product.vehicles)[vehicleId] : 'None'} />
+              <EvidenceRow
+                label="Selected"
+                value={vehicleId ? vehicleLookup(product.vehicles)[vehicleId] : 'None'}
+              />
               {product.vehicles.map((vehicle) => (
                 <SelectionCard
                   key={vehicle.id}
@@ -944,7 +959,7 @@ export function PrivacyScreen() {
 export function ExportReportScreen() {
   const navigation = useNavigation<Nav>();
   const { state } = useApp();
-  const { product } = useProduct();
+  const { product, markFirstExport } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const [phase, setPhase] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
   const [message, setMessage] = useState<string | null>(null);
@@ -968,6 +983,7 @@ export function ExportReportScreen() {
       const uri = await writeTextFile(csvFilename(period.label), csv);
       const result = await shareFile(uri, 'text/csv', 'Share MileRecover CSV');
       if (!result.ok && result.reason !== 'cancelled') throw new Error(result.message);
+      if (result.ok) markFirstExport();
       setMessage(result.ok ? 'CSV ready to share.' : result.message);
       setPhase('success');
     } catch (error) {
@@ -991,6 +1007,7 @@ export function ExportReportScreen() {
     setPhase('processing');
     const result = await generateAndSharePdf(report);
     if (result.ok || result.reason === 'cancelled') {
+      if (result.ok) markFirstExport();
       setMessage(result.ok ? 'PDF ready to share.' : result.message);
       setPhase('success');
     } else {
@@ -1056,7 +1073,7 @@ export function ReportPreviewScreen() {
         {report.lineItems.length === 0 ? (
           <StatusCard
             variant="neutral"
-            title="No work drives to show yet"
+            title="No work drives yet"
             body="Confirmed work drives will appear here with date, purpose, places, and miles."
             emphasis="subtle"
           />
@@ -1110,7 +1127,8 @@ export function PlanSelectionScreen() {
         <View>
           <Text style={text.subtitle}>Keep the protection that already helped.</Text>
           <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}. Purchases confirm in Google Play or the App Store.
+            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}. Plus is
+            $8.99/month — easy to justify when one missed drive costs more.
           </Text>
           <SegmentedControl
             value={annual ? 'annual' : 'monthly'}

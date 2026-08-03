@@ -39,17 +39,13 @@ describe('Locked product experience', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('PlanSelection');
   });
 
-  it('defines ten schema v4 onboarding steps', () => {
+  it('defines a lean six-step first-run onboarding path', () => {
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
       'primary_goal',
       'pain_points',
       'driving_pattern',
-      'preferred_name',
-      'vehicle_setup',
-      'familiar_places',
       'protection_education',
-      'permissions_education',
       'ready',
     ]);
   });
@@ -142,13 +138,21 @@ describe('Onboarding personalization', () => {
 });
 
 describe('Onboarding honesty', () => {
-  it('does not claim permissions are ready before tracking exists', () => {
-    const source = require('fs').readFileSync(
-      require('path').join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
+  it('keeps permission prompts out of first-run onboarding and stays honest on watching screens', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const onboarding = fs.readFileSync(
+      path.join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(source).toMatch(/Not turned on yet|not available|isn’t available|unavailable/i);
-    expect(source).not.toMatch(/status=\"ready\"/);
+    expect(onboarding).not.toMatch(/Allow location while using the app|requestLocationPermission/);
+    expect(onboarding).not.toMatch(/status=\"ready\"/);
+    expect(ONBOARDING_STEP_ORDER).not.toContain('permissions_education');
+    const tracking = fs.readFileSync(
+      path.join(__dirname, '../src/screens/flows/SupportingScreens.tsx'),
+      'utf8',
+    );
+    expect(tracking).toMatch(/Watching is off|Watching needs Plus|Not yet|Partially/i);
   });
 });
 

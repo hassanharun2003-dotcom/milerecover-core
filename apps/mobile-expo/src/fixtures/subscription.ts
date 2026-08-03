@@ -43,9 +43,9 @@ export const PLAN_FIXTURES: PlanFixture[] = [
     annualSavingsLabel: 'Save about $18/year vs monthly',
     highlighted: true,
     features: [
-      'Everyday coverage for every work drive',
-      'Catch quiet gaps before they disappear',
-      'PDF ready when work asks',
+      'Never lose another reimbursable mile.',
+      'Recover forgotten work drives before they’re lost.',
+      'Reports ready whenever work asks.',
     ],
   },
   {
@@ -56,9 +56,9 @@ export const PLAN_FIXTURES: PlanFixture[] = [
     annualPrice: '$119.99',
     annualSavingsLabel: 'Save about $60/year vs monthly',
     features: [
-      'Deeper help catching up older history',
-      'Reports you can share with confidence',
-      'Advanced exports without the scramble',
+      'Catch up older history without the scramble.',
+      'Share reports with clients or taxes confidently.',
+      'Exports that feel ready the first time.',
     ],
   },
 ];

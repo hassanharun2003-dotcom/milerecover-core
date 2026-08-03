@@ -209,6 +209,17 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
       typeof parsed.firstReportPreviewAt === 'number' ? parsed.firstReportPreviewAt : null,
     firstRecoverySeenAt:
       typeof parsed.firstRecoverySeenAt === 'number' ? parsed.firstRecoverySeenAt : null,
+    firstExportAt: typeof parsed.firstExportAt === 'number' ? parsed.firstExportAt : null,
+    firstMissingTripSeenAt:
+      typeof parsed.firstMissingTripSeenAt === 'number' ? parsed.firstMissingTripSeenAt : null,
+    firstRecoveredDriveAt:
+      typeof parsed.firstRecoveredDriveAt === 'number' ? parsed.firstRecoveredDriveAt : null,
+    celebratedFirstDriveAt:
+      typeof parsed.celebratedFirstDriveAt === 'number' ? parsed.celebratedFirstDriveAt : null,
+    celebratedFirstReportAt:
+      typeof parsed.celebratedFirstReportAt === 'number' ? parsed.celebratedFirstReportAt : null,
+    celebratedFirstRecoveryAt:
+      typeof parsed.celebratedFirstRecoveryAt === 'number' ? parsed.celebratedFirstRecoveryAt : null,
   };
   if (!merged.demoModeEnabled) {
     merged.entitlement = createFreeEntitlement(now);

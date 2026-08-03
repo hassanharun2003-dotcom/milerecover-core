@@ -16,11 +16,13 @@ import {
   SummaryCard,
   TabScreen,
   TimelineRow,
+  TertiaryButton,
   text,
 } from '../../design-system';
 import type { ActivityEventKind } from '../../fixtures/scenarios';
 import { greetingForName } from '../../product/copy';
 import { selectProductExperience } from '../../product/selectors';
+import { earnedTrialMoment, isWithinFirstWeek } from '../../product/trialValue';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 import { TrialOfferCard } from '../../components/TrialOfferCard';
@@ -79,7 +81,17 @@ function coverageSummary(
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
-  const { product, consumePendingPostOnboardingRoute, markFirstConfirmedWorkDrive } = useProduct();
+  const {
+    product,
+    consumePendingPostOnboardingRoute,
+    markFirstConfirmedWorkDrive,
+    markFirstRecoveredDrive,
+    markFirstMissingTripSeen,
+    markFirstReportPreview,
+    markCelebratedFirstDrive,
+    markCelebratedFirstReport,
+    markCelebratedFirstRecovery,
+  } = useProduct();
   const recoveryRefreshed = useRef(false);
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const { scenario, secondaryAction, liveMode } = experience;
@@ -91,6 +103,12 @@ export function HomeScreen() {
     permissions.backgroundLocation,
     product.trackingEnabled && capabilities.canUseAutomaticCapture,
   );
+  const confirmedCount = experience.confirmedTrips.length;
+  const recoveredCount = experience.confirmedTrips.filter((trip) => trip.source === 'recovered').length;
+  const trialMoment = earnedTrialMoment(product, confirmedCount);
+  const firstWeek =
+    isWithinFirstWeek(product.onboarding.completedAt) ||
+    isWithinFirstWeek(product.firstConfirmedWorkDriveAt);
 
   useEffect(() => {
     const route = consumePendingPostOnboardingRoute();
@@ -119,10 +137,43 @@ export function HomeScreen() {
   ]);
 
   useEffect(() => {
-    if (liveMode && experience.confirmedTrips.length > 0 && product.firstConfirmedWorkDriveAt == null) {
+    if (liveMode && confirmedCount > 0 && product.firstConfirmedWorkDriveAt == null) {
       markFirstConfirmedWorkDrive();
     }
-  }, [experience.confirmedTrips.length, liveMode, markFirstConfirmedWorkDrive, product.firstConfirmedWorkDriveAt]);
+  }, [confirmedCount, liveMode, markFirstConfirmedWorkDrive, product.firstConfirmedWorkDriveAt]);
+
+  useEffect(() => {
+    if (liveMode && recoveredCount > 0 && product.firstRecoveredDriveAt == null) {
+      markFirstRecoveredDrive();
+    }
+  }, [liveMode, markFirstRecoveredDrive, product.firstRecoveredDriveAt, recoveredCount]);
+
+  useEffect(() => {
+    if (
+      liveMode &&
+      experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip') &&
+      product.firstMissingTripSeenAt == null
+    ) {
+      markFirstMissingTripSeen();
+    }
+  }, [
+    experience.activeReviewItems,
+    liveMode,
+    markFirstMissingTripSeen,
+    product.firstMissingTripSeenAt,
+  ]);
+
+  useEffect(() => {
+    if (liveMode && scenario.proofReady && product.firstReportPreviewAt == null && confirmedCount > 0) {
+      markFirstReportPreview();
+    }
+  }, [
+    confirmedCount,
+    liveMode,
+    markFirstReportPreview,
+    product.firstReportPreviewAt,
+    scenario.proofReady,
+  ]);
 
   const handlePrimary = () => {
     if (scenario.primaryActionRoute === 'ProtectionAlert') {
@@ -164,14 +215,40 @@ export function HomeScreen() {
   const showSecondary = secondaryAction != null && !secondaryConflictsWithPrimary;
   const showTrial =
     liveMode &&
-    experience.confirmedTrips.length > 0 &&
+    trialMoment != null &&
     scenario.homeState !== 'protection_limited' &&
     scenario.primaryActionRoute !== 'Review';
+
+  const showFirstDriveCelebrate =
+    firstWeek &&
+    liveMode &&
+    confirmedCount > 0 &&
+    product.firstConfirmedWorkDriveAt != null &&
+    product.celebratedFirstDriveAt == null;
+  const showFirstReportCelebrate =
+    firstWeek &&
+    liveMode &&
+    scenario.proofReady &&
+    product.firstReportPreviewAt != null &&
+    product.celebratedFirstReportAt == null;
+  const showFirstRecoveryCelebrate =
+    firstWeek &&
+    liveMode &&
+    recoveredCount > 0 &&
+    product.firstRecoveredDriveAt != null &&
+    product.celebratedFirstRecoveryAt == null;
+
+  const needsOptionalSetup =
+    liveMode &&
+    product.vehicles.length === 0 &&
+    product.workLocations.length === 0 &&
+    confirmedCount === 0 &&
+    !scenario.primaryAction;
 
   return (
     <TabScreen>
       {greeting ? (
-        <Text style={[text.body, { marginBottom: spacing.sm }]} accessibilityRole="text">
+        <Text style={[text.body, { marginBottom: spacing.xs }]} accessibilityRole="text">
           {greeting}
         </Text>
       ) : null}
@@ -189,8 +266,39 @@ export function HomeScreen() {
         emphasis="hero"
       />
 
+      {showFirstDriveCelebrate ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>First work drive saved</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            Nice work. You’re already protected.
+          </Text>
+          <TertiaryButton label="Got it" onPress={markCelebratedFirstDrive} />
+        </SoftPanel>
+      ) : null}
+      {showFirstRecoveryCelebrate ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>First recovery</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            We found mileage worth keeping.
+          </Text>
+          <TertiaryButton label="Got it" onPress={markCelebratedFirstRecovery} />
+        </SoftPanel>
+      ) : null}
+      {showFirstReportCelebrate ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>First report ready</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            When work asks, you’re ready.
+          </Text>
+          <TertiaryButton label="Got it" onPress={markCelebratedFirstReport} />
+        </SoftPanel>
+      ) : null}
+
       {showTrial ? (
-        <TrialOfferCard onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })} />
+        <TrialOfferCard
+          confirmedWorkDriveCount={confirmedCount}
+          onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+        />
       ) : null}
 
       {scenario.homeState === 'protection_limited' || !scenario.primaryAction ? (
@@ -201,9 +309,19 @@ export function HomeScreen() {
         </SoftPanel>
       ) : null}
 
+      {needsOptionalSetup ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>Optional setup</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            Add a vehicle or workplace later in Profile — never required to start.
+          </Text>
+          <TertiaryButton label="Open Profile" onPress={() => navigation.navigate('Profile')} />
+        </SoftPanel>
+      ) : null}
+
       {showWeekSummary ? (
         <>
-          <Text style={[text.subtitle, { marginBottom: spacing.sm, marginTop: spacing.sm }]}>
+          <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
             This week
           </Text>
           <SummaryCard
@@ -216,12 +334,12 @@ export function HomeScreen() {
         </>
       ) : null}
 
-      <Text style={[text.subtitle, { marginBottom: spacing.sm, marginTop: spacing.sm }]}>Recent</Text>
+      <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>Recent</Text>
       {scenario.activity.length === 0 ? (
         <StatusCard
           variant="neutral"
-          title="Nothing recorded yet"
-          body="Your first real drive will show up here. We’re never inventing miles."
+          title="No work drives yet"
+          body="We’ll be here when your next trip starts."
           emphasis="subtle"
         />
       ) : (
@@ -245,7 +363,7 @@ export function HomeScreen() {
       )}
 
       {showSecondary ? (
-        <View style={{ marginTop: spacing.md }}>
+        <View style={{ marginTop: spacing.sm }}>
           {scenario.primaryAction ? (
             <SecondaryButton label={secondaryAction!.label} onPress={handleSecondary} />
           ) : (
@@ -255,7 +373,7 @@ export function HomeScreen() {
       ) : null}
 
       {liveMode && scenario.activity.length === 0 && !scenario.primaryAction && !showSecondary ? (
-        <View style={{ marginTop: spacing.md }}>
+        <View style={{ marginTop: spacing.sm }}>
           <PrimaryButton
             label="Add a drive"
             onPress={() => navigation.navigate('ManualTrip')}

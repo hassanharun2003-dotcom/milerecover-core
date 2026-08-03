@@ -145,6 +145,12 @@ export interface ProductUiState {
   firstConfirmedWorkDriveAt: number | null;
   firstReportPreviewAt: number | null;
   firstRecoverySeenAt: number | null;
+  firstExportAt: number | null;
+  firstMissingTripSeenAt: number | null;
+  firstRecoveredDriveAt: number | null;
+  celebratedFirstDriveAt: number | null;
+  celebratedFirstReportAt: number | null;
+  celebratedFirstRecoveryAt: number | null;
 }
 
 export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v4';
@@ -201,19 +207,22 @@ export function createInitialProductUiState(): ProductUiState {
     firstConfirmedWorkDriveAt: null,
     firstReportPreviewAt: null,
     firstRecoverySeenAt: null,
+    firstExportAt: null,
+    firstMissingTripSeenAt: null,
+    firstRecoveredDriveAt: null,
+    celebratedFirstDriveAt: null,
+    celebratedFirstReportAt: null,
+    celebratedFirstRecoveryAt: null,
   };
 }
 
+/** Lean first-run path — vehicle, places, name, and permissions happen after Home. */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'welcome',
   'primary_goal',
   'pain_points',
   'driving_pattern',
-  'preferred_name',
-  'vehicle_setup',
-  'familiar_places',
   'protection_education',
-  'permissions_education',
   'ready',
 ];
 

@@ -18,6 +18,9 @@ export type TrialOfferTrigger =
   | 'first_confirmed_work_drive'
   | 'first_report_preview'
   | 'first_recovery_candidate'
+  | 'first_exported_report'
+  | 'five_confirmed_work_drives'
+  | 'first_possible_missing_trip'
   | 'enable_automatic_protection'
   | 'plus_only_capability'
   | 'import_ready_for_protection';

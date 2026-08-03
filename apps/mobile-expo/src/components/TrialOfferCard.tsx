@@ -8,30 +8,37 @@ import {
   text,
 } from '../design-system';
 import { useProduct } from '../product/ProductContext';
+import { earnedTrialMoment, earnedTrialTrigger } from '../product/trialValue';
 import { trialRenewalCopy } from '../services/purchases';
 
 export function TrialOfferCard({
   onStartTrial,
+  confirmedWorkDriveCount = 0,
 }: {
   onStartTrial: () => void;
+  confirmedWorkDriveCount?: number;
 }) {
   const { product, markTrialOfferShown, dismissTrialOfferSession } = useProduct();
   const [shownThisSession, setShownThisSession] = useState(false);
   const capabilities = capabilitiesForEntitlement(product.entitlement);
-  const eligible = shouldOfferTrial(product.entitlement, 'first_confirmed_work_drive', {
-    lastOfferAt: product.paywallCaps.lastTrialOfferAt,
-    dismissedSession: product.paywallCaps.trialOfferDismissedSession,
-  });
-  const offer = eligible || (shownThisSession && !product.paywallCaps.trialOfferDismissedSession);
+  const moment = earnedTrialMoment(product, confirmedWorkDriveCount);
+  const trigger = moment ? earnedTrialTrigger(moment) : 'plus_only_capability';
+  const eligible =
+    moment != null &&
+    shouldOfferTrial(product.entitlement, trigger, {
+      lastOfferAt: product.paywallCaps.lastTrialOfferAt,
+      dismissedSession: product.paywallCaps.trialOfferDismissedSession,
+    });
+  const offer = eligible || (shownThisSession && moment != null && !product.paywallCaps.trialOfferDismissedSession);
 
   useEffect(() => {
-    if (eligible && product.firstConfirmedWorkDriveAt != null && !shownThisSession) {
+    if (eligible && !shownThisSession) {
       setShownThisSession(true);
       markTrialOfferShown();
     }
-  }, [eligible, markTrialOfferShown, product.firstConfirmedWorkDriveAt, shownThisSession]);
+  }, [eligible, markTrialOfferShown, shownThisSession]);
 
-  if (!offer || product.firstConfirmedWorkDriveAt == null || capabilities.canUseAutomaticCapture) {
+  if (!offer || moment == null || capabilities.canUseAutomaticCapture) {
     return null;
   }
 
@@ -39,11 +46,11 @@ export function TrialOfferCard({
     <View
       style={styles.card}
       accessibilityRole="summary"
-      accessibilityLabel="Keep this protection running with Plus"
+      accessibilityLabel="Continue automatic protection free for 7 days"
     >
-      <Text style={text.subtitle}>You’re getting real value</Text>
+      <Text style={text.subtitle}>We’ve already helped protect your mileage</Text>
       <Text style={[text.body, { marginTop: spacing.xs }]}>
-        You saved a real work drive. Keep this protection running with Plus — automatic watching and missing-drive checks.
+        Continue automatic protection free for 7 days. No countdown. Cancel anytime in the store.
       </Text>
       <Text style={[text.caption, { marginTop: spacing.sm }]}>
         {trialRenewalCopy(product.entitlement.monthlyPriceLocalized, product.entitlement.trialEndsAt)}
@@ -62,14 +69,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.forest[500],
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     ...shadows.card,
   },
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     flexWrap: 'wrap',
   },
 });

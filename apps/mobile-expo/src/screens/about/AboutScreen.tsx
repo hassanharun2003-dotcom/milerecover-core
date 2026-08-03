@@ -52,9 +52,12 @@ export function AboutScreen() {
         <EvidenceRow label="Build type" value={String(variant)} />
         {updatesActive ? (
           <>
-            <EvidenceRow label="Runtime version" value={meta.runtimeVersion ?? '—'} />
+            <EvidenceRow label="App update version" value={meta.runtimeVersion ?? '—'} />
             <EvidenceRow label="Update channel" value={meta.channel ?? '—'} />
-            <EvidenceRow label="Update id" value={meta.updateId ? meta.updateId.slice(0, 8) + '…' : 'Embedded'} />
+            <EvidenceRow
+              label="Latest update"
+              value={meta.updateId ? meta.updateId.slice(0, 8) + '…' : 'Built-in'}
+            />
           </>
         ) : null}
       </ListSection>
