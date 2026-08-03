@@ -83,6 +83,28 @@ describe('Locked product experience', () => {
   });
 });
 
+describe('Onboarding honesty', () => {
+  it('does not claim permissions are ready before tracking exists', () => {
+    const source = require('fs').readFileSync(
+      require('path').join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
+      'utf8',
+    );
+    expect(source).toContain("value: 'Not granted yet'");
+    expect(source).not.toMatch(/label: 'Background access',\s*value: 'Ready'/);
+    expect(source).not.toMatch(/label: 'Location access',\s*value: 'Ready'/);
+    expect(source).toContain('never pretend permissions are granted');
+  });
+
+  it('routes protection fix action to system settings', () => {
+    const source = require('fs').readFileSync(
+      require('path').join(__dirname, '../src/screens/flows/SupportingScreens.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('Linking.openSettings');
+    expect(source).toContain('Open system settings');
+  });
+});
+
 describe('Review persistence semantics', () => {
   it('tracks reviewed history separately from pending items', () => {
     const product = {

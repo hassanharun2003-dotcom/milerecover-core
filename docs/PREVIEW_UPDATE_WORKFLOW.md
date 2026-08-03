@@ -23,7 +23,9 @@ Build `a0fcf6cd` is the verified Android preview upgrade over the earlier `0.1.0
 
 After installing the preview APK above, close and reopen MileRecover. Profile → About should show **Preview marker: Preview channel connected** and build label **0.1.2-preview.1**.
 
-Previous `0.1.0` channel marker (for older APK only):
+**Runtime `0.1.2` OTA status:** pending Cloud Agent `EXPO_TOKEN` injection (`npx eas-cli whoami` must succeed in the agent VM). Do not expect a new OTA until that publish completes.
+
+Previous `0.1.0` channel marker (for older APK only — will not apply to `0.1.2` runtime):
 
 - Update group: `1357ef99-936e-441d-976a-063797983aca`
 - Android update ID: `019fc42e-7f85-7c26-a72b-701172377c62`

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -99,17 +99,25 @@ export function MissingTripRecoveryScreen() {
 
 export function ProtectionAlertScreen() {
   const navigation = useNavigation<Nav>();
+
+  const openSystemSettings = () => {
+    void Linking.openSettings().catch(() => {
+      // If the OS blocks settings deep links, keep the user on this honest guidance screen.
+    });
+  };
+
   return (
     <ScrollScreen>
       <SectionHeader title="Protection alert" />
       <StatusCard
         variant="warning"
         title="Protection needs attention"
-        body="Background tracking may be restricted. Restore protection in system settings when you are ready."
-        actionLabel="Fix protection"
-        onAction={() => navigation.goBack()}
+        body="Background tracking may be restricted. Open system settings to restore location and background access when you are ready."
+        actionLabel="Open system settings"
+        onAction={openSystemSettings}
       />
       <StatusCard variant="neutral" title="What this means" body="Miles may not be captured while protection is limited. Existing records stay safe." />
+      <SecondaryButton label="Back" onPress={() => navigation.goBack()} accessibilityLabel="Go back from protection alert" />
     </ScrollScreen>
   );
 }

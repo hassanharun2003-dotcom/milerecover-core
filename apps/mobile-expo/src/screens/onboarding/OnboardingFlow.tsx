@@ -156,10 +156,29 @@ export function OnboardingFlow() {
 
         {content.mode === 'optional' ? (
           <View>
-            <StatusCard variant="info" title="Optional setup" body="Add details when you are ready. Skipping is always safe." />
-            <SelectionCard title="Add a vehicle" body="Name the car you usually drive for work" selected={false} onPress={advanceOnboarding} />
-            <SelectionCard title="Add work locations" body="Help MileRecover understand your routine" selected={false} onPress={advanceOnboarding} />
-            <SelectionCard title="Set your work pattern" body="Optional schedule hints for recovery" selected={false} onPress={advanceOnboarding} />
+            <StatusCard
+              variant="info"
+              title="Optional setup"
+              body="These details help later reports. You can add them from Profile after Home—skipping is always safe."
+            />
+            <SelectionCard
+              title="Remind me: add a vehicle"
+              body="Available from Profile after setup—not enabled yet"
+              selected={false}
+              onPress={advanceOnboarding}
+            />
+            <SelectionCard
+              title="Remind me: add work locations"
+              body="Available from Profile after setup—not enabled yet"
+              selected={false}
+              onPress={advanceOnboarding}
+            />
+            <SelectionCard
+              title="Remind me: set work pattern"
+              body="Available from Profile after setup—not enabled yet"
+              selected={false}
+              onPress={advanceOnboarding}
+            />
             <TertiaryButton label="Skip for now" onPress={skipOptionalSetup} />
           </View>
         ) : null}
@@ -168,14 +187,14 @@ export function OnboardingFlow() {
           <View>
             <StatusCard
               variant="success"
-              title="You're all set!"
-              body="Protection is configured. MileRecover will monitor your drives and surface anything that needs your attention."
+              title="You're ready to explore"
+              body="Onboarding is complete. Location and background protection are not granted yet—they unlock when tracking is implemented and you approve system prompts."
             />
             <SummaryCard
               items={[
-                { label: 'Background access', value: 'Ready' },
-                { label: 'Location access', value: 'Ready' },
-                { label: 'Battery optimization', value: 'Guidance saved' },
+                { label: 'Background access', value: 'Not granted yet' },
+                { label: 'Location access', value: 'Not granted yet' },
+                { label: 'Battery optimization', value: 'Guidance only' },
               ]}
             />
             <PrimaryButton label="Go to Home" onPress={finish} accessibilityLabel="Finish onboarding and go to Home" />
