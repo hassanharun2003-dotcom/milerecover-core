@@ -1,17 +1,17 @@
 {
-  "1-onboarding-welcome": "Your miles. Protected. Nothing left behind. Capture, recover, review, and prove your work mileage — without inventing anything. ✓ 12.4 mi Protect my miles Bring existing mileage",
+  "1-onboarding-welcome": "MileRecover Keep your work miles from disappearing. Capture, recover, review, and prove work mileage — without inventing anything. ✓ 12.4 mi Get started Bring existing mileage",
   "2-onboarding-goals": {
-    "employee_reimbursement": "Back You’re ready Your reimbursement record is ready to begin. Employee reimbursement · Not set Go to Home Turn on watching",
-    "gig_delivery": "Back You’re ready You’re ready to protect your first work shift. Gig or delivery driving · Not set Go to Home Turn on watching",
-    "self_employed_business": "Back You’re ready Your business mileage record is ready. Self-employed or business · Not set Go to Home Add a drive",
-    "mixed": "Back You’re ready You’re set. Home will show what to do next. A mix of these · Not set Go to Home Bring mileage"
+    "employee_reimbursement": "Back You’re ready Home will show what to do next. Optional setup can wait. Save work drives in a few taps. Review anything uncertain before it enters a report. ",
+    "gig_delivery": "Back You’re ready Home will show what to do next. Optional setup can wait. Save work drives in a few taps. Turn on watching later if you want automatic coverage",
+    "self_employed_business": "Back You’re ready Home will show what to do next. Optional setup can wait. Save work drives in a few taps. Review anything uncertain before it enters a report. ",
+    "mixed": "Back You’re ready Home will show what to do next. Optional setup can wait. Save work drives in a few taps. Review anything uncertain before it enters a report. "
   },
-  "3-home-truthful": "You’re protected. We’ll let you know before you lose mileage. Add a work drive anytime. Add a drive Recent No work drives yet We’ll be here when your next trip starts. ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile",
+  "3-home-truthful": "Ready when you are Add a work drive anytime. Automatic watching comes with Plus. Add a drive Finish setup Optional · 0 of 3 done Add a vehicle Add a workplace See Plus for watching Not now Recent No work drives yet We’ll be here when your n",
   "4-home-review-item": "One drive may need a look Your phone was quiet for part of this stretch. Ten seconds and you’re done. Review drive This week Miles kept 28.4 Miles found 0.0 Ready to share 22.1 Recent Might have missed a drive Tuesday afternoon · quick look",
-  "5-empty-proof": "Week Month Prev. month YTD No work drives yet We’ll be here when your next trip starts. Only work drives you confirm show up here. Add a drive This period 2026 year to date. All reviewed. They stay out of the report until you decide. ⏷ ⏷ Ho",
+  "5-empty-proof": "Week Month Prev. month YTD No confirmed work drives in this period Only drives you confirm as work appear in reports. Add a drive This period 2026 year to date. Pending and personal drives stay out until you decide. ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ ",
   "6-demo-proof": "Week Month Prev. month YTD Your mileage report is ready 2026 year to date 3 drives 58.0 miles — none open Preview report TOTALS Confirmed work drives 3 Total miles 58.0 mi Manual miles 0.0 mi Imported miles 0.0 mi Recovered miles 0.0 mi EXP",
   "7-empty-profile": "Your profile Add a preferred name anytime. You’re on Free Upgrade anytime when watching or PDF reports would help. Manage plan PROFILE Preferred name Not set › Primary goal Not set › What gets in the way Not set › Driving pattern Not set › ",
-  "8-plans-monthly": "Keep the protection that already helped. Current: Free . Plus is $8.99/month — easy to justify when one missed drive costs more. Monthly Annual Recommended Plus Never lose another reimbursable mile. $8.99 / month • Never lose another reimbu",
+  "8-plans-monthly": "Protect future work drives. Current: Free . Purchases confirm in Google Play or the App Store. Preview prices shown until the store is connected. Monthly Annual Recommended Plus Never lose another reimbursable mile. $8.99 / month • Automati",
   "9-plans-annual": "Fixed header toggle switches monthly/annual without sticky overlap",
   "10-safe-area": "insets.top TabScreen + insets.bottom tab bar + FixedHeaderScrollScreen + Ionicons"
 }

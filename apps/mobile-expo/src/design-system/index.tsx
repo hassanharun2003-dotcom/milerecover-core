@@ -357,15 +357,42 @@ export function EvidenceRow({ label, value }: { label: string; value: string }) 
   );
 }
 
-export function TimelineRow({ title, subtitle, timeLabel }: { title: string; subtitle: string; timeLabel: string }) {
-  return (
-    <View style={styles.timelineRow} accessibilityRole="text">
+export function TimelineRow({
+  title,
+  subtitle,
+  timeLabel,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  timeLabel: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <View style={styles.timelineDot} />
       <View style={{ flex: 1 }}>
         <Text style={text.subtitle}>{title}</Text>
         <Text style={text.body}>{subtitle}</Text>
         <Text style={text.caption}>{timeLabel}</Text>
       </View>
+    </>
+  );
+  if (onPress) {
+    return (
+      <Pressable
+        style={styles.timelineRow}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${subtitle}`}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={styles.timelineRow} accessibilityRole="text">
+      {content}
     </View>
   );
 }
@@ -590,20 +617,38 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-export function FormField({ label, value, placeholder, onChangeText }: {
-  label: string; value: string; placeholder?: string; onChangeText?: (t: string) => void;
+export function FormField({
+  label,
+  value,
+  placeholder,
+  onChangeText,
+  keyboardType,
+  compact,
+  autoCapitalize,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChangeText?: (t: string) => void;
+  keyboardType?: 'default' | 'decimal-pad' | 'numeric' | 'email-address';
+  compact?: boolean;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 }) {
   return (
-    <View style={{ marginBottom: spacing.md }}>
+    <View style={{ marginBottom: compact ? spacing.sm : spacing.md }}>
       <Text style={[text.caption, { marginBottom: spacing.xs }]}>{label}</Text>
-      <View style={styles.formField}>
+      <View style={[styles.formField, compact ? styles.formFieldCompact : null]}>
         {onChangeText ? (
           <TextInput
             accessibilityLabel={label}
             value={value}
             placeholder={placeholder}
             onChangeText={onChangeText}
-            style={text.body}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            multiline={false}
+            numberOfLines={1}
+            style={[text.body, compact ? { paddingVertical: 0, minHeight: 22 } : null]}
           />
         ) : (
           <Text style={text.body}>{value || placeholder || ''}</Text>
@@ -885,6 +930,7 @@ const styles = StyleSheet.create({
   segment: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radii.sm },
   segmentSelected: { backgroundColor: colors.background.card },
   formField: { borderWidth: 1, borderColor: colors.border.default, borderRadius: radii.md, padding: spacing.md, backgroundColor: colors.background.card },
+  formFieldCompact: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 44, justifyContent: 'center' },
   footer: { padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default, backgroundColor: colors.background.card },
   protectionCard: { backgroundColor: colors.forest[100], borderColor: colors.forest[500] },
   welcomeHero: { marginBottom: spacing.lg },

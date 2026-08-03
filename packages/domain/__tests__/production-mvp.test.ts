@@ -3,10 +3,13 @@ import {
   capabilitiesForEntitlement,
   createEmptyOnboardingState,
   createFreeEntitlement,
+  CURRENT_ONBOARDING_VERSION,
   DEFAULT_TRACKING_CONFIG,
   expireTrialIfNeeded,
+  invalidateStaleOnboardingCompletion,
   isDuplicateAutoTrip,
   isOnboardingMinimumComplete,
+  isOnboardingVersionStale,
   maybeCloseTripFromSamples,
   nextIncompleteStep,
   shouldOfferTrial,
@@ -15,22 +18,40 @@ import {
 } from '../src';
 
 describe('Onboarding completeness', () => {
-  it('requires goal, pain points, pattern, protection ack, and next action', () => {
+  it('requires goal, pain points, next action, and current version stamp', () => {
     const empty = createEmptyOnboardingState();
     expect(isOnboardingMinimumComplete(empty)).toBe(false);
-    expect(nextIncompleteStep(empty)).toBe('primary_goal');
+    expect(nextIncompleteStep(empty)).toBe('welcome');
     const complete = {
       ...empty,
       primaryGoal: 'employee_reimbursement' as const,
       selectedPainPoints: ['forget_to_track' as const],
       drivingPattern: 'regular_locations' as const,
       protectionEducationAcknowledged: true,
-      permissionsEducationAcknowledged: true,
       nextActionSelected: 'add_first_drive' as const,
       completedAt: 1,
+      completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
     };
     expect(isOnboardingMinimumComplete(complete)).toBe(true);
     expect(nextIncompleteStep(complete)).toBeNull();
+  });
+
+  it('treats older completed versions as stale and invalidates without wiping answers', () => {
+    const stale = {
+      ...createEmptyOnboardingState(),
+      primaryGoal: 'gig_delivery' as const,
+      selectedPainPoints: ['tracker_misses' as const],
+      nextActionSelected: 'start_protection' as const,
+      completedAt: 99,
+      completedOnboardingVersion: CURRENT_ONBOARDING_VERSION - 1,
+    };
+    expect(isOnboardingVersionStale(stale)).toBe(true);
+    const next = invalidateStaleOnboardingCompletion(stale, 1000);
+    expect(next.completedAt).toBeNull();
+    expect(next.completedOnboardingVersion).toBeNull();
+    expect(next.primaryGoal).toBe('gig_delivery');
+    expect(next.selectedPainPoints).toEqual(['tracker_misses']);
+    expect(next.currentStep).toBe('ready');
   });
 });
 

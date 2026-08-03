@@ -60,24 +60,6 @@ function activityBadge(kind: ActivityEventKind): string | null {
   return null;
 }
 
-function coverageSummary(
-  productState: string,
-  location: string,
-  background: string,
-  watchingOn: boolean,
-): { title: string; body: string } {
-  if (watchingOn && location === 'granted' && background === 'granted') {
-    return { title: 'Protected', body: 'We’re quietly watching.' };
-  }
-  if (watchingOn || location === 'granted') {
-    return { title: 'Partially protected', body: 'One quick step can finish setup.' };
-  }
-  if (productState === 'not_started' || productState === 'educated') {
-    return { title: 'Not yet', body: 'Add a drive anytime — or turn on watching when you’re ready.' };
-  }
-  return { title: 'Ready', body: 'Your saved miles stay on this device.' };
-}
-
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
@@ -91,18 +73,18 @@ export function HomeScreen() {
     markCelebratedFirstDrive,
     markCelebratedFirstReport,
     markCelebratedFirstRecovery,
+    dismissFinishSetup,
   } = useProduct();
   const recoveryRefreshed = useRef(false);
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
-  const { scenario, secondaryAction, liveMode } = experience;
+  const { scenario, liveMode } = experience;
   const greeting = greetingForName(product.preferredName);
   const capabilities = capabilitiesForEntitlement(product.entitlement);
-  const coverage = coverageSummary(
-    product.protectionSetupState,
-    permissions.location,
-    permissions.backgroundLocation,
-    product.trackingEnabled && capabilities.canUseAutomaticCapture,
-  );
+  const watchingOn =
+    product.trackingEnabled &&
+    capabilities.canUseAutomaticCapture &&
+    permissions.location === 'granted' &&
+    permissions.backgroundLocation === 'granted';
   const confirmedCount = experience.confirmedTrips.length;
   const recoveredCount = experience.confirmedTrips.filter((trip) => trip.source === 'recovered').length;
   const trialMoment = earnedTrialMoment(product, confirmedCount);
@@ -120,7 +102,6 @@ export function HomeScreen() {
     else if (route === 'ManualTrip') navigation.navigate('ManualTrip');
     else if (route === 'BringExistingMileage') navigation.navigate('BringExistingMileage');
     else if (route === 'MissingTripRecovery') navigation.navigate('Review');
-    // Intentionally once on mount / when pending is set
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.pendingPostOnboardingRoute]);
 
@@ -190,60 +171,46 @@ export function HomeScreen() {
     else if (scenario.primaryActionRoute === 'ManualTrip') navigation.navigate('ManualTrip');
   };
 
-  const handleSecondary = () => {
-    if (!secondaryAction) return;
-    if (secondaryAction.route === 'Review') navigation.navigate('Review');
-    else if (secondaryAction.route === 'ProtectionAlert' && !capabilities.canUseAutomaticCapture) {
-      navigation.navigate('PlanSelection', { source: 'upgrade' });
-    }
-    else navigation.navigate(secondaryAction.route);
-  };
-
   const showWeekSummary =
     !liveMode ||
     scenario.weekSummary.milesProtected > 0 ||
     scenario.weekSummary.recoveredMiles > 0 ||
     scenario.weekSummary.milesReadyForProof > 0;
 
-  const secondaryConflictsWithPrimary =
-    Boolean(scenario.primaryAction) &&
-    secondaryAction != null &&
-    (secondaryAction.route === scenario.primaryActionRoute ||
-      (scenario.primaryActionRoute === 'ProtectionAlert' && secondaryAction.route === 'ProtectionAlert') ||
-      (scenario.primaryActionRoute === 'ManualTrip' && secondaryAction.route === 'ManualTrip'));
-
-  const showSecondary = secondaryAction != null && !secondaryConflictsWithPrimary;
   const showTrial =
     liveMode &&
     trialMoment != null &&
     scenario.homeState !== 'protection_limited' &&
     scenario.primaryActionRoute !== 'Review';
 
-  const showFirstDriveCelebrate =
-    firstWeek &&
-    liveMode &&
-    confirmedCount > 0 &&
-    product.firstConfirmedWorkDriveAt != null &&
-    product.celebratedFirstDriveAt == null;
-  const showFirstReportCelebrate =
-    firstWeek &&
-    liveMode &&
-    scenario.proofReady &&
-    product.firstReportPreviewAt != null &&
-    product.celebratedFirstReportAt == null;
-  const showFirstRecoveryCelebrate =
-    firstWeek &&
-    liveMode &&
-    recoveredCount > 0 &&
-    product.firstRecoveredDriveAt != null &&
-    product.celebratedFirstRecoveryAt == null;
+  const celebration =
+    firstWeek && liveMode
+      ? product.celebratedFirstDriveAt == null && confirmedCount > 0
+        ? ('drive' as const)
+        : product.celebratedFirstRecoveryAt == null && recoveredCount > 0
+          ? ('recovery' as const)
+          : product.celebratedFirstReportAt == null && scenario.proofReady && product.firstReportPreviewAt != null
+            ? ('report' as const)
+            : null
+      : null;
 
-  const needsOptionalSetup =
+  const setupTasks = [
+    product.vehicles.length === 0 ? { label: 'Add a vehicle', route: 'VehicleSetup' as const } : null,
+    product.workLocations.length === 0
+      ? { label: 'Add a workplace', route: 'WorkLocationSetup' as const }
+      : null,
+    !watchingOn && capabilities.canUseAutomaticCapture
+      ? { label: 'Turn on watching', route: 'ProtectionAlert' as const }
+      : !capabilities.canUseAutomaticCapture
+        ? { label: 'See Plus for watching', route: 'PlanSelection' as const }
+        : null,
+  ].filter(Boolean) as Array<{ label: string; route: 'VehicleSetup' | 'WorkLocationSetup' | 'ProtectionAlert' | 'PlanSelection' }>;
+
+  const showFinishSetup =
     liveMode &&
-    product.vehicles.length === 0 &&
-    product.workLocations.length === 0 &&
-    confirmedCount === 0 &&
-    !scenario.primaryAction;
+    product.finishSetupDismissedAt == null &&
+    setupTasks.length > 0 &&
+    confirmedCount === 0;
 
   return (
     <TabScreen>
@@ -266,16 +233,18 @@ export function HomeScreen() {
         emphasis="hero"
       />
 
-      {showFirstDriveCelebrate ? (
+      {celebration === 'drive' ? (
         <SoftPanel>
           <Text style={text.subtitle}>First work drive saved</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Nice work. You’re already protected.
+            {watchingOn
+              ? 'You’re protected — watching is on.'
+              : 'Your first work drive is safely recorded.'}
           </Text>
           <TertiaryButton label="Got it" onPress={markCelebratedFirstDrive} />
         </SoftPanel>
       ) : null}
-      {showFirstRecoveryCelebrate ? (
+      {celebration === 'recovery' ? (
         <SoftPanel>
           <Text style={text.subtitle}>First recovery</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
@@ -284,7 +253,7 @@ export function HomeScreen() {
           <TertiaryButton label="Got it" onPress={markCelebratedFirstRecovery} />
         </SoftPanel>
       ) : null}
-      {showFirstReportCelebrate ? (
+      {celebration === 'report' ? (
         <SoftPanel>
           <Text style={text.subtitle}>First report ready</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
@@ -301,21 +270,27 @@ export function HomeScreen() {
         />
       ) : null}
 
-      {scenario.homeState === 'protection_limited' || !scenario.primaryAction ? (
+      {showFinishSetup ? (
         <SoftPanel>
-          <Text style={[text.caption, { marginBottom: spacing.xs }]}>COVERAGE</Text>
-          <Text style={text.subtitle}>{coverage.title}</Text>
-          <Text style={[text.body, { marginTop: spacing.xs }]}>{coverage.body}</Text>
-        </SoftPanel>
-      ) : null}
-
-      {needsOptionalSetup ? (
-        <SoftPanel>
-          <Text style={text.subtitle}>Optional setup</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Add a vehicle or workplace later in Profile — never required to start.
+          <Text style={text.subtitle}>Finish setup</Text>
+          <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            Optional · {3 - setupTasks.length} of 3 done
           </Text>
-          <TertiaryButton label="Open Profile" onPress={() => navigation.navigate('Profile')} />
+          {setupTasks.slice(0, 3).map((task) => (
+            <View key={task.label} style={{ marginBottom: spacing.xs }}>
+              <SecondaryButton
+                label={task.label}
+                onPress={() => {
+                  if (task.route === 'PlanSelection') {
+                    navigation.navigate('PlanSelection', { source: 'upgrade' });
+                  } else {
+                    navigation.navigate(task.route);
+                  }
+                }}
+              />
+            </View>
+          ))}
+          <TertiaryButton label="Not now" onPress={dismissFinishSetup} />
         </SoftPanel>
       ) : null}
 
@@ -349,6 +324,11 @@ export function HomeScreen() {
               title={event.title}
               subtitle={event.subtitle}
               timeLabel={activityTimeLabel(event.timestamp)}
+              onPress={
+                liveMode
+                  ? () => navigation.navigate('TripDetails', { tripId: event.id })
+                  : undefined
+              }
             />
             {activityBadge(event.kind) ? (
               <View style={{ marginLeft: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.sm }}>
@@ -362,25 +342,13 @@ export function HomeScreen() {
         ))
       )}
 
-      {showSecondary ? (
-        <View style={{ marginTop: spacing.sm }}>
-          {scenario.primaryAction ? (
-            <SecondaryButton label={secondaryAction!.label} onPress={handleSecondary} />
-          ) : (
-            <PrimaryButton label={secondaryAction!.label} onPress={handleSecondary} />
-          )}
-        </View>
-      ) : null}
-
-      {liveMode && scenario.activity.length === 0 && !scenario.primaryAction && !showSecondary ? (
-        <View style={{ marginTop: spacing.sm }}>
-          <PrimaryButton
-            label="Add a drive"
-            onPress={() => navigation.navigate('ManualTrip')}
-            accessibilityLabel="Add a drive from home"
-          />
-        </View>
-      ) : null}
+      <View style={{ marginTop: spacing.sm }}>
+        <PrimaryButton
+          label="Add a drive"
+          onPress={() => navigation.navigate('ManualTrip')}
+          accessibilityLabel="Add a drive from home"
+        />
+      </View>
     </TabScreen>
   );
 }

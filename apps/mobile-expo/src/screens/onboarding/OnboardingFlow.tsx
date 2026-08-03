@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo } from 'react';
-import { Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { BackHandler, Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
-  DRIVING_PATTERN_OPTIONS,
   ONBOARDING_STEP_ORDER,
   PAIN_POINT_OPTIONS,
   PRIMARY_GOAL_OPTIONS,
@@ -26,30 +25,36 @@ import { useProduct } from '../../product/ProductContext';
 import { CarRouteHero } from '../../components/CarRouteHero';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 
-function optionLabel<T extends string>(options: { id: T; label: string }[], id: T | null): string {
-  return options.find((option) => option.id === id)?.label ?? 'Not set';
-}
-
-function readyBody(goal: typeof PRIMARY_GOAL_OPTIONS[number]['id'] | null, pains: PainPoint[]): string {
-  if (pains.includes('older_mileage')) {
-    return 'You’re ready to bring older miles back together — nothing is added without your say-so.';
-  }
-  if (goal === 'employee_reimbursement') {
-    return 'Your reimbursement record is ready to begin.';
-  }
-  if (goal === 'gig_delivery') {
-    return 'You’re ready to protect your first work shift.';
-  }
-  if (goal === 'self_employed_business') {
-    return 'Your business mileage record is ready.';
-  }
-  return 'You’re set. Home will show what to do next.';
-}
-
 function remapLegacyStep(step: ProductOnboardingStep): ProductOnboardingStep {
   if (ONBOARDING_STEP_ORDER.includes(step)) return step;
+  if (step === 'welcome' || step === 'primary_goal' || step === 'pain_points' || step === 'ready') {
+    return step;
+  }
+  if (['preferred_name', 'vehicle_setup', 'familiar_places', 'driving_pattern', 'protection_education'].includes(step)) {
+    return 'ready';
+  }
   if (step === 'permissions_education') return 'ready';
-  return 'protection_education';
+  return 'welcome';
+}
+
+function readyBenefits(goal: typeof PRIMARY_GOAL_OPTIONS[number]['id'] | null, pains: PainPoint[]): string[] {
+  const benefits: string[] = [];
+  if (pains.includes('older_mileage')) {
+    benefits.push('Bring older miles back together when you’re ready.');
+  } else {
+    benefits.push('Save work drives in a few taps.');
+  }
+  if (pains.includes('forget_to_track') || pains.includes('tracker_misses') || goal === 'gig_delivery') {
+    benefits.push('Turn on watching later if you want automatic coverage.');
+  } else {
+    benefits.push('Review anything uncertain before it enters a report.');
+  }
+  if (pains.includes('need_cleaner_reports') || goal === 'employee_reimbursement') {
+    benefits.push('Share cleaner records when work asks.');
+  } else {
+    benefits.push('Your saved miles stay on this device.');
+  }
+  return benefits.slice(0, 3);
 }
 
 export function OnboardingFlow() {
@@ -58,19 +63,16 @@ export function OnboardingFlow() {
     product,
     advanceOnboarding,
     backOnboarding,
-    patchOnboarding,
     setOnboardingStep,
     setPrimaryGoal,
     setSelectedPainPoints,
-    setDrivingType,
-    setProtectionSetupState,
     completeProductOnboarding,
   } = useProduct();
 
   const step = remapLegacyStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
   const next = nextActionForGoal(product.primaryGoal);
-  const selectedPainPoints = product.selectedPainPoints;
+  const selectedPainPoints = product.selectedPainPoints.filter((p) => p !== 'battery_worry') as PainPoint[];
 
   useEffect(() => {
     if (product.onboardingStep !== step) {
@@ -82,12 +84,21 @@ export function OnboardingFlow() {
     logEvent(ANALYTICS_EVENTS.onboardingStepViewed, { step });
   }, [step]);
 
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (stepIndex <= 0) return false;
+      backOnboarding();
+      return true;
+    });
+    return () => sub.remove();
+  }, [backOnboarding, stepIndex]);
+
   const finish = (deepLink: boolean) => {
-    completeProductOnboarding(deepLink ? next.route : null);
+    completeProductOnboarding(deepLink ? 'ProtectionAlert' : null);
     logEvent(ANALYTICS_EVENTS.onboardingCompleted, {
       goal: product.primaryGoal ?? 'unset',
-      painCount: product.selectedPainPoints.length,
-      nextAction: next.id,
+      painCount: selectedPainPoints.length,
+      nextAction: deepLink ? 'start_protection' : next.id,
     });
     finishOnboarding();
   };
@@ -98,14 +109,6 @@ export function OnboardingFlow() {
       : [...selectedPainPoints, painPoint];
     setSelectedPainPoints(nextPainPoints);
   };
-
-  const protectionPanels = useMemo(
-    () => [
-      ['A drive happens', 'MileRecover can quietly notice movement when you turn watching on.'],
-      ['You stay in control', 'Anything uncertain waits in Review. We never invent miles or silently decide work vs personal.'],
-    ],
-    [],
-  );
 
   return (
     <OnboardingScreen>
@@ -121,15 +124,18 @@ export function OnboardingFlow() {
       {step === 'welcome' ? (
         <View>
           <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Your miles. Protected. Nothing left behind.
+            MileRecover
+          </Text>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>
+            Keep your work miles from disappearing.
           </Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            Capture, recover, review, and prove your work mileage — without inventing anything.
+            Capture, recover, review, and prove work mileage — without inventing anything.
           </Text>
           <CarRouteHero />
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
             <PrimaryButton
-              label="Protect my miles"
+              label="Get started"
               onPress={() => {
                 logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'protect' });
                 advanceOnboarding();
@@ -141,7 +147,7 @@ export function OnboardingFlow() {
                 logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'bring_existing' });
                 setPrimaryGoal('mixed');
                 setSelectedPainPoints(['older_mileage']);
-                setOnboardingStep('driving_pattern');
+                setOnboardingStep('ready');
               }}
             />
           </View>
@@ -151,7 +157,7 @@ export function OnboardingFlow() {
       {step === 'primary_goal' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>
-            What do you need MileRecover to protect?
+            What do you use work mileage for?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             Tap one. You can change this later in Profile.
@@ -173,7 +179,7 @@ export function OnboardingFlow() {
 
       {step === 'pain_points' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>What usually causes the most trouble?</Text>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>What causes the most trouble?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             Tap anything that sounds familiar. One is enough.
           </Text>
@@ -193,64 +199,19 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
-      {step === 'driving_pattern' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>How do your work drives look?</Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>Tap one. We’ll use the right words.</Text>
-          {DRIVING_PATTERN_OPTIONS.map((opt) => (
-            <SelectionCard
-              key={opt.id}
-              title={opt.label}
-              selected={product.drivingType === opt.id}
-              onPress={() => {
-                setDrivingType(opt.id);
-                advanceOnboarding();
-              }}
-            />
-          ))}
-        </View>
-      ) : null}
-
-      {step === 'protection_education' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            You stay in control. We never invent miles or silently decide uncertain drives.
-          </Text>
-          <CarRouteHero compact />
-          {protectionPanels.map(([title, body]) => (
-            <SoftPanel key={title}>
-              <Text style={[text.subtitle, { marginBottom: spacing.xs }]}>{title}</Text>
-              <Text style={text.body}>{body}</Text>
-            </SoftPanel>
-          ))}
-          <PrimaryButton
-            label="Continue"
-            onPress={() => {
-              setProtectionSetupState('educated');
-              patchOnboarding({
-                protectionEducationAcknowledged: true,
-                completedSteps: [...product.onboarding.completedSteps, 'protection_education'],
-              });
-              advanceOnboarding();
-            }}
-          />
-        </View>
-      ) : null}
-
       {step === 'ready' ? (
         <View>
           <StatusCard
             variant="success"
             title="You’re ready"
-            body={readyBody(product.primaryGoal, product.selectedPainPoints)}
+            body="Home will show what to do next. Optional setup can wait."
             emphasis="hero"
           />
-          <Text style={[text.caption, { marginBottom: spacing.md }]}>
-            {PRIMARY_GOAL_OPTIONS.find((g) => g.id === product.primaryGoal)?.label ?? 'Your miles'}
-            {' · '}
-            {optionLabel(DRIVING_PATTERN_OPTIONS, product.drivingType)}
-          </Text>
+          {readyBenefits(product.primaryGoal, selectedPainPoints).map((line) => (
+            <SoftPanel key={line}>
+              <Text style={text.body}>{line}</Text>
+            </SoftPanel>
+          ))}
           <PrimaryButton
             label="Go to Home"
             onPress={() => finish(false)}
@@ -258,9 +219,9 @@ export function OnboardingFlow() {
           />
           <View style={{ marginTop: spacing.sm }}>
             <SecondaryButton
-              label={next.cta}
+              label="Set up automatic protection"
               onPress={() => finish(true)}
-              accessibilityLabel={next.cta}
+              accessibilityLabel="Set up automatic protection"
             />
           </View>
         </View>

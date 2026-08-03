@@ -2,8 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createEmptyOnboardingState,
   createFreeEntitlement,
+  CURRENT_ONBOARDING_VERSION,
   inferNextAction,
+  invalidateStaleOnboardingCompletion,
   isOnboardingMinimumComplete,
+  isOnboardingVersionStale,
   mapLegacyGoal,
   mapLegacyPattern,
   type VersionedOnboardingState,
@@ -62,18 +65,36 @@ function normalizeWorkPlace(raw: unknown): WorkLocationDraft | null {
   };
 }
 
-function buildOnboardingFromLegacy(parsed: Record<string, unknown>, now: number): VersionedOnboardingState {
+function normalizeOnboarding(raw: Partial<VersionedOnboardingState> | undefined, now: number): VersionedOnboardingState {
   const base = createEmptyOnboardingState(now);
-  if (parsed.onboarding && typeof parsed.onboarding === 'object') {
-    const o = parsed.onboarding as Partial<VersionedOnboardingState>;
-    return {
-      ...base,
-      ...o,
-      schemaVersion: 4,
-      selectedPainPoints: Array.isArray(o.selectedPainPoints) ? o.selectedPainPoints : [],
-      lastUpdatedAt: now,
-    };
+  if (!raw) return base;
+  let next: VersionedOnboardingState = {
+    ...base,
+    ...raw,
+    schemaVersion: 4,
+    selectedPainPoints: Array.isArray(raw.selectedPainPoints) ? raw.selectedPainPoints : [],
+    completedOnboardingVersion:
+      typeof raw.completedOnboardingVersion === 'number' ? raw.completedOnboardingVersion : null,
+    completedAt: typeof raw.completedAt === 'number' ? raw.completedAt : null,
+    lastUpdatedAt: now,
+  };
+
+  // Legacy boolean-only or older version stamps → invalidate completion, keep answers.
+  if (
+    isOnboardingVersionStale(next) ||
+    (next.completedAt != null && next.completedOnboardingVersion == null) ||
+    (next.completedAt != null && next.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION)
+  ) {
+    next = invalidateStaleOnboardingCompletion(next, now);
   }
+  return next;
+}
+
+function buildOnboardingFromLegacy(parsed: Record<string, unknown>, now: number): VersionedOnboardingState {
+  if (parsed.onboarding && typeof parsed.onboarding === 'object') {
+    return normalizeOnboarding(parsed.onboarding as Partial<VersionedOnboardingState>, now);
+  }
+  const base = createEmptyOnboardingState(now);
   const primaryGoal =
     mapLegacyGoal((parsed.primaryGoal as string) ?? (parsed.onboardingNeed as string) ?? null) ??
     mapLegacyGoal(parsed.drivingType as string);
@@ -84,9 +105,6 @@ function buildOnboardingFromLegacy(parsed: Record<string, unknown>, now: number)
     typeof parsed.preferredName === 'string' && parsed.preferredName.trim()
       ? parsed.preferredName.trim()
       : null;
-  if (preferredName && /alex\s*johnson/i.test(preferredName)) {
-    // stripped below
-  }
   const protectionAck =
     parsed.protectionSetupState === 'educated' ||
     parsed.protectionSetupState === 'configured' ||
@@ -113,38 +131,21 @@ function buildOnboardingFromLegacy(parsed: Record<string, unknown>, now: number)
     permissionsEducationAcknowledged: Boolean(protectionAck),
     nextActionSelected: null,
     completedAt: null,
+    completedOnboardingVersion: null,
     lastUpdatedAt: now,
   };
-  if (
-    draft.primaryGoal &&
-    draft.selectedPainPoints.length &&
-    draft.drivingPattern &&
-    draft.protectionEducationAcknowledged
-  ) {
+
+  // Legacy onboardingComplete boolean alone must NOT grant current-version completion.
+  // Preserve answers and place the user on the first unfinished essential step.
+  if (draft.primaryGoal && draft.selectedPainPoints.length) {
     draft.nextActionSelected = inferNextAction(draft);
-    // Do not auto-complete — incomplete migrated users must finish setup
-    if (parsed.onboardingComplete === true || parsed.schemaVersion === 3) {
-      // Only mark complete if all minimum fields truly present
-      draft.completedAt = isOnboardingMinimumComplete({
-        ...draft,
-        completedAt: now,
-      })
-        ? now
-        : null;
-    }
+    draft.currentStep = 'ready';
+  } else if (draft.primaryGoal) {
+    draft.currentStep = 'pain_points';
+  } else {
+    draft.currentStep = 'welcome';
   }
-  draft.currentStep =
-    draft.completedAt != null
-      ? 'ready'
-      : draft.primaryGoal == null
-        ? 'primary_goal'
-        : draft.selectedPainPoints.length === 0
-          ? 'pain_points'
-          : draft.drivingPattern == null
-            ? 'driving_pattern'
-            : !draft.protectionEducationAcknowledged
-              ? 'protection_education'
-              : 'ready';
+  void isOnboardingMinimumComplete;
   return draft;
 }
 
@@ -165,7 +166,10 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
     protectionSetupState:
       (parsed.protectionSetupState as ProductUiState['protectionSetupState']) ?? 'not_started',
     demoModeEnabled: parsed.demoModeEnabled === true,
-    demoScenario: parsed.demoModeEnabled === true ? ((parsed.demoScenario as ProductUiState['demoScenario']) ?? 'new_user') : 'new_user',
+    demoScenario:
+      parsed.demoModeEnabled === true
+        ? ((parsed.demoScenario as ProductUiState['demoScenario']) ?? 'new_user')
+        : 'new_user',
     selectedPlan: 'free',
     entitlement:
       parsed.demoModeEnabled === true && parsed.entitlement
@@ -178,15 +182,23 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
       trialOfferDismissedSession: false,
       ...(typeof parsed.paywallCaps === 'object' && parsed.paywallCaps ? parsed.paywallCaps : {}),
     },
-    vehicles: Array.isArray(parsed.vehicles)
-      ? parsed.vehicles.map(normalizeVehicle).filter((v): v is VehicleDraft => v != null)
-      : [],
-    workLocations: Array.isArray(parsed.workLocations)
-      ? parsed.workLocations.map(normalizeWorkPlace).filter((w): w is WorkLocationDraft => w != null)
-      : [],
+    reviewDecisions:
+      typeof parsed.reviewDecisions === 'object' && parsed.reviewDecisions
+        ? (parsed.reviewDecisions as ProductUiState['reviewDecisions'])
+        : {},
+    reviewedHistory: Array.isArray(parsed.reviewedHistory) ? (parsed.reviewedHistory as string[]) : [],
     reviewHistoryEntries: Array.isArray(parsed.reviewHistoryEntries)
       ? (parsed.reviewHistoryEntries as ProductUiState['reviewHistoryEntries'])
       : [],
+    vehicles: Array.isArray(parsed.vehicles)
+      ? (parsed.vehicles.map(normalizeVehicle).filter(Boolean) as VehicleDraft[])
+      : [],
+    workLocations: Array.isArray(parsed.workLocations)
+      ? (parsed.workLocations.map(normalizeWorkPlace).filter(Boolean) as WorkLocationDraft[])
+      : [],
+    importPhase: (parsed.importPhase as ProductUiState['importPhase']) ?? 'idle',
+    importFileLabel: typeof parsed.importFileLabel === 'string' ? parsed.importFileLabel : null,
+    importCsvText: typeof parsed.importCsvText === 'string' ? parsed.importCsvText : null,
     importBatches: Array.isArray(parsed.importBatches)
       ? (parsed.importBatches as ProductUiState['importBatches'])
       : [],
@@ -220,6 +232,8 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
       typeof parsed.celebratedFirstReportAt === 'number' ? parsed.celebratedFirstReportAt : null,
     celebratedFirstRecoveryAt:
       typeof parsed.celebratedFirstRecoveryAt === 'number' ? parsed.celebratedFirstRecoveryAt : null,
+    finishSetupDismissedAt:
+      typeof parsed.finishSetupDismissedAt === 'number' ? parsed.finishSetupDismissedAt : null,
   };
   if (!merged.demoModeEnabled) {
     merged.entitlement = createFreeEntitlement(now);
@@ -238,20 +252,24 @@ export async function loadProductUiState(): Promise<ProductUiState> {
     ]) {
       const raw = await AsyncStorage.getItem(key);
       if (!raw) continue;
-      const migrated = migrateRaw(JSON.parse(raw) as Record<string, unknown>);
-      await saveProductUiState(migrated);
-      if (key !== PRODUCT_UI_STORAGE_KEY) await AsyncStorage.removeItem(key);
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const migrated = migrateRaw(parsed);
+      await AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(migrated));
+      if (key !== PRODUCT_UI_STORAGE_KEY) {
+        await AsyncStorage.removeItem(key);
+      }
       return migrated;
     }
-    return createInitialProductUiState();
   } catch {
-    return createInitialProductUiState();
+    // fall through
   }
+  return createInitialProductUiState();
 }
 
 export async function saveProductUiState(state: ProductUiState): Promise<void> {
-  const { showDevTools: _dev, ...persistable } = state;
-  await AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(persistable));
+  const { showDevTools: _showDevTools, ...persisted } = state;
+  void _showDevTools;
+  await AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(persisted));
 }
 
 export async function clearProductUiState(): Promise<void> {

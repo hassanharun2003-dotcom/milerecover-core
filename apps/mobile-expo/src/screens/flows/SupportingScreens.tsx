@@ -37,6 +37,7 @@ import {
   SegmentedControl,
   SoftPanel,
   StatusCard,
+  TertiaryButton,
   text,
 } from '../../design-system';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
@@ -125,6 +126,7 @@ export function ManualTripScreen() {
   const existing = route.params?.tripId
     ? state.trips.find((trip) => trip.id === route.params?.tripId)
     : null;
+  const preferWork = route.params?.preferWork === true;
   const initialStart = existing ? new Date(existing.startAt) : new Date();
   const initialEnd = existing ? new Date(existing.endAt) : new Date(Date.now() + 30 * 60000);
   const [driveDate, setDriveDate] = useState(initialStart);
@@ -132,6 +134,7 @@ export function ManualTripScreen() {
   const [endTime, setEndTime] = useState(initialEnd);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [addTime, setAddTime] = useState(Boolean(existing));
+  const [routeMode, setRouteMode] = useState<'distance' | 'places'>('distance');
   const [distance, setDistance] = useState(existing ? existing.distanceMiles.toString() : '');
   const [purpose, setPurpose] = useState(existing?.purpose ?? '');
   const [startLabel, setStartLabel] = useState(existing?.startLabel ?? '');
@@ -141,33 +144,33 @@ export function ManualTripScreen() {
   const [evidenceMethod, setEvidenceMethod] = useState<TripEvidenceMethod | null>(
     existing?.evidenceMethod ?? 'user_estimate',
   );
-  const [classification, setClassification] = useState<'work' | 'personal' | 'later'>(
+  const [classification, setClassification] = useState<'work' | 'personal' | 'later' | null>(
     existing?.classification === 'business'
       ? 'work'
       : existing?.classification === 'personal'
         ? 'personal'
         : existing
           ? 'later'
-          : 'work',
+          : preferWork
+            ? 'work'
+            : null,
   );
-  const [showDetails, setShowDetails] = useState(
-    Boolean(existing?.vehicleId || existing?.notes || existing?.purpose),
-  );
+  const [showDetails, setShowDetails] = useState(Boolean(existing?.vehicleId || existing?.notes));
   const [error, setError] = useState<string | null>(null);
 
   const purposeChips = (() => {
     switch (product.primaryGoal) {
       case 'employee_reimbursement':
-        return ['Client visit', 'Between work locations', 'Meeting or training', 'Airport or business travel', 'Other work drive'];
+        return ['Client visit', 'Work site', 'Meeting', 'Errand', 'Other'];
       case 'gig_delivery':
-        return ['Delivery', 'Pickup', 'Repositioning', 'Supply or fuel stop', 'Other work drive'];
+        return ['Delivery', 'Pickup', 'Work site', 'Errand', 'Other'];
       case 'self_employed_business':
-        return ['Client visit', 'Supplies', 'Bank or post office', 'Business meeting', 'Other work drive'];
+        return ['Client visit', 'Meeting', 'Errand', 'Work site', 'Other'];
       default:
-        return ['Client visit', 'Delivery', 'Between work locations', 'Business meeting', 'Other work drive'];
+        return ['Delivery', 'Client visit', 'Work site', 'Errand', 'Meeting', 'Other'];
     }
   })();
-  const customPurpose = purpose.length > 0 && !purposeChips.includes(purpose);
+  const customPurpose = purpose.length > 0 && !purposeChips.includes(purpose) && purpose !== 'Other';
   const placeChips = [
     ...product.workLocations.map((location) => location.label),
     'Home',
@@ -192,9 +195,31 @@ export function ManualTripScreen() {
     return next.getTime();
   };
 
+  const saveLabel =
+    classification === 'personal'
+      ? 'Save personal drive'
+      : classification === 'later'
+        ? 'Save for review'
+        : 'Save work drive';
+
   const save = () => {
-    if (purpose === 'Other work drive') {
-      setError('Enter a short purpose for Other work drive.');
+    if (!classification) {
+      setError('Choose Work, Personal, or Decide later.');
+      return;
+    }
+    if (classification === 'work' && (purpose === 'Other' || !purpose.trim())) {
+      if (purpose === 'Other' || !purpose.trim()) {
+        setError(purpose === 'Other' ? 'Enter a short custom purpose.' : 'Choose a purpose for this work drive.');
+        return;
+      }
+    }
+    const miles = Number.parseFloat(distance);
+    if (routeMode === 'places' && !(startLabel.trim() || endLabel.trim()) && !(Number.isFinite(miles) && miles > 0)) {
+      setError('Enter miles, or start and end plus miles. We never invent a route.');
+      return;
+    }
+    if (routeMode === 'places' && (startLabel.trim() || endLabel.trim()) && !(Number.isFinite(miles) && miles > 0)) {
+      setError('Enter the miles too. We never invent distance from start and end.');
       return;
     }
     const startAt = composeDateTime(driveDate, startTime, 9, 0);
@@ -203,8 +228,8 @@ export function ManualTripScreen() {
       id: existing?.id,
       startAt,
       endAt,
-      distanceMiles: Number.parseFloat(distance),
-      purpose,
+      distanceMiles: miles,
+      purpose: classification === 'work' ? purpose : purpose || 'Personal',
       startLabel,
       endLabel,
       vehicleId,
@@ -255,89 +280,144 @@ export function ManualTripScreen() {
   };
 
   return (
-    <ScrollScreen>
-      <StatusCard
-        variant="info"
-        title={existing ? 'Edit this drive' : 'Add a drive'}
-        body="Three quick steps. We won’t invent a route."
-        emphasis="subtle"
-      />
-
-      <ListSection title="1 · Work or personal?">
-        <SegmentedControl
-          value={classification}
-          onChange={setClassification}
-          options={[
-            { label: 'Work', value: 'work' },
-            { label: 'Personal', value: 'personal' },
-            { label: 'Later', value: 'later' },
-          ]}
-        />
-      </ListSection>
-
-      <ListSection title="2 · Start & end">
-        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.sm }}>
-          <SecondaryButton label="Today" onPress={() => applyDateOffset(0)} />
-          <SecondaryButton label="Yesterday" onPress={() => applyDateOffset(1)} />
-          <SecondaryButton label="Pick date" onPress={() => setShowDatePicker((value) => !value)} />
+    <ScrollScreen
+      footer={
+        <View>
+          {error ? <FormError message={error} /> : null}
+          <PrimaryButton label={existing ? 'Save changes' : saveLabel} onPress={save} />
+          {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
         </View>
-        <EvidenceRow label="Date" value={formatDateLocal(driveDate.getTime())} />
-        {showDatePicker ? (
-          <DateTimePicker
-            value={driveDate}
-            mode="date"
-            onChange={(_, selected) => {
-              if (selected) setDriveDate(selected);
-            }}
+      }
+    >
+      <Text style={text.title} accessibilityRole="header">
+        {existing ? 'Edit drive' : 'Add drive'}
+      </Text>
+      <Text style={[text.body, { marginBottom: spacing.md }]}>
+        Save the details you know. We never invent a route.
+      </Text>
+
+      <Text style={[text.caption, { marginBottom: spacing.xs }]}>1 · Work or personal</Text>
+      <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs }}>
+        <View style={{ flex: 1 }}>
+          <SecondaryButton label={classification === 'work' ? 'Work ✓' : 'Work'} onPress={() => setClassification('work')} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <SecondaryButton
+            label={classification === 'personal' ? 'Personal ✓' : 'Personal'}
+            onPress={() => setClassification('personal')}
           />
-        ) : null}
-        <FormField label="Start" value={startLabel} onChangeText={setStartLabel} placeholder="Where you started" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm }}>
-          {placeChips.map((chip) => (
-            <SecondaryButton key={`start-${chip}`} label={chip} onPress={() => setStartLabel(chip)} />
-          ))}
         </View>
-        <FormField label="End" value={endLabel} onChangeText={setEndLabel} placeholder="Where you finished" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {placeChips.map((chip) => (
-            <SecondaryButton key={`end-${chip}`} label={chip} onPress={() => setEndLabel(chip)} />
-          ))}
-        </View>
-      </ListSection>
+      </View>
+      <TertiaryButton
+        label={classification === 'later' ? 'Decide later ✓' : 'Decide later'}
+        onPress={() => setClassification('later')}
+      />
+      {classification === 'later' ? (
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+          Goes to Review and stays out of reports until you confirm.
+        </Text>
+      ) : (
+        <View style={{ height: spacing.sm }} />
+      )}
 
-      <ListSection title="3 · Distance">
-        <FormField label="Miles" value={distance} onChangeText={setDistance} placeholder="0.0" />
-      </ListSection>
+      <Text style={[text.caption, { marginBottom: spacing.xs }]}>2 · Date</Text>
+      <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
+        <SecondaryButton label="Today" onPress={() => applyDateOffset(0)} />
+        <SecondaryButton label="Yesterday" onPress={() => applyDateOffset(1)} />
+        <SecondaryButton label="Choose date" onPress={() => setShowDatePicker((value) => !value)} />
+      </View>
+      <EvidenceRow label="Selected" value={formatDateLocal(driveDate.getTime())} />
+      {showDatePicker ? (
+        <DateTimePicker
+          value={driveDate}
+          mode="date"
+          onChange={(_, selected) => {
+            if (selected) setDriveDate(selected);
+          }}
+        />
+      ) : null}
+
+      <Text style={[text.caption, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>3 · Distance</Text>
+      <SegmentedControl
+        value={routeMode}
+        onChange={setRouteMode}
+        options={[
+          { label: 'Enter distance', value: 'distance' },
+          { label: 'Start & end', value: 'places' },
+        ]}
+      />
+      <FormField
+        label="Miles (mi)"
+        value={distance}
+        onChangeText={setDistance}
+        placeholder="0.0"
+        keyboardType="decimal-pad"
+        compact
+      />
+      {routeMode === 'places' ? (
+        <>
+          <FormField
+            label="Start"
+            value={startLabel}
+            onChangeText={setStartLabel}
+            placeholder="Where you started"
+            compact
+          />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+            {placeChips.map((chip) => (
+              <SecondaryButton key={`start-${chip}`} label={chip} onPress={() => setStartLabel(chip)} />
+            ))}
+          </View>
+          <FormField
+            label="End"
+            value={endLabel}
+            onChangeText={setEndLabel}
+            placeholder="Where you finished"
+            compact
+          />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+            {placeChips.map((chip) => (
+              <SecondaryButton key={`end-${chip}`} label={chip} onPress={() => setEndLabel(chip)} />
+            ))}
+          </View>
+          <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+            Start and end help explain the drive. Miles still come from you — we never invent a route.
+          </Text>
+        </>
+      ) : null}
+
+      {classification === 'work' || classification === 'later' ? (
+        <>
+          <Text style={[text.caption, { marginBottom: spacing.xs }]}>4 · Purpose</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+            {purposeChips.map((chip) => (
+              <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
+            ))}
+          </View>
+          {purpose && purpose !== 'Other' ? <EvidenceRow label="Purpose" value={purpose} /> : null}
+          {purpose === 'Other' || customPurpose ? (
+            <FormField
+              label="Custom purpose"
+              value={purpose === 'Other' ? '' : purpose}
+              onChangeText={(value) => setPurpose(value.trim() ? value : 'Other')}
+              placeholder="Describe the work drive"
+              compact
+            />
+          ) : null}
+        </>
+      ) : null}
 
       <SelectionCard
         title="More details"
-        body="Purpose, time, vehicle, notes — optional."
+        body="Optional time, vehicle, and notes."
         selected={showDetails}
         onPress={() => setShowDetails((value) => !value)}
       />
       {showDetails ? (
         <>
-          <ListSection title="Purpose">
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-              {purposeChips.map((chip) => (
-                <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
-              ))}
-            </View>
-            {purpose && purpose !== 'Other work drive' ? (
-              <EvidenceRow label="Selected purpose" value={purpose} />
-            ) : null}
-            {purpose === 'Other work drive' || customPurpose ? (
-              <FormField
-                label="Custom purpose"
-                value={purpose === 'Other work drive' ? '' : purpose}
-                onChangeText={(value) => setPurpose(value.trim() ? value : 'Other work drive')}
-                placeholder="Describe the work drive"
-              />
-            ) : null}
-          </ListSection>
           <SelectionCard
             title="Add time"
-            body={addTime ? 'Start and end time are included.' : 'Optional. Date alone is fine.'}
+            body={addTime ? 'Start and end time included.' : 'Optional. Date alone is fine.'}
             selected={addTime}
             onPress={() => setAddTime((value) => !value)}
           />
@@ -359,10 +439,6 @@ export function ManualTripScreen() {
           ) : null}
           {product.vehicles.length > 0 ? (
             <ListSection title="Vehicle">
-              <EvidenceRow
-                label="Selected"
-                value={vehicleId ? vehicleLookup(product.vehicles)[vehicleId] : 'None'}
-              />
               {product.vehicles.map((vehicle) => (
                 <SelectionCard
                   key={vehicle.id}
@@ -373,23 +449,9 @@ export function ManualTripScreen() {
               ))}
             </ListSection>
           ) : null}
-          <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional" />
-          <ListSection title="How you know the miles">
-            {EVIDENCE_OPTIONS.map((option) => (
-              <SelectionCard
-                key={option.id}
-                title={option.label}
-                body={option.body}
-                selected={evidenceMethod === option.id}
-                onPress={() => setEvidenceMethod(option.id)}
-              />
-            ))}
-          </ListSection>
+          <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional" compact />
         </>
       ) : null}
-      {error ? <FormError message={error} /> : null}
-      <PrimaryButton label={existing ? 'Save changes' : 'Save drive'} onPress={save} />
-      {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
     </ScrollScreen>
   );
 }
@@ -1093,6 +1155,7 @@ export function ReportPreviewScreen() {
 
 export function PlanSelectionScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProp<RootStackParamList, 'PlanSelection'>>();
   const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1107,6 +1170,16 @@ export function PlanSelectionScreen() {
   const plusFixture = PLAN_FIXTURES.find((plan) => plan.id === 'plus')!;
   const proFixture = PLAN_FIXTURES.find((plan) => plan.id === 'pro')!;
   const freeFixture = PLAN_FIXTURES.find((plan) => plan.id === 'free')!;
+  const hasHelped =
+    product.firstRecoveredDriveAt != null ||
+    product.firstConfirmedWorkDriveAt != null ||
+    product.firstExportAt != null;
+  const heading =
+    route.params?.source === 'upgrade' && !hasHelped
+      ? 'Create reports ready to share.'
+      : hasHelped
+        ? 'Keep the protection that already helped.'
+        : 'Protect future work drives.';
 
   const handleResult = async (action: () => Promise<Awaited<ReturnType<typeof purchasePort.purchasePlus>>>) => {
     const result = await action();
@@ -1123,12 +1196,13 @@ export function PlanSelectionScreen() {
 
   return (
     <FixedHeaderScrollScreen
+      scrollKey={annual ? 'annual' : 'monthly'}
       header={
         <View>
-          <Text style={text.subtitle}>Keep the protection that already helped.</Text>
+          <Text style={text.subtitle}>{heading}</Text>
           <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}. Plus is
-            $8.99/month — easy to justify when one missed drive costs more.
+            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}. Purchases
+            confirm in Google Play or the App Store. Preview prices shown until the store is connected.
           </Text>
           <SegmentedControl
             value={annual ? 'annual' : 'monthly'}
@@ -1159,7 +1233,8 @@ export function PlanSelectionScreen() {
       />
       {trialEligible ? (
         <Text style={[text.caption, { marginBottom: spacing.md }]}>
-          Eligible for a 7-day Plus trial. {trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
+          Eligible for a 7-day Plus trial after store confirmation.{' '}
+          {trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
         </Text>
       ) : null}
       <PlanCard
@@ -1184,7 +1259,7 @@ export function PlanSelectionScreen() {
       />
       <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>One-time catch-up</Text>
       <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-        Not a subscription. If a purchase can’t complete, nothing changes on your account.
+        Not a subscription. Monthly/Annual does not change these options.
       </Text>
       {RESCUE_OPTIONS.map((option) => (
         <SelectionCard

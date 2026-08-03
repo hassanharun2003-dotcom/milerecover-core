@@ -2,7 +2,7 @@
  * Dynamic Expo config — APP_VARIANT selects dev-client vs standalone preview/production.
  * Set via EAS build profile env (development | preview | production).
  *
- * Production MVP: version/runtime 0.1.4 adds datetime picker and production MVP UI.
+ * Physical UX fix: version/runtime 0.1.5 — versioned onboarding, compact manual trip, Plans annual fix.
  * Keep this file free of TypeScript type annotations — Expo evaluates it as JS on CI.
  * Standalone preview/production exclude expo-dev-client via eas-build-pre-install.
  */
@@ -18,7 +18,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.1.4',
+  version: '0.1.5',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',

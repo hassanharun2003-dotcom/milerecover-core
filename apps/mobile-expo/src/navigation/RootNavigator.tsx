@@ -39,7 +39,7 @@ export function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="MainTabs" component={RootTabs} options={{ headerShown: false }} />
-      <Stack.Screen name="ManualTrip" component={ManualTripScreen} options={{ title: 'Add manual trip' }} />
+      <Stack.Screen name="ManualTrip" component={ManualTripScreen} options={{ title: 'Add drive' }} />
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} options={{ title: 'Trip details' }} />
       <Stack.Screen name="MissingTripRecovery" component={MissingTripRecoveryScreen} options={{ title: 'Recovery' }} />
       <Stack.Screen name="ProtectionAlert" component={ProtectionAlertScreen} options={{ title: 'Protection' }} />

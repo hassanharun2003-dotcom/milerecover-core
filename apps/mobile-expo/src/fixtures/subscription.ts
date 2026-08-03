@@ -25,13 +25,13 @@ export const PLAN_FIXTURES: PlanFixture[] = [
   {
     id: 'free',
     name: 'Free',
-    tagline: 'Start covering your work miles',
+    tagline: 'Manual work-drive logging stays available',
     monthlyPrice: '$0',
     annualPrice: '$0',
     features: [
-      'Miles you log by hand stay on this device',
-      'Calm review when something needs you',
-      'CSV when you need a basic share',
+      'Manual work-drive logging',
+      'Basic review',
+      'CSV export — existing saved records remain accessible',
     ],
   },
   {
@@ -43,9 +43,9 @@ export const PLAN_FIXTURES: PlanFixture[] = [
     annualSavingsLabel: 'Save about $18/year vs monthly',
     highlighted: true,
     features: [
-      'Never lose another reimbursable mile.',
-      'Recover forgotten work drives before they’re lost.',
-      'Reports ready whenever work asks.',
+      'Automatic coverage for future drives',
+      'Review possible missed drives',
+      'Create share-ready PDF reports',
     ],
   },
   {
@@ -56,9 +56,9 @@ export const PLAN_FIXTURES: PlanFixture[] = [
     annualPrice: '$119.99',
     annualSavingsLabel: 'Save about $60/year vs monthly',
     features: [
-      'Catch up older history without the scramble.',
-      'Share reports with clients or taxes confidently.',
-      'Exports that feel ready the first time.',
+      'Everything in Plus',
+      'Deeper history recovery',
+      'Advanced organization and reporting',
     ],
   },
 ];

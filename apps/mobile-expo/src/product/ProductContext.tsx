@@ -10,6 +10,8 @@ import React, {
 import {
   createEmptyOnboardingState,
   createFreeEntitlement,
+  CURRENT_ONBOARDING_VERSION,
+  inferDrivingPatternFromGoal,
   inferNextAction,
   isOnboardingMinimumComplete,
   type EntitlementSnapshot,
@@ -96,6 +98,7 @@ interface ProductContextValue {
   markCelebratedFirstDrive: () => void;
   markCelebratedFirstReport: () => void;
   markCelebratedFirstRecovery: () => void;
+  dismissFinishSetup: () => void;
   setPendingPostOnboardingRoute: (route: PostOnboardingRoute) => void;
   consumePendingPostOnboardingRoute: () => PostOnboardingRoute;
   completeProductOnboarding: (route?: PostOnboardingRoute) => void;
@@ -243,12 +246,16 @@ export function ProductProvider({
         persist((prev) => {
           const now = Date.now();
           const action = nextAction ?? inferNextAction(prev.onboarding);
+          const pattern =
+            prev.onboarding.drivingPattern ?? inferDrivingPatternFromGoal(prev.onboarding.primaryGoal);
           return patchOnboardingState(prev, {
             currentStep: 'ready',
             completedSteps: uniqueSteps([...prev.onboarding.completedSteps, prev.onboarding.currentStep, 'ready']),
+            drivingPattern: pattern,
             protectionEducationAcknowledged: true,
             nextActionSelected: action,
             completedAt: now,
+            completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
           }, now);
         }),
       setOnboardingStep: (step) => persist((prev) => moveToStep(prev, step)),
@@ -458,6 +465,11 @@ export function ProductProvider({
           ...prev,
           celebratedFirstRecoveryAt: prev.celebratedFirstRecoveryAt ?? Date.now(),
         })),
+      dismissFinishSetup: () =>
+        persist((prev) => ({
+          ...prev,
+          finishSetupDismissedAt: prev.finishSetupDismissedAt ?? Date.now(),
+        })),
       setPendingPostOnboardingRoute: (route) =>
         persist((prev) => ({ ...prev, pendingPostOnboardingRoute: route })),
       consumePendingPostOnboardingRoute: () => {
@@ -471,6 +483,8 @@ export function ProductProvider({
           const nextAction = nextActionForRoute(route, prev);
           const protection =
             prev.protectionSetupState === 'not_started' ? 'educated' : prev.protectionSetupState;
+          const pattern =
+            prev.onboarding.drivingPattern ?? inferDrivingPatternFromGoal(prev.onboarding.primaryGoal);
           return patchOnboardingState(
             {
               ...prev,
@@ -485,6 +499,7 @@ export function ProductProvider({
                 prev.onboarding.currentStep,
                 'ready',
               ]),
+              drivingPattern: pattern,
               protectionEducationAcknowledged: true,
               permissionsEducationAcknowledged: true,
               vehicleSetupState:
@@ -497,6 +512,7 @@ export function ProductProvider({
                   : prev.onboarding.familiarPlacesSetupState,
               nextActionSelected: nextAction,
               completedAt: now,
+              completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
             },
             now,
           );

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -56,7 +58,7 @@ export function TabScreen({ children, style, contentStyle, footer }: ShellProps)
 export function StackScrollScreen({ children, style, contentStyle, footer }: ShellProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View
+    <KeyboardAvoidingView
       style={[
         styles.flex,
         {
@@ -66,12 +68,17 @@ export function StackScrollScreen({ children, style, contentStyle, footer }: She
         },
         style,
       ]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom, spacing.xl) + spacing.md },
+          {
+            paddingBottom:
+              (footer ? spacing.xl : Math.max(insets.bottom, spacing.xl)) + spacing.md,
+          },
           contentStyle,
         ]}
         keyboardShouldPersistTaps="handled"
@@ -81,9 +88,19 @@ export function StackScrollScreen({ children, style, contentStyle, footer }: She
         {children}
       </ScrollView>
       {footer ? (
-        <View style={{ paddingBottom: Math.max(insets.bottom, spacing.sm) }}>{footer}</View>
+        <View
+          style={{
+            paddingBottom: Math.max(insets.bottom, spacing.sm),
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border.default,
+            backgroundColor: colors.background.canvas,
+            paddingTop: spacing.sm,
+          }}
+        >
+          {footer}
+        </View>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -157,8 +174,14 @@ export function FixedHeaderScrollScreen({
   children,
   style,
   contentStyle,
-}: ShellProps & { header: React.ReactNode }) {
+  scrollKey,
+}: ShellProps & { header: React.ReactNode; scrollKey?: string | number | boolean }) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  React.useEffect(() => {
+    if (scrollKey === undefined) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [scrollKey]);
   return (
     <View
       style={[
@@ -173,6 +196,7 @@ export function FixedHeaderScrollScreen({
     >
       <View style={styles.fixedHeader}>{header}</View>
       <ScrollView
+        ref={scrollRef}
         style={styles.flex}
         contentContainerStyle={[
           styles.scrollContent,

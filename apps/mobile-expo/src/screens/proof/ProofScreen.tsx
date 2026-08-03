@@ -152,15 +152,15 @@ export function ProofScreen() {
       {report.tripCount === 0 ? (
         <>
           <EmptyState
-            title="No work drives yet"
-            body="We’ll be here when your next trip starts. Only work drives you confirm show up here."
+            title="No confirmed work drives in this period"
+            body="Only drives you confirm as work appear in reports."
             actionLabel="Add a drive"
             onAction={() => navigation.navigate('ManualTrip')}
           />
           <StatusCard
             variant="neutral"
             title="This period"
-            body={`${period.label}. ${report.unresolvedCount === 0 ? 'All reviewed.' : `${report.unresolvedCount} still need a look.`} They stay out of the report until you decide.`}
+            body={`${period.label}. Pending and personal drives stay out until you decide.`}
             emphasis="subtle"
           />
         </>
@@ -186,7 +186,7 @@ export function ProofScreen() {
           <ListSection title="Export">
             <ListRow label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
             <ListRow
-              label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF requires Plus'}
+              label={capabilities.canUseStandardPdf ? 'Share PDF' : 'Create PDF report · Plus'}
               onPress={() => void sharePdf()}
             />
             <ListRow label="Share CSV" onPress={() => void shareCsv()} />

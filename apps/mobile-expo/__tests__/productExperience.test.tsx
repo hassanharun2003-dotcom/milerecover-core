@@ -39,15 +39,8 @@ describe('Locked product experience', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('PlanSelection');
   });
 
-  it('defines a lean six-step first-run onboarding path', () => {
-    expect(ONBOARDING_STEP_ORDER).toEqual([
-      'welcome',
-      'primary_goal',
-      'pain_points',
-      'driving_pattern',
-      'protection_education',
-      'ready',
-    ]);
+  it('defines a four-step essential first-run onboarding path', () => {
+    expect(ONBOARDING_STEP_ORDER).toEqual(['welcome', 'primary_goal', 'pain_points', 'ready']);
   });
 
   it('centralizes subscription fixtures with design prices', () => {

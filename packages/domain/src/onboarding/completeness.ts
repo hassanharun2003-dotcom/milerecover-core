@@ -38,6 +38,9 @@ export type NextActionId =
   | 'add_workplace'
   | 'begin_rescue';
 
+/** Bump when essential onboarding screens/questions change and stale installs must re-enter. */
+export const CURRENT_ONBOARDING_VERSION = 5;
+
 export interface VersionedOnboardingState {
   schemaVersion: 4;
   currentStep: OnboardingStepId;
@@ -51,7 +54,10 @@ export interface VersionedOnboardingState {
   protectionEducationAcknowledged: boolean;
   permissionsEducationAcknowledged: boolean;
   nextActionSelected: NextActionId | null;
+  /** Timestamp when the current onboarding version was completed. */
   completedAt: number | null;
+  /** Which CURRENT_ONBOARDING_VERSION was completed. Null = never / stale. */
+  completedOnboardingVersion: number | null;
   lastUpdatedAt: number;
 }
 
@@ -70,31 +76,91 @@ export function createEmptyOnboardingState(now = Date.now()): VersionedOnboardin
     permissionsEducationAcknowledged: false,
     nextActionSelected: null,
     completedAt: null,
+    completedOnboardingVersion: null,
     lastUpdatedAt: now,
   };
 }
 
-/** Minimum required to enter the normal app. */
+export function inferDrivingPatternFromGoal(goal: MileageGoal | null): DrivingPattern {
+  switch (goal) {
+    case 'gig_delivery':
+      return 'delivery_rideshare';
+    case 'employee_reimbursement':
+      return 'regular_locations';
+    case 'self_employed_business':
+      return 'client_visits';
+    case 'mixed':
+      return 'different_places';
+    default:
+      return 'not_sure';
+  }
+}
+
+/** Essential answers present for the current 4-screen flow (before version stamp). */
 export function isOnboardingMinimumComplete(state: VersionedOnboardingState): boolean {
   return (
     state.primaryGoal != null &&
     state.selectedPainPoints.length > 0 &&
-    state.drivingPattern != null &&
-    state.protectionEducationAcknowledged &&
     state.nextActionSelected != null &&
-    state.completedAt != null
+    state.completedAt != null &&
+    state.completedOnboardingVersion === CURRENT_ONBOARDING_VERSION
   );
 }
 
-export function nextIncompleteStep(state: VersionedOnboardingState): OnboardingStepId | null {
-  if (state.primaryGoal == null) return 'primary_goal';
+/** True when the user may enter the main app on this build. */
+export function isOnboardingCurrentComplete(state: VersionedOnboardingState): boolean {
+  return isOnboardingMinimumComplete(state);
+}
+
+/** True when a prior completion exists but is older than CURRENT_ONBOARDING_VERSION. */
+export function isOnboardingVersionStale(state: VersionedOnboardingState): boolean {
+  if (state.completedAt == null && state.completedOnboardingVersion == null) {
+    // Legacy boolean-only / old schema: treated as stale only when answers imply prior finish
+    // without a current version stamp — handled by callers that see completedAt without version.
+    return false;
+  }
+  if (state.completedAt != null && state.completedOnboardingVersion == null) return true;
+  if (
+    state.completedOnboardingVersion != null &&
+    state.completedOnboardingVersion < CURRENT_ONBOARDING_VERSION
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Invalidate outdated completion while preserving answers and records.
+ * Returns a new state ready to resume essential onboarding.
+ */
+export function invalidateStaleOnboardingCompletion(
+  state: VersionedOnboardingState,
+  now = Date.now(),
+): VersionedOnboardingState {
+  const next: VersionedOnboardingState = {
+    ...state,
+    completedAt: null,
+    completedOnboardingVersion: null,
+    nextActionSelected: null,
+    lastUpdatedAt: now,
+  };
+  next.currentStep = nextIncompleteEssentialStep(next) ?? 'welcome';
+  return next;
+}
+
+/** Essential steps only — name/vehicle/places/permissions never block. */
+export function nextIncompleteEssentialStep(state: VersionedOnboardingState): OnboardingStepId | null {
+  if (state.primaryGoal == null) {
+    return state.currentStep === 'welcome' ? 'welcome' : 'primary_goal';
+  }
   if (state.selectedPainPoints.length === 0) return 'pain_points';
-  if (state.drivingPattern == null) return 'driving_pattern';
-  if (!state.protectionEducationAcknowledged) return 'protection_education';
-  // Name, vehicle, places, and permissions are post-Home / optional — never block entry.
-  if (state.nextActionSelected == null) return 'ready';
-  if (state.completedAt == null) return 'ready';
+  if (state.nextActionSelected == null || state.completedAt == null) return 'ready';
+  if (state.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION) return 'ready';
   return null;
+}
+
+export function nextIncompleteStep(state: VersionedOnboardingState): OnboardingStepId | null {
+  return nextIncompleteEssentialStep(state);
 }
 
 export function mapLegacyGoal(goal: string | null | undefined): MileageGoal | null {

@@ -42,7 +42,7 @@ export type RootTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList> | undefined;
-  ManualTrip: { tripId?: string } | undefined;
+  ManualTrip: { tripId?: string; preferWork?: boolean } | undefined;
   TripDetails: { tripId: string };
   MissingTripRecovery: { reviewId: string };
   ProtectionAlert: undefined;

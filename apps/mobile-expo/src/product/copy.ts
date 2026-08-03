@@ -125,9 +125,8 @@ export function secondaryHomeActionForGoal(goal: MileageGoal | null): {
     case 'employee_reimbursement':
       return { label: 'See your report', route: 'Proof' };
     case 'gig_delivery':
-      return { label: 'Add a delivery drive', route: 'ManualTrip' };
     case 'self_employed_business':
-      return { label: 'Add a business drive', route: 'ManualTrip' };
+      return { label: 'Add a drive', route: 'ManualTrip' };
     case 'mixed':
       return { label: 'Bring existing history', route: 'BringExistingMileage' };
     default:

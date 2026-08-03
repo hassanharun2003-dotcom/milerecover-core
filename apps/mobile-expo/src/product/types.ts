@@ -7,13 +7,19 @@ import type {
   PainPoint,
   VersionedOnboardingState,
 } from '@milerecover/domain';
-import { createEmptyOnboardingState, createFreeEntitlement } from '@milerecover/domain';
+import {
+  createEmptyOnboardingState,
+  createFreeEntitlement,
+  CURRENT_ONBOARDING_VERSION,
+} from '@milerecover/domain';
 import type { PlanTier } from '../fixtures/subscription';
 import type { DemoScenario } from '../fixtures/scenarios';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   type NotificationPreferences,
 } from '../services/notifications';
+
+export { CURRENT_ONBOARDING_VERSION };
 
 export type ProductOnboardingStep = OnboardingStepId;
 
@@ -151,6 +157,8 @@ export interface ProductUiState {
   celebratedFirstDriveAt: number | null;
   celebratedFirstReportAt: number | null;
   celebratedFirstRecoveryAt: number | null;
+  /** Dismissed "Finish setup" card on Home. */
+  finishSetupDismissedAt: number | null;
 }
 
 export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v4';
@@ -213,16 +221,15 @@ export function createInitialProductUiState(): ProductUiState {
     celebratedFirstDriveAt: null,
     celebratedFirstReportAt: null,
     celebratedFirstRecoveryAt: null,
+    finishSetupDismissedAt: null,
   };
 }
 
-/** Lean first-run path — vehicle, places, name, and permissions happen after Home. */
+/** Essential first-run path — four screens. Optional setup happens after Home. */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'welcome',
   'primary_goal',
   'pain_points',
-  'driving_pattern',
-  'protection_education',
   'ready',
 ];
 
@@ -238,8 +245,7 @@ export const PAIN_POINT_OPTIONS: { id: PainPoint; label: string }[] = [
   { id: 'tracker_misses', label: 'My tracker misses drives' },
   { id: 'need_cleaner_reports', label: 'I need cleaner reports' },
   { id: 'older_mileage', label: 'I have older mileage to recover' },
-  { id: 'battery_worry', label: 'I worry about battery use' },
-  { id: 'separate_work_personal', label: 'I separate work and personal drives' },
+  { id: 'separate_work_personal', label: 'I want to separate work and personal driving' },
 ];
 
 export const DRIVING_PATTERN_OPTIONS: { id: DrivingType; label: string }[] = [

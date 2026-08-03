@@ -96,10 +96,10 @@ function buildLiveScenario(
     homeState = 'healthy';
     proofBlockReason = 'Add or confirm a work drive first.';
   } else {
-    homeTitle = 'You’re protected.';
+    homeTitle = 'Ready when you are';
     homeDetail = capabilities.canUseAutomaticCapture
-      ? 'We’ll let you know before you lose mileage. Add a drive, or turn on watching when you’re ready.'
-      : `We’ll let you know before you lose mileage. Add a ${voice.workNoun} drive anytime.`;
+      ? 'Add a drive anytime, or turn on watching when you want automatic coverage.'
+      : `Add a ${voice.workNoun} drive anytime. Automatic watching comes with Plus.`;
     primaryAction = 'Add a drive';
     primaryActionRoute = 'ManualTrip' as ScenarioPresentation['primaryActionRoute'];
     homeState = 'healthy';

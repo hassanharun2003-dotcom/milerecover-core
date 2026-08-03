@@ -1,31 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
+import { capabilitiesForEntitlement } from '@milerecover/domain';
 import {
   ListRow,
   ListSection,
   MembershipBanner,
+  PrimaryButton,
   SecondaryButton,
-  StatusCard,
+  SoftPanel,
   TabScreen,
   text,
 } from '../../design-system';
 import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
-import { protectionLabel, voiceForDrivingType } from '../../product/copy';
+import { voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
-import { DRIVING_PATTERN_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
-import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
+import { DRIVING_PATTERN_OPTIONS, PAIN_POINT_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
 import { useApp } from '../../store/AppContext';
 
 type ProfileNav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Profile'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
+
+function painSummary(ids: string[]): string {
+  if (!ids.length) return 'Not set';
+  const labels = ids
+    .map((id) => PAIN_POINT_OPTIONS.find((option) => option.id === id)?.label)
+    .filter(Boolean) as string[];
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]}; ${labels[1]}`;
+  return `${labels[0]} · +${labels.length - 1} more`;
+}
 
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
@@ -37,15 +48,32 @@ export function ProfileScreen() {
     resetProductData,
     resetOnboarding,
   } = useProduct();
-  const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
   const displayName = product.preferredName?.trim() || 'Your profile';
   const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label;
   const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label;
   const voice = voiceForDrivingType(product.drivingType);
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const watchingFullyOn =
+    product.trackingEnabled &&
+    capabilities.canUseAutomaticCapture &&
+    permissions.location === 'granted' &&
+    permissions.backgroundLocation === 'granted';
 
-  useEffect(() => {
-    void getTrackingDiagnostics().then(setDiagnostics);
-  }, [product.trackingEnabled, product.entitlement.planId]);
+  const coverageBody = watchingFullyOn
+    ? 'Protected — watching is on.'
+    : !capabilities.canUseAutomaticCapture
+      ? 'Manual logging is ready. Automatic watching requires Plus.'
+      : product.trackingEnabled || permissions.location === 'granted'
+        ? 'One more step can finish watching setup.'
+        : automaticCaptureAvailable
+          ? 'Manual logging is ready. Turn on watching when you want automatic coverage.'
+          : 'Manual logging is ready. Automatic watching isn’t available on this device yet.';
+
+  const coverageAction = !capabilities.canUseAutomaticCapture
+    ? { label: 'See Plus plans', route: 'PlanSelection' as const }
+    : watchingFullyOn
+      ? { label: 'Watching status', route: 'TrackingActive' as const }
+      : { label: 'Finish coverage setup', route: 'ProtectionAlert' as const };
 
   return (
     <TabScreen>
@@ -78,10 +106,26 @@ export function ProfileScreen() {
       />
 
       <ListSection title="Profile">
-        <ListRow label="Preferred name" value={product.preferredName?.trim() || 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
-        <ListRow label="Primary goal" value={primaryGoal ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
-        <ListRow label="What gets in the way" value={product.selectedPainPoints.length ? String(product.selectedPainPoints.length) : 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
-        <ListRow label="Driving pattern" value={drivingType ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow
+          label="Preferred name"
+          value={product.preferredName?.trim() || 'Not set'}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow
+          label="Primary goal"
+          value={primaryGoal ?? 'Not set'}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow
+          label="What gets in the way"
+          value={painSummary(product.selectedPainPoints)}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow
+          label="Driving pattern"
+          value={drivingType ?? 'Not set'}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
         <ListRow label="Report style" value={voice.reportNoun} showChevron={false} />
       </ListSection>
 
@@ -98,33 +142,26 @@ export function ProfileScreen() {
         />
       </ListSection>
 
+      <SoftPanel>
+        <Text style={[text.caption, { marginBottom: spacing.xs }]}>COVERAGE</Text>
+        <Text style={text.subtitle}>{watchingFullyOn ? 'Protected' : 'Manual logging ready'}</Text>
+        <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{coverageBody}</Text>
+        <PrimaryButton
+          label={coverageAction.label}
+          onPress={() => {
+            if (coverageAction.route === 'PlanSelection') {
+              navigation.navigate('PlanSelection', { source: 'upgrade' });
+            } else {
+              navigation.navigate(coverageAction.route);
+            }
+          }}
+        />
+      </SoftPanel>
+
       <ListSection title="Records">
-        <ListRow
-          label="Coverage setup"
-          value={protectionLabel(product.protectionSetupState)}
-          onPress={() => navigation.navigate('ProtectionAlert')}
-        />
-        <ListRow
-          label="Watching status"
-          value={product.trackingEnabled ? 'On' : 'Off'}
-          onPress={() => navigation.navigate('TrackingActive')}
-        />
         <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
         <ListRow label="Export report" onPress={() => navigation.navigate('ExportReport')} />
       </ListSection>
-
-      <StatusCard
-        variant={product.trackingEnabled && diagnostics?.backgroundLimited ? 'warning' : 'neutral'}
-        title="Coverage status"
-        body={
-          product.trackingEnabled && permissions.location === 'granted' && permissions.backgroundLocation === 'granted'
-            ? 'Protected — watching is on.'
-            : product.trackingEnabled || permissions.location === 'granted'
-              ? 'Partially protected — one permission or plan step may still help.'
-              : `Not yet — add drives anytime. Auto-tracking ${automaticCaptureAvailable ? 'is ready when you turn watching on with Plus.' : 'isn’t available on this device yet.'}`
-        }
-        emphasis="subtle"
-      />
 
       <ListSection title="Privacy">
         <ListRow
@@ -137,17 +174,17 @@ export function ProfileScreen() {
       <ListSection title="Help">
         <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
         <ListRow label="About" onPress={() => navigation.navigate('About')} />
-        <ListRow
-          label="Restart onboarding"
-          onPress={() => {
-            resetOnboarding();
-            restartOnboarding();
-          }}
-        />
       </ListSection>
 
       {product.showDevTools ? (
         <ListSection title="Internal preview tools">
+          <ListRow
+            label="Restart onboarding only"
+            onPress={() => {
+              resetOnboarding();
+              restartOnboarding();
+            }}
+          />
           <ListRow
             label="Demo mode"
             value={product.demoModeEnabled ? 'On' : 'Off'}
@@ -164,7 +201,7 @@ export function ProfileScreen() {
               ))
             : null}
           <ListRow
-            label="Reset preview data"
+            label="Clear all local test data"
             onPress={() => {
               void resetProductData();
               resetLocalData();
