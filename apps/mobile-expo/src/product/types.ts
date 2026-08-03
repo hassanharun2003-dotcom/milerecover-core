@@ -1,23 +1,20 @@
+import type {
+  DrivingPattern,
+  EntitlementSnapshot,
+  MileageGoal,
+  NextActionId,
+  OnboardingStepId,
+  PainPoint,
+  VersionedOnboardingState,
+} from '@milerecover/domain';
+import { createEmptyOnboardingState, createFreeEntitlement } from '@milerecover/domain';
 import type { PlanTier } from '../fixtures/subscription';
 import type { DemoScenario } from '../fixtures/scenarios';
 
-export type ProductOnboardingStep =
-  | 'welcome'
-  | 'primary_goal'
-  | 'driving_type'
-  | 'preferred_name'
-  | 'vehicle_setup'
-  | 'work_place_setup'
-  | 'protection_setup'
-  | 'next_action';
+export type ProductOnboardingStep = OnboardingStepId;
 
-export type PrimaryGoal =
-  | 'protect_future'
-  | 'find_missing'
-  | 'bring_history'
-  | 'prepare_report';
-
-export type DrivingType = 'employee' | 'gig' | 'small_business' | 'other';
+export type PrimaryGoal = MileageGoal;
+export type DrivingType = DrivingPattern;
 
 export type ProtectionSetupState =
   | 'not_started'
@@ -45,6 +42,7 @@ export type PostOnboardingRoute =
   | 'ManualTrip'
   | 'Proof'
   | 'MissingTripRecovery'
+  | 'TrackingActive'
   | null;
 
 export interface ReviewHistoryEntry {
@@ -60,8 +58,10 @@ export interface ReviewHistoryEntry {
 export interface VehicleDraft {
   id: string;
   nickname: string;
+  year: string;
   make: string;
   model: string;
+  plate: string;
   isPrimary: boolean;
   createdAt: number;
   updatedAt: number;
@@ -72,6 +72,7 @@ export interface WorkLocationDraft {
   label: string;
   address: string;
   notes: string;
+  kind: 'home' | 'workplace' | 'client' | 'other';
   createdAt: number;
   updatedAt: number;
 }
@@ -94,24 +95,36 @@ export interface ManualTripDraft {
   createdAt: number;
 }
 
+export interface PaywallCapState {
+  lastFullScreenAt: number | null;
+  dismissedInSession: boolean;
+  lastTrialOfferAt: number | null;
+  trialOfferDismissedSession: boolean;
+}
+
 export interface ProductUiState {
-  schemaVersion: 3;
+  schemaVersion: 4;
+  onboarding: VersionedOnboardingState;
+  /** @deprecated use onboarding.currentStep */
   onboardingStep: ProductOnboardingStep;
   preferredName: string | null;
   primaryGoal: PrimaryGoal | null;
   drivingType: DrivingType | null;
+  selectedPainPoints: PainPoint[];
   protectionSetupState: ProtectionSetupState;
   onboardingNeed: string | null;
   onboardingUsage: string | null;
   onboardingSkippedOptional: boolean;
   demoModeEnabled: boolean;
   demoScenario: DemoScenario;
+  /** UI preference only — real access from entitlement */
   selectedPlan: PlanTier;
+  entitlement: EntitlementSnapshot;
+  paywallCaps: PaywallCapState;
   pendingPostOnboardingRoute: PostOnboardingRoute;
   reviewDecisions: Record<string, ReviewDecision>;
   reviewedHistory: string[];
   reviewHistoryEntries: ReviewHistoryEntry[];
-  /** Legacy — migrated into domain trips once */
   manualTrips: ManualTripDraft[];
   vehicles: VehicleDraft[];
   workLocations: WorkLocationDraft[];
@@ -121,9 +134,16 @@ export interface ProductUiState {
   importBatches: ImportBatchSummary[];
   showDevTools: boolean;
   manualTripsMigrated: boolean;
+  reimbursementCentsPerMile: number | null;
+  reportStyle: string | null;
+  trackingEnabled: boolean;
+  firstConfirmedWorkDriveAt: number | null;
+  firstReportPreviewAt: number | null;
+  firstRecoverySeenAt: number | null;
 }
 
-export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v3';
+export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v4';
+export const PRODUCT_UI_STORAGE_KEY_V3 = '@milerecover/product-ui/v3';
 export const PRODUCT_UI_STORAGE_KEY_V2 = '@milerecover/product-ui/v2';
 export const PRODUCT_UI_STORAGE_KEY_V1 = '@milerecover/product-ui/v1';
 
@@ -133,12 +153,15 @@ export function allowInternalPreviewTools(variant?: string): boolean {
 }
 
 export function createInitialProductUiState(): ProductUiState {
+  const onboarding = createEmptyOnboardingState();
   return {
-    schemaVersion: 3,
-    onboardingStep: 'welcome',
+    schemaVersion: 4,
+    onboarding,
+    onboardingStep: onboarding.currentStep,
     preferredName: null,
     primaryGoal: null,
     drivingType: null,
+    selectedPainPoints: [],
     protectionSetupState: 'not_started',
     onboardingNeed: null,
     onboardingUsage: null,
@@ -146,6 +169,13 @@ export function createInitialProductUiState(): ProductUiState {
     demoModeEnabled: false,
     demoScenario: 'new_user',
     selectedPlan: 'free',
+    entitlement: createFreeEntitlement(),
+    paywallCaps: {
+      lastFullScreenAt: null,
+      dismissedInSession: false,
+      lastTrialOfferAt: null,
+      trialOfferDismissedSession: false,
+    },
     pendingPostOnboardingRoute: null,
     reviewDecisions: {},
     reviewedHistory: [],
@@ -159,76 +189,53 @@ export function createInitialProductUiState(): ProductUiState {
     importBatches: [],
     showDevTools: allowInternalPreviewTools(),
     manualTripsMigrated: false,
+    reimbursementCentsPerMile: null,
+    reportStyle: null,
+    trackingEnabled: false,
+    firstConfirmedWorkDriveAt: null,
+    firstReportPreviewAt: null,
+    firstRecoverySeenAt: null,
   };
 }
 
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'welcome',
   'primary_goal',
-  'driving_type',
+  'pain_points',
+  'driving_pattern',
   'preferred_name',
   'vehicle_setup',
-  'work_place_setup',
-  'protection_setup',
-  'next_action',
+  'familiar_places',
+  'protection_education',
+  'permissions_education',
+  'ready',
 ];
 
-export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string }[] = [
-  { id: 'protect_future', label: 'Protect future drives' },
-  { id: 'find_missing', label: 'Recover possible missing mileage' },
-  { id: 'bring_history', label: 'Bring existing history' },
-  { id: 'prepare_report', label: 'Prepare a report' },
+export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: string }[] = [
+  { id: 'employee_reimbursement', label: 'Employee reimbursement', body: 'Share clear records with work.' },
+  { id: 'gig_delivery', label: 'Gig or delivery driving', body: 'Protect shifts and earnings records.' },
+  { id: 'self_employed_business', label: 'Self-employed or business', body: 'Keep client and tax-ready logs.' },
+  { id: 'mixed', label: 'A mix of these', body: 'Neutral work-driving language.' },
 ];
 
-export const DRIVING_TYPE_OPTIONS: { id: DrivingType; label: string }[] = [
-  { id: 'employee', label: 'Employee reimbursement' },
-  { id: 'gig', label: 'Gig or independent driving' },
-  { id: 'small_business', label: 'Small business' },
-  { id: 'other', label: 'Other work driving' },
+export const PAIN_POINT_OPTIONS: { id: PainPoint; label: string }[] = [
+  { id: 'forget_to_track', label: 'I forget to track drives' },
+  { id: 'tracker_misses', label: 'My tracker misses drives' },
+  { id: 'need_cleaner_reports', label: 'I need cleaner reports' },
+  { id: 'older_mileage', label: 'I have older mileage to recover' },
+  { id: 'battery_worry', label: 'I worry about battery use' },
+  { id: 'separate_work_personal', label: 'I separate work and personal drives' },
 ];
 
-export function mapLegacyNeedToGoal(need: string | null | undefined): PrimaryGoal | null {
-  if (!need) return null;
-  const n = need.toLowerCase();
-  if (n.includes('missing') || n.includes('recover')) return 'find_missing';
-  if (n.includes('bring') || n.includes('import') || n.includes('history')) return 'bring_history';
-  if (n.includes('report') || n.includes('prepare')) return 'prepare_report';
-  if (n.includes('protect') || n.includes('future')) return 'protect_future';
-  return null;
-}
+export const DRIVING_PATTERN_OPTIONS: { id: DrivingType; label: string }[] = [
+  { id: 'regular_locations', label: 'Regular work locations' },
+  { id: 'different_places', label: 'Different places each day' },
+  { id: 'delivery_rideshare', label: 'Delivery or rideshare routes' },
+  { id: 'client_visits', label: 'Client visits and appointments' },
+  { id: 'not_sure', label: 'Not sure yet' },
+];
 
-export function mapLegacyUsageToDrivingType(usage: string | null | undefined): DrivingType | null {
-  if (!usage) return null;
-  const u = usage.toLowerCase();
-  if (u.includes('employee') || u.includes('reimburs')) return 'employee';
-  if (u.includes('gig') || u.includes('independent')) return 'gig';
-  if (u.includes('small business') || u.includes('business')) return 'small_business';
-  return 'other';
-}
+/** @deprecated aliases for older tests */
+export const DRIVING_TYPE_OPTIONS = DRIVING_PATTERN_OPTIONS;
 
-export function mapLegacyOnboardingStep(step: string | null | undefined): ProductOnboardingStep {
-  switch (step) {
-    case 'need_selection':
-    case 'primary_goal':
-      return 'primary_goal';
-    case 'usage_type':
-    case 'driving_type':
-      return 'driving_type';
-    case 'optional_setup':
-    case 'preferred_name':
-      return 'preferred_name';
-    case 'vehicle_setup':
-      return 'vehicle_setup';
-    case 'work_place_setup':
-      return 'work_place_setup';
-    case 'protection_setup':
-      return 'protection_setup';
-    case 'ready':
-    case 'next_action':
-      return 'next_action';
-    case 'welcome':
-      return 'welcome';
-    default:
-      return 'welcome';
-  }
-}
+export type { NextActionId, PainPoint, MileageGoal, DrivingPattern, OnboardingStepId };

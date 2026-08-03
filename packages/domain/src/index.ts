@@ -13,3 +13,6 @@ export * from './persistence';
 export * from './export/csv';
 export * from './export/report';
 export * from './import/csvImport';
+export * from './entitlements/types';
+export * from './tracking/segmentation';
+export * from './onboarding/completeness';

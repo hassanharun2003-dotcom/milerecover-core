@@ -4,8 +4,10 @@ import { spacing } from '@milerecover/config';
 import {
   DRIVING_TYPE_OPTIONS,
   ONBOARDING_STEP_ORDER,
+  PAIN_POINT_OPTIONS,
   PRIMARY_GOAL_OPTIONS,
   type DrivingType,
+  type PainPoint,
   type PrimaryGoal,
 } from '../../product/types';
 import { nextActionForGoal } from '../../product/copy';
@@ -49,7 +51,10 @@ export function OnboardingFlow() {
     product,
     advanceOnboarding,
     backOnboarding,
+    patchOnboarding,
+    setOnboardingStep,
     setPrimaryGoal,
+    setSelectedPainPoints,
     setDrivingType,
     setPreferredName,
     setProtectionSetupState,
@@ -73,6 +78,7 @@ export function OnboardingFlow() {
   const next = nextActionForGoal(product.primaryGoal);
   const foregroundReady = permissions.location === 'granted';
   const backgroundReady = permissions.backgroundLocation === 'granted';
+  const selectedPainPoints = product.selectedPainPoints;
 
   const finish = (deepLink: boolean) => {
     completeProductOnboarding(deepLink ? next.route : null);
@@ -91,6 +97,13 @@ export function OnboardingFlow() {
       });
     }
     advanceOnboarding();
+  };
+
+  const togglePainPoint = (painPoint: PainPoint) => {
+    const nextPainPoints = selectedPainPoints.includes(painPoint)
+      ? selectedPainPoints.filter((item) => item !== painPoint)
+      : [...selectedPainPoints, painPoint];
+    setSelectedPainPoints(nextPainPoints);
   };
 
   const saveWorkPlace = () => {
@@ -114,6 +127,14 @@ export function OnboardingFlow() {
     } else {
       setProtectionSetupState('educated');
     }
+    advanceOnboarding();
+  };
+
+  const continueAfterPermissions = () => {
+    patchOnboarding({
+      permissionsEducationAcknowledged: true,
+      completedSteps: [...product.onboarding.completedSteps, 'permissions_education'],
+    });
     advanceOnboarding();
   };
 
@@ -141,17 +162,15 @@ export function OnboardingFlow() {
           <WelcomeHero title={welcome.title} body={welcome.body} />
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
             <PrimaryButton
-              label="Protect my miles"
-              onPress={() => {
-                setPrimaryGoal('protect_future');
-                advanceOnboarding();
-              }}
+              label="Get started"
+              onPress={advanceOnboarding}
             />
             <SecondaryButton
-              label="Bring existing mileage"
+              label="I have older mileage"
               onPress={() => {
-                setPrimaryGoal('bring_history');
-                advanceOnboarding();
+                setPrimaryGoal('mixed');
+                setSelectedPainPoints(['older_mileage']);
+                setOnboardingStep('driving_pattern');
               }}
             />
           </View>
@@ -180,7 +199,29 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
-      {step === 'driving_type' ? (
+      {step === 'pain_points' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>What gets in the way?</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Pick at least one. This helps MileRecover decide what to show first.
+          </Text>
+          {PAIN_POINT_OPTIONS.map((opt) => (
+            <SelectionCard
+              key={opt.id}
+              title={opt.label}
+              selected={selectedPainPoints.includes(opt.id)}
+              onPress={() => togglePainPoint(opt.id)}
+            />
+          ))}
+          <PrimaryButton
+            label="Continue"
+            onPress={advanceOnboarding}
+            disabled={selectedPainPoints.length === 0}
+          />
+        </View>
+      ) : null}
+
+      {step === 'driving_pattern' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>How do you use work mileage?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
@@ -248,7 +289,7 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
-      {step === 'work_place_setup' ? (
+      {step === 'familiar_places' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>Any regular work places?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
@@ -267,9 +308,32 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
-      {step === 'protection_setup' ? (
+      {step === 'protection_education' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            MileRecover saves observed location samples only when you enable tracking. It never marks a drive
+            as work until you confirm it.
+          </Text>
+          <StatusCard
+            variant="neutral"
+            title="Your data stays yours"
+            body="Trips live on this device first. Nothing is shared unless you choose to share it."
+            emphasis="subtle"
+          />
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              setProtectionSetupState('educated');
+              advanceOnboarding();
+            }}
+          />
+        </View>
+      ) : null}
+
+      {step === 'permissions_education' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>Permissions for automatic capture</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             We explain before any system prompt. We never mark a permission ready until the device says it is granted.
           </Text>
@@ -280,7 +344,8 @@ export function OnboardingFlow() {
             <ChecklistRow label="Notifications" status="planned" />
             <ChecklistRow label="Tracking engine" status="planned" />
             <Text style={[text.caption, { marginTop: spacing.sm }]}>
-              Automatic capture is not active in this release candidate, even if permissions are granted.
+              Foreground capture can work with location permission. Background capture may stay limited if the device
+              or build does not allow it.
             </Text>
           </SoftPanel>
           <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
@@ -294,18 +359,21 @@ export function OnboardingFlow() {
           </View>
           <StatusCard
             variant="neutral"
-            title="Your data stays yours"
-            body="Trips live on this device first. Nothing is shared unless you choose to share it."
+            title="You can change this later"
+            body="You can continue now and enable tracking after setup."
             emphasis="subtle"
           />
           <PrimaryButton
             label="Continue"
-            onPress={continueAfterProtection}
+            onPress={() => {
+              continueAfterProtection();
+              continueAfterPermissions();
+            }}
           />
         </View>
       ) : null}
 
-      {step === 'next_action' ? (
+      {step === 'ready' ? (
         <View>
           <SoftPanel>
             <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Your setup</Text>
