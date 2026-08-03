@@ -4,16 +4,23 @@ One-link internal testing — no QR scans, no Metro for day-to-day UI updates.
 
 ## Current preview build (install once)
 
-**Direct install URL (tap on your phone):**  
-https://expo.dev/accounts/milerecover/projects/milerecover/builds/a0fcf6cd
+**Verified EAS build (do not use hanging Expo artifact download on-device):**  
+Build ID: `a0fcf6cd-61e0-4317-a694-0da9331daee8`
 
-- Build profile: `preview` (standalone — no Expo dev launcher)
+- Build profile: `preview` (standalone — no Expo dev launcher, no Metro)
 - Android package: `com.milerecover.app`
 - App / runtime version: `0.1.2` (`runtimeVersion.policy: appVersion`)
+- versionCode: `2`
 - Channel: `preview`
-- Build ID: `a0fcf6cd`
 - Preview `autoIncrement`: enabled
 - `expo-dev-client` autolinking: excluded for preview/production via `eas-build-pre-install` → `scripts/sync-dev-client-autolinking.cjs`
+
+**Phone install path (preferred):** GitHub prerelease asset  
+`MileRecover-preview-0.1.2.apk` on tag `android-preview-0.1.2`  
+*(Direct asset URL is published only after Cloud Agent `EXPO_TOKEN` can download the verified artifact and create the release.)*
+
+Expo dashboard page (auth may be required; on-device Expo download has hung at 81.57 MB):  
+https://expo.dev/accounts/milerecover/projects/milerecover/builds/a0fcf6cd-61e0-4317-a694-0da9331daee8
 
 ## Verified upgrade notes
 
