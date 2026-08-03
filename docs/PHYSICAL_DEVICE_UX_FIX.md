@@ -26,3 +26,10 @@ See PR description / final agent response.
 - Android update ID: `019fc975-93e1-7db4-ac59-552b4ef5e408`
 - iOS update ID: `019fc975-93e1-7364-b81d-99508f7c05e5`
 - Commit: `f3a07b7e784f83a2fbef5ec03fda5627883f0b7a`
+
+## APK
+
+- EAS build: `8073fb0d-41b9-4217-a3fe-e4dc59d68afe`
+- GitHub release: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.1.5
+- Direct APK: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.5/MileRecover-0.1.5-mvp.apk
+- SHA-256: `2f1a3c5f574627d71f5cbb814ce79e5d465fdae6042add633856af54cbecd46a`
