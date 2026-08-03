@@ -51,11 +51,11 @@ After installing the preview APK above, close and reopen MileRecover. Profile â†
 
 **Runtime `0.1.2` OTA (latest published):**
 
-- Update group: _(filled after V2 polish publish)_
-- Android update ID: _(filled after publish)_
-- iOS update ID: _(filled after publish)_
+- Update group: `9624b236-82cc-43d1-9bcd-ad8d6b92733f`
+- Android update ID: `019fc644-a6e2-76e1-a5d3-c9a10fc8f9ea`
+- iOS update ID: `019fc644-a6e2-742b-a90f-8b003a20bda8`
 - Message: `0.1.2-preview.3: V2 user-first product polish`
-- Dashboard: _(filled after publish)_
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/9624b236-82cc-43d1-9bcd-ad8d6b92733f`
 - Audit: `docs/V2_PRODUCT_POLISH.md`
 
 Prior design polish OTA (superseded):
