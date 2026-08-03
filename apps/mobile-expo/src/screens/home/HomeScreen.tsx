@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -8,15 +8,18 @@ import { spacing } from '@milerecover/config';
 import {
   Badge,
   EvidenceRow,
-  ProtectionCard,
-  ScrollScreen,
-  SectionHeader,
+  OfflineBanner,
+  PrimaryButton,
+  SecondaryButton,
+  SoftPanel,
   StatusCard,
   SummaryCard,
+  TabScreen,
   TimelineRow,
-  PrimaryButton,
+  text,
 } from '../../design-system';
 import type { ActivityEventKind } from '../../fixtures/scenarios';
+import { greetingForName } from '../../product/copy';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
@@ -49,7 +52,7 @@ function activityTimeLabel(timestamp: number): string {
 }
 
 function activityBadge(kind: ActivityEventKind): string | null {
-  if (kind === 'gap_found') return 'Review';
+  if (kind === 'gap_found') return 'Needs a look';
   if (kind === 'history_imported') return 'Imported';
   return null;
 }
@@ -57,9 +60,21 @@ function activityBadge(kind: ActivityEventKind): string | null {
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions } = useApp();
-  const { product } = useProduct();
+  const { product, consumePendingPostOnboardingRoute } = useProduct();
   const experience = selectProductExperience(state, product, permissions);
-  const { scenario } = experience;
+  const { scenario, secondaryAction, liveMode } = experience;
+  const greeting = greetingForName(product.preferredName);
+
+  useEffect(() => {
+    const route = consumePendingPostOnboardingRoute();
+    if (!route || route === 'Proof') {
+      if (route === 'Proof') navigation.navigate('Proof');
+      return;
+    }
+    navigation.navigate(route);
+    // Intentionally once on mount / when pending is set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.pendingPostOnboardingRoute]);
 
   const handlePrimary = () => {
     if (scenario.primaryActionRoute === 'ProtectionAlert') {
@@ -71,37 +86,86 @@ export function HomeScreen() {
     else if (scenario.primaryActionRoute === 'Proof') navigation.navigate('Proof');
   };
 
+  const handleSecondary = () => {
+    if (!secondaryAction) return;
+    if (secondaryAction.route === 'Review') navigation.navigate('Review');
+    else navigation.navigate(secondaryAction.route);
+  };
+
+  const showWeekSummary =
+    !liveMode ||
+    scenario.weekSummary.milesProtected > 0 ||
+    scenario.weekSummary.recoveredMiles > 0 ||
+    scenario.weekSummary.milesReadyForProof > 0;
+
   return (
-    <ScrollScreen>
+    <TabScreen>
+      {greeting ? (
+        <Text style={[text.body, { marginBottom: spacing.sm }]} accessibilityRole="text">
+          {greeting}
+        </Text>
+      ) : null}
+
+      {scenario.homeState === 'offline' ? (
+        <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
+      ) : null}
+
       <StatusCard
         variant={homeVariant(scenario.homeState)}
         title={scenario.homeTitle}
         body={scenario.homeDetail}
         actionLabel={scenario.primaryAction ?? undefined}
         onAction={scenario.primaryAction ? handlePrimary : undefined}
+        emphasis="hero"
       />
 
-      <ProtectionCard>
-        <EvidenceRow label="Background access" value={scenario.homeState === 'protection_limited' ? 'Restricted' : 'On'} />
-        <EvidenceRow label="Last protection check" value={scenario.homeState === 'offline' ? 'Pending sync' : 'Just now'} />
-        <EvidenceRow label="Last drive status" value={scenario.tripsToday > 0 ? 'Recorded today' : 'Quiet so far'} />
-      </ProtectionCard>
+      <SoftPanel>
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>PROTECTION</Text>
+        <EvidenceRow
+          label="Setup"
+          value={
+            product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated'
+              ? 'Not finished'
+              : product.protectionSetupState === 'limited'
+                ? 'Needs attention'
+                : 'Configured'
+          }
+        />
+        <EvidenceRow
+          label="Background access"
+          value={
+            permissions.backgroundLocation === 'granted'
+              ? 'On'
+              : permissions.location === 'granted'
+                ? 'Limited'
+                : 'Off'
+          }
+        />
+        <EvidenceRow label="Automatic capture" value="Not available in this preview" />
+      </SoftPanel>
 
-      <SectionHeader title="This week" />
-      <SummaryCard
-        items={[
-          { label: 'Miles protected', value: scenario.weekSummary.milesProtected.toFixed(1) },
-          { label: 'Recovered', value: scenario.weekSummary.recoveredMiles.toFixed(1) },
-          { label: 'Ready for proof', value: scenario.weekSummary.milesReadyForProof.toFixed(1) },
-        ]}
-      />
+      {showWeekSummary ? (
+        <>
+          <Text style={[text.subtitle, { marginBottom: spacing.sm, marginTop: spacing.sm }]}>
+            This week
+          </Text>
+          <SummaryCard
+            items={[
+              { label: 'Miles kept', value: scenario.weekSummary.milesProtected.toFixed(1) },
+              { label: 'Miles found', value: scenario.weekSummary.recoveredMiles.toFixed(1) },
+              { label: 'Ready to share', value: scenario.weekSummary.milesReadyForProof.toFixed(1) },
+            ]}
+          />
+        </>
+      ) : null}
 
-      <SectionHeader title="Recent activity" />
+      <Text style={[text.subtitle, { marginBottom: spacing.sm, marginTop: spacing.sm }]}>Recent</Text>
       {scenario.activity.length === 0 ? (
         <StatusCard
-          variant="info"
-          title="Quiet day"
-          body="Drive normally—we will surface trips in Review when something needs you."
+          variant="neutral"
+          title="Nothing recorded yet"
+          body="When a real drive is saved—or you add one—it shows up here. We never invent miles."
+          emphasis="subtle"
         />
       ) : (
         scenario.activity.map((event) => (
@@ -113,37 +177,35 @@ export function HomeScreen() {
             />
             {activityBadge(event.kind) ? (
               <View style={{ marginLeft: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.sm }}>
-                <Badge label={activityBadge(event.kind)!} variant={event.kind === 'gap_found' ? 'warning' : 'info'} />
+                <Badge
+                  label={activityBadge(event.kind)!}
+                  variant={event.kind === 'gap_found' ? 'warning' : 'info'}
+                />
               </View>
             ) : null}
           </View>
         ))
       )}
 
-      <SectionHeader title="Ready for proof" />
-      <View style={{ marginBottom: spacing.md }}>
-        {scenario.proofReady ? (
-          <StatusCard
-            variant="success"
-            title="Records look ready"
-            body="Preview your report when you need it."
-            actionLabel="View proof"
-            onAction={() => navigation.navigate('Proof')}
-          />
-        ) : (
-          <StatusCard
-            variant="info"
-            title="Not quite ready"
-            body={scenario.proofBlockReason ?? 'Confirm trips to prepare proof.'}
-            actionLabel={scenario.reviewItems.length > 0 ? 'Review items' : undefined}
-            onAction={scenario.reviewItems.length > 0 ? () => navigation.navigate('Review') : undefined}
-          />
-        )}
-      </View>
-
-      {scenario.tripsToday === 0 && scenario.activity.length === 0 ? (
-        <PrimaryButton label="Add manual trip" onPress={() => navigation.navigate('ManualTrip')} accessibilityLabel="Add manual trip from home" />
+      {secondaryAction ? (
+        <View style={{ marginTop: spacing.md }}>
+          {scenario.primaryAction ? (
+            <SecondaryButton label={secondaryAction.label} onPress={handleSecondary} />
+          ) : (
+            <PrimaryButton label={secondaryAction.label} onPress={handleSecondary} />
+          )}
+        </View>
       ) : null}
-    </ScrollScreen>
+
+      {liveMode && scenario.activity.length === 0 && !scenario.primaryAction && !secondaryAction ? (
+        <View style={{ marginTop: spacing.md }}>
+          <PrimaryButton
+            label="Add a drive"
+            onPress={() => navigation.navigate('ManualTrip')}
+            accessibilityLabel="Add a drive from home"
+          />
+        </View>
+      ) : null}
+    </TabScreen>
   );
 }

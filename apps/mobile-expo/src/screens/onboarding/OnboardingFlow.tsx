@@ -1,36 +1,30 @@
-import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
-import { ONBOARDING_STEP_ORDER } from '../../product/types';
 import {
-  AppScreen,
+  DRIVING_TYPE_OPTIONS,
+  ONBOARDING_STEP_ORDER,
+  PRIMARY_GOAL_OPTIONS,
+  type DrivingType,
+  type PrimaryGoal,
+} from '../../product/types';
+import { nextActionForGoal } from '../../product/copy';
+import {
   ChecklistRow,
+  FormField,
+  OnboardingScreen,
   PrimaryButton,
   ProgressIndicator,
-  ScrollScreen,
   SecondaryButton,
   SelectionCard,
+  SoftPanel,
   StatusCard,
-  SummaryCard,
   TertiaryButton,
   WelcomeHero,
+  text,
 } from '../../design-system';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
-
-const NEED_OPTIONS = [
-  'Protect future drives',
-  'Recover possible missing mileage',
-  'Bring existing history',
-  'Prepare a report',
-];
-
-const USAGE_OPTIONS = [
-  'Employee reimbursement',
-  'Gig or independent driving',
-  'Small business',
-  'Other work driving',
-];
 
 export function OnboardingFlow() {
   const { finishOnboarding } = useApp();
@@ -38,177 +32,185 @@ export function OnboardingFlow() {
     product,
     advanceOnboarding,
     backOnboarding,
-    setOnboardingNeed,
-    setOnboardingUsage,
-    skipOptionalSetup,
+    setPrimaryGoal,
+    setDrivingType,
+    setPreferredName,
+    setProtectionSetupState,
+    skipPreferredName,
+    completeProductOnboarding,
   } = useProduct();
 
+  const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
   const step = product.onboardingStep;
-  const stepIndex = ONBOARDING_STEP_ORDER.indexOf(step);
+  const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
+  const next = nextActionForGoal(product.primaryGoal);
 
-  const content = useMemo(() => {
-    switch (step) {
-      case 'welcome':
-        return {
-          title: 'Protect every work mile.',
-          body: 'We track new drives, find what others miss, and help you prove every mile with confidence.',
-          primary: 'Protect my miles',
-          secondary: 'Bring existing mileage',
-          onPrimary: advanceOnboarding,
-          onSecondary: () => {
-            setOnboardingNeed('Bring existing history');
-            advanceOnboarding();
-          },
-        };
-      case 'need_selection':
-        return { mode: 'need' as const };
-      case 'usage_type':
-        return { mode: 'usage' as const };
-      case 'protection_setup':
-        return { mode: 'protection' as const };
-      case 'optional_setup':
-        return { mode: 'optional' as const };
-      case 'ready':
-        return { mode: 'ready' as const };
-      default:
-        return { mode: 'ready' as const };
-    }
-  }, [step, advanceOnboarding, setOnboardingNeed]);
-
-  const finish = () => {
-    advanceOnboarding();
+  const finish = (deepLink: boolean) => {
+    completeProductOnboarding(deepLink ? next.route : null);
     finishOnboarding();
   };
 
+  const welcome = useMemo(
+    () => ({
+      title: 'Protect every work mile.',
+      body: 'MileRecover saves future drives, helps find missing mileage, and prepares records you can share—without inventing miles.',
+    }),
+    [],
+  );
+
   return (
-    <AppScreen>
-      <ScrollScreen contentStyle={{ paddingTop: spacing.lg }}>
-        <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
-        {stepIndex > 0 ? <TertiaryButton label="Back" onPress={backOnboarding} accessibilityLabel="Go back to previous onboarding step" /> : null}
+    <OnboardingScreen>
+      <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+      {stepIndex > 0 ? (
+        <TertiaryButton
+          label="Back"
+          onPress={backOnboarding}
+          accessibilityLabel="Go back to previous onboarding step"
+        />
+      ) : null}
 
-        {'title' in content && content.title ? (
-          <View>
-            <WelcomeHero title={content.title} body={content.body ?? ''} />
-            <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-              <PrimaryButton label={content.primary!} onPress={content.onPrimary!} />
-              {'secondary' in content && content.secondary ? (
-                <SecondaryButton label={content.secondary} onPress={content.onSecondary!} />
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-
-        {content.mode === 'need' ? (
-          <View>
-            <StatusCard variant="info" title="What do you need today?" body="One choice is enough. You can change this later." />
-            {NEED_OPTIONS.map((opt) => (
-              <SelectionCard
-                key={opt}
-                title={opt}
-                selected={product.onboardingNeed === opt}
-                onPress={() => {
-                  setOnboardingNeed(opt);
-                  advanceOnboarding();
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {content.mode === 'usage' ? (
-          <View>
-            <StatusCard variant="info" title="How do you use work mileage?" body="This helps MileRecover speak your language—not an accountant's." />
-            {USAGE_OPTIONS.map((opt) => (
-              <SelectionCard
-                key={opt}
-                title={opt}
-                selected={product.onboardingUsage === opt}
-                onPress={() => {
-                  setOnboardingUsage(opt);
-                  advanceOnboarding();
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {content.mode === 'protection' ? (
-          <View>
-            <StatusCard
-              variant="info"
-              title="Set up your protection"
-              body="MileRecover works best with location and background access. We never pretend permissions are granted until you enable them."
+      {step === 'welcome' ? (
+        <View>
+          <WelcomeHero title={welcome.title} body={welcome.body} />
+          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+            <PrimaryButton label="Get started" onPress={advanceOnboarding} />
+            <SecondaryButton
+              label="Bring existing mileage"
+              onPress={() => {
+                setPrimaryGoal('bring_history');
+                advanceOnboarding();
+              }}
             />
-            <View style={[cardShell, { marginBottom: spacing.md }]}>
-              <ChecklistRow label="Location access" status="pending" />
-              <ChecklistRow label="Background tracking" status="pending" />
-              <ChecklistRow label="Battery optimization" status="planned" />
-              <ChecklistRow label="Offline recording" status="planned" />
-            </View>
-            <StatusCard
-              variant="neutral"
-              title="Your data stays yours"
-              body="Trips are stored on your device first. Nothing is shared without your action."
-            />
-            <PrimaryButton label="Continue" onPress={advanceOnboarding} />
           </View>
-        ) : null}
+        </View>
+      ) : null}
 
-        {content.mode === 'optional' ? (
-          <View>
-            <StatusCard
-              variant="info"
-              title="Optional setup"
-              body="These details help later reports. You can add them from Profile after Home—skipping is always safe."
-            />
+      {step === 'primary_goal' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>
+            What would help you most right now?
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            One selection is enough. We’ll use it to choose your next step.
+          </Text>
+          {PRIMARY_GOAL_OPTIONS.map((opt) => (
             <SelectionCard
-              title="Remind me: add a vehicle"
-              body="Available from Profile after setup—not enabled yet"
-              selected={false}
-              onPress={advanceOnboarding}
+              key={opt.id}
+              title={opt.label}
+              selected={product.primaryGoal === opt.id}
+              onPress={() => {
+                setPrimaryGoal(opt.id as PrimaryGoal);
+                advanceOnboarding();
+              }}
             />
-            <SelectionCard
-              title="Remind me: add work locations"
-              body="Available from Profile after setup—not enabled yet"
-              selected={false}
-              onPress={advanceOnboarding}
-            />
-            <SelectionCard
-              title="Remind me: set work pattern"
-              body="Available from Profile after setup—not enabled yet"
-              selected={false}
-              onPress={advanceOnboarding}
-            />
-            <TertiaryButton label="Skip for now" onPress={skipOptionalSetup} />
-          </View>
-        ) : null}
+          ))}
+        </View>
+      ) : null}
 
-        {content.mode === 'ready' ? (
-          <View>
-            <StatusCard
-              variant="success"
-              title="You're ready to explore"
-              body="Onboarding is complete. Location and background protection are not granted yet—they unlock when tracking is implemented and you approve system prompts."
+      {step === 'driving_type' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>How do you use work mileage?</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            This changes how MileRecover talks—and what a report is for.
+          </Text>
+          {DRIVING_TYPE_OPTIONS.map((opt) => (
+            <SelectionCard
+              key={opt.id}
+              title={opt.label}
+              selected={product.drivingType === opt.id}
+              onPress={() => {
+                setDrivingType(opt.id as DrivingType);
+                advanceOnboarding();
+              }}
             />
-            <SummaryCard
-              items={[
-                { label: 'Background access', value: 'Not granted yet' },
-                { label: 'Location access', value: 'Not granted yet' },
-                { label: 'Battery optimization', value: 'Guidance only' },
-              ]}
+          ))}
+        </View>
+      ) : null}
+
+      {step === 'preferred_name' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>What should we call you?</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Optional. Used sparingly—like a calm greeting, not on every card.
+          </Text>
+          <FormField
+            label="Preferred name"
+            value={nameDraft}
+            onChangeText={setNameDraft}
+            placeholder="First name"
+          />
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              setPreferredName(nameDraft.trim() || null);
+              advanceOnboarding();
+            }}
+          />
+          <TertiaryButton
+            label="Skip for now"
+            onPress={() => {
+              setPreferredName(null);
+              skipPreferredName();
+            }}
+          />
+        </View>
+      ) : null}
+
+      {step === 'protection_setup' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            We explain before any system prompt. We never pretend permissions are granted until Android
+            confirms them—and never label unavailable features Ready.
+          </Text>
+          <SoftPanel>
+            <ChecklistRow label="Location permission" status="pending" />
+            <ChecklistRow label="Background location" status="pending" />
+            <ChecklistRow label="Battery optimization" status="planned" />
+            <ChecklistRow label="Notifications" status="planned" />
+            <ChecklistRow label="Tracking engine" status="planned" />
+            <Text style={[text.caption, { marginTop: spacing.sm }]}>
+              Not granted yet—automatic capture is not active in this preview.
+            </Text>
+          </SoftPanel>
+          <StatusCard
+            variant="neutral"
+            title="Your data stays yours"
+            body="Trips live on this device first. Nothing is shared unless you choose to share it."
+            emphasis="subtle"
+          />
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              setProtectionSetupState('educated');
+              advanceOnboarding();
+            }}
+          />
+        </View>
+      ) : null}
+
+      {step === 'next_action' ? (
+        <View>
+          <StatusCard
+            variant="success"
+            title={next.title}
+            body={next.body}
+            emphasis="hero"
+          />
+          <PrimaryButton
+            label={next.cta}
+            onPress={() => finish(true)}
+            accessibilityLabel={next.cta}
+          />
+          <View style={{ marginTop: spacing.sm }}>
+            <SecondaryButton
+              label="Go to Home"
+              onPress={() => finish(false)}
+              accessibilityLabel="Finish onboarding and go to Home"
             />
-            <PrimaryButton label="Go to Home" onPress={finish} accessibilityLabel="Finish onboarding and go to Home" />
           </View>
-        ) : null}
-      </ScrollScreen>
-    </AppScreen>
+        </View>
+      ) : null}
+    </OnboardingScreen>
   );
 }
-
-const cardShell = {
-  backgroundColor: '#FFFFFF',
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: '#E7E5E4',
-  padding: 16,
-};

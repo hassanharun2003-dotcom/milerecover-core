@@ -9,6 +9,7 @@ import { createInitialProductUiState, type ProductUiState } from '../product/typ
 import { createPreviewPersistenceRepository } from '../persistence/AsyncStoragePersistenceRepository';
 import { AppProvider } from '../store/AppContext';
 import { ProductProvider } from '../product/ProductContext';
+import { UpdateProvider } from '../updates/UpdateProvider';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { ReviewScreen } from '../screens/review/ReviewScreen';
 import { ProofScreen } from '../screens/proof/ProofScreen';
@@ -17,6 +18,7 @@ import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
 import { BringExistingMileageScreen } from '../screens/import/BringExistingMileageScreen';
 import { ImportPreviewScreen } from '../screens/import/ImportPreviewScreen';
 import {
+  ComingLaterScreen,
   ExportReportScreen,
   HelpSupportScreen,
   ManualTripScreen,
@@ -24,8 +26,12 @@ import {
   PlanSelectionScreen,
   ProtectionAlertScreen,
   ReportPreviewScreen,
+  TrackingActiveScreen,
   TripDetailsScreen,
+  VehicleSetupScreen,
+  WorkLocationSetupScreen,
 } from '../screens/flows/SupportingScreens';
+import { AboutScreen } from '../screens/about/AboutScreen';
 import type { RootStackParamList, RootTabParamList } from '../navigation/types';
 import { extractVisibleCopy } from './extractText';
 
@@ -39,7 +45,7 @@ function TestProviders({ children, product }: { children: React.ReactNode; produ
     <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>
       <AppProvider repository={createPreviewPersistenceRepository()}>
         <ProductProvider initialState={product} skipHydration>
-          {children}
+          <UpdateProvider>{children}</UpdateProvider>
         </ProductProvider>
       </AppProvider>
     </SafeAreaProvider>
@@ -69,6 +75,7 @@ function MainTabs() {
 export function productStateForScenario(scenario: DemoScenario, extra?: Partial<ProductUiState>): ProductUiState {
   return {
     ...createInitialProductUiState(),
+    demoModeEnabled: true,
     demoScenario: scenario,
     ...extra,
   };
@@ -76,7 +83,12 @@ export function productStateForScenario(scenario: DemoScenario, extra?: Partial<
 
 export async function renderMainTabs(scenario: DemoScenario, extra?: Partial<ProductUiState>) {
   let tree!: TestRenderer.ReactTestRenderer;
-  const initial = { ...createInitialProductUiState(), demoScenario: scenario, ...extra };
+  const initial = {
+    ...createInitialProductUiState(),
+    demoModeEnabled: true,
+    demoScenario: scenario,
+    ...extra,
+  };
   await act(async () => {
     tree = TestRenderer.create(
       <TestProviders product={initial}>
@@ -114,12 +126,17 @@ export async function renderStackScreen(
     TripDetails: TripDetailsScreen,
     MissingTripRecovery: MissingTripRecoveryScreen,
     ProtectionAlert: ProtectionAlertScreen,
+    TrackingActive: TrackingActiveScreen,
     BringExistingMileage: BringExistingMileageScreen,
     ImportPreview: ImportPreviewScreen,
     ExportReport: ExportReportScreen,
     ReportPreview: ReportPreviewScreen,
     PlanSelection: PlanSelectionScreen,
     HelpSupport: HelpSupportScreen,
+    VehicleSetup: VehicleSetupScreen,
+    WorkLocationSetup: WorkLocationSetupScreen,
+    ComingLater: ComingLaterScreen,
+    About: AboutScreen,
   };
   const Component = screens[name as string];
   await act(async () => {
@@ -139,7 +156,12 @@ export async function renderStackScreen(
 
 export async function renderTab(scenario: DemoScenario, tab: keyof RootTabParamList, extra?: Partial<ProductUiState>) {
   let tree!: TestRenderer.ReactTestRenderer;
-  const initial = { ...createInitialProductUiState(), demoScenario: scenario, ...extra };
+  const initial = {
+    ...createInitialProductUiState(),
+    demoModeEnabled: true,
+    demoScenario: scenario,
+    ...extra,
+  };
   await act(async () => {
     tree = TestRenderer.create(
       <TestProviders product={initial}>
@@ -158,14 +180,52 @@ export async function renderTab(scenario: DemoScenario, tab: keyof RootTabParamL
   return { copy: extractVisibleCopy(tree.toJSON()), tree };
 }
 
-export async function renderOnboarding(step: ProductUiState['onboardingStep']) {
+export async function renderOnboarding(
+  step: ProductUiState['onboardingStep'],
+  extra?: Partial<ProductUiState>,
+) {
   let tree!: TestRenderer.ReactTestRenderer;
-  const initial = { ...createInitialProductUiState(), onboardingStep: step };
+  const initial = { ...createInitialProductUiState(), onboardingStep: step, ...extra };
   await act(async () => {
     tree = TestRenderer.create(
       <TestProviders product={initial}>
         <OnboardingFlow />
       </TestProviders>,
+    );
+  });
+  await flushUpdates();
+  return { copy: extractVisibleCopy(tree.toJSON()), tree };
+}
+
+/** Android-like insets for safe-area shell evidence. */
+export async function renderOnboardingWithInsets(
+  step: ProductUiState['onboardingStep'],
+  insets: { top: number; bottom: number; left?: number; right?: number },
+  extra?: Partial<ProductUiState>,
+) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  const initial = { ...createInitialProductUiState(), onboardingStep: step, ...extra };
+  await act(async () => {
+    tree = TestRenderer.create(
+      <SafeAreaProvider
+        initialMetrics={{
+          insets: {
+            top: insets.top,
+            bottom: insets.bottom,
+            left: insets.left ?? 0,
+            right: insets.right ?? 0,
+          },
+          frame: { x: 0, y: 0, width: 360, height: 640 },
+        }}
+      >
+        <AppProvider repository={createPreviewPersistenceRepository()}>
+          <ProductProvider initialState={initial} skipHydration>
+            <UpdateProvider>
+              <OnboardingFlow />
+            </UpdateProvider>
+          </ProductProvider>
+        </AppProvider>
+      </SafeAreaProvider>,
     );
   });
   await flushUpdates();

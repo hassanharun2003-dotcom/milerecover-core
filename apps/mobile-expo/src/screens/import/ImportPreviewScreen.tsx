@@ -10,7 +10,6 @@ import {
   LoadingState,
   PrimaryButton,
   ScrollScreen,
-  SectionHeader,
   SecondaryButton,
   StatusCard,
   SummaryCard,
@@ -33,9 +32,14 @@ export function ImportPreviewScreen() {
   if (product.importPhase === 'processing') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Import preview" />
         <LoadingState message="Organizing your mileage…" />
-        <SecondaryButton label="Cancel import" onPress={() => { setImportPhase('idle'); navigation.goBack(); }} />
+        <SecondaryButton
+          label="Cancel"
+          onPress={() => {
+            setImportPhase('idle');
+            navigation.goBack();
+          }}
+        />
       </ScrollScreen>
     );
   }
@@ -43,13 +47,13 @@ export function ImportPreviewScreen() {
   if (product.importPhase === 'failed') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Import preview" />
         <StatusCard
           variant="danger"
-          title="Import could not finish"
-          body="Your file is still here. Nothing was discarded. Try again or review unsupported rows."
+          title="Import couldn’t finish"
+          body="Your file is still here. Nothing was discarded. Try again or check the rows that need you."
           actionLabel="Try again"
           onAction={() => setImportPhase('processing', product.importFileLabel)}
+          emphasis="hero"
         />
         <SecondaryButton label="Go back" onPress={() => navigation.goBack()} />
       </ScrollScreen>
@@ -68,7 +72,7 @@ export function ImportPreviewScreen() {
             }}
           />
           <SecondaryButton
-            label="Review exceptions"
+            label="Check rows that need you"
             onPress={() => {
               setImportPhase('review_required');
               navigation.navigate('ImportExceptionReview');
@@ -77,29 +81,29 @@ export function ImportPreviewScreen() {
         </View>
       }
     >
-      <SectionHeader title="Import preview" />
       <StatusCard
         variant="success"
-        title="Ready to review"
-        body="Nothing was silently discarded. Unsupported rows stay available for your review."
+        title="Ready when you are"
+        body="Nothing was silently discarded. Unclear rows stay available for a quick look."
+        emphasis="hero"
       />
       <SummaryCard
         items={[
           { label: 'Trips found', value: '214' },
           { label: 'Distance', value: '1,842 mi' },
-          { label: 'Need review', value: '12' },
+          { label: 'Need a look', value: '12' },
         ]}
       />
       <ListSection title="Import details">
         <EvidenceRow label="Selected file" value={product.importFileLabel ?? 'Sample import'} />
         <EvidenceRow label="Date range" value="Jan 1 – Jul 31, 2026" />
         <EvidenceRow label="Vehicles detected" value="2" />
-        <EvidenceRow label="Duplicates handled" value="8 merged safely" />
-        <EvidenceRow label="Rows not understood" value="3 kept for review" />
+        <EvidenceRow label="Duplicates we merged" value="8" />
+        <EvidenceRow label="Rows we couldn’t read" value="3 kept for you" />
       </ListSection>
       <ListSection title="What happens next">
         <ListRow label="Organized trips" value="Ready in Review" />
-        <ListRow label="Unsupported rows" value="Never silently discarded" />
+        <ListRow label="Unclear rows" value="Never silently discarded" />
       </ListSection>
     </ScrollScreen>
   );
@@ -109,14 +113,23 @@ export function ImportExceptionReviewScreen() {
   const navigation = useNavigation<Nav>();
   return (
     <ScrollScreen>
-      <SectionHeader title="Import exceptions" />
+      <StatusCard
+        variant="info"
+        title="Rows to check"
+        body="A few lines weren’t clear. Your call—nothing was thrown away."
+        emphasis="subtle"
+      />
       <SummaryCard items={[{ label: 'Rows to review', value: '3' }]} />
       <ListSection title="Needs your input">
-        <ListRow label="Row 42 · distance unclear" value="Review" onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })} />
+        <ListRow
+          label="Row 42 · distance unclear"
+          value="Review"
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })}
+        />
         <ListRow label="Row 87 · duplicate date" value="Review" />
         <ListRow label="Row 103 · unknown vehicle" value="Review" />
       </ListSection>
-      <PrimaryButton label="Done reviewing" onPress={() => navigation.goBack()} />
+      <PrimaryButton label="Done for now" onPress={() => navigation.goBack()} />
     </ScrollScreen>
   );
 }

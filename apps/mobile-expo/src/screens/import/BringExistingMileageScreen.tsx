@@ -6,9 +6,9 @@ import { spacing } from '@milerecover/config';
 import {
   ImportOptionCard,
   ScrollScreen,
-  SectionHeader,
   StatusCard,
   SummaryCard,
+  TertiaryButton,
 } from '../../design-system';
 import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList } from '../../navigation/types';
@@ -26,18 +26,35 @@ export function BringExistingMileageScreen() {
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Bring your mileage with you" />
       <StatusCard
         variant="info"
-        title="Nothing gets lost"
-        body="Upload a mileage export, spreadsheet, or report. MileRecover organizes what it can and shows you anything that needs review."
+        title="Bring your history with you"
+        body="Upload what you already have. We’ll organize what we can and show you anything that needs a look—nothing disappears quietly."
+        emphasis="hero"
       />
-      <ImportOptionCard title="Mileage export" subtitle="Import from a standard mileage export file" onPress={() => startImport('Mileage export')} />
-      <ImportOptionCard title="Spreadsheet or CSV" subtitle="Upload columns from your existing log" onPress={() => startImport('Spreadsheet.csv')} />
-      <ImportOptionCard title="PDF report" subtitle="Extract trips from a mileage report" onPress={() => startImport('Report.pdf')} />
-      <ImportOptionCard title="Calendar or work schedule" subtitle="Use work blocks to suggest missing drives" onPress={() => startImport('Calendar feed')} />
-      <ImportOptionCard title="Add manually" subtitle="Enter trips one at a time" onPress={() => navigation.navigate('ManualTrip')} />
-      <ImportOptionCard title="Start fresh" subtitle="Begin protecting new drives only" onPress={() => navigation.goBack()} />
+      <ImportOptionCard
+        title="Mileage export"
+        subtitle="From another mileage app"
+        onPress={() => startImport('Mileage export')}
+      />
+      <ImportOptionCard
+        title="Spreadsheet or CSV"
+        subtitle="Your existing log"
+        onPress={() => startImport('Spreadsheet.csv')}
+      />
+      <ImportOptionCard
+        title="PDF report"
+        subtitle="A report you already have"
+        onPress={() => startImport('Report.pdf')}
+      />
+      <View style={styles.tertiary}>
+        <TertiaryButton
+          label="Use calendar suggestions"
+          onPress={() => startImport('Calendar feed')}
+        />
+        <TertiaryButton label="Add drives by hand" onPress={() => navigation.navigate('ManualTrip')} />
+        <TertiaryButton label="Start fresh instead" onPress={() => navigation.goBack()} />
+      </View>
       {product.importFileLabel ? (
         <View style={styles.selected}>
           <SummaryCard items={[{ label: 'Last selected', value: product.importFileLabel }]} />
@@ -49,4 +66,5 @@ export function BringExistingMileageScreen() {
 
 const styles = StyleSheet.create({
   selected: { marginTop: spacing.lg },
+  tertiary: { marginTop: spacing.md, gap: spacing.xs },
 });

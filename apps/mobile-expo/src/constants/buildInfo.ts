@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.1.2-preview.1';
+export const APP_BUILD_LABEL = '0.1.2-preview.4';
 
 /** Shipped via OTA to prove preview channel connectivity. Cursor bumps this for test updates. */
 export const PREVIEW_CHANNEL_MARKER = 'Preview channel connected';

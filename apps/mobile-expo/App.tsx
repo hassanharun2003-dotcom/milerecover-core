@@ -1,4 +1,5 @@
 import React from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from './src/store/AppContext';
@@ -19,6 +20,7 @@ function AppRoot() {
       onRetry={retryRestore}
       onConfirmReset={resetLocalData}
     >
+      <StatusBar style="dark" />
       {!state.onboardingComplete ? (
         <OnboardingFlow />
       ) : (

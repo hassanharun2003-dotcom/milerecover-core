@@ -25,6 +25,8 @@ interface AppContextValue {
   permissions: PermissionSnapshot;
   completeOnboardingStep: (action: 'next' | 'skip_motion') => void;
   finishOnboarding: () => void;
+  /** Clear completion so first-run onboarding shows again (preview / About). */
+  restartOnboarding: () => void;
   retryRestore: () => void;
   resetLocalData: () => void;
 }
@@ -132,6 +134,22 @@ export function AppProvider({ children, repository }: AppProviderProps) {
             ...prev,
             onboardingComplete: true,
             startupPhase: 'ready-with-data' as const,
+          };
+          void persistCurrent(next, permissions);
+          return next;
+        });
+      },
+      restartOnboarding: () => {
+        setState((prev) => {
+          const next = {
+            ...prev,
+            onboardingComplete: false,
+            onboarding: {
+              currentStep: 'welcome' as const,
+              completedSteps: [],
+              skippedMotion: false,
+            },
+            startupPhase: 'ready-empty' as const,
           };
           void persistCurrent(next, permissions);
           return next;
