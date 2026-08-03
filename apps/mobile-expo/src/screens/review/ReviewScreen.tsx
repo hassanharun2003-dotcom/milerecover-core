@@ -1,20 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { motion } from '@milerecover/config';
+import {
+  type RecoveryCandidate,
+  type ReviewItem,
+  type TripRecord,
+} from '@milerecover/domain';
 import {
   EmptyState,
   ReviewCard,
   ReviewedItemCard,
-  ScrollScreen,
-  SectionHeader,
   SegmentedControl,
+  TabScreen,
+  TertiaryButton,
+  UndoSnackbar,
 } from '../../design-system';
-import { selectProductExperience } from '../../product/selectors';
-import { useApp } from '../../store/AppContext';
-import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { selectProductExperience } from '../../product/selectors';
+import { useProduct } from '../../product/ProductContext';
+import type { ReviewDecision, ReviewHistoryEntry } from '../../product/types';
+import { useApp } from '../../store/AppContext';
 
 type ReviewNav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Review'>,
@@ -35,28 +43,108 @@ function decisionLabel(decision: string | null | undefined): string {
 }
 
 function provenanceForItem(kind: string): string {
-  if (kind === 'possible_missing_trip') return 'Suggested recovery';
-  if (kind === 'uncertain_classification') return 'Uncertain route';
-  return 'Needs review';
+  if (kind === 'possible_missing_trip') return 'Possible missing trip';
+  if (kind === 'low_confidence_trip') return 'Low confidence';
+  if (kind === 'conflicted_trip') return 'Conflicted';
+  return 'Needs classification';
+}
+
+function isTripRecord(value: unknown): value is TripRecord {
+  return Boolean(value && typeof value === 'object' && 'distanceMiles' in value && 'startAt' in value);
+}
+
+function isRecoveryCandidate(value: unknown): value is RecoveryCandidate {
+  return Boolean(value && typeof value === 'object' && 'proposedStartAt' in value && 'plainLanguageExplanation' in value);
 }
 
 export function ReviewScreen() {
   const navigation = useNavigation<ReviewNav>();
-  const { state, permissions } = useApp();
-  const { product, setReviewDecision, undoReviewDecision } = useProduct();
-  const experience = selectProductExperience(state, product, permissions);
+  const {
+    state,
+    permissions,
+    automaticCaptureAvailable,
+    classifyTrip,
+    rejectRecovery,
+    restoreTrip,
+    upsertRecovery,
+  } = useApp();
+  const { product, pushReviewHistory, markReviewHistoryUndone } = useProduct();
+  const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const [segment, setSegment] = useState<'needs' | 'reviewed'>('needs');
-
+  const [undoItem, setUndoItem] = useState<ReviewHistoryEntry | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = experience.activeReviewItems;
-  const reviewedIds = product.reviewedHistory;
+  const reviewed = product.reviewHistoryEntries.filter((entry) => !entry.undoneAt);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+    };
+  }, []);
+
+  const showUndo = (entry: ReviewHistoryEntry) => {
+    setUndoItem(entry);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndoItem(null), motion.undoSnackbarMs);
+  };
+
+  const pushDecision = (
+    item: ReviewItem,
+    decision: Exclude<ReviewDecision, null>,
+    previousSnapshot: unknown,
+    targetId: string,
+    targetKind: ReviewHistoryEntry['targetKind'],
+  ) => {
+    const entry: ReviewHistoryEntry = {
+      id: item.id,
+      targetId,
+      targetKind,
+      previousSnapshot,
+      decision,
+      decidedAt: Date.now(),
+      undoneAt: null,
+    };
+    pushReviewHistory(entry);
+    showUndo(entry);
+  };
+
+  const decide = (item: ReviewItem, decision: Exclude<ReviewDecision, null>) => {
+    if (item.kind === 'possible_missing_trip') {
+      const candidate = state.recoveryCandidates.find((recovery) => recovery.id === item.recoveryCandidateId);
+      if (!candidate) return;
+      if (decision === 'work') {
+        navigation.navigate('MissingTripRecovery', { reviewId: item.id });
+        return;
+      }
+      rejectRecovery(candidate.id);
+      pushDecision(item, decision, candidate, candidate.id, 'recovery');
+      return;
+    }
+
+    const trip = state.trips.find((record) => record.id === item.tripId);
+    if (!trip) return;
+    classifyTrip(trip.id, decision);
+    pushDecision(item, decision, trip, trip.id, 'trip');
+  };
+
+  const undo = (entry: ReviewHistoryEntry) => {
+    if (entry.targetKind === 'trip' && isTripRecord(entry.previousSnapshot)) {
+      restoreTrip(entry.previousSnapshot);
+    }
+    if (entry.targetKind === 'recovery' && isRecoveryCandidate(entry.previousSnapshot)) {
+      upsertRecovery(entry.previousSnapshot);
+    }
+    markReviewHistoryUndone(entry.id);
+    setUndoItem(null);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  };
 
   return (
-    <ScrollScreen>
-      <SectionHeader title={`Needs review${pending.length > 0 ? ` · ${pending.length}` : ''}`} />
+    <TabScreen>
       <SegmentedControl
         options={[
-          { label: `Needs review (${pending.length})`, value: 'needs' },
-          { label: `Reviewed (${reviewedIds.length})`, value: 'reviewed' },
+          { label: `Needs you (${pending.length})`, value: 'needs' },
+          { label: `Done (${reviewed.length})`, value: 'reviewed' },
         ]}
         value={segment}
         onChange={setSegment}
@@ -65,9 +153,9 @@ export function ReviewScreen() {
       {segment === 'needs' ? (
         pending.length === 0 ? (
           <EmptyState
-            title="All clear"
-            body="Nothing needs your attention right now. MileRecover will surface uncertain trips here—one decision at a time."
-            actionLabel="Add manual trip"
+            title="Nothing needs a decision."
+            body="Uncertain drives and possible missing trips will appear here before they can enter reports."
+            actionLabel="Add a drive"
             onAction={() => navigation.navigate('ManualTrip')}
           />
         ) : (
@@ -76,38 +164,50 @@ export function ReviewScreen() {
               key={item.id}
               title={item.title}
               subtitle={item.subtitle}
-              distance={item.distanceMiles != null ? `${item.distanceMiles.toFixed(1)} mi approximate` : 'Distance uncertain'}
+              distance={item.distanceMiles != null ? `${item.distanceMiles.toFixed(1)} mi` : 'Distance needed'}
               reason={item.reason}
               provenance={provenanceForItem(item.kind)}
               onPress={() => {
                 if (item.kind === 'possible_missing_trip') {
                   navigation.navigate('MissingTripRecovery', { reviewId: item.id });
                 } else {
-                  navigation.navigate('TripDetails', { tripId: item.id });
+                  navigation.navigate('TripDetails', { tripId: item.tripId });
                 }
               }}
-              onWork={() => setReviewDecision(item.id, 'work')}
-              onPersonal={() => setReviewDecision(item.id, 'personal')}
-              onNotDrive={() => setReviewDecision(item.id, 'not_drive')}
+              onWork={() => decide(item, 'work')}
+              onPersonal={() => decide(item, 'personal')}
+              onNotDrive={() => decide(item, 'not_drive')}
             />
           ))
         )
-      ) : reviewedIds.length === 0 ? (
-        <EmptyState title="No reviewed items yet" body="Decisions you make will appear here with the option to undo." />
+      ) : reviewed.length === 0 ? (
+        <EmptyState
+          title="No decisions yet"
+          body="Choices you make show up here so you can undo if you change your mind."
+        />
       ) : (
-        reviewedIds.map((id) => {
-          const item = experience.scenario.reviewItems.find((r) => r.id === id);
-          return (
-            <ReviewedItemCard
-              key={id}
-              title={item?.title ?? 'Reviewed item'}
-              subtitle={item?.subtitle ?? 'Your decision is saved'}
-              decisionLabel={decisionLabel(product.reviewDecisions[id])}
-              onUndo={() => undoReviewDecision(id)}
-            />
-          );
-        })
+        reviewed.map((entry) => (
+          <ReviewedItemCard
+            key={`${entry.id}-${entry.decidedAt}`}
+            title={entry.targetKind === 'trip' ? 'Reviewed trip' : 'Reviewed recovery'}
+            subtitle={new Date(entry.decidedAt).toLocaleString()}
+            decisionLabel={decisionLabel(entry.decision)}
+            onUndo={() => undo(entry)}
+          />
+        ))
       )}
-    </ScrollScreen>
+
+      {segment === 'needs' && pending.length > 0 ? (
+        <TertiaryButton label="Add a drive" onPress={() => navigation.navigate('ManualTrip')} />
+      ) : null}
+
+      {undoItem ? (
+        <UndoSnackbar
+          message={`Marked as ${decisionLabel(undoItem.decision)}`}
+          onUndo={() => undo(undoItem)}
+          onDismiss={() => setUndoItem(null)}
+        />
+      ) : null}
+    </TabScreen>
   );
 }

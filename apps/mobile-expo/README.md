@@ -118,6 +118,14 @@ cd ios && pod install && cd ..
 npm run ios
 ```
 
+## Preview install (standalone APK)
+
+Internal testers: install once from the GitHub prerelease (no login), then receive JS/UI updates via the `preview` OTA channel.
+
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.2/MileRecover-preview-0.1.2.apk
+
+Full workflow, fingerprints, and OTA IDs: [docs/PREVIEW_UPDATE_WORKFLOW.md](../../docs/PREVIEW_UPDATE_WORKFLOW.md).
+
 ## Validation
 
 ```bash

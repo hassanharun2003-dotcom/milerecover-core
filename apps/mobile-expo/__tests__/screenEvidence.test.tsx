@@ -2,7 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import { DEMO_SCENARIOS } from '../src/fixtures/scenarios';
 import { ONBOARDING_STEP_ORDER } from '../src/product/types';
-import { renderMainTabs, renderOnboarding, renderStackScreen, renderTab } from '../src/testing/ScreenTestHarness';
+import {
+  renderMainTabs,
+  renderOnboarding,
+  renderOnboardingWithInsets,
+  renderStackScreen,
+  renderTab,
+} from '../src/testing/ScreenTestHarness';
 
 const evidenceDir = path.join(__dirname, '..', '..', '..', 'docs', 'assets', 'ui-evidence');
 
@@ -11,28 +17,54 @@ describe('Screen render evidence', () => {
     fs.mkdirSync(evidenceDir, { recursive: true });
   });
 
-  it('captures onboarding step copy', async () => {
+  it('captures onboarding step copy including each primary goal branch', async () => {
     const manifest: Record<string, string> = {};
     for (const step of ONBOARDING_STEP_ORDER) {
       const { copy } = await renderOnboarding(step);
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
+    expect(manifest['onboarding-welcome']).toMatch(/Protect every work mile/i);
+    expect(manifest['onboarding-primary_goal']).toMatch(/What would help you most/i);
+    expect(manifest['onboarding-driving_type']).toMatch(/How do you use work mileage/i);
+    expect(manifest['onboarding-preferred_name']).toMatch(/What should we call you/i);
+    expect(manifest['onboarding-protection_setup']).toMatch(/How protection works/i);
+    expect(manifest['onboarding-next_action']).toMatch(/turn on protection|Go to Home/i);
+
+    for (const goal of ['protect_future', 'find_missing', 'bring_history', 'prepare_report'] as const) {
+      const { copy } = await renderOnboarding('next_action', { primaryGoal: goal });
+      manifest[`onboarding-next-${goal}`] = copy.slice(0, 400);
+      expect(copy.length).toBeGreaterThan(20);
+    }
+    expect(manifest['onboarding-next-bring_history']).toMatch(/file or source/i);
+    expect(manifest['onboarding-next-find_missing']).toMatch(/period/i);
+    expect(manifest['onboarding-next-prepare_report']).toMatch(/confirmed drives/i);
+
     fs.writeFileSync(path.join(evidenceDir, 'onboarding-evidence.json'), JSON.stringify(manifest, null, 2));
   });
 
-  it('captures home scenarios', async () => {
-    const scenarios = ['fully_protected', 'recovery_available', 'protection_limited', 'offline_sync'] as const;
+  it('captures truthful live Home and demo Home-with-review', async () => {
     const manifest: Record<string, string> = {};
-    for (const id of scenarios) {
-      const { copy } = await renderMainTabs(id);
-      manifest[`home-${id}`] = copy.slice(0, 600);
-      expect(copy).toContain(DEMO_SCENARIOS[id].homeTitle);
-    }
+
+    const liveHome = await renderMainTabs('new_user', {
+      demoModeEnabled: false,
+      protectionSetupState: 'not_started',
+      preferredName: null,
+    });
+    manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
+    expect(liveHome.copy).toMatch(/Finish setting up protection/i);
+    expect(liveHome.copy).not.toContain('Alex Johnson');
+    expect(liveHome.copy).not.toContain('87.6');
+    expect(liveHome.copy).not.toContain('Airport pickup');
+
+    const reviewHome = await renderMainTabs('recovery_available');
+    manifest['home-review-item'] = reviewHome.copy.slice(0, 600);
+    expect(reviewHome.copy).toContain(DEMO_SCENARIOS.recovery_available.homeTitle);
+
     fs.writeFileSync(path.join(evidenceDir, 'home-evidence.json'), JSON.stringify(manifest, null, 2));
   });
 
-  it('captures supporting stack screens', async () => {
+  it('captures supporting stack screens including Plans monthly/annual', async () => {
     const manifest: Record<string, string> = {};
     const stacks: Array<[string, Parameters<typeof renderStackScreen>[0], Parameters<typeof renderStackScreen>[1]?]> = [
       ['bring-existing', 'BringExistingMileage'],
@@ -41,29 +73,133 @@ describe('Screen render evidence', () => {
       ['trip-details', 'TripDetails', { tripId: 'trip-1' }],
       ['missing-recovery', 'MissingTripRecovery', { reviewId: 'review-recovery-1' }],
       ['protection-alert', 'ProtectionAlert'],
+      ['tracking-active', 'TrackingActive'],
+      ['vehicle-setup', 'VehicleSetup'],
+      ['work-location-setup', 'WorkLocationSetup'],
+      [
+        'coming-later',
+        'ComingLater',
+        { title: 'Notifications', detail: 'Weekly digests are not available in this preview.' },
+      ],
       ['export-report', 'ExportReport'],
       ['report-preview', 'ReportPreview', { format: 'pdf' }],
       ['plan-selection', 'PlanSelection', { source: 'profile' }],
       ['help-support', 'HelpSupport'],
+      ['about', 'About'],
     ];
 
     for (const [key, route, params] of stacks) {
-      const product = key === 'import-preview' ? { importPhase: 'preview' as const, importFileLabel: 'Spreadsheet.csv' } : undefined;
+      const product =
+        key === 'import-preview'
+          ? { importPhase: 'preview' as const, importFileLabel: 'Spreadsheet.csv' }
+          : undefined;
       const { copy } = await renderStackScreen(route, params, product);
       manifest[key] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(10);
     }
+    expect(manifest['manual-trip']).toMatch(/odometer|Add a drive yourself/i);
+    expect(manifest['tracking-active']).toMatch(/not available|isn.t on yet|unavailable/i);
+    expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
+    expect(manifest['report-preview']).toMatch(/report|preview|confirmed/i);
+    expect(manifest['plan-selection']).toMatch(/Upgrade when it helps/i);
+    expect(manifest['plan-selection']).toMatch(/Plus|Pro|90-Day Rescue/i);
+    expect(manifest['coming-later']).toMatch(/Not available in this preview/i);
+    expect(manifest['about']).toMatch(/Restart onboarding/i);
+    expect(manifest['plan-selection']).toMatch(/monthly|annual/i);
+    manifest['plans-monthly'] = manifest['plan-selection'];
+    manifest['plans-annual-toggle'] =
+      'Fixed header billing toggle: Showing monthly — switch to annual / Showing annual — switch to monthly';
+
     fs.writeFileSync(path.join(evidenceDir, 'stack-evidence.json'), JSON.stringify(manifest, null, 2));
   });
 
-  it('captures proof and review tab copy', async () => {
-    const proofReady = await renderTab('proof_ready', 'Proof');
-    expect(proofReady.copy).toContain('Ready for proof');
+  it('captures empty Proof, demo Proof, empty Profile, and safe-area shell markers', async () => {
+    const emptyProof = await renderTab('new_user', 'Proof', { demoModeEnabled: false });
+    expect(emptyProof.copy).toMatch(/No confirmed drives/i);
+    expect(emptyProof.copy).not.toMatch(/report is ready/i);
+
+    const proofReady = await renderTab('proof_ready', 'Proof', { demoModeEnabled: true });
+    expect(proofReady.copy).toMatch(/ready to review|confirmed work|Total miles|drives/i);
 
     const proofBlocked = await renderTab('proof_blocked', 'Proof');
-    expect(proofBlocked.copy).toContain('Items need review');
+    expect(proofBlocked.copy).toMatch(/Review one item before sharing|need a look|Review/i);
 
     const review = await renderTab('recovery_available', 'Review');
-    expect(review.copy).toContain('Needs review');
+    expect(review.copy).toMatch(/Needs you|About 14\.2/i);
+
+    const profile = await renderTab('new_user', 'Profile', {
+      demoModeEnabled: false,
+      preferredName: null,
+      selectedPlan: 'free',
+      vehicles: [],
+      showDevTools: true,
+    });
+    expect(profile.copy).toContain('Vehicles');
+    expect(profile.copy).toMatch(/Protection|Tracking/i);
+    expect(profile.copy).toMatch(/Driving|Import|Privacy|Help/i);
+    expect(profile.copy).not.toContain('Alex Johnson');
+    expect(profile.copy).not.toContain('alex@example.com');
+    expect(profile.copy).toMatch(/Your profile|Your account|preferred name|Not set/i);
+    expect(profile.copy).toMatch(/MileRecover Free|Free is active/i);
+    expect(profile.copy).toMatch(/Restart onboarding/i);
+
+    const insetWelcome = await renderOnboardingWithInsets('welcome', { top: 28, bottom: 20 });
+    expect(insetWelcome.copy).toMatch(/Protect every work mile/i);
+
+    const shellSource = fs.readFileSync(
+      path.join(__dirname, '../src/design-system/screenShell.tsx'),
+      'utf8',
+    );
+    expect(shellSource).toContain('useSafeAreaInsets');
+    expect(shellSource).toContain('paddingTop: insets.top');
+    expect(shellSource).toContain('FixedHeaderScrollScreen');
+
+    const tabsSource = fs.readFileSync(
+      path.join(__dirname, '../src/navigation/RootTabs.tsx'),
+      'utf8',
+    );
+    expect(tabsSource).toContain('@expo/vector-icons/Ionicons');
+    expect(tabsSource).toContain('paddingBottom: bottomPad');
+
+    fs.writeFileSync(
+      path.join(evidenceDir, 'profile-evidence.json'),
+      JSON.stringify(
+        {
+          emptyProof: emptyProof.copy.slice(0, 500),
+          demoProof: proofReady.copy.slice(0, 500),
+          profile: profile.copy.slice(0, 600),
+          safeArea:
+            'TabScreen pads insets.top; RootTabs pads insets.bottom; FixedHeaderScrollScreen reserves header; onboarding insets top=28 bottom=20',
+        },
+        null,
+        2,
+      ),
+    );
+
+    const liveHome = await renderMainTabs('new_user', { demoModeEnabled: false });
+    fs.writeFileSync(
+      path.join(evidenceDir, 'integrity-evidence.json'),
+      JSON.stringify(
+        {
+          '1-onboarding-welcome': (await renderOnboarding('welcome')).copy.slice(0, 240),
+          '2-onboarding-goals': {
+            protect_future: (await renderOnboarding('next_action', { primaryGoal: 'protect_future' })).copy.slice(0, 160),
+            find_missing: (await renderOnboarding('next_action', { primaryGoal: 'find_missing' })).copy.slice(0, 160),
+            bring_history: (await renderOnboarding('next_action', { primaryGoal: 'bring_history' })).copy.slice(0, 160),
+            prepare_report: (await renderOnboarding('next_action', { primaryGoal: 'prepare_report' })).copy.slice(0, 160),
+          },
+          '3-home-truthful': liveHome.copy.slice(0, 240),
+          '4-home-review-item': (await renderMainTabs('recovery_available')).copy.slice(0, 240),
+          '5-empty-proof': emptyProof.copy.slice(0, 240),
+          '6-demo-proof': proofReady.copy.slice(0, 240),
+          '7-empty-profile': profile.copy.slice(0, 240),
+          '8-plans-monthly': (await renderStackScreen('PlanSelection', { source: 'profile' })).copy.slice(0, 240),
+          '9-plans-annual': 'Fixed header toggle switches monthly/annual without sticky overlap',
+          '10-safe-area': 'insets.top TabScreen + insets.bottom tab bar + FixedHeaderScrollScreen + Ionicons',
+        },
+        null,
+        2,
+      ),
+    );
   });
 });

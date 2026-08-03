@@ -1,4 +1,5 @@
 import React from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from './src/store/AppContext';
@@ -6,7 +7,7 @@ import { ProductProvider } from './src/product/ProductContext';
 import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { StartupGate } from './src/components/StartupGate';
-
+import { ManualTripMigration } from './src/components/ManualTripMigration';
 import { UpdateProvider } from './src/updates/UpdateProvider';
 
 function AppRoot() {
@@ -19,6 +20,8 @@ function AppRoot() {
       onRetry={retryRestore}
       onConfirmReset={resetLocalData}
     >
+      <StatusBar style="dark" />
+      <ManualTripMigration />
       {!state.onboardingComplete ? (
         <OnboardingFlow />
       ) : (

@@ -2,7 +2,7 @@
  * Dynamic Expo config — APP_VARIANT selects dev-client vs standalone preview/production.
  * Set via EAS build profile env (development | preview | production).
  *
- * Verified Android preview upgrade: version/runtime 0.1.2, package com.milerecover.app.
+ * RC preview: version/runtime 0.1.3 adds location, document picker, sharing, print native modules.
  * Keep this file free of TypeScript type annotations — Expo evaluates it as JS on CI.
  * Standalone preview/production exclude expo-dev-client via eas-build-pre-install.
  */
@@ -18,7 +18,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.1.2',
+  version: '0.1.3',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -30,6 +30,13 @@ const config = {
   ios: {
     bundleIdentifier: 'com.milerecover.app',
     supportsTablet: true,
+    infoPlist: {
+      NSLocationWhenInUseUsageDescription:
+        'MileRecover uses your location while you use the app to help protect work drives when automatic capture is available.',
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        'MileRecover can use background location to protect work drives when you enable protection. You can change this anytime in Settings.',
+      UIBackgroundModes: ['location'],
+    },
   },
   android: {
     package: 'com.milerecover.app',
@@ -37,8 +44,29 @@ const config = {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundColor: '#E8F3ED',
     },
+    permissions: [
+      'ACCESS_COARSE_LOCATION',
+      'ACCESS_FINE_LOCATION',
+      'ACCESS_BACKGROUND_LOCATION',
+      'FOREGROUND_SERVICE',
+      'FOREGROUND_SERVICE_LOCATION',
+    ],
   },
-  plugins: IS_DEV_CLIENT ? ['expo-dev-client'] : [],
+  plugins: [
+    ...(IS_DEV_CLIENT ? ['expo-dev-client'] : []),
+    'expo-sharing',
+    [
+      'expo-location',
+      {
+        locationAlwaysAndWhenInUsePermission:
+          'Allow MileRecover to use your location to protect work drives when automatic capture is available.',
+        locationWhenInUsePermission:
+          'Allow MileRecover to use your location while you use the app to protect work drives.',
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
+      },
+    ],
+  ],
   runtimeVersion: {
     policy: 'appVersion',
   },

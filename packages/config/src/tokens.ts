@@ -64,7 +64,11 @@ export const colors = {
 export const spacing = {
   xs: 4,
   sm: 8,
+  /** Design Spacing.md space-3 */
+  smMd: 12,
   md: 16,
+  /** Design Spacing.md space-5 */
+  mdLg: 20,
   lg: 24,
   xl: 32,
   xxl: 48,
@@ -97,6 +101,18 @@ export const typography = {
     title: 28,
     headline: 34,
   },
+  /** Prefer for miles, scores, and version numbers */
+  tabularNums: ['tabular-nums'] as const,
+} as const;
+
+/** Restrained motion tokens — pair with Reduce Motion on device later */
+export const motion = {
+  duration: {
+    fast: 120,
+    base: 200,
+    slow: 320,
+  },
+  undoSnackbarMs: 4000,
 } as const;
 
 export const touchTarget = {
@@ -127,6 +143,6 @@ export const iconSize = {
   lg: 28,
 } as const;
 
-export const tokens = { colors, spacing, radii, typography, touchTarget, shadows, iconSize };
+export const tokens = { colors, spacing, radii, typography, touchTarget, shadows, iconSize, motion };
 
 export type ThemeTokens = typeof tokens;

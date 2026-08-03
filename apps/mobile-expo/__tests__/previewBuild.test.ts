@@ -35,12 +35,13 @@ describe('Verified Android preview build a0fcf6cd configuration', () => {
 
   it('ships package com.milerecover.app and version/runtime 0.1.2', () => {
     expect(APP_PACKAGE_ID).toBe('com.milerecover.app');
-    expect(APP_VERSION).toBe('0.1.2');
-    expect(APP_BUILD_LABEL).toBe('0.1.2-preview.1');
+    expect(APP_VERSION).toBe('0.1.3');
+    expect(APP_BUILD_LABEL).toBe('0.1.3-rc.1');
     expect(appConfigSource).toContain("package: 'com.milerecover.app'");
     expect(appConfigSource).toContain("bundleIdentifier: 'com.milerecover.app'");
-    expect(appConfigSource).toContain("version: '0.1.2'");
+    expect(appConfigSource).toContain("version: '0.1.3'");
     expect(appConfigSource).toContain("policy: 'appVersion'");
+    expect(appConfigSource).toContain('expo-location');
   });
 
   it('enables preview autoIncrement and standalone preview behavior', () => {
@@ -48,7 +49,7 @@ describe('Verified Android preview build a0fcf6cd configuration', () => {
     expect(eas.build.preview.channel).toBe('preview');
     expect(eas.build.preview.env?.APP_VARIANT).toBe('preview');
     expect(isStandaloneBuild('preview')).toBe(true);
-    expect(appConfigSource).toContain("plugins: IS_DEV_CLIENT ? ['expo-dev-client'] : []");
+    expect(appConfigSource).toContain("'expo-dev-client'");
     expect(appConfigSource).toContain('enabled: !IS_DEV_CLIENT');
   });
 
