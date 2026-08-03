@@ -1,17 +1,17 @@
 {
-  "1-onboarding-welcome": "Your miles. Protected. Nothing left behind. MileRecover protects future drives, helps recover missed mileage, and prepares records you can explain. ✓ 12.4 mi Protect my miles Bring existing mileage",
+  "1-onboarding-welcome": "Your miles. Protected. Nothing left behind. Capture, recover, review, and prove your work mileage — without inventing anything. ✓ 12.4 mi Protect my miles Bring existing mileage",
   "2-onboarding-goals": {
-    "employee_reimbursement": "Back Your setup Goal: Employee reimbursement Pain points: 0 Driving: Not set Vehicles: 0 Work places: 0 Protection: Can be enabled later Next, turn on protectio",
-    "gig_delivery": "Back Your setup Goal: Gig or delivery driving Pain points: 0 Driving: Not set Vehicles: 0 Work places: 0 Protection: Can be enabled later Next, turn on protecti",
-    "self_employed_business": "Back Your setup Goal: Self-employed or business Pain points: 0 Driving: Not set Vehicles: 0 Work places: 0 Protection: Can be enabled later Next, add or confirm",
-    "mixed": "Back Your setup Goal: A mix of these Pain points: 0 Driving: Not set Vehicles: 0 Work places: 0 Protection: Can be enabled later Next, choose a file or source Y"
+    "employee_reimbursement": "Back You’re ready Your reimbursement record is ready to begin. Employee reimbursement · Not set Go to Home Turn on watching",
+    "gig_delivery": "Back You’re ready You’re ready to protect your first work shift. Gig or delivery driving · Not set Go to Home Turn on watching",
+    "self_employed_business": "Back You’re ready Your business mileage record is ready. Self-employed or business · Not set Go to Home Add a drive",
+    "mixed": "Back You’re ready You’re set. Home will show what to do next. A mix of these · Not set Go to Home Bring mileage"
   },
-  "3-home-truthful": "Protect your first work drive Manually logged work drives stay in your Free record. Plus adds automatic capture after a real store trial or purchase. Add a drive PROTECTION Setup Not finished Background access Off Automatic capture Availabl",
-  "4-home-review-item": "One drive may need a look Your phone was quiet for part of this stretch. Ten seconds and you’re done. Review drive PROTECTION Setup Not finished Background access Off Automatic capture Available This week Miles kept 28.4 Miles found 0.0 Rea",
-  "5-empty-proof": "Week Month Prev. month YTD No confirmed drives in this period Proof uses only confirmed work drives from the selected period. Pending, personal, and rejected drives stay out. Add a drive Current period 2026 year to date. 0 unresolved item(s",
-  "6-demo-proof": "Week Month Prev. month YTD Your records are ready to review 2026 year to date 3 drives 58.0 miles — none open Preview report TOTALS Confirmed work drives 3 Total miles 58.0 mi Manual miles 0.0 mi Imported miles 0.0 mi Recovered miles 0.0 mi",
-  "7-empty-profile": "Your profile Add a preferred name anytime. MileRecover FREE Status: free. Source: default. Manage plan PROFILE Preferred name Not set › Primary goal Not set › Pain points Not set › Driving pattern Not set › Report style mileage report DRIVI",
-  "8-plans-monthly": "Upgrade when it helps. Current plan: FREE ( free ). No paid plan is granted unless the store verifies it. Showing monthly - switch to annual Plan status Free is active. Paid access requires a real store purchase. Start 7-day Plus trial Then",
+  "3-home-truthful": "Protect your first work drive Add a work drive anytime. Plus can watch future drives automatically. Add a drive Recent Nothing recorded yet Your first real drive will show up here. We’re never inventing miles. ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ",
+  "4-home-review-item": "One drive may need a look Your phone was quiet for part of this stretch. Ten seconds and you’re done. Review drive This week Miles kept 28.4 Miles found 0.0 Ready to share 22.1 Recent Might have missed a drive Tuesday afternoon · quick look",
+  "5-empty-proof": "Week Month Prev. month YTD No work drives in this period yet Only drives you’ve marked as work show up here. Pending and personal stays out. Add a drive This period 2026 year to date. All reviewed. They stay out of the report until you deci",
+  "6-demo-proof": "Week Month Prev. month YTD Your mileage report is ready 2026 year to date 3 drives 58.0 miles — none open Preview report TOTALS Confirmed work drives 3 Total miles 58.0 mi Manual miles 0.0 mi Imported miles 0.0 mi Recovered miles 0.0 mi EXP",
+  "7-empty-profile": "Your profile Add a preferred name anytime. You’re on Free Upgrade anytime when watching or PDF reports would help. Manage plan PROFILE Preferred name Not set › Primary goal Not set › What gets in the way Not set › Driving pattern Not set › ",
+  "8-plans-monthly": "Keep the protection that already helped. Current: Free . Purchases confirm in Google Play or the App Store. Monthly Annual Recommended Plus Never lose another reimbursable mile. $8.99 / month • Everyday coverage for every work drive • Catch",
   "9-plans-annual": "Fixed header toggle switches monthly/annual without sticky overlap",
   "10-safe-area": "insets.top TabScreen + insets.bottom tab bar + FixedHeaderScrollScreen + Ionicons"
 }

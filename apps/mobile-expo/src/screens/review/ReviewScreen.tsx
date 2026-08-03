@@ -43,10 +43,10 @@ function decisionLabel(decision: string | null | undefined): string {
 }
 
 function provenanceForItem(kind: string): string {
-  if (kind === 'possible_missing_trip') return 'Possible missing trip';
-  if (kind === 'low_confidence_trip') return 'Low confidence';
-  if (kind === 'conflicted_trip') return 'Conflicted';
-  return 'Needs classification';
+  if (kind === 'possible_missing_trip') return 'Possible missing drive';
+  if (kind === 'low_confidence_trip') return 'Not sure about this one';
+  if (kind === 'conflicted_trip') return 'Details don’t match';
+  return 'Needs a quick decision';
 }
 
 function isTripRecord(value: unknown): value is TripRecord {
@@ -153,8 +153,8 @@ export function ReviewScreen() {
       {segment === 'needs' ? (
         pending.length === 0 ? (
           <EmptyState
-            title="Nothing needs a decision."
-            body="Uncertain drives and possible missing trips will appear here before they can enter reports."
+            title="You’re caught up"
+            body="We’ll let you know when something needs attention. Nothing uncertain enters a report until you decide."
             actionLabel="Add a drive"
             onAction={() => navigation.navigate('ManualTrip')}
           />
@@ -182,14 +182,14 @@ export function ReviewScreen() {
         )
       ) : reviewed.length === 0 ? (
         <EmptyState
-          title="No decisions yet"
+          title="Nothing reviewed yet"
           body="Choices you make show up here so you can undo if you change your mind."
         />
       ) : (
         reviewed.map((entry) => (
           <ReviewedItemCard
             key={`${entry.id}-${entry.decidedAt}`}
-            title={entry.targetKind === 'trip' ? 'Reviewed trip' : 'Reviewed recovery'}
+            title={entry.targetKind === 'trip' ? 'Drive you reviewed' : 'Possible drive you reviewed'}
             subtitle={new Date(entry.decidedAt).toLocaleString()}
             decisionLabel={decisionLabel(entry.decision)}
             onUndo={() => undo(entry)}

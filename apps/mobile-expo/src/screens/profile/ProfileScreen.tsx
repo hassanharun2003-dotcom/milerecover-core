@@ -45,7 +45,7 @@ export function ProfileScreen() {
 
   useEffect(() => {
     void getTrackingDiagnostics().then(setDiagnostics);
-  }, [product.trackingEnabled]);
+  }, [product.trackingEnabled, product.entitlement.planId]);
 
   return (
     <TabScreen>
@@ -59,8 +59,18 @@ export function ProfileScreen() {
       </View>
 
       <MembershipBanner
-        planName={`MileRecover ${product.entitlement.planId.toUpperCase()}`}
-        detail={`Status: ${product.entitlement.status}. Source: ${product.entitlement.source}.`}
+        planName={
+          product.entitlement.planId === 'free'
+            ? 'You’re on Free'
+            : `MileRecover ${product.entitlement.planId.toUpperCase()}`
+        }
+        detail={
+          product.entitlement.status === 'trialActive'
+            ? 'Plus trial is active.'
+            : product.entitlement.planId === 'free'
+              ? 'Upgrade anytime when watching or PDF reports would help.'
+              : 'Purchases confirm in the App Store or Google Play.'
+        }
       />
       <SecondaryButton
         label="Manage plan"
@@ -70,7 +80,7 @@ export function ProfileScreen() {
       <ListSection title="Profile">
         <ListRow label="Preferred name" value={product.preferredName?.trim() || 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow label="Primary goal" value={primaryGoal ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
-        <ListRow label="Pain points" value={product.selectedPainPoints.length ? String(product.selectedPainPoints.length) : 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="What gets in the way" value={product.selectedPainPoints.length ? String(product.selectedPainPoints.length) : 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow label="Driving pattern" value={drivingType ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow label="Report style" value={voice.reportNoun} showChevron={false} />
       </ListSection>
@@ -78,25 +88,25 @@ export function ProfileScreen() {
       <ListSection title="Driving">
         <ListRow
           label="Vehicles"
-          value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'None'}
+          value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add anytime'}
           onPress={() => navigation.navigate('VehicleSetup')}
         />
         <ListRow
-          label="Work places"
-          value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'None'}
+          label="Familiar places"
+          value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}
           onPress={() => navigation.navigate('WorkLocationSetup')}
         />
       </ListSection>
 
       <ListSection title="Records">
         <ListRow
-          label="Protection education"
+          label="Coverage setup"
           value={protectionLabel(product.protectionSetupState)}
           onPress={() => navigation.navigate('ProtectionAlert')}
         />
         <ListRow
-          label="Tracking status"
-          value={diagnostics?.engineState ?? (product.trackingEnabled ? 'enabled' : 'off')}
+          label="Watching status"
+          value={product.trackingEnabled ? 'On' : 'Off'}
           onPress={() => navigation.navigate('TrackingActive')}
         />
         <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
@@ -105,8 +115,14 @@ export function ProfileScreen() {
 
       <StatusCard
         variant={product.trackingEnabled && diagnostics?.backgroundLimited ? 'warning' : 'neutral'}
-        title="Protection diagnostics"
-        body={`Foreground: ${permissions.location}. Background: ${permissions.backgroundLocation}. Engine: ${diagnostics?.engineState ?? 'unknown'}. Capture runtime: ${automaticCaptureAvailable ? 'available' : 'unavailable'}. Samples: ${diagnostics?.sampleCount ?? 0}.`}
+        title="Coverage status"
+        body={
+          product.trackingEnabled && permissions.location === 'granted' && permissions.backgroundLocation === 'granted'
+            ? 'Protected — watching is on.'
+            : product.trackingEnabled || permissions.location === 'granted'
+              ? 'Partially protected — one permission or plan step may still help.'
+              : `Not yet — add drives anytime. Auto-tracking ${automaticCaptureAvailable ? 'is ready when you turn watching on with Plus.' : 'isn’t available on this device yet.'}`
+        }
         emphasis="subtle"
       />
 

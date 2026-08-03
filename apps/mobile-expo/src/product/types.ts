@@ -221,7 +221,7 @@ export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: strin
   { id: 'employee_reimbursement', label: 'Employee reimbursement', body: 'Share clear records with work.' },
   { id: 'gig_delivery', label: 'Gig or delivery driving', body: 'Protect shifts and earnings records.' },
   { id: 'self_employed_business', label: 'Self-employed or business', body: 'Keep client and tax-ready logs.' },
-  { id: 'mixed', label: 'A mix of these', body: 'Neutral work-driving language.' },
+  { id: 'mixed', label: 'A mix of these', body: 'I do more than one of these.' },
 ];
 
 export const PAIN_POINT_OPTIONS: { id: PainPoint; label: string }[] = [

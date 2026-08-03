@@ -120,8 +120,8 @@ describe('Locked product experience', () => {
 
 describe('Onboarding personalization', () => {
   it('adapts next action by primary goal', () => {
-    expect(nextActionForGoal('employee_reimbursement').title).toMatch(/turn on protection/i);
-    expect(nextActionForGoal('mixed').title).toMatch(/file or source/i);
+    expect(nextActionForGoal('employee_reimbursement').title).toMatch(/turn on watching|turn on protection/i);
+    expect(nextActionForGoal('mixed').title).toMatch(/bring what you already have|file or source/i);
   });
 
   it('adapts voice by driving pattern', () => {
@@ -147,7 +147,7 @@ describe('Onboarding honesty', () => {
       require('path').join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(source).toMatch(/Not granted|not available|unavailable/i);
+    expect(source).toMatch(/Not turned on yet|not available|isn’t available|unavailable/i);
     expect(source).not.toMatch(/status=\"ready\"/);
   });
 });

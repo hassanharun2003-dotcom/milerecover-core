@@ -62,32 +62,32 @@ export function nextActionCopy(action: NextActionId): NextActionCopy {
     case 'begin_rescue':
       return {
         id: action,
-        title: 'Next, look for recoverable mileage',
-        body: 'Start with a period you remember driving. We will help you review quiet stretches without inventing miles.',
+        title: 'Look for recoverable mileage',
+        body: 'Start with a period you remember driving. Nothing is added without your confirmation.',
         cta: 'Start recovery',
         route: 'MissingTripRecovery',
       };
     case 'import_mileage':
       return {
         id: action,
-        title: 'Next, choose a file or source',
-        body: 'Bring what you already have. We will organize what we can and show anything that needs review.',
+        title: 'Bring what you already have',
+        body: 'We’ll organize what we can and show anything that needs a quick look.',
         cta: 'Bring mileage',
         route: 'BringExistingMileage',
       };
     case 'add_workplace':
       return {
         id: action,
-        title: 'Next, add a regular work place',
-        body: 'A simple label can make routine drives easier to recognize and explain later.',
-        cta: 'Add work place',
+        title: 'Add a regular place',
+        body: 'A simple label makes routine drives easier to recognize later.',
+        cta: 'Add a place',
         route: 'ProtectionAlert',
       };
     case 'add_first_drive':
       return {
         id: action,
-        title: 'Next, add or confirm a drive',
-        body: 'A report needs confirmed work drives first. Add one now or import history when you are ready.',
+        title: 'Add your first drive',
+        body: 'A few taps. Enter the miles you know — we won’t invent a route.',
         cta: 'Add a drive',
         route: 'ManualTrip',
       };
@@ -95,9 +95,9 @@ export function nextActionCopy(action: NextActionId): NextActionCopy {
     default:
       return {
         id: 'start_protection',
-        title: 'Next, turn on protection',
-        body: 'One step remains before MileRecover can watch future drives. We will explain each permission first.',
-        cta: 'Continue setup',
+        title: 'Turn on watching',
+        body: 'So future drives aren’t missed. We’ll explain each permission first.',
+        cta: 'Turn on watching',
         route: 'ProtectionAlert',
       };
   }
@@ -123,9 +123,9 @@ export function secondaryHomeActionForGoal(goal: MileageGoal | null): {
 } | null {
   switch (goal) {
     case 'employee_reimbursement':
-      return { label: 'Prepare a reimbursement report', route: 'Proof' };
+      return { label: 'See your report', route: 'Proof' };
     case 'gig_delivery':
-      return { label: 'Check protection', route: 'ProtectionAlert' };
+      return { label: 'Add a delivery drive', route: 'ManualTrip' };
     case 'self_employed_business':
       return { label: 'Add a business drive', route: 'ManualTrip' };
     case 'mixed':
@@ -140,13 +140,29 @@ export function protectionLabel(state: ProtectionSetupState): string {
     case 'healthy':
       return 'Watching';
     case 'configured':
-      return 'Configured';
+      return 'Ready';
     case 'limited':
       return 'Needs attention';
     case 'educated':
       return 'Not finished';
     default:
       return 'Not set up';
+  }
+}
+
+export function tripSourceLabel(source: string): string {
+  switch (source) {
+    case 'manual':
+      return 'Added by you';
+    case 'recovered':
+      return 'Recovered';
+    case 'imported':
+      return 'Imported';
+    case 'automatic':
+    case 'auto':
+      return 'Tracked';
+    default:
+      return source;
   }
 }
 

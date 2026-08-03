@@ -125,7 +125,7 @@ export function ProofScreen() {
     setMessage(null);
     setError(null);
     if (!capabilities.canUseStandardPdf) {
-      setError('Standard PDF reports are included with Plus after a real store purchase or trial. CSV remains available on Free.');
+      setError('PDF reports come with Plus. CSV stays free.');
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
@@ -144,15 +144,15 @@ export function ProofScreen() {
       {report.tripCount === 0 ? (
         <>
           <EmptyState
-            title="No confirmed drives in this period"
-            body="Proof uses only confirmed work drives from the selected period. Pending, personal, and rejected drives stay out."
+            title="No work drives in this period yet"
+            body="Only drives you’ve marked as work show up here. Pending and personal stays out."
             actionLabel="Add a drive"
             onAction={() => navigation.navigate('ManualTrip')}
           />
           <StatusCard
             variant="neutral"
-            title="Current period"
-            body={`${period.label}. ${report.unresolvedCount} unresolved item(s) are excluded.`}
+            title="This period"
+            body={`${period.label}. ${report.unresolvedCount === 0 ? 'All reviewed.' : `${report.unresolvedCount} still need a look.`} They stay out of the report until you decide.`}
             emphasis="subtle"
           />
         </>
@@ -163,7 +163,7 @@ export function ProofScreen() {
             tripCount={report.tripCount}
             totalMiles={report.totalMiles.toFixed(1)}
             unresolved={String(report.unresolvedCount)}
-            title="Your records are ready to review"
+            title="Your mileage report is ready"
             onPreview={() => navigation.navigate('ReportPreview', { format: 'reimbursement' })}
           />
           {message ? <StatusCard variant="success" title="Export" body={message} emphasis="subtle" /> : null}

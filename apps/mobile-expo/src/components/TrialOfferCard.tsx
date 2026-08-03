@@ -3,8 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { capabilitiesForEntitlement, shouldOfferTrial } from '@milerecover/domain';
 import { colors, radii, shadows, spacing } from '@milerecover/config';
 import {
-  PrimaryButton,
   SecondaryButton,
+  TertiaryButton,
   text,
 } from '../design-system';
 import { useProduct } from '../product/ProductContext';
@@ -39,18 +39,18 @@ export function TrialOfferCard({
     <View
       style={styles.card}
       accessibilityRole="summary"
-      accessibilityLabel="Try Plus for the next drives"
+      accessibilityLabel="Keep this protection running with Plus"
     >
-      <Text style={text.subtitle}>Try Plus for the next drives</Text>
+      <Text style={text.subtitle}>You’re getting real value</Text>
       <Text style={[text.body, { marginTop: spacing.xs }]}>
-        You saved a real work drive. Plus can add automatic capture and gap checks once billing is configured.
+        You saved a real work drive. Keep this protection running with Plus — automatic watching and missing-drive checks.
       </Text>
       <Text style={[text.caption, { marginTop: spacing.sm }]}>
         {trialRenewalCopy(product.entitlement.monthlyPriceLocalized, product.entitlement.trialEndsAt)}
       </Text>
       <View style={styles.actions}>
-        <PrimaryButton label="Start 7-day Plus trial" onPress={onStartTrial} />
-        <SecondaryButton label="Not now" onPress={dismissTrialOfferSession} />
+        <SecondaryButton label="Try Plus free for 7 days" onPress={onStartTrial} />
+        <TertiaryButton label="Not now" onPress={dismissTrialOfferSession} />
       </View>
     </View>
   );

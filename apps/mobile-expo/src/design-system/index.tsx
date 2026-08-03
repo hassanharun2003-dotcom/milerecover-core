@@ -497,7 +497,7 @@ export function PlanCard({
 }) {
   return (
     <View style={[cardBase, styles.planCard, highlighted && styles.planHighlighted]}>
-      {highlighted ? <Badge label="Most chosen" variant="info" /> : null}
+      {highlighted ? <Badge label="Recommended" variant="info" /> : null}
       {current ? <Badge label="Your plan" variant="success" /> : null}
       <Text style={[text.subtitle, { marginTop: spacing.xs }]}>{name}</Text>
       {tagline ? (
@@ -517,7 +517,7 @@ export function PlanCard({
       ))}
       <View style={{ marginTop: spacing.md }}>
         <PrimaryButton
-          label={current ? `${name} selected` : `Choose ${name}`}
+          label={current ? 'Current plan' : highlighted ? `Choose ${name}` : `Choose ${name}`}
           onPress={onSelect}
           disabled={current}
         />

@@ -7,7 +7,7 @@ import {
 } from '@milerecover/domain';
 import { DEMO_SCENARIOS, type ScenarioPresentation } from '../fixtures/scenarios';
 import type { MileRecoverAppState } from '../store/types';
-import { secondaryHomeActionForGoal, voiceForDrivingType } from './copy';
+import { secondaryHomeActionForGoal, tripSourceLabel, voiceForDrivingType } from './copy';
 import type { ProductUiState, ReviewDecision } from './types';
 
 export interface ProductExperience {
@@ -55,35 +55,35 @@ function buildLiveScenario(
   let proofBlockReason: string | null = null;
 
   if (trackingDegraded) {
-    homeTitle = 'Protection needs attention';
+    homeTitle = 'Watching needs a quick fix';
     homeDetail = capabilities.canUseAutomaticCapture
-      ? 'Tracking is enabled, but permissions or background access are not ready. Saved records stay put.'
-      : 'Tracking is enabled, but automatic capture is not included in the current plan.';
-    primaryAction = 'Fix protection';
+      ? 'Location isn’t fully allowed, so some drives may be missed. Your saved miles stay put.'
+      : 'Watching is on, but automatic capture needs Plus. Your saved miles stay put.';
+    primaryAction = 'Fix watching';
     primaryActionRoute = 'ProtectionAlert';
     homeState = 'protection_limited';
     proofBlockReason = pending.length ? 'Review one item before sharing.' : null;
   } else if (pending.length > 0) {
     homeTitle = pending.length === 1 ? 'One drive needs you' : `${pending.length} drives need you`;
-    homeDetail = 'About ten seconds to confirm each one.';
-    primaryAction = 'Review drive';
+    homeDetail = 'About ten seconds each.';
+    primaryAction = 'Review now';
     primaryActionRoute = 'Review';
     homeState = 'recovery_available';
     proofBlockReason = 'Review one item before sharing.';
-  } else if (recoveredMiles > 0) {
-    homeTitle = 'Recovered mileage is saved';
-    homeDetail = `${recoveredMiles.toFixed(1)} recovered miles are now in your confirmed work record.`;
+  } else if (recoveredMiles > 0 && confirmedMiles > 0) {
+    homeTitle = 'We found mileage worth keeping';
+    homeDetail = `${recoveredMiles.toFixed(1)} recovered miles are in your work record.`;
     primaryAction = 'Preview report';
     primaryActionRoute = 'Proof';
     homeState = 'healthy';
-    proofReady = confirmedMiles > 0;
-    proofBlockReason = proofReady ? null : 'Confirm work drives before sharing.';
+    proofReady = true;
+    proofBlockReason = null;
   } else if (confirmedMiles > 0) {
-    homeTitle = 'Your report is ready';
+    homeTitle = 'Your mileage report is ready';
     homeDetail =
       confirmed.length === 1
-        ? 'One confirmed work drive is ready to preview.'
-        : `${confirmed.length} confirmed work drives are ready to preview.`;
+        ? 'One work drive is ready to preview.'
+        : `${confirmed.length} work drives are ready to preview.`;
     primaryAction = 'Preview report';
     primaryActionRoute = 'Proof';
     homeState = 'healthy';
@@ -91,19 +91,19 @@ function buildLiveScenario(
     proofBlockReason = null;
   } else if (automaticCaptureAllowed && locationOk && backgroundOk) {
     homeTitle = 'You’re covered today';
-    homeDetail = 'Automatic capture is enabled and permissions are ready.';
+    homeDetail = 'We’re quietly watching for new work drives.';
     primaryAction = null;
     homeState = 'healthy';
-    proofBlockReason = 'No confirmed drives yet.';
+    proofBlockReason = 'Add or confirm a work drive first.';
   } else {
     homeTitle = 'Protect your first work drive';
     homeDetail = capabilities.canUseAutomaticCapture
-      ? 'Start protection for automatic capture, or add a drive yourself in a few taps.'
-      : `Manually logged ${voice.workNoun} drives stay in your Free record. Plus adds automatic capture after a real store trial or purchase.`;
+      ? 'Turn on watching, or add a drive yourself in a few taps.'
+      : `Add a ${voice.workNoun} drive anytime. Plus can watch future drives automatically.`;
     primaryAction = 'Add a drive';
     primaryActionRoute = 'ManualTrip' as ScenarioPresentation['primaryActionRoute'];
     homeState = 'healthy';
-    proofBlockReason = 'No confirmed drives yet.';
+    proofBlockReason = 'Add or confirm a work drive first.';
   }
 
   if (pending.length === 0 && confirmedMiles > 0) {
@@ -115,7 +115,7 @@ function buildLiveScenario(
     id: t.id,
     kind: 'drive_recorded' as const,
     title: t.purpose ?? 'Saved a drive',
-    subtitle: `${t.distanceMiles.toFixed(1)} mi · ${t.source}`,
+    subtitle: `${t.distanceMiles.toFixed(1)} mi · ${tripSourceLabel(t.source)}`,
     timestamp: t.endAt ?? t.startAt,
   }));
 

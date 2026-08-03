@@ -8,7 +8,6 @@ import { spacing } from '@milerecover/config';
 import { capabilitiesForEntitlement } from '@milerecover/domain';
 import {
   Badge,
-  EvidenceRow,
   OfflineBanner,
   PrimaryButton,
   SecondaryButton,
@@ -59,6 +58,24 @@ function activityBadge(kind: ActivityEventKind): string | null {
   return null;
 }
 
+function coverageSummary(
+  productState: string,
+  location: string,
+  background: string,
+  watchingOn: boolean,
+): { title: string; body: string } {
+  if (watchingOn && location === 'granted' && background === 'granted') {
+    return { title: 'Protected', body: 'We’re quietly watching.' };
+  }
+  if (watchingOn || location === 'granted') {
+    return { title: 'Partially protected', body: 'One quick step can finish setup.' };
+  }
+  if (productState === 'not_started' || productState === 'educated') {
+    return { title: 'Not yet', body: 'Add a drive anytime — or turn on watching when you’re ready.' };
+  }
+  return { title: 'Ready', body: 'Your saved miles stay on this device.' };
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
@@ -68,6 +85,12 @@ export function HomeScreen() {
   const { scenario, secondaryAction, liveMode } = experience;
   const greeting = greetingForName(product.preferredName);
   const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const coverage = coverageSummary(
+    product.protectionSetupState,
+    permissions.location,
+    permissions.backgroundLocation,
+    product.trackingEnabled && capabilities.canUseAutomaticCapture,
+  );
 
   useEffect(() => {
     const route = consumePendingPostOnboardingRoute();
@@ -131,6 +154,20 @@ export function HomeScreen() {
     scenario.weekSummary.recoveredMiles > 0 ||
     scenario.weekSummary.milesReadyForProof > 0;
 
+  const secondaryConflictsWithPrimary =
+    Boolean(scenario.primaryAction) &&
+    secondaryAction != null &&
+    (secondaryAction.route === scenario.primaryActionRoute ||
+      (scenario.primaryActionRoute === 'ProtectionAlert' && secondaryAction.route === 'ProtectionAlert') ||
+      (scenario.primaryActionRoute === 'ManualTrip' && secondaryAction.route === 'ManualTrip'));
+
+  const showSecondary = secondaryAction != null && !secondaryConflictsWithPrimary;
+  const showTrial =
+    liveMode &&
+    experience.confirmedTrips.length > 0 &&
+    scenario.homeState !== 'protection_limited' &&
+    scenario.primaryActionRoute !== 'Review';
+
   return (
     <TabScreen>
       {greeting ? (
@@ -140,7 +177,7 @@ export function HomeScreen() {
       ) : null}
 
       {scenario.homeState === 'offline' ? (
-        <OfflineBanner body="Your miles are safe on this device. Sync resumes when you are back online." />
+        <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
       ) : null}
 
       <StatusCard
@@ -152,32 +189,17 @@ export function HomeScreen() {
         emphasis="hero"
       />
 
-      <TrialOfferCard onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })} />
+      {showTrial ? (
+        <TrialOfferCard onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })} />
+      ) : null}
 
-      <SoftPanel>
-        <Text style={[text.caption, { marginBottom: spacing.sm }]}>PROTECTION</Text>
-        <EvidenceRow
-          label="Setup"
-          value={
-            product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated'
-              ? 'Not finished'
-              : product.protectionSetupState === 'limited'
-                ? 'Needs attention'
-                : 'Configured'
-          }
-        />
-        <EvidenceRow
-          label="Background access"
-          value={
-            permissions.backgroundLocation === 'granted'
-              ? 'On'
-              : permissions.location === 'granted'
-                ? 'Limited'
-                : 'Off'
-          }
-        />
-        <EvidenceRow label="Automatic capture" value={automaticCaptureAvailable ? 'Available' : 'Not available in this RC'} />
-      </SoftPanel>
+      {scenario.homeState === 'protection_limited' || !scenario.primaryAction ? (
+        <SoftPanel>
+          <Text style={[text.caption, { marginBottom: spacing.xs }]}>COVERAGE</Text>
+          <Text style={text.subtitle}>{coverage.title}</Text>
+          <Text style={[text.body, { marginTop: spacing.xs }]}>{coverage.body}</Text>
+        </SoftPanel>
+      ) : null}
 
       {showWeekSummary ? (
         <>
@@ -199,7 +221,7 @@ export function HomeScreen() {
         <StatusCard
           variant="neutral"
           title="Nothing recorded yet"
-          body="When a real drive is saved - or you add one - it shows up here. We never invent miles."
+          body="Your first real drive will show up here. We’re never inventing miles."
           emphasis="subtle"
         />
       ) : (
@@ -222,17 +244,17 @@ export function HomeScreen() {
         ))
       )}
 
-      {secondaryAction ? (
+      {showSecondary ? (
         <View style={{ marginTop: spacing.md }}>
           {scenario.primaryAction ? (
-            <SecondaryButton label={secondaryAction.label} onPress={handleSecondary} />
+            <SecondaryButton label={secondaryAction!.label} onPress={handleSecondary} />
           ) : (
-            <PrimaryButton label={secondaryAction.label} onPress={handleSecondary} />
+            <PrimaryButton label={secondaryAction!.label} onPress={handleSecondary} />
           )}
         </View>
       ) : null}
 
-      {liveMode && scenario.activity.length === 0 && !scenario.primaryAction && !secondaryAction ? (
+      {liveMode && scenario.activity.length === 0 && !scenario.primaryAction && !showSecondary ? (
         <View style={{ marginTop: spacing.md }}>
           <PrimaryButton
             label="Add a drive"

@@ -25,22 +25,22 @@ describe('Screen render evidence', () => {
       expect(copy.length).toBeGreaterThan(20);
     }
     expect(manifest['onboarding-welcome']).toMatch(/Your miles\. Protected\. Nothing left behind/i);
-    expect(manifest['onboarding-primary_goal']).toMatch(/What would help you most/i);
-    expect(manifest['onboarding-pain_points']).toMatch(/What gets in the way/i);
-    expect(manifest['onboarding-driving_pattern']).toMatch(/How do you use work mileage/i);
+    expect(manifest['onboarding-primary_goal']).toMatch(/What do you need MileRecover to protect/i);
+    expect(manifest['onboarding-pain_points']).toMatch(/What usually causes the most trouble/i);
+    expect(manifest['onboarding-driving_pattern']).toMatch(/How do your work drives look/i);
     expect(manifest['onboarding-preferred_name']).toMatch(/What should we call you/i);
     expect(manifest['onboarding-protection_education']).toMatch(/How protection works/i);
-    expect(manifest['onboarding-permissions_education']).toMatch(/Permissions for automatic capture/i);
-    expect(manifest['onboarding-ready']).toMatch(/turn on protection|Go to Home|Next/i);
+    expect(manifest['onboarding-permissions_education']).toMatch(/Let MileRecover watch|watch future drives/i);
+    expect(manifest['onboarding-ready']).toMatch(/Go to Home|You’re ready|Turn on watching/i);
 
     for (const goal of ['employee_reimbursement', 'gig_delivery', 'self_employed_business', 'mixed'] as const) {
       const { copy } = await renderOnboarding('ready', { primaryGoal: goal });
       manifest[`onboarding-next-${goal}`] = copy.slice(0, 400);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-next-mixed']).toMatch(/file or source/i);
-    expect(manifest['onboarding-next-gig_delivery']).toMatch(/turn on protection/i);
-    expect(manifest['onboarding-next-self_employed_business']).toMatch(/business records|confirmed work|Add a drive/i);
+    expect(manifest['onboarding-next-mixed']).toMatch(/Bring mileage|bring what you already have|file or source/i);
+    expect(manifest['onboarding-next-gig_delivery']).toMatch(/Turn on watching|turn on protection/i);
+    expect(manifest['onboarding-next-self_employed_business']).toMatch(/business mileage|Add a drive|business records/i);
 
     fs.writeFileSync(path.join(evidenceDir, 'onboarding-evidence.json'), JSON.stringify(manifest, null, 2));
   });
@@ -101,14 +101,14 @@ describe('Screen render evidence', () => {
       manifest[key] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(10);
     }
-    expect(manifest['manual-trip']).toMatch(/I only know the distance|Add a drive yourself/i);
-    expect(manifest['tracking-active']).toMatch(/Automatic protection is off|Plan capability|Protection is enabled/i);
+    expect(manifest['manual-trip']).toMatch(/Add a drive|Miles|Work or personal/i);
+    expect(manifest['tracking-active']).toMatch(/Watching is off|Watching is on|Watching needs Plus|Are you protected/i);
     expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
-    expect(manifest['report-preview']).toMatch(/report|preview|confirmed/i);
-    expect(manifest['plan-selection']).toMatch(/Upgrade when it helps/i);
+    expect(manifest['report-preview']).toMatch(/report|preview|work drive/i);
+    expect(manifest['plan-selection']).toMatch(/Keep the protection|Upgrade when it helps|Current:/i);
     expect(manifest['plan-selection']).toMatch(/Plus|Pro|90-Day Rescue/i);
-    expect(manifest['edit-setup']).toMatch(/Adjust setup|Primary goal/i);
-    expect(manifest['privacy']).toMatch(/Privacy and data|local-first/i);
+    expect(manifest['edit-setup']).toMatch(/Update your answers|Adjust setup|Primary goal/i);
+    expect(manifest['privacy']).toMatch(/Privacy and data|local-first|Local-first/i);
     expect(manifest['coming-later']).toMatch(/Not available in this preview/i);
     expect(manifest['about']).toMatch(/Restart onboarding/i);
     expect(manifest['plan-selection']).toMatch(/monthly|annual/i);
@@ -121,7 +121,7 @@ describe('Screen render evidence', () => {
 
   it('captures empty Proof, demo Proof, empty Profile, and safe-area shell markers', async () => {
     const emptyProof = await renderTab('new_user', 'Proof', { demoModeEnabled: false });
-    expect(emptyProof.copy).toMatch(/No confirmed drives/i);
+    expect(emptyProof.copy).toMatch(/No work drives in this period|No confirmed drives/i);
     expect(emptyProof.copy).not.toMatch(/report is ready/i);
 
     const proofReady = await renderTab('proof_ready', 'Proof', { demoModeEnabled: true });
@@ -141,12 +141,12 @@ describe('Screen render evidence', () => {
       showDevTools: true,
     });
     expect(profile.copy).toContain('Vehicles');
-    expect(profile.copy).toMatch(/Protection|Tracking/i);
+    expect(profile.copy).toMatch(/Coverage|Watching|Protection|Tracking/i);
     expect(profile.copy).toMatch(/Driving|Import|Privacy|Help/i);
     expect(profile.copy).not.toContain('Alex Johnson');
     expect(profile.copy).not.toContain('alex@example.com');
     expect(profile.copy).toMatch(/Your profile|Your account|preferred name|Not set/i);
-    expect(profile.copy).toMatch(/MileRecover FREE|Status: free/i);
+    expect(profile.copy).toMatch(/You’re on Free|MileRecover FREE|Status: free/i);
     expect(profile.copy).toMatch(/Restart onboarding/i);
 
     const insetWelcome = await renderOnboardingWithInsets('welcome', { top: 28, bottom: 20 });

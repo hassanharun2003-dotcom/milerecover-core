@@ -39,8 +39,8 @@ export function EditSetupScreen() {
     <StackScrollScreen>
       <StatusCard
         variant="info"
-        title="Adjust setup"
-        body="These answers personalize copy and next actions. Editing them does not restart onboarding or remove any records."
+        title="Update your answers"
+        body="This only changes how MileRecover talks to you — your drives stay. Change anything anytime."
         emphasis="subtle"
       />
 
@@ -65,8 +65,8 @@ export function EditSetupScreen() {
         />
       ))}
 
-      <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>Pain points</Text>
-      <Text style={[text.body, { marginBottom: spacing.sm }]}>Keep at least one selected for setup completeness.</Text>
+      <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>What gets in the way</Text>
+      <Text style={[text.body, { marginBottom: spacing.sm }]}>Change these anytime.</Text>
       {PAIN_POINT_OPTIONS.map((option) => (
         <SelectionCard
           key={option.id}

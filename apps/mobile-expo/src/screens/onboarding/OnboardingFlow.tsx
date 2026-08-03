@@ -28,10 +28,10 @@ import { CarRouteHero } from '../../components/CarRouteHero';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 
 function permissionStatusLabel(status: string): string {
-  if (status === 'granted') return 'Granted';
-  if (status === 'denied') return 'Denied';
-  if (status === 'restricted') return 'Open Settings';
-  return 'Not asked yet';
+  if (status === 'granted') return 'On';
+  if (status === 'denied') return 'Off';
+  if (status === 'restricted') return 'Open Settings to change';
+  return 'Not turned on yet';
 }
 
 function makeLocalId(prefix: string): string {
@@ -44,18 +44,18 @@ function optionLabel<T extends string>(options: { id: T; label: string }[], id: 
 
 function readyBody(goal: typeof PRIMARY_GOAL_OPTIONS[number]['id'] | null, pains: PainPoint[]): string {
   if (pains.includes('older_mileage')) {
-    return 'We will help you catch up older mileage with review-first recovery. Nothing gets added without your confirmation.';
+    return 'You’re ready to bring older miles back together — nothing is added without your say-so.';
   }
   if (goal === 'employee_reimbursement') {
-    return 'Your setup is ready for clean reimbursement records and future work-drive protection.';
+    return 'Your reimbursement record is ready to begin.';
   }
   if (goal === 'gig_delivery') {
-    return 'Your setup is ready for delivery shifts, missed-drive review, and earnings-friendly mileage records.';
+    return 'You’re ready to protect your first work shift.';
   }
   if (goal === 'self_employed_business') {
-    return 'Your setup is ready for client drives and business records you can explain later.';
+    return 'Your business mileage record is ready.';
   }
-  return 'Your setup is ready. Start with the next action that best protects your miles.';
+  return 'You’re set. Home will show what to do next.';
 }
 
 export function OnboardingFlow() {
@@ -180,10 +180,8 @@ export function OnboardingFlow() {
 
   const protectionPanels = useMemo(
     () => [
-      ['No fake miles', 'Manual entries, imports, and recovery suggestions require real details or your review.'],
-      ['You decide work vs personal', 'MileRecover can surface a drive, but reports use only confirmed work drives.'],
-      ['Local-first records', 'Your setup and trips are saved on this device first. You choose what to export.'],
-      ['Tracking is controlled by you', 'Automatic capture starts only when you enable tracking and permissions allow it.'],
+      ['A drive happens', 'MileRecover can quietly notice movement when you turn watching on.'],
+      ['You stay in control', 'Anything uncertain waits in Review. We never invent miles or silently decide work vs personal.'],
     ],
     [],
   );
@@ -205,7 +203,7 @@ export function OnboardingFlow() {
             Your miles. Protected. Nothing left behind.
           </Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            MileRecover protects future drives, helps recover missed mileage, and prepares records you can explain.
+            Capture, recover, review, and prove your work mileage — without inventing anything.
           </Text>
           <CarRouteHero />
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
@@ -232,10 +230,10 @@ export function OnboardingFlow() {
       {step === 'primary_goal' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>
-            What would help you most right now?
+            What do you need MileRecover to protect?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            One selection is enough. We will use it to choose your next step.
+            Tap one. You can change this later in Profile.
           </Text>
           {PRIMARY_GOAL_OPTIONS.map((opt) => (
             <SelectionCard
@@ -254,9 +252,9 @@ export function OnboardingFlow() {
 
       {step === 'pain_points' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>What gets in the way?</Text>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>What usually causes the most trouble?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Pick at least one. This helps MileRecover decide what to show first.
+            Tap anything that sounds familiar. One is enough to continue.
           </Text>
           {PAIN_POINT_OPTIONS.map((opt) => (
             <SelectionCard
@@ -276,9 +274,9 @@ export function OnboardingFlow() {
 
       {step === 'driving_pattern' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>How do you use work mileage?</Text>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>How do your work drives look?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            This changes how MileRecover talks - and what a report is for.
+            This helps us use the right words. Tap one.
           </Text>
           {DRIVING_PATTERN_OPTIONS.map((opt) => (
             <SelectionCard
@@ -298,7 +296,7 @@ export function OnboardingFlow() {
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>What should we call you?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Optional. Used sparingly - like a calm greeting, not on every card.
+            Optional. We’ll only use this occasionally inside MileRecover and on reports you choose to create.
           </Text>
           <FormField
             label="Preferred name"
@@ -325,25 +323,19 @@ export function OnboardingFlow() {
 
       {step === 'vehicle_setup' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>Add a vehicle?</Text>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>Which vehicle carries your work miles?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Optional. A vehicle nickname can make reports easier to read later.
+            Skip is fine. You can add one from Profile anytime.
           </Text>
           {vehicleMode === 'choice' ? (
             <>
               <SelectionCard
-                title="Add a vehicle"
-                body="One vehicle is enough to start."
+                title="Add my vehicle"
+                body="Optional — helps reports stay clear."
                 selected={false}
                 onPress={() => setVehicleMode('form')}
               />
-              <SelectionCard
-                title="I use more than one"
-                body="Add the first now. You can add another before continuing."
-                selected={false}
-                onPress={() => setVehicleMode('form')}
-              />
-              <TertiaryButton label="Skip vehicle" onPress={skipVehicleSetup} />
+              <PrimaryButton label="Skip for now" onPress={skipVehicleSetup} />
             </>
           ) : (
             <>
@@ -389,12 +381,7 @@ export function OnboardingFlow() {
                 onPress={() => saveVehicle(true)}
                 disabled={!vehicleMake || !vehicleModel}
               />
-              <SecondaryButton
-                label="Save and add another"
-                onPress={() => saveVehicle(false)}
-                disabled={!vehicleMake || !vehicleModel}
-              />
-              <TertiaryButton label="Skip vehicle" onPress={skipVehicleSetup} />
+              <TertiaryButton label="Skip for now" onPress={skipVehicleSetup} />
             </>
           )}
         </View>
@@ -402,9 +389,9 @@ export function OnboardingFlow() {
 
       {step === 'familiar_places' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>Any regular work places?</Text>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>Places you visit often make review faster</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Optional. Saved places can help explain routine work drives without sharing anything automatically.
+            Optional. Nothing is saved until you tap Continue. You can add more later in Profile.
           </Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.md }}>
             {[
@@ -422,15 +409,15 @@ export function OnboardingFlow() {
               />
             ))}
           </View>
-          <FormField label="Label" value={workLabel} onChangeText={setWorkLabel} placeholder="Office" />
+          <FormField label="Name" value={workLabel} onChangeText={setWorkLabel} placeholder="Office" />
           <FormField
-            label="Address"
+            label="Address or area"
             value={workAddress}
             onChangeText={setWorkAddress}
-            placeholder="Street, city"
+            placeholder="Street, city, or neighborhood"
           />
-          <PrimaryButton label="Save work place" onPress={saveWorkPlace} />
-          <TertiaryButton label="Skip work place" onPress={skipWorkPlaceSetup} />
+          <PrimaryButton label="Continue" onPress={saveWorkPlace} />
+          <TertiaryButton label="Skip for now" onPress={skipWorkPlaceSetup} />
         </View>
       ) : null}
 
@@ -438,7 +425,7 @@ export function OnboardingFlow() {
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            MileRecover saves observed location samples only when you enable tracking. It never marks a drive as work until you confirm it.
+            You stay in control. MileRecover can suggest, but it never silently decides uncertain drives or invents mileage.
           </Text>
           <CarRouteHero compact />
           {protectionPanels.map(([title, body]) => (
@@ -463,41 +450,40 @@ export function OnboardingFlow() {
 
       {step === 'permissions_education' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>Permissions for automatic capture</Text>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>Let MileRecover watch future drives</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            We explain before any system prompt. We never mark a permission ready until the device says it is granted.
+            We’ll ask one permission at a time. You can continue even if you say not now — change this anytime in Settings.
           </Text>
           <SoftPanel>
-            <Text style={text.body}>Foreground location: {permissionStatusLabel(permissions.location)}</Text>
-            <Text style={text.body}>Background location: {permissionStatusLabel(permissions.backgroundLocation)}</Text>
-            <Text style={text.body}>Tracking engine: {automaticCaptureAvailable ? 'Available when plan allows' : 'Unavailable in this build'}</Text>
+            <Text style={text.body}>While using the app: {permissionStatusLabel(permissions.location)}</Text>
+            <Text style={text.body}>In the background: {permissionStatusLabel(permissions.backgroundLocation)}</Text>
             <Text style={[text.caption, { marginTop: spacing.sm }]}>
-              Foreground capture can work with location permission. Background capture may stay limited if the device
-              or build does not allow it.
+              Location while using the app is enough to start. Background helps catch drives when the app isn’t open.
+              {automaticCaptureAvailable ? '' : ' Auto-tracking isn’t available on this device yet.'}
             </Text>
           </SoftPanel>
           <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
             <PrimaryButton
-              label={requestedForeground ? 'Foreground requested' : 'Request foreground location'}
+              label={requestedForeground ? 'Asked — check the system prompt' : 'Allow location while using the app'}
               onPress={() => {
                 setRequestedForeground(true);
                 void requestLocationPermission();
               }}
             />
             <SecondaryButton
-              label={requestedBackground ? 'Background requested' : 'Request background location'}
+              label={requestedBackground ? 'Asked — check the system prompt' : 'Allow location in the background'}
               onPress={() => {
                 setRequestedBackground(true);
                 void requestBackgroundPermission();
               }}
               disabled={!requestedForeground && !foregroundReady}
-              accessibilityLabel="Request background location permission"
+              accessibilityLabel="Allow location in the background"
             />
           </View>
           <StatusCard
             variant="neutral"
-            title="You can change this later"
-            body="You can continue now and enable tracking after setup."
+            title="You can finish without this"
+            body="Manual drives and imports still work. Turn watching on later from Home or Profile."
             emphasis="subtle"
           />
           <PrimaryButton
@@ -511,31 +497,27 @@ export function OnboardingFlow() {
 
       {step === 'ready' ? (
         <View>
-          <SoftPanel>
-            <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Your setup</Text>
-            <Text style={text.body}>Goal: {PRIMARY_GOAL_OPTIONS.find((g) => g.id === product.primaryGoal)?.label ?? 'Protect future drives'}</Text>
-            <Text style={text.body}>Pain points: {product.selectedPainPoints.length}</Text>
-            <Text style={text.body}>Driving: {optionLabel(DRIVING_PATTERN_OPTIONS, product.drivingType)}</Text>
-            <Text style={text.body}>Vehicles: {product.vehicles.length}</Text>
-            <Text style={text.body}>Work places: {product.workLocations.length}</Text>
-            <Text style={text.body}>Protection: {foregroundReady ? 'Permission path started' : 'Can be enabled later'}</Text>
-          </SoftPanel>
           <StatusCard
             variant="success"
-            title={next.title}
-            body={`${readyBody(product.primaryGoal, product.selectedPainPoints)} ${next.body}`}
+            title="You’re ready"
+            body={readyBody(product.primaryGoal, product.selectedPainPoints)}
             emphasis="hero"
           />
+          <Text style={[text.caption, { marginBottom: spacing.md }]}>
+            {PRIMARY_GOAL_OPTIONS.find((g) => g.id === product.primaryGoal)?.label ?? 'Your miles'}
+            {' · '}
+            {optionLabel(DRIVING_PATTERN_OPTIONS, product.drivingType)}
+          </Text>
           <PrimaryButton
-            label={next.cta}
-            onPress={() => finish(true)}
-            accessibilityLabel={next.cta}
+            label="Go to Home"
+            onPress={() => finish(false)}
+            accessibilityLabel="Finish onboarding and go to Home"
           />
           <View style={{ marginTop: spacing.sm }}>
             <SecondaryButton
-              label="Go to Home"
-              onPress={() => finish(false)}
-              accessibilityLabel="Finish onboarding and go to Home"
+              label={next.cta}
+              onPress={() => finish(true)}
+              accessibilityLabel={next.cta}
             />
           </View>
         </View>

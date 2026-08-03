@@ -250,8 +250,8 @@ export function ManualTripScreen() {
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title={existing ? 'Edit this drive' : 'Add a drive yourself'}
-        body="Use what you know. MileRecover will not invent route distance from labels or familiar places."
+        title={existing ? 'Edit this drive' : 'Add a drive'}
+        body="Enter the miles you know. We won’t invent a route."
         emphasis="subtle"
       />
       <ListSection title="When">
@@ -287,23 +287,17 @@ export function ManualTripScreen() {
       </ListSection>
 
       <ListSection title="Distance">
+        <FormField label="Miles" value={distance} onChangeText={setDistance} placeholder="0.0" />
         <SelectionCard
-          title="I only know the distance"
-          body="Enter the miles you know. This is the default path."
-          selected={distanceMode === 'distance'}
-          onPress={() => setDistanceMode('distance')}
-        />
-        <SelectionCard
-          title="Use familiar place labels"
-          body="Labels can explain the drive, but you still enter the mileage."
+          title="Add start & end labels"
+          body="Optional. Helps explain the drive — you still enter the miles."
           selected={distanceMode === 'places'}
-          onPress={() => setDistanceMode('places')}
+          onPress={() => setDistanceMode(distanceMode === 'places' ? 'distance' : 'places')}
         />
-        <FormField label="Distance (miles)" value={distance} onChangeText={setDistance} placeholder="0.0" />
         {distanceMode === 'places' ? (
           <>
-            <FormField label="Start label" value={startLabel} onChangeText={setStartLabel} placeholder="Home" />
-            <FormField label="End label" value={endLabel} onChangeText={setEndLabel} placeholder="Client office" />
+            <FormField label="Start" value={startLabel} onChangeText={setStartLabel} placeholder="Home" />
+            <FormField label="End" value={endLabel} onChangeText={setEndLabel} placeholder="Client office" />
             {product.workLocations.map((location) => (
               <View key={location.id} style={{ marginBottom: spacing.sm }}>
                 <SecondaryButton label={`Start: ${location.label}`} onPress={() => setStartLabel(location.label)} />
@@ -331,21 +325,21 @@ export function ManualTripScreen() {
         ) : null}
       </ListSection>
 
-      <ListSection title="Classification">
+      <ListSection title="Work or personal?">
         <SegmentedControl
           value={classification}
           onChange={setClassification}
           options={[
             { label: 'Work', value: 'work' },
             { label: 'Personal', value: 'personal' },
-            { label: 'Decide later', value: 'later' },
+            { label: 'Later', value: 'later' },
           ]}
         />
       </ListSection>
 
       <SelectionCard
-        title="Add details or evidence"
-        body="Optional vehicle, notes, and evidence method."
+        title="More details"
+        body="Optional vehicle, notes, and how you know the miles."
         selected={showDetails}
         onPress={() => setShowDetails((value) => !value)}
       />
@@ -364,8 +358,8 @@ export function ManualTripScreen() {
               ))}
             </ListSection>
           ) : null}
-          <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional details" />
-          <ListSection title="Evidence">
+          <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional" />
+          <ListSection title="How you know the miles">
             {EVIDENCE_OPTIONS.map((option) => (
               <SelectionCard
                 key={option.id}
@@ -380,7 +374,7 @@ export function ManualTripScreen() {
       ) : null}
       {error ? <FormError message={error} /> : null}
       <PrimaryButton label={existing ? 'Save changes' : 'Save drive'} onPress={save} />
-      {existing ? <DestructiveButton label="Delete trip" onPress={confirmDelete} /> : null}
+      {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
     </ScrollScreen>
   );
 }
@@ -547,36 +541,40 @@ export function ProtectionAlertScreen() {
     <ScrollScreen>
       <StatusCard
         variant={foregroundReady && backgroundReady ? 'info' : 'warning'}
-        title="Protection setup"
+        title={
+          foregroundReady && backgroundReady
+            ? 'You’re protected'
+            : foregroundReady
+              ? 'Partially protected'
+              : 'Not yet protected'
+        }
         body={
           automaticCaptureAvailable
-            ? 'Grant foreground and background location before automatic capture can run. Denied permissions never trap you — change them later in Settings.'
-            : 'Automatic capture is not available in this build runtime.'
+            ? 'Allow location so future drives can be saved. You can change this anytime in Settings.'
+            : 'Auto-tracking isn’t available on this device yet. Manual drives still work.'
         }
         emphasis="hero"
       />
       <SoftPanel>
-        <EvidenceRow label="Foreground location" value={foregroundReady ? 'Granted' : permissions.location} />
-        <EvidenceRow label="Background location" value={backgroundReady ? 'Granted' : permissions.backgroundLocation} />
-        <EvidenceRow label="Motion" value={permissions.motion} />
-        <EvidenceRow label="Tracking engine" value={automaticCaptureAvailable ? 'Available' : 'Unavailable'} />
+        <EvidenceRow label="While using the app" value={foregroundReady ? 'On' : 'Off'} />
+        <EvidenceRow label="In the background" value={backgroundReady ? 'On' : 'Off'} />
       </SoftPanel>
-      <PrimaryButton label="Request foreground location" onPress={() => void requestLocationPermission()} />
+      <PrimaryButton label="Allow location while using the app" onPress={() => void requestLocationPermission()} />
       <SecondaryButton
-        label="Request background location"
+        label="Allow location in the background"
         onPress={() => void requestBackgroundPermission()}
         disabled={!foregroundReady}
       />
-      <SecondaryButton label="Refresh permission status" onPress={() => void refreshPermissions()} />
-      <SecondaryButton label="Open system settings" onPress={() => void openSystemSettings()} />
+      <SecondaryButton label="Open Settings" onPress={() => void openSystemSettings()} />
+      <SecondaryButton label="Refresh" onPress={() => void refreshPermissions()} />
       {product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated' ? (
         <PrimaryButton
-          label="I understand protection status"
+          label="Looks good — continue"
           onPress={() => setProtectionSetupState('configured')}
-          accessibilityLabel="Mark protection education complete"
+          accessibilityLabel="Mark watching setup complete"
         />
       ) : null}
-      <SecondaryButton label="View tracking status" onPress={() => navigation.navigate('TrackingActive')} />
+      <SecondaryButton label="See watching status" onPress={() => navigation.navigate('TrackingActive')} />
     </ScrollScreen>
   );
 }
@@ -616,47 +614,62 @@ export function TrackingActiveScreen() {
     <ScrollScreen>
       <StatusCard
         variant={product.trackingEnabled && canStart ? 'info' : 'warning'}
-        title={product.trackingEnabled && canStart ? 'Protection is enabled' : 'Automatic protection is off'}
+        title={
+          product.trackingEnabled && canStart
+            ? 'Watching is on'
+            : canStart
+              ? 'Watching is off'
+              : 'Watching needs Plus'
+        }
         body={
           canStart
-            ? 'Start or stop automatic capture here. The diagnostics below come from the tracking controller.'
-            : 'Automatic capture requires Plus access from a real entitlement. Plans will explain the trial without granting fake access.'
+            ? 'Here’s whether we’re watching, and whether location is allowed.'
+            : 'Automatic watching comes with Plus after a real store trial or purchase. Manual drives stay free.'
         }
         emphasis="hero"
       />
-      <ListSection title="Status">
-        <EvidenceRow label="Plan capability" value={canStart ? 'Allowed' : 'Not included'} />
-        <EvidenceRow label="Tracking preference" value={product.trackingEnabled ? 'Enabled' : 'Off'} />
-        <EvidenceRow label="Runtime capture flag" value={automaticCaptureAvailable ? 'Available' : 'Unavailable'} />
-        <EvidenceRow label="Foreground location" value={permissions.location} />
-        <EvidenceRow label="Background location" value={permissions.backgroundLocation} />
-        <EvidenceRow label="Controller state" value={diagnostics?.engineState ?? 'unknown'} />
-        <EvidenceRow label="Background registered" value={diagnostics?.backgroundRegistered ? 'Yes' : 'No'} />
-        <EvidenceRow label="Buffered samples" value={String(diagnostics?.sampleCount ?? 0)} />
+      <ListSection title="Are you protected?">
         <EvidenceRow
-          label="Last sample"
-          value={diagnostics?.lastSampleAt ? `${formatDateLocal(diagnostics.lastSampleAt)} ${formatTimeLocal(diagnostics.lastSampleAt)}` : 'None'}
+          label="Status"
+          value={
+            product.trackingEnabled && canStart && permissions.location === 'granted'
+              ? 'Yes'
+              : product.trackingEnabled || permissions.location === 'granted'
+                ? 'Partially'
+                : 'Not yet'
+          }
+        />
+        <EvidenceRow label="Watching" value={product.trackingEnabled && canStart ? 'On' : 'Off'} />
+        <EvidenceRow label="While using the app" value={permissions.location === 'granted' ? 'On' : 'Off'} />
+        <EvidenceRow label="In the background" value={permissions.backgroundLocation === 'granted' ? 'On' : 'Off'} />
+        <EvidenceRow
+          label="Last location check"
+          value={
+            diagnostics?.lastSampleAt
+              ? `${formatDateLocal(diagnostics.lastSampleAt)} ${formatTimeLocal(diagnostics.lastSampleAt)}`
+              : 'None yet'
+          }
         />
       </ListSection>
-      {diagnostics?.backgroundLimited ? (
+      {diagnostics?.backgroundLimited && product.trackingEnabled ? (
         <StatusCard
           variant="warning"
-          title="Background capture is limited"
-          body={diagnostics.backgroundLimitedReason ?? 'The controller reports limited background coverage.'}
+          title="Background watching is limited"
+          body="Some drives may be missed when the app isn’t open. Open Settings if you want fuller coverage."
           emphasis="subtle"
         />
       ) : null}
       <PrimaryButton
-        label={product.trackingEnabled ? 'Protection already enabled' : 'Start protection'}
+        label={product.trackingEnabled ? 'Watching is already on' : 'Start watching'}
         onPress={start}
         disabled={product.trackingEnabled && canStart}
       />
-      <SecondaryButton label="Stop protection" onPress={stop} disabled={!product.trackingEnabled} />
-      <SecondaryButton label="Refresh diagnostics" onPress={refreshDiagnostics} />
+      <SecondaryButton label="Stop watching" onPress={stop} disabled={!product.trackingEnabled} />
+      <SecondaryButton label="Refresh status" onPress={refreshDiagnostics} />
       <StatusCard
         variant="neutral"
-        title="What you can do now"
-        body="Manual drives, imports, recovery review, and reports remain available even when automatic capture is off."
+        title="Still available on Free"
+        body="Add drives by hand, import history, review, and share CSV anytime — even when watching is off."
         emphasis="subtle"
       />
     </ScrollScreen>
@@ -965,7 +978,7 @@ export function ExportReportScreen() {
 
   const exportPdf = async () => {
     if (!capabilities.canUseStandardPdf) {
-      setMessage('Standard PDF reports are included with Plus after a real store purchase or trial.');
+      setMessage('PDF reports come with Plus. CSV stays free.');
       setPhase('failed');
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
@@ -999,12 +1012,12 @@ export function ExportReportScreen() {
       <StatusCard
         variant={phase === 'failed' ? 'danger' : phase === 'success' ? 'success' : 'info'}
         title={phase === 'failed' ? 'Could not export' : phase === 'success' ? 'Export handled' : 'Share confirmed work drives'}
-        body={message ?? `Current period: ${period.label}. Exports include ${report.tripCount} confirmed work drive(s). Free includes CSV. PDF is a Plus capability.`}
+        body={message ?? `${period.label} · ${report.tripCount} work drive(s). CSV is free. PDF is Plus.`}
         emphasis={phase === 'idle' ? 'subtle' : 'hero'}
       />
       <PrimaryButton label="Share CSV" onPress={() => void exportCsv()} />
       <SecondaryButton
-        label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF requires Plus'}
+        label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF with Plus'}
         onPress={() => void exportPdf()}
       />
       <SecondaryButton label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
@@ -1025,23 +1038,26 @@ export function ReportPreviewScreen() {
       <StatusCard
         variant="info"
         title="Report preview of real data"
-        body={`${formatLabel} preview from confirmed work drives in ${period.label}. This is not tax, legal, or employer advice.`}
+        body={`${formatLabel} preview for ${period.label}. For your records — not tax or legal advice.`}
         emphasis="hero"
       />
       <SoftPanel>
         <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>{report.title}</Text>
         <EvidenceRow label="Period" value={report.period.label} />
-        <EvidenceRow label="Driver" value={report.userName ?? 'Not set'} />
-        <EvidenceRow label="Confirmed work drives" value={String(report.tripCount)} />
+        <EvidenceRow label="Driver" value={report.userName ?? 'Add a name in Profile'} />
+        <EvidenceRow label="Work drives" value={String(report.tripCount)} />
         <EvidenceRow label="Total miles" value={report.totalMiles.toFixed(1)} />
-        <EvidenceRow label="Unresolved excluded" value={String(report.unresolvedCount)} />
+        <EvidenceRow
+          label="Open items left out"
+          value={report.unresolvedCount === 0 ? '0 · all reviewed' : String(report.unresolvedCount)}
+        />
       </SoftPanel>
       <ListSection title="Line items">
         {report.lineItems.length === 0 ? (
           <StatusCard
             variant="neutral"
-            title="No trips in this period"
-            body="Confirmed work drives will appear here with date, purpose, locations, miles, source, and evidence."
+            title="No work drives to show yet"
+            body="Confirmed work drives will appear here with date, purpose, places, and miles."
             emphasis="subtle"
           />
         ) : (
@@ -1062,7 +1078,7 @@ export function PlanSelectionScreen() {
   const navigation = useNavigation<Nav>();
   const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
-  const [notice, setNotice] = useState<string | null>('Free is active. Paid access requires a real store purchase.');
+  const [notice, setNotice] = useState<string | null>(null);
   const [selectedRescue, setSelectedRescue] = useState<string | null>(null);
   const period: PurchasePeriod = annual ? 'annual' : 'monthly';
   const purchasePort = getPurchasePort();
@@ -1071,12 +1087,15 @@ export function PlanSelectionScreen() {
     lastOfferAt: product.paywallCaps.lastTrialOfferAt,
     dismissedSession: product.paywallCaps.trialOfferDismissedSession,
   });
+  const plusFixture = PLAN_FIXTURES.find((plan) => plan.id === 'plus')!;
+  const proFixture = PLAN_FIXTURES.find((plan) => plan.id === 'pro')!;
+  const freeFixture = PLAN_FIXTURES.find((plan) => plan.id === 'free')!;
 
   const handleResult = async (action: () => Promise<Awaited<ReturnType<typeof purchasePort.purchasePlus>>>) => {
     const result = await action();
     if (result.ok) {
       setEntitlement(result.entitlement);
-      setNotice('Purchase verified by the store.');
+      setNotice('You’re all set — Plus is active.');
       return;
     }
     if (result.reason === 'store_unavailable') {
@@ -1089,63 +1108,70 @@ export function PlanSelectionScreen() {
     <FixedHeaderScrollScreen
       header={
         <View>
-          <Text style={text.subtitle}>Upgrade when it helps.</Text>
+          <Text style={text.subtitle}>Keep the protection that already helped.</Text>
           <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Current plan: {entitlement.planId.toUpperCase()} ({entitlement.status}). No paid plan is granted unless the store verifies it.
+            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}. Purchases confirm in Google Play or the App Store.
           </Text>
-          <SecondaryButton
-            label={annual ? 'Showing annual - switch to monthly' : 'Showing monthly - switch to annual'}
-            onPress={() => setAnnual((value) => !value)}
+          <SegmentedControl
+            value={annual ? 'annual' : 'monthly'}
+            onChange={(value) => setAnnual(value === 'annual')}
+            options={[
+              { label: 'Monthly', value: 'monthly' },
+              { label: 'Annual', value: 'annual' },
+            ]}
           />
         </View>
       }
     >
-      {notice ? <StatusCard variant="info" title="Plan status" body={notice} emphasis="subtle" /> : null}
+      {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
+      <PlanCard
+        name={plusFixture.name}
+        tagline={plusFixture.tagline}
+        price={annual ? plusFixture.annualPrice : plusFixture.monthlyPrice}
+        period={annual ? 'year' : 'month'}
+        features={plusFixture.features}
+        highlighted
+        current={entitlement.planId === 'plus'}
+        savingsLabel={annual ? plusFixture.annualSavingsLabel : undefined}
+        onSelect={() =>
+          void handleResult(() =>
+            trialEligible ? purchasePort.purchasePlusTrial(period) : purchasePort.purchasePlus(period),
+          )
+        }
+      />
       {trialEligible ? (
-        <StatusCard
-          variant="success"
-          title="Start 7-day Plus trial"
-          body={trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
-          actionLabel="Start 7-day Plus trial"
-          onAction={() => void handleResult(() => purchasePort.purchasePlusTrial(period))}
-          emphasis="subtle"
-        />
+        <Text style={[text.caption, { marginBottom: spacing.md }]}>
+          Eligible for a 7-day Plus trial. {trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
+        </Text>
       ) : null}
+      <PlanCard
+        name={proFixture.name}
+        tagline={proFixture.tagline}
+        price={annual ? proFixture.annualPrice : proFixture.monthlyPrice}
+        period={annual ? 'year' : 'month'}
+        features={proFixture.features}
+        highlighted={false}
+        current={entitlement.planId === 'pro'}
+        savingsLabel={annual ? proFixture.annualSavingsLabel : undefined}
+        onSelect={() => void handleResult(() => purchasePort.purchasePro(period))}
+      />
       <SelectionCard
-        title="Free - $0"
-        body={`${PLAN_FIXTURES[0].tagline}. ${PLAN_FIXTURES[0].features.join(' ')}`}
+        title={`Stay on Free · ${freeFixture.monthlyPrice}`}
+        body={`${freeFixture.tagline}. Your saved miles always stay available.`}
         selected={entitlement.planId === 'free'}
         onPress={() => {
           setSelectedPlan('free');
-          setNotice('Free remains active. Your existing records stay available.');
+          setNotice('You’re on Free. Your existing records stay available.');
         }}
       />
-      {PLAN_FIXTURES.filter((plan) => plan.id !== 'free').map((plan) => (
-        <PlanCard
-          key={plan.id}
-          name={plan.name}
-          tagline={plan.tagline}
-          price={annual ? plan.annualPrice : plan.monthlyPrice}
-          period={annual ? 'year' : 'month'}
-          features={plan.features}
-          highlighted={plan.highlighted}
-          current={entitlement.planId === plan.id}
-          savingsLabel={annual ? plan.annualSavingsLabel : undefined}
-          onSelect={() =>
-            void handleResult(() =>
-              plan.id === 'plus' ? purchasePort.purchasePlus(period) : purchasePort.purchasePro(period),
-            )
-          }
-        />
-      ))}
       <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>One-time catch-up</Text>
       <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-        Rescue products are one-time purchases. If billing is unavailable, nothing is unlocked.
+        Not a subscription. If a purchase can’t complete, nothing changes on your account.
       </Text>
       {RESCUE_OPTIONS.map((option) => (
         <SelectionCard
           key={option.id}
-          title={`${option.name} - ${option.price}`}
+          title={`${option.name} · ${option.price}`}
           body={option.description}
           selected={selectedRescue === option.id}
           onPress={() => {
@@ -1160,8 +1186,8 @@ export function PlanSelectionScreen() {
       />
       <StatusCard
         variant="neutral"
-        title="Automatic renewal"
-        body="Subscriptions renew automatically unless cancelled in Google Play or App Store settings. Trial enrollment requires the native store confirmation sheet — an in-app button alone never grants Plus."
+        title="Renewal"
+        body="Subscriptions renew unless you cancel in Google Play or App Store settings. An in-app button alone never starts a trial."
         emphasis="subtle"
       />
       <SecondaryButton label="Terms of Use" onPress={() => navigation.navigate('About')} />
@@ -1189,9 +1215,9 @@ export function HelpSupportScreen() {
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
             No. Manual entries, imports, and recovery suggestions all require real details or your confirmation.
           </Text>
-          <Text style={text.subtitle}>When does automatic capture start?</Text>
+          <Text style={text.subtitle}>When does automatic watching start?</Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            After you enable protection with Plus or an active Plus trial, and grant location permissions. Free keeps manual, import, and review.
+            After you turn watching on with Plus or a Plus trial, and allow location. Free still lets you add drives, import, and review.
           </Text>
           <Text style={text.subtitle}>What happens if I restart onboarding?</Text>
           <Text style={text.body}>
@@ -1210,7 +1236,7 @@ export function HelpSupportScreen() {
       <StatusCard
         variant="neutral"
         title="Contact"
-        body="Email support@milerecover.com with your build label from Profile > About."
+        body="Email support@milerecover.com with your app version from Profile → About."
         emphasis="subtle"
       />
     </ScrollScreen>
