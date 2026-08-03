@@ -90,4 +90,19 @@ Users should never wonder what to do, why they’re asked, what happens next, or
 
 ## Validation
 
-Run `npm run test:mobile-expo`, `npm run typecheck:mobile-expo`, and `npm run check:all` after this pass. UI evidence JSON regenerates from screen evidence tests.
+- `npm run test:mobile-expo` — 50 passed  
+- `npm run test:domain` — 43 passed  
+- `npm run typecheck:mobile-expo` — passed  
+- `npm run check:all` — passed  
+- UI evidence JSON regenerated under `docs/assets/ui-evidence/`
+
+## OTA
+
+- Update group: `4f3d24a4-d34a-4818-8ebc-4aca38b7c222`  
+- Android update ID: `019fc894-dfc6-7614-a2d7-391a17ef1c53`  
+- iOS update ID: `019fc894-dfc6-7ea6-9229-023228f087f2`  
+- Message: `0.1.4-mvp.2 final experience pass: calm one-job UX`  
+- Commit: `0c10fc059e9e576f89e8e36f139f6d65120d2a47`  
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/4f3d24a4-d34a-4818-8ebc-4aca38b7c222  
+
+Requires a installed `0.1.4` preview APK (native modules). Close and reopen the app to pull the update.
