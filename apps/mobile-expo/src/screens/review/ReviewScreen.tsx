@@ -8,8 +8,9 @@ import {
   EmptyState,
   ReviewCard,
   ReviewedItemCard,
-  ScrollScreen,
   SegmentedControl,
+  TabScreen,
+  TertiaryButton,
   UndoSnackbar,
 } from '../../design-system';
 import { selectProductExperience } from '../../product/selectors';
@@ -50,6 +51,10 @@ export function ReviewScreen() {
   const [segment, setSegment] = useState<'needs' | 'reviewed'>('needs');
   const [undoItem, setUndoItem] = useState<{ id: string; label: string } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showManual =
+    product.primaryGoal === 'find_missing' ||
+    product.primaryGoal === 'prepare_report' ||
+    experience.activeReviewItems.length === 0;
 
   useEffect(() => {
     return () => {
@@ -68,7 +73,7 @@ export function ReviewScreen() {
   };
 
   return (
-    <ScrollScreen>
+    <TabScreen>
       <SegmentedControl
         options={[
           { label: `Needs you (${pending.length})`, value: 'needs' },
@@ -81,10 +86,10 @@ export function ReviewScreen() {
       {segment === 'needs' ? (
         pending.length === 0 ? (
           <EmptyState
-            title="All clear"
-            body="Nothing needs a decision right now. We’ll bring uncertain drives here—one at a time, ten seconds and done."
-            actionLabel="Add a drive"
-            onAction={() => navigation.navigate('ManualTrip')}
+            title="Nothing needs a decision"
+            body="Uncertain drives will appear here—one at a time. We never silently classify them."
+            actionLabel={showManual ? 'Add a drive' : undefined}
+            onAction={showManual ? () => navigation.navigate('ManualTrip') : undefined}
           />
         ) : (
           pending.map((item) => (
@@ -119,7 +124,9 @@ export function ReviewScreen() {
         />
       ) : (
         reviewedIds.map((id) => {
-          const item = experience.scenario.reviewItems.find((r) => r.id === id);
+          const item =
+            experience.scenario.reviewItems.find((r) => r.id === id) ??
+            state.reviewItems.find((r) => r.id === id);
           return (
             <ReviewedItemCard
               key={id}
@@ -132,6 +139,10 @@ export function ReviewScreen() {
         })
       )}
 
+      {segment === 'needs' && pending.length > 0 && showManual ? (
+        <TertiaryButton label="Add a drive" onPress={() => navigation.navigate('ManualTrip')} />
+      ) : null}
+
       {undoItem ? (
         <UndoSnackbar
           message={`Marked as ${undoItem.label}`}
@@ -143,6 +154,6 @@ export function ReviewScreen() {
           onDismiss={() => setUndoItem(null)}
         />
       ) : null}
-    </ScrollScreen>
+    </TabScreen>
   );
 }

@@ -3,10 +3,10 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { colors, spacing } from '@milerecover/config';
 import type { AppStartupPhase } from '@milerecover/domain';
 import {
-  AppScreen,
   DestructiveButton,
   ErrorBanner,
   PrimaryButton,
+  SafeFillScreen,
   text,
 } from '../design-system';
 
@@ -59,7 +59,7 @@ export function StartupGate({
   const isErrorPhase = showRetry || showReset;
 
   return (
-    <AppScreen edges={['top', 'bottom', 'left', 'right']}>
+    <SafeFillScreen>
       <View style={styles.center} accessibilityLabel="App startup status">
         {phase === 'restoring' ? (
           <ActivityIndicator size="large" color={colors.forest[600]} accessibilityLabel="Loading" />
@@ -90,7 +90,7 @@ export function StartupGate({
           />
         ) : null}
       </View>
-    </AppScreen>
+    </SafeFillScreen>
   );
 }
 

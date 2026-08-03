@@ -10,12 +10,17 @@ import type { PlanTier } from '../fixtures/subscription';
 import type { DemoScenario } from '../fixtures/scenarios';
 import { clearProductUiState, loadProductUiState, saveProductUiState } from './persistence';
 import {
+  allowInternalPreviewTools,
   createInitialProductUiState,
   ONBOARDING_STEP_ORDER,
+  type DrivingType,
   type ImportFlowPhase,
   type ManualTripDraft,
+  type PostOnboardingRoute,
+  type PrimaryGoal,
   type ProductOnboardingStep,
   type ProductUiState,
+  type ProtectionSetupState,
   type ReviewDecision,
   type VehicleDraft,
   type WorkLocationDraft,
@@ -27,12 +32,27 @@ interface ProductContextValue {
   setOnboardingStep: (step: ProductOnboardingStep) => void;
   advanceOnboarding: () => void;
   backOnboarding: () => void;
+  setPrimaryGoal: (goal: PrimaryGoal) => void;
+  setDrivingType: (type: DrivingType) => void;
+  setPreferredName: (name: string | null) => void;
+  setProtectionSetupState: (state: ProtectionSetupState) => void;
+  /** @deprecated use setPrimaryGoal */
   setOnboardingNeed: (need: string) => void;
+  /** @deprecated use setDrivingType */
   setOnboardingUsage: (usage: string) => void;
-  skipOptionalSetup: () => void;
+  skipPreferredName: () => void;
   resetOnboarding: () => void;
+  setDemoModeEnabled: (enabled: boolean) => void;
   setDemoScenario: (scenario: DemoScenario) => void;
-  setSelectedPlan: (plan: PlanTier) => void;
+  /**
+   * Paid tiers only stick in demo mode. Live mode keeps Free until real billing.
+   * Returns whether entitlement actually changed.
+   */
+  setSelectedPlan: (plan: PlanTier) => boolean;
+  setPendingPostOnboardingRoute: (route: PostOnboardingRoute) => void;
+  consumePendingPostOnboardingRoute: () => PostOnboardingRoute;
+  /** Atomic mark for end of onboarding (protection educated + optional deep link). */
+  completeProductOnboarding: (route?: PostOnboardingRoute) => void;
   setReviewDecision: (itemId: string, decision: ReviewDecision) => void;
   undoReviewDecision: (itemId: string) => void;
   addManualTrip: (draft: Omit<ManualTripDraft, 'id' | 'createdAt'>) => void;
@@ -53,7 +73,9 @@ export function ProductProvider({
   initialState?: ProductUiState;
   skipHydration?: boolean;
 }) {
-  const [product, setProduct] = useState<ProductUiState>(() => initialState ?? createInitialProductUiState());
+  const [product, setProduct] = useState<ProductUiState>(
+    () => initialState ?? createInitialProductUiState(),
+  );
   const [hydrated, setHydrated] = useState(skipHydration);
 
   useEffect(() => {
@@ -65,10 +87,13 @@ export function ProductProvider({
     })();
   }, [skipHydration]);
 
-  const persist = useCallback(async (next: ProductUiState) => {
-    setProduct(next);
-    if (hydrated) await saveProductUiState(next);
-  }, [hydrated]);
+  const persist = useCallback(
+    async (next: ProductUiState) => {
+      setProduct(next);
+      if (hydrated) await saveProductUiState(next);
+    },
+    [hydrated],
+  );
 
   const value = useMemo<ProductContextValue>(
     () => ({
@@ -77,7 +102,8 @@ export function ProductProvider({
       setOnboardingStep: (step) => void persist({ ...product, onboardingStep: step }),
       advanceOnboarding: () => {
         const idx = ONBOARDING_STEP_ORDER.indexOf(product.onboardingStep);
-        const nextStep = ONBOARDING_STEP_ORDER[Math.min(idx + 1, ONBOARDING_STEP_ORDER.length - 1)];
+        const nextStep =
+          ONBOARDING_STEP_ORDER[Math.min(idx + 1, ONBOARDING_STEP_ORDER.length - 1)];
         void persist({ ...product, onboardingStep: nextStep });
       },
       backOnboarding: () => {
@@ -85,23 +111,82 @@ export function ProductProvider({
         if (idx <= 0) return;
         void persist({ ...product, onboardingStep: ONBOARDING_STEP_ORDER[idx - 1] });
       },
+      setPrimaryGoal: (goal) =>
+        void persist({
+          ...product,
+          primaryGoal: goal,
+          onboardingNeed: goal,
+        }),
+      setDrivingType: (type) =>
+        void persist({
+          ...product,
+          drivingType: type,
+          onboardingUsage: type,
+        }),
+      setPreferredName: (name) =>
+        void persist({
+          ...product,
+          preferredName: name?.trim() ? name.trim() : null,
+        }),
+      setProtectionSetupState: (protectionSetupState) =>
+        void persist({ ...product, protectionSetupState }),
       setOnboardingNeed: (need) => void persist({ ...product, onboardingNeed: need }),
       setOnboardingUsage: (usage) => void persist({ ...product, onboardingUsage: usage }),
-      skipOptionalSetup: () =>
+      skipPreferredName: () =>
         void persist({
           ...product,
           onboardingSkippedOptional: true,
-          onboardingStep: 'ready',
+          onboardingStep: 'protection_setup',
         }),
       resetOnboarding: () =>
         void persist({
           ...createInitialProductUiState(),
-          demoScenario: product.demoScenario,
-          selectedPlan: product.selectedPlan,
           showDevTools: product.showDevTools,
+          demoModeEnabled: false,
         }),
-      setDemoScenario: (scenario) => void persist({ ...product, demoScenario: scenario }),
-      setSelectedPlan: (plan) => void persist({ ...product, selectedPlan: plan }),
+      setDemoModeEnabled: (enabled) =>
+        void persist({
+          ...product,
+          demoModeEnabled: enabled && allowInternalPreviewTools(),
+          demoScenario: enabled ? product.demoScenario : 'new_user',
+          // Paid demo entitlement clears when leaving demo mode
+          selectedPlan: enabled ? product.selectedPlan : 'free',
+        }),
+      setDemoScenario: (scenario) =>
+        void persist({
+          ...product,
+          demoModeEnabled: true,
+          demoScenario: scenario,
+        }),
+      setSelectedPlan: (plan) => {
+        if (plan !== 'free' && !product.demoModeEnabled) {
+          // Do not fake a completed purchase in live / production state
+          return false;
+        }
+        void persist({ ...product, selectedPlan: plan });
+        return true;
+      },
+      setPendingPostOnboardingRoute: (route) =>
+        void persist({ ...product, pendingPostOnboardingRoute: route }),
+      consumePendingPostOnboardingRoute: () => {
+        const route = product.pendingPostOnboardingRoute;
+        if (route) {
+          void persist({ ...product, pendingPostOnboardingRoute: null });
+        }
+        return route;
+      },
+      completeProductOnboarding: (route = null) => {
+        const protection =
+          product.protectionSetupState === 'not_started'
+            ? 'educated'
+            : product.protectionSetupState;
+        void persist({
+          ...product,
+          protectionSetupState: protection,
+          pendingPostOnboardingRoute: route,
+          onboardingStep: 'next_action',
+        });
+      },
       setReviewDecision: (itemId, decision) =>
         void persist({
           ...product,
@@ -152,7 +237,7 @@ export function ProductProvider({
         setProduct(createInitialProductUiState());
       },
     }),
-    [product, hydrated, persist]
+    [product, hydrated, persist],
   );
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>;

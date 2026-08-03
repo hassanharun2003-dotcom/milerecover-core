@@ -36,7 +36,7 @@ describe('Verified Android preview build a0fcf6cd configuration', () => {
   it('ships package com.milerecover.app and version/runtime 0.1.2', () => {
     expect(APP_PACKAGE_ID).toBe('com.milerecover.app');
     expect(APP_VERSION).toBe('0.1.2');
-    expect(APP_BUILD_LABEL).toBe('0.1.2-preview.3');
+    expect(APP_BUILD_LABEL).toBe('0.1.2-preview.4');
     expect(appConfigSource).toContain("package: 'com.milerecover.app'");
     expect(appConfigSource).toContain("bundleIdentifier: 'com.milerecover.app'");
     expect(appConfigSource).toContain("version: '0.1.2'");

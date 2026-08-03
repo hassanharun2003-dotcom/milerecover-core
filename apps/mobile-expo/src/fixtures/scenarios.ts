@@ -175,7 +175,7 @@ export const DEMO_SCENARIOS: Record<DemoScenario, ScenarioPresentation> = {
     homeState: 'protection_limited',
     homeTitle: 'Background access is limited',
     homeDetail: 'We may miss new drives until it’s back on. What’s already saved stays put.',
-    primaryAction: 'Restore protection',
+    primaryAction: 'Fix protection',
     primaryActionRoute: 'ProtectionAlert',
     weekSummary: { milesProtected: 15.0, recoveredMiles: 0, milesReadyForProof: 12.0 },
     activity: [],

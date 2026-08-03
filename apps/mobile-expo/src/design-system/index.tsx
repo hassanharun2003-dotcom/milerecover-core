@@ -13,6 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radii, shadows, spacing, touchTarget, typography } from '@milerecover/config';
 import { statusColors, type StatusVariant } from './theme';
+export {
+  TabScreen,
+  StackScrollScreen,
+  OnboardingScreen,
+  SafeFillScreen,
+  FixedHeaderScrollScreen,
+} from './screenShell';
 
 export const text = StyleSheet.create({
   headline: {
@@ -76,24 +83,11 @@ export function AppScreen({
   );
 }
 
-export function ScrollScreen({
-  children,
-  contentStyle,
-  footer,
-}: {
-  children: React.ReactNode;
-  contentStyle?: StyleProp<ViewStyle>;
-  footer?: React.ReactNode;
-}) {
-  return (
-    <AppScreen edges={['left', 'right']}>
-      <ScrollView contentContainerStyle={[styles.scrollContent, contentStyle]} keyboardShouldPersistTaps="handled">
-        {children}
-      </ScrollView>
-      {footer}
-    </AppScreen>
-  );
-}
+/**
+ * @deprecated Prefer TabScreen or StackScrollScreen for correct Android safe areas.
+ * Kept as an alias to StackScrollScreen for gradual migration.
+ */
+export { StackScrollScreen as ScrollScreen } from './screenShell';
 
 export function AppHeader({
   title,
@@ -488,6 +482,8 @@ export function PlanCard({
   highlighted,
   onSelect,
   tagline,
+  current,
+  savingsLabel,
 }: {
   name: string;
   price: string;
@@ -496,23 +492,35 @@ export function PlanCard({
   highlighted?: boolean;
   onSelect: () => void;
   tagline?: string;
+  current?: boolean;
+  savingsLabel?: string;
 }) {
   return (
-    <View style={[cardBase, highlighted && styles.planHighlighted]}>
+    <View style={[cardBase, styles.planCard, highlighted && styles.planHighlighted]}>
       {highlighted ? <Badge label="Most chosen" variant="info" /> : null}
-      <Text style={[text.title, { marginTop: spacing.sm }]}>{name}</Text>
-      {tagline ? <Text style={[text.body, { marginTop: spacing.xs, color: colors.forest[700] }]}>{tagline}</Text> : null}
-      <Text style={[text.subtitle, { marginTop: spacing.sm }]}>
+      {current ? <Badge label="Your plan" variant="success" /> : null}
+      <Text style={[text.subtitle, { marginTop: spacing.xs }]}>{name}</Text>
+      {tagline ? (
+        <Text style={[text.body, { marginTop: spacing.xs, color: colors.forest[700] }]} numberOfLines={2}>
+          {tagline}
+        </Text>
+      ) : null}
+      <Text style={[text.title, { marginTop: spacing.sm }]} allowFontScaling>
         {price}
-        <Text style={text.body}> / {period}</Text>
+        <Text style={text.caption}> / {period}</Text>
       </Text>
-      {features.map((f) => (
-        <Text key={f} style={[text.body, { marginTop: spacing.xs }]}>
+      {savingsLabel ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{savingsLabel}</Text> : null}
+      {features.slice(0, 3).map((f) => (
+        <Text key={f} style={[text.body, { marginTop: spacing.xs }]} numberOfLines={2}>
           • {f}
         </Text>
       ))}
       <View style={{ marginTop: spacing.md }}>
-        <PrimaryButton label={`Choose ${name}`} onPress={onSelect} />
+        <PrimaryButton
+          label={current ? `${name} selected` : `Choose ${name}`}
+          onPress={onSelect}
+          disabled={current}
+        />
       </View>
     </View>
   );
@@ -645,21 +653,23 @@ export function ProofHeroCard({
   totalMiles,
   unresolved,
   onPreview,
+  title = 'Your records are ready to review',
 }: {
   periodLabel: string;
   tripCount: number;
   totalMiles: string;
   unresolved?: string | null;
   onPreview: () => void;
+  title?: string;
 }) {
   const showUnresolved = unresolved != null && unresolved !== '' && unresolved !== '0';
   return (
     <View
       style={styles.proofHero}
       accessibilityRole="summary"
-      accessibilityLabel={`Your report is ready. ${tripCount} trips. ${totalMiles} miles.`}
+      accessibilityLabel={`${title}. ${tripCount} drives. ${totalMiles} miles.`}
     >
-      <Text style={[text.title, text.inverse]}>Your report is ready whenever you need it</Text>
+      <Text style={[text.title, text.inverse]}>{title}</Text>
       <Text style={[text.body, styles.proofHeroSub]}>{periodLabel}</Text>
       <View style={styles.proofHeroStats}>
         <View style={styles.proofHeroStat}>
@@ -673,12 +683,12 @@ export function ProofHeroCard({
         {showUnresolved ? (
           <View style={styles.proofHeroStat}>
             <Text style={[styles.proofHeroStatValue, text.tabular]}>{unresolved}</Text>
-            <Text style={styles.proofHeroStatLabel}>still open</Text>
+            <Text style={styles.proofHeroStatLabel}>unresolved</Text>
           </View>
         ) : (
           <View style={styles.proofHeroStat}>
-            <Text style={[styles.proofHeroStatValue, text.tabular]}>✓</Text>
-            <Text style={styles.proofHeroStatLabel}>clear</Text>
+            <Text style={[styles.proofHeroStatValue, text.tabular]}>—</Text>
+            <Text style={styles.proofHeroStatLabel}>none open</Text>
           </View>
         )}
       </View>
@@ -865,6 +875,7 @@ const styles = StyleSheet.create({
   listRowRight: { flexDirection: 'row', alignItems: 'center' },
   selectionCard: { marginBottom: spacing.sm },
   selectionCardSelected: { borderColor: colors.forest[600], backgroundColor: colors.forest[100] },
+  planCard: { marginBottom: spacing.md, padding: spacing.md },
   planHighlighted: { borderColor: colors.forest[600], borderWidth: 2 },
   empty: { alignItems: 'center', padding: spacing.xl },
   progressRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },

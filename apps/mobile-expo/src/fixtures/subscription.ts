@@ -7,8 +7,11 @@ export interface PlanFixture {
   tagline: string;
   monthlyPrice: string;
   annualPrice: string;
+  /** Max 3 concise outcome bullets shown in Plans UI */
   features: string[];
   highlighted?: boolean;
+  /** Approximate annual savings vs 12× monthly (for annual toggle copy) */
+  annualSavingsLabel?: string;
 }
 
 export interface RescueOptionFixture {
@@ -26,41 +29,36 @@ export const PLAN_FIXTURES: PlanFixture[] = [
     monthlyPrice: '$0',
     annualPrice: '$0',
     features: [
-      'Never lose the miles you log by hand',
-      'One vehicle, kept simple',
+      'Miles you log by hand stay on this device',
       'Calm review when something needs you',
       'CSV when you need a basic share',
-      'Your data stays on this device first',
     ],
   },
   {
     id: 'plus',
     name: 'Plus',
-    tagline: 'Never lose another reimbursable mile',
+    tagline: 'Never lose another reimbursable mile.',
     monthlyPrice: '$8.99',
     annualPrice: '$89.99',
+    annualSavingsLabel: 'Save about $18/year vs monthly',
     highlighted: true,
     features: [
-      'We’ll warn you before forgotten trips become lost money',
       'Everyday coverage for every work drive',
       'Catch quiet gaps before they disappear',
-      'Multiple vehicles and familiar places',
       'PDF ready when work asks',
-      'Cleaner imports from what you already have',
     ],
   },
   {
     id: 'pro',
     name: 'Pro',
-    tagline: 'Your reports are ready when work asks',
+    tagline: 'Stronger records when work, clients, or taxes demand more.',
     monthlyPrice: '$14.99',
     annualPrice: '$119.99',
+    annualSavingsLabel: 'Save about $60/year vs monthly',
     features: [
       'Deeper help catching up older history',
-      'Stronger reports you can share with confidence',
-      'Reimbursement settings that match how you work',
+      'Reports you can share with confidence',
       'Advanced exports without the scramble',
-      'Priority help when something’s unclear',
     ],
   },
 ];

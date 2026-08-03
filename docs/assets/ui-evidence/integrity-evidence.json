@@ -1,0 +1,17 @@
+{
+  "1-onboarding-welcome": "M Protect every work mile. MileRecover saves future drives, helps find missing mileage, and prepares records you can share—without inventing miles. Get started Bring existing mileage",
+  "2-onboarding-goals": {
+    "protect_future": "Back Next, turn on protection One step remains before MileRecover can watch future drives. We’ll explain each permission first. Continue setup Go to Home",
+    "find_missing": "Back Next, tell us which period to review Start with a period you remember driving. We’ll help you look for quiet stretches—never invent miles. Add a drive to s",
+    "bring_history": "Back Next, choose a file or source Bring what you already have. We’ll organize what we can and show you anything that needs a look. Bring mileage Go to Home",
+    "prepare_report": "Back Next, add or import confirmed drives A report needs confirmed work drives first. Import history or add what you remember. Prepare records Go to Home"
+  },
+  "3-home-truthful": "Finish setting up protection Learn what protection needs—then enable access when tracking is available. We never claim coverage we can’t provide. Continue setup PROTECTION Setup Not finished Background access Off Automatic capture Not avail",
+  "4-home-review-item": "One drive may need a look Your phone was quiet for part of this stretch. Ten seconds and you’re done. Review drive PROTECTION Setup Not finished Background access Off Automatic capture Not available in this preview This week Miles kept 28.4",
+  "5-empty-proof": "No confirmed drives yet Confirmed work drives will appear here, ready to review and share. Add a drive ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile",
+  "6-demo-proof": "Your records are ready to review 2026 year to date 3 drives 58.0 miles — none open Preview report EXPORT Share as PDF › Share as CSV › Show period details ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile",
+  "7-empty-profile": "Your account No name yet — add one from Restart onboarding if you like MileRecover Free Upgrade when it helps—never because we rushed you See plans DRIVING Vehicles None › Work places Add › Work schedule Not available in this preview › PROT",
+  "8-plans-monthly": "Upgrade when it helps. No countdowns. No hidden trials. Billing is not connected in this preview. Showing monthly — switch to annual Your plan Free Start covering your work miles $0 / month • Miles you log by hand stay on this device • Calm",
+  "9-plans-annual": "Fixed header toggle switches monthly/annual without sticky overlap",
+  "10-safe-area": "insets.top TabScreen + insets.bottom tab bar + FixedHeaderScrollScreen + Ionicons"
+}

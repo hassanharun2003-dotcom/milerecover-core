@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -9,16 +9,17 @@ import {
   Badge,
   EvidenceRow,
   OfflineBanner,
-  ScrollScreen,
-  SectionHeader,
+  PrimaryButton,
+  SecondaryButton,
+  SoftPanel,
   StatusCard,
   SummaryCard,
+  TabScreen,
   TimelineRow,
-  PrimaryButton,
-  SoftPanel,
   text,
 } from '../../design-system';
 import type { ActivityEventKind } from '../../fixtures/scenarios';
+import { greetingForName } from '../../product/copy';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
@@ -59,10 +60,21 @@ function activityBadge(kind: ActivityEventKind): string | null {
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions } = useApp();
-  const { product } = useProduct();
+  const { product, consumePendingPostOnboardingRoute } = useProduct();
   const experience = selectProductExperience(state, product, permissions);
-  const { scenario } = experience;
-  const needsAction = Boolean(scenario.primaryAction);
+  const { scenario, secondaryAction, liveMode } = experience;
+  const greeting = greetingForName(product.preferredName);
+
+  useEffect(() => {
+    const route = consumePendingPostOnboardingRoute();
+    if (!route || route === 'Proof') {
+      if (route === 'Proof') navigation.navigate('Proof');
+      return;
+    }
+    navigation.navigate(route);
+    // Intentionally once on mount / when pending is set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.pendingPostOnboardingRoute]);
 
   const handlePrimary = () => {
     if (scenario.primaryActionRoute === 'ProtectionAlert') {
@@ -74,8 +86,26 @@ export function HomeScreen() {
     else if (scenario.primaryActionRoute === 'Proof') navigation.navigate('Proof');
   };
 
+  const handleSecondary = () => {
+    if (!secondaryAction) return;
+    if (secondaryAction.route === 'Review') navigation.navigate('Review');
+    else navigation.navigate(secondaryAction.route);
+  };
+
+  const showWeekSummary =
+    !liveMode ||
+    scenario.weekSummary.milesProtected > 0 ||
+    scenario.weekSummary.recoveredMiles > 0 ||
+    scenario.weekSummary.milesReadyForProof > 0;
+
   return (
-    <ScrollScreen>
+    <TabScreen>
+      {greeting ? (
+        <Text style={[text.body, { marginBottom: spacing.sm }]} accessibilityRole="text">
+          {greeting}
+        </Text>
+      ) : null}
+
       {scenario.homeState === 'offline' ? (
         <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
       ) : null}
@@ -90,36 +120,51 @@ export function HomeScreen() {
       />
 
       <SoftPanel>
-        <Text style={[text.caption, { marginBottom: spacing.sm }]}>PROTECTION AT A GLANCE</Text>
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>PROTECTION</Text>
+        <EvidenceRow
+          label="Setup"
+          value={
+            product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated'
+              ? 'Not finished'
+              : product.protectionSetupState === 'limited'
+                ? 'Needs attention'
+                : 'Configured'
+          }
+        />
         <EvidenceRow
           label="Background access"
-          value={scenario.homeState === 'protection_limited' ? 'Limited' : 'On'}
+          value={
+            permissions.backgroundLocation === 'granted'
+              ? 'On'
+              : permissions.location === 'granted'
+                ? 'Limited'
+                : 'Off'
+          }
         />
-        <EvidenceRow
-          label="Last check"
-          value={scenario.homeState === 'offline' ? 'Waiting to sync' : 'Just now'}
-        />
-        <EvidenceRow
-          label="Today"
-          value={scenario.tripsToday > 0 ? 'Drive saved' : 'Quiet so far'}
-        />
+        <EvidenceRow label="Automatic capture" value="Not available in this preview" />
       </SoftPanel>
 
-      <SectionHeader title="This week" />
-      <SummaryCard
-        items={[
-          { label: 'Miles kept', value: scenario.weekSummary.milesProtected.toFixed(1) },
-          { label: 'Miles found', value: scenario.weekSummary.recoveredMiles.toFixed(1) },
-          { label: 'Ready to share', value: scenario.weekSummary.milesReadyForProof.toFixed(1) },
-        ]}
-      />
+      {showWeekSummary ? (
+        <>
+          <Text style={[text.subtitle, { marginBottom: spacing.sm, marginTop: spacing.sm }]}>
+            This week
+          </Text>
+          <SummaryCard
+            items={[
+              { label: 'Miles kept', value: scenario.weekSummary.milesProtected.toFixed(1) },
+              { label: 'Miles found', value: scenario.weekSummary.recoveredMiles.toFixed(1) },
+              { label: 'Ready to share', value: scenario.weekSummary.milesReadyForProof.toFixed(1) },
+            ]}
+          />
+        </>
+      ) : null}
 
-      <SectionHeader title="Recent" />
+      <Text style={[text.subtitle, { marginBottom: spacing.sm, marginTop: spacing.sm }]}>Recent</Text>
       {scenario.activity.length === 0 ? (
         <StatusCard
           variant="neutral"
-          title="Quiet for now"
-          body="Drive as usual. We’ll surface anything that needs you in Review—never invent miles."
+          title="Nothing recorded yet"
+          body="When a real drive is saved—or you add one—it shows up here. We never invent miles."
           emphasis="subtle"
         />
       ) : (
@@ -142,36 +187,25 @@ export function HomeScreen() {
         ))
       )}
 
-      <SectionHeader title="If work asks today" />
-      <View style={{ marginBottom: spacing.md }}>
-        {scenario.proofReady ? (
-          <StatusCard
-            variant="info"
-            title="Your report is ready whenever you need it"
-            body="Preview what you’d share—no scramble."
-            actionLabel="Open report"
-            onAction={() => navigation.navigate('Proof')}
-            emphasis="subtle"
-          />
-        ) : (
-          <StatusCard
-            variant="neutral"
-            title={needsAction && scenario.reviewItems.length > 0 ? 'Almost ready to share' : 'Not ready to share yet'}
-            body={scenario.proofBlockReason ?? 'Confirm a few drives and you’ll be set.'}
-            actionLabel={scenario.reviewItems.length > 0 ? 'Review drives' : undefined}
-            onAction={scenario.reviewItems.length > 0 ? () => navigation.navigate('Review') : undefined}
-            emphasis="subtle"
-          />
-        )}
-      </View>
-
-      {scenario.tripsToday === 0 && scenario.activity.length === 0 ? (
-        <PrimaryButton
-          label="Add a drive"
-          onPress={() => navigation.navigate('ManualTrip')}
-          accessibilityLabel="Add a drive from home"
-        />
+      {secondaryAction ? (
+        <View style={{ marginTop: spacing.md }}>
+          {scenario.primaryAction ? (
+            <SecondaryButton label={secondaryAction.label} onPress={handleSecondary} />
+          ) : (
+            <PrimaryButton label={secondaryAction.label} onPress={handleSecondary} />
+          )}
+        </View>
       ) : null}
-    </ScrollScreen>
+
+      {liveMode && scenario.activity.length === 0 && !scenario.primaryAction && !secondaryAction ? (
+        <View style={{ marginTop: spacing.md }}>
+          <PrimaryButton
+            label="Add a drive"
+            onPress={() => navigation.navigate('ManualTrip')}
+            accessibilityLabel="Add a drive from home"
+          />
+        </View>
+      ) : null}
+    </TabScreen>
   );
 }

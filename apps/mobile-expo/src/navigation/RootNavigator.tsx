@@ -27,6 +27,10 @@ const screenOptions = {
   headerStyle: { backgroundColor: colors.header.background },
   headerTintColor: colors.text.inverse,
   headerTitleStyle: { fontWeight: '600' as const },
+  headerShadowVisible: false,
+  contentStyle: { backgroundColor: colors.background.canvas },
+  // Native header owns the status-bar inset; body screens pad bottom via StackScrollScreen.
+  headerTransparent: false,
 };
 
 export function RootNavigator() {

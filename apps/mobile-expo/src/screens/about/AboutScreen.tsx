@@ -7,6 +7,7 @@ import {
   ListSection,
   PrimaryButton,
   ScrollScreen,
+  SecondaryButton,
   SectionHeader,
   StatusCard,
   text,
@@ -14,9 +15,13 @@ import {
 import { APP_BUILD_LABEL, PREVIEW_CHANNEL_MARKER } from '../../constants/buildInfo';
 import { readUpdateMetadata } from '../../updates/appUpdates';
 import { useAppUpdates } from '../../updates/UpdateProvider';
+import { useApp } from '../../store/AppContext';
+import { useProduct } from '../../product/ProductContext';
 
 export function AboutScreen() {
   const { updatesActive, checkForUpdates, applyUpdate, updateReady } = useAppUpdates();
+  const { restartOnboarding } = useApp();
+  const { resetOnboarding } = useProduct();
   const [checking, setChecking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const meta = readUpdateMetadata();
@@ -53,8 +58,16 @@ export function AboutScreen() {
           </>
         ) : null}
       </ListSection>
+      <SecondaryButton
+        label="Restart onboarding"
+        onPress={() => {
+          resetOnboarding();
+          restartOnboarding();
+        }}
+        accessibilityLabel="Restart onboarding for preview testing"
+      />
       {updatesActive ? (
-        <View style={{ gap: spacing.sm }}>
+        <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
           <PrimaryButton
             label={checking ? 'Checking…' : 'Check for updates'}
             onPress={() => void onCheck()}
@@ -67,7 +80,9 @@ export function AboutScreen() {
           {statusMessage ? <Text style={text.body}>{statusMessage}</Text> : null}
         </View>
       ) : (
-        <Text style={text.caption}>Updates are managed through your development tools in this build.</Text>
+        <Text style={[text.caption, { marginTop: spacing.md }]}>
+          Updates are managed through your development tools in this build.
+        </Text>
       )}
     </ScrollScreen>
   );

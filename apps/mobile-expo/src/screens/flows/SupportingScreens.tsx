@@ -3,25 +3,26 @@ import { Linking, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing } from '@milerecover/config';
+import { spacing } from '@milerecover/config';
 import {
   DestructiveButton,
   EvidenceRow,
+  FixedHeaderScrollScreen,
   FormError,
   FormField,
-  ListRow,
   ListSection,
   LoadingState,
   PlanCard,
   PrimaryButton,
   ScrollScreen,
   SecondaryButton,
-  SectionHeader,
   SelectionCard,
+  SoftPanel,
   StatusCard,
   text,
 } from '../../design-system';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
+import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -171,6 +172,9 @@ export function MissingTripRecoveryScreen() {
 
 export function ProtectionAlertScreen() {
   const navigation = useNavigation<Nav>();
+  const { product, setProtectionSetupState } = useProduct();
+  const unfinished =
+    product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
 
   const openSystemSettings = () => {
     void Linking.openSettings().catch(() => {
@@ -181,19 +185,30 @@ export function ProtectionAlertScreen() {
   return (
     <ScrollScreen>
       <StatusCard
-        variant="warning"
-        title="Background access is limited"
-        body="We may miss new drives until it’s back on. What’s already saved stays put."
+        variant={unfinished ? 'info' : 'warning'}
+        title={unfinished ? 'Finish setting up protection' : 'Protection needs attention'}
+        body={
+          unfinished
+            ? 'Automatic capture is not available in this preview. When it ships, we’ll ask for each permission after explaining it—never before.'
+            : 'Background access is off, so a drive could be missed. What’s already saved stays put.'
+        }
         actionLabel="Open Settings"
         onAction={openSystemSettings}
         emphasis="hero"
       />
-      <StatusCard
-        variant="neutral"
-        title="What this means"
-        body="Your existing records are safe. New automatic capture may pause until background access returns."
-        emphasis="subtle"
-      />
+      <SoftPanel>
+        <EvidenceRow label="Location permission" value="Not granted yet" />
+        <EvidenceRow label="Background location" value="Not granted yet" />
+        <EvidenceRow label="Battery optimization" value="Not available in this preview" />
+        <EvidenceRow label="Tracking engine" value="Not available in this preview" />
+      </SoftPanel>
+      {unfinished ? (
+        <PrimaryButton
+          label="I’ve reviewed these requirements"
+          onPress={() => setProtectionSetupState('configured')}
+          accessibilityLabel="Mark protection education complete"
+        />
+      ) : null}
       <SecondaryButton
         label="View tracking status"
         onPress={() => navigation.navigate('TrackingActive')}
@@ -214,9 +229,9 @@ export function TrackingActiveScreen() {
         emphasis="hero"
       />
       <ListSection title="Status">
-        <EvidenceRow label="Automatic capture" value="Coming soon" />
+        <EvidenceRow label="Automatic capture" value="Not available in this preview" />
         <EvidenceRow label="Background location" value="Not granted yet" />
-        <EvidenceRow label="Screen-off coverage" value="Planned" />
+        <EvidenceRow label="Screen-off coverage" value="Not available in this preview" />
       </ListSection>
       <StatusCard
         variant="neutral"
@@ -230,8 +245,8 @@ export function TrackingActiveScreen() {
 
 export function VehicleSetupScreen() {
   const { product, upsertVehicle } = useProduct();
-  const primary = product.vehicles[0] ?? { id: 'vehicle-1', label: 'Primary vehicle' };
-  const [label, setLabel] = useState(primary.label);
+  const primary = product.vehicles[0];
+  const [label, setLabel] = useState(primary?.label ?? '');
   const [saved, setSaved] = useState(false);
 
   return (
@@ -239,11 +254,11 @@ export function VehicleSetupScreen() {
       <StatusCard
         variant="info"
         title="Optional—but helpful"
-        body="A clear vehicle name makes reports easier to read later."
+        body="A clear vehicle name makes reports easier to read later. Nothing is saved until you choose Save."
         emphasis="subtle"
       />
       <FormField
-        label="Primary vehicle"
+        label="Vehicle name"
         value={label}
         onChangeText={(t) => {
           setLabel(t);
@@ -254,7 +269,9 @@ export function VehicleSetupScreen() {
       <PrimaryButton
         label="Save vehicle"
         onPress={() => {
-          upsertVehicle({ id: primary.id, label: label.trim() || 'Primary vehicle' });
+          const trimmed = label.trim();
+          if (!trimmed) return;
+          upsertVehicle({ id: primary?.id ?? `vehicle-${Date.now()}`, label: trimmed });
           setSaved(true);
         }}
       />
@@ -340,7 +357,7 @@ export function ComingLaterScreen() {
       />
       <StatusCard
         variant="neutral"
-        title="Not available yet"
+        title="Not available in this preview"
         body="We’ll turn this on when it’s ready—no fake toggles that pretend to work."
         emphasis="subtle"
       />
@@ -417,39 +434,99 @@ export function ExportReportScreen() {
 
 export function ReportPreviewScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ReportPreview'>>();
+  const { product } = useProduct();
+  const formatLabel = route.params.format.toUpperCase();
+  const driveCount = product.manualTrips.length;
+  const miles = product.manualTrips.reduce((sum, t) => sum + t.distanceMiles, 0);
+
   return (
     <ScrollScreen>
       <StatusCard
-        variant="success"
-        title={`${route.params.format.toUpperCase()} preview`}
-        body="Preview only. Shows confirmed drives for this period—no employer or tax approval is implied."
+        variant="info"
+        title="Preview sample"
+        body={`${formatLabel} layout only. This is not a generated document—no employer or tax approval is implied.`}
         emphasis="hero"
       />
-      <ListSection title="Summary">
+      <SoftPanel>
+        <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Mileage report</Text>
         <EvidenceRow label="Period" value="Current period" />
-        <EvidenceRow label="Confirmed drives" value="Included" />
-        <EvidenceRow label="Still open" value="Left out until reviewed" />
+        <EvidenceRow label="Driver" value={product.preferredName?.trim() || 'Not set'} />
+        <EvidenceRow label="Confirmed work drives" value={String(driveCount)} />
+        <EvidenceRow label="Total miles" value={miles > 0 ? miles.toFixed(1) : '0.0'} />
+        <EvidenceRow label="Unresolved" value="Left out until reviewed" />
+      </SoftPanel>
+      <ListSection title="Sample line items">
+        {driveCount === 0 ? (
+          <StatusCard
+            variant="neutral"
+            title="No confirmed drives in this sample"
+            body="When confirmed work drives exist, they’ll list here with date, purpose, and miles."
+            emphasis="subtle"
+          />
+        ) : (
+          product.manualTrips.slice(0, 5).map((t) => (
+            <EvidenceRow
+              key={t.id}
+              label={t.purpose}
+              value={`${t.date} · ${t.distanceMiles.toFixed(1)} mi`}
+            />
+          ))
+        )}
       </ListSection>
     </ScrollScreen>
   );
 }
 
 export function PlanSelectionScreen() {
-  const navigation = useNavigation<Nav>();
-  const { setSelectedPlan } = useProduct();
+  const { product, setSelectedPlan } = useProduct();
   const [annual, setAnnual] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [selectedRescue, setSelectedRescue] = useState<string | null>(null);
+
+  const onChoosePlan = (planId: 'plus' | 'pro') => {
+    const applied = setSelectedPlan(planId);
+    if (applied) {
+      setNotice(`${planId === 'plus' ? 'Plus' : 'Pro'} applied in demo mode only.`);
+    } else {
+      setNotice(
+        'Preview only — billing is not connected. Your plan stays Free until a real purchase succeeds.',
+      );
+    }
+  };
+
   return (
-    <ScrollScreen>
-      <StatusCard
-        variant="info"
-        title="Upgrade when it helps"
-        body="No countdowns. No hidden trials. Subscribe because MileRecover already made life easier."
-        emphasis="subtle"
+    <FixedHeaderScrollScreen
+      header={
+        <View>
+          <Text style={text.subtitle}>Upgrade when it helps.</Text>
+          <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            No countdowns. No hidden trials. Billing is not connected in this preview.
+          </Text>
+          <SecondaryButton
+            label={annual ? 'Showing annual — switch to monthly' : 'Showing monthly — switch to annual'}
+            onPress={() => setAnnual((v) => !v)}
+            accessibilityLabel={annual ? 'Switch to monthly prices' : 'Switch to annual prices'}
+          />
+        </View>
+      }
+    >
+      {notice ? (
+        <StatusCard variant="info" title="Purchase preview" body={notice} emphasis="subtle" />
+      ) : null}
+
+      <PlanCard
+        name="Free"
+        tagline={PLAN_FIXTURES[0].tagline}
+        price="$0"
+        period={annual ? 'year' : 'month'}
+        features={PLAN_FIXTURES[0].features}
+        current={product.selectedPlan === 'free'}
+        onSelect={() => {
+          setSelectedPlan('free');
+          setNotice('You remain on Free. Upgrade only when it helps.');
+        }}
       />
-      <SecondaryButton
-        label={annual ? 'Show monthly prices' : 'Show annual prices'}
-        onPress={() => setAnnual((v) => !v)}
-      />
+
       {PLAN_FIXTURES.filter((p) => p.id !== 'free').map((plan) => (
         <PlanCard
           key={plan.id}
@@ -457,30 +534,42 @@ export function PlanSelectionScreen() {
           tagline={plan.tagline}
           price={annual ? plan.annualPrice : plan.monthlyPrice}
           period={annual ? 'year' : 'month'}
-          features={plan.features.slice(0, 4)}
+          features={plan.features}
           highlighted={plan.highlighted}
-          onSelect={() => {
-            setSelectedPlan(plan.id);
-            navigation.goBack();
+          current={product.selectedPlan === plan.id}
+          savingsLabel={annual ? plan.annualSavingsLabel : undefined}
+          onSelect={() => onChoosePlan(plan.id as 'plus' | 'pro')}
+        />
+      ))}
+
+      <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>
+        One-time catch-up
+      </Text>
+      <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+        No subscription required. Preview selection only—billing is not connected.
+      </Text>
+      {RESCUE_OPTIONS.map((r) => (
+        <SelectionCard
+          key={r.id}
+          title={`${r.name} · ${r.price}`}
+          body={r.description}
+          selected={selectedRescue === r.id}
+          onPress={() => {
+            setSelectedRescue(r.id);
+            setNotice(
+              `Preview only — ${r.name} is not purchased. Billing is not connected in this preview.`,
+            );
           }}
         />
       ))}
-      <SectionHeader title="One-time catch-up" />
-      <ListSection title="No subscription required">
-        {RESCUE_OPTIONS.map((r) => (
-          <ListRow key={r.id} label={r.name} value={r.price} />
-        ))}
-      </ListSection>
-      {RESCUE_OPTIONS.map((r) => (
-        <Text key={`${r.id}-d`} style={[text.caption, { marginBottom: spacing.sm, color: colors.text.secondary }]}>
-          {r.name}: {r.description}
-        </Text>
-      ))}
-    </ScrollScreen>
+    </FixedHeaderScrollScreen>
   );
 }
 
 export function HelpSupportScreen() {
+  const { resetOnboarding } = useProduct();
+  const { restartOnboarding } = useApp();
+
   return (
     <ScrollScreen>
       <StatusCard
@@ -491,7 +580,7 @@ export function HelpSupportScreen() {
       />
       <ListSection title="Common questions">
         <View style={{ gap: spacing.sm }}>
-          <Text style={text.subtitle}>Why do trips need review?</Text>
+          <Text style={text.subtitle}>Why do drives need review?</Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
             We prefer trust over automation. Uncertain drives stay pending until you confirm.
           </Text>
@@ -501,10 +590,18 @@ export function HelpSupportScreen() {
           </Text>
           <Text style={text.subtitle}>When does automatic capture start?</Text>
           <Text style={text.body}>
-            Automatic tracking is coming. For now, manual drives and Review keep you covered.
+            Automatic tracking is not available in this preview. Manual drives and Review keep you honest.
           </Text>
         </View>
       </ListSection>
+      <PrimaryButton
+        label="Restart onboarding"
+        onPress={() => {
+          resetOnboarding();
+          restartOnboarding();
+        }}
+        accessibilityLabel="Restart onboarding for preview testing"
+      />
       <StatusCard
         variant="neutral"
         title="Contact"

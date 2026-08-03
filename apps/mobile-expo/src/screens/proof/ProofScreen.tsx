@@ -10,9 +10,9 @@ import {
   ListRow,
   ListSection,
   ProofHeroCard,
-  ScrollScreen,
   SecondaryButton,
   StatusCard,
+  TabScreen,
   TertiaryButton,
 } from '../../design-system';
 import { selectProductExperience } from '../../product/selectors';
@@ -29,50 +29,53 @@ export function ProofScreen() {
   const navigation = useNavigation<Nav>();
   const { state, permissions } = useApp();
   const { product } = useProduct();
-  const { scenario } = selectProductExperience(state, product, permissions);
+  const { scenario, liveMode, voice } = selectProductExperience(state, product, permissions);
   const [showDetails, setShowDetails] = useState(false);
+  const confirmedCount = scenario.trips.length + product.manualTrips.length;
+  const hasRecords = confirmedCount > 0 || scenario.periodMiles > 0;
+
+  if (!scenario.proofReady && !hasRecords) {
+    return (
+      <TabScreen>
+        <EmptyState
+          title="No confirmed drives yet"
+          body={`Confirmed ${voice.workNoun} drives will appear here, ready to review and ${voice.shareVerb}.`}
+          actionLabel="Add a drive"
+          onAction={() => navigation.navigate('ManualTrip')}
+        />
+      </TabScreen>
+    );
+  }
 
   if (!scenario.proofReady) {
     return (
-      <ScrollScreen>
+      <TabScreen>
         <StatusCard
           variant="warning"
-          title="A few drives need a look first"
-          body={scenario.proofBlockReason ?? 'A quick yes or no in Review and you’ll be ready to submit.'}
+          title="Review one item before sharing"
+          body={scenario.proofBlockReason ?? 'A quick decision in Review and you’ll be ready.'}
           actionLabel="Review drives"
           onAction={() => navigation.navigate('Review')}
           emphasis="hero"
         />
         <View style={{ marginTop: spacing.sm }}>
           <SecondaryButton
-            label="Preview what you have"
+            label="Preview sample layout"
             onPress={() => navigation.navigate('ReportPreview', { format: 'log' })}
           />
         </View>
-      </ScrollScreen>
-    );
-  }
-
-  if (scenario.trips.length === 0 && product.manualTrips.length === 0) {
-    return (
-      <ScrollScreen>
-        <EmptyState
-          title="Nothing to share yet"
-          body="Once a few drives are confirmed, your report will be ready here—calm and complete."
-          actionLabel="Add a drive"
-          onAction={() => navigation.navigate('ManualTrip')}
-        />
-      </ScrollScreen>
+      </TabScreen>
     );
   }
 
   return (
-    <ScrollScreen>
+    <TabScreen>
       <ProofHeroCard
         periodLabel={state.reportingPeriod.label}
-        tripCount={scenario.trips.length}
+        tripCount={confirmedCount}
         totalMiles={scenario.periodMiles.toFixed(1)}
         unresolved={null}
+        title="Your records are ready to review"
         onPreview={() => navigation.navigate('ReportPreview', { format: 'reimbursement' })}
       />
 
@@ -85,22 +88,20 @@ export function ProofScreen() {
         <TertiaryButton
           label={showDetails ? 'Hide period details' : 'Show period details'}
           onPress={() => setShowDetails((v) => !v)}
-          accessibilityLabel={showDetails ? 'Hide period details' : 'Show period details'}
         />
       </View>
 
       {showDetails ? (
         <>
           <ListSection title="Included this period">
-            <ListRow label="Confirmed drives" value={`${scenario.trips.length}`} />
+            <ListRow label="Confirmed work drives" value={`${confirmedCount}`} />
             <ListRow label="Miles found" value={`${scenario.weekSummary.recoveredMiles.toFixed(1)} mi`} />
             <ListRow
               label="Brought from history"
-              value={scenario.id === 'imported_history' ? '214 organized' : 'None'}
+              value={!liveMode && scenario.id === 'imported_history' ? '214 organized' : 'None'}
             />
             <ListRow label="Added by you" value={String(product.manualTrips.length)} />
           </ListSection>
-
           <ListSection title="What’s behind the report">
             <ListRow label="Route summaries" value="When available" />
             <ListRow label="Work places" value="Optional" />
@@ -108,6 +109,6 @@ export function ProofScreen() {
           </ListSection>
         </>
       ) : null}
-    </ScrollScreen>
+    </TabScreen>
   );
 }
