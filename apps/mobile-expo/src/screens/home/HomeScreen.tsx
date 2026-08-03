@@ -84,10 +84,16 @@ export function HomeScreen() {
   }, [product.pendingPostOnboardingRoute]);
 
   useEffect(() => {
+    if (!capabilities.canUseGapDetection) return;
     if (recoveryRefreshed.current || experience.confirmedTrips.length === 0) return;
     recoveryRefreshed.current = true;
     refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
-  }, [experience.confirmedTrips.length, product.workLocations, refreshRecoverySuggestions]);
+  }, [
+    capabilities.canUseGapDetection,
+    experience.confirmedTrips.length,
+    product.workLocations,
+    refreshRecoverySuggestions,
+  ]);
 
   useEffect(() => {
     if (liveMode && experience.confirmedTrips.length > 0 && product.firstConfirmedWorkDriveAt == null) {

@@ -67,5 +67,8 @@ export async function openAppSettings(): Promise<void> {
   await Linking.openSettings();
 }
 
-/** Tracking engine is not shipped in this RC — keep the boundary honest. */
-export const AUTOMATIC_CAPTURE_AVAILABLE = false;
+/**
+ * Automatic capture is implemented via expo-location + expo-task-manager.
+ * Capability still requires Plus/trial entitlement before the engine may run.
+ */
+export const AUTOMATIC_CAPTURE_AVAILABLE = true;

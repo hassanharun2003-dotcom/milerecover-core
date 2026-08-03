@@ -43,10 +43,15 @@ import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
 import { nextActionForGoal, voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
-import type { ReviewDecision, VehicleDraft } from '../../product/types';
+import type { ReviewDecision, VehicleDraft, WorkLocationDraft } from '../../product/types';
 import { writeTextFile, shareFile } from '../../services/fileShare';
 import { generateAndSharePdf } from '../../services/pdfReport';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
+import {
+  buildUserDataExport,
+  clearLocalPrivacyCaches,
+  writeUserDataExportFile,
+} from '../../services/dataPrivacy';
 import { getPurchasePort, trialRenewalCopy, type PurchasePeriod } from '../../services/purchases';
 import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
 import { useApp } from '../../store/AppContext';
@@ -54,11 +59,14 @@ import { useApp } from '../../store/AppContext';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const EVIDENCE_OPTIONS: { id: TripEvidenceMethod; label: string; body: string }[] = [
+  { id: 'map_estimate', label: 'Route calculated', body: 'Distance from a calculated route or map check.' },
   { id: 'odometer', label: 'Odometer', body: 'Start/end odometer or written log.' },
-  { id: 'map_estimate', label: 'Map estimate', body: 'Distance checked against a map.' },
-  { id: 'calendar_receipt_note', label: 'Calendar, receipt, or note', body: 'Backed by another record.' },
-  { id: 'user_estimate', label: 'My estimate', body: 'Best memory, clearly labeled.' },
+  { id: 'calendar_receipt_note', label: 'Another record', body: 'Calendar, receipt, or other record.' },
+  { id: 'user_estimate', label: 'Best estimate', body: 'Best memory — clearly labeled as estimated.' },
 ];
+
+const VEHICLE_YEAR_CHOICES = Array.from({ length: 30 }, (_, index) => String(new Date().getFullYear() - index));
+const COMMON_MAKES = ['Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan', 'Hyundai', 'Kia', 'Subaru', 'Tesla', 'Other'];
 
 function localId(prefix: string): string {
   return `${prefix}-${Date.now()}`;
@@ -147,15 +155,16 @@ export function ManualTripScreen() {
   const purposeChips = (() => {
     switch (product.primaryGoal) {
       case 'employee_reimbursement':
-        return ['Client meeting', 'Office errand', 'Training', 'Worksite visit'];
+        return ['Client visit', 'Between work locations', 'Meeting or training', 'Airport or business travel', 'Other work drive'];
       case 'gig_delivery':
-        return ['Delivery shift', 'Pickup run', 'Dropoff route', 'Hotspot reposition'];
+        return ['Delivery', 'Pickup', 'Repositioning', 'Supply or fuel stop', 'Other work drive'];
       case 'self_employed_business':
-        return ['Client visit', 'Supply run', 'Job site', 'Business meeting'];
+        return ['Client visit', 'Supplies', 'Bank or post office', 'Business meeting', 'Other work drive'];
       default:
-        return ['Work drive', 'Client visit', 'Delivery', 'Errand for work'];
+        return ['Client visit', 'Delivery', 'Between work locations', 'Business meeting', 'Other work drive'];
     }
   })();
+  const customPurpose = purpose.length > 0 && !purposeChips.includes(purpose);
 
   const applyDateOffset = (daysBack: number) => {
     const next = new Date();
@@ -176,6 +185,10 @@ export function ManualTripScreen() {
   };
 
   const save = () => {
+    if (purpose === 'Other work drive') {
+      setError('Enter a custom purpose for Other work drive.');
+      return;
+    }
     const startAt = composeDateTime(driveDate, startTime, 9, 0);
     const endAt = composeDateTime(driveDate, endTime, 9, 30);
     const input = {
@@ -307,7 +320,15 @@ export function ManualTripScreen() {
             <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
           ))}
         </View>
-        <FormField label="Purpose" value={purpose} onChangeText={setPurpose} placeholder="Client visit" />
+        {purpose && purpose !== 'Other work drive' ? <EvidenceRow label="Selected purpose" value={purpose} /> : null}
+        {purpose === 'Other work drive' || customPurpose ? (
+          <FormField
+            label="Custom purpose"
+            value={purpose === 'Other work drive' ? '' : purpose}
+            onChangeText={(value) => setPurpose(value.trim() ? value : 'Other work drive')}
+            placeholder="Describe the work drive"
+          />
+        ) : null}
       </ListSection>
 
       <ListSection title="Classification">
@@ -529,8 +550,8 @@ export function ProtectionAlertScreen() {
         title="Protection setup"
         body={
           automaticCaptureAvailable
-            ? 'Grant foreground and background location before automatic capture can run.'
-            : 'Automatic capture is not available in this release candidate. These permission states are real, but tracking is not active.'
+            ? 'Grant foreground and background location before automatic capture can run. Denied permissions never trap you — change them later in Settings.'
+            : 'Automatic capture is not available in this build runtime.'
         }
         emphasis="hero"
       />
@@ -538,7 +559,7 @@ export function ProtectionAlertScreen() {
         <EvidenceRow label="Foreground location" value={foregroundReady ? 'Granted' : permissions.location} />
         <EvidenceRow label="Background location" value={backgroundReady ? 'Granted' : permissions.backgroundLocation} />
         <EvidenceRow label="Motion" value={permissions.motion} />
-        <EvidenceRow label="Tracking engine" value={automaticCaptureAvailable ? 'Available' : 'Unavailable in this RC'} />
+        <EvidenceRow label="Tracking engine" value={automaticCaptureAvailable ? 'Available' : 'Unavailable'} />
       </SoftPanel>
       <PrimaryButton label="Request foreground location" onPress={() => void requestLocationPermission()} />
       <SecondaryButton
@@ -606,7 +627,7 @@ export function TrackingActiveScreen() {
       <ListSection title="Status">
         <EvidenceRow label="Plan capability" value={canStart ? 'Allowed' : 'Not included'} />
         <EvidenceRow label="Tracking preference" value={product.trackingEnabled ? 'Enabled' : 'Off'} />
-        <EvidenceRow label="Runtime capture flag" value={automaticCaptureAvailable ? 'Available' : 'Unavailable in this build'} />
+        <EvidenceRow label="Runtime capture flag" value={automaticCaptureAvailable ? 'Available' : 'Unavailable'} />
         <EvidenceRow label="Foreground location" value={permissions.location} />
         <EvidenceRow label="Background location" value={permissions.backgroundLocation} />
         <EvidenceRow label="Controller state" value={diagnostics?.engineState ?? 'unknown'} />
@@ -643,44 +664,87 @@ export function TrackingActiveScreen() {
 }
 
 export function VehicleSetupScreen() {
+  const navigation = useNavigation<Nav>();
   const { product, upsertVehicle } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
   const primary = product.vehicles[0];
   const [nickname, setNickname] = useState(primary?.nickname ?? '');
+  const [year, setYear] = useState(primary?.year ?? '');
   const [make, setMake] = useState(primary?.make ?? '');
   const [model, setModel] = useState(primary?.model ?? '');
+  const [plate, setPlate] = useState(primary?.plate ?? '');
   const [saved, setSaved] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const atFreeLimit = !primary && product.vehicles.length >= capabilities.maxVehicles;
 
   const save = () => {
-    const hasValue = nickname.trim() || make.trim() || model.trim();
+    const hasValue = nickname.trim() || make.trim() || model.trim() || year.trim();
     if (!hasValue) return;
+    if (atFreeLimit) {
+      setLimitMessage(`Free includes up to ${capabilities.maxVehicles} vehicle. Choose Plus for more.`);
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
     upsertVehicle({
       id: primary?.id ?? localId('vehicle'),
-      nickname: nickname.trim() || [make.trim(), model.trim()].filter(Boolean).join(' ') || 'My vehicle',
+      nickname: nickname.trim() || [year.trim(), make.trim(), model.trim()].filter(Boolean).join(' ') || 'My vehicle',
+      year: year.trim(),
       make: make.trim(),
-      model: model.trim(),
+      model: model.trim() || (make === 'Other' ? 'Other' : ''),
+      plate: plate.trim(),
       isPrimary: primary?.isPrimary ?? product.vehicles.length === 0,
       createdAt: primary?.createdAt,
     });
     setSaved(true);
+    setLimitMessage(null);
   };
 
   return (
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title="Vehicles are optional"
-        body="A nickname, make, or model can appear in reports when you select a vehicle on a trip."
+        title="Which vehicle carries your work miles?"
+        body="Tap year and make first. Nickname and plate are optional. Nothing is invented."
         emphasis="subtle"
       />
-      <FormField label="Nickname" value={nickname} onChangeText={setNickname} placeholder="Work sedan" />
-      <FormField label="Make" value={make} onChangeText={setMake} placeholder="Toyota" />
-      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Camry" />
-      <PrimaryButton label="Save vehicle" onPress={save} disabled={!nickname.trim() && !make.trim() && !model.trim()} />
+      {limitMessage ? <StatusCard variant="warning" title="Vehicle limit" body={limitMessage} emphasis="subtle" /> : null}
+      <ListSection title="Year">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {VEHICLE_YEAR_CHOICES.slice(0, 8).map((choice) => (
+            <SecondaryButton key={choice} label={choice} onPress={() => setYear(choice)} />
+          ))}
+        </View>
+        {year ? <EvidenceRow label="Selected year" value={year} /> : null}
+      </ListSection>
+      <ListSection title="Make">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {COMMON_MAKES.map((choice) => (
+            <SecondaryButton key={choice} label={choice} onPress={() => setMake(choice)} />
+          ))}
+        </View>
+        {make ? <EvidenceRow label="Selected make" value={make} /> : null}
+        {!COMMON_MAKES.includes(make) || make === 'Other' ? (
+          <FormField
+            label="Custom make"
+            value={make === 'Other' ? '' : make}
+            onChangeText={(value) => setMake(value.trim() ? value : 'Other')}
+            placeholder="Enter make"
+          />
+        ) : null}
+      </ListSection>
+      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Camry or Other" />
+      <FormField label="Nickname (optional)" value={nickname} onChangeText={setNickname} placeholder="Work sedan" />
+      <FormField label="License plate (optional)" value={plate} onChangeText={setPlate} placeholder="Optional" />
+      <PrimaryButton label="Save vehicle" onPress={save} disabled={!nickname.trim() && !make.trim() && !model.trim() && !year.trim()} />
       {saved ? <StatusCard variant="success" title="Saved" body="Vehicle details are stored locally." emphasis="subtle" /> : null}
       {product.vehicles.length > 0 ? (
         <ListSection title="Saved vehicles">
           {product.vehicles.map((vehicle) => (
-            <EvidenceRow key={vehicle.id} label={vehicleLabel(vehicle)} value={[vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'No make/model'} />
+            <EvidenceRow
+              key={vehicle.id}
+              label={vehicleLabel(vehicle)}
+              value={[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'No make/model'}
+            />
           ))}
         </ListSection>
       ) : null}
@@ -689,43 +753,65 @@ export function VehicleSetupScreen() {
 }
 
 export function WorkLocationSetupScreen() {
+  const navigation = useNavigation<Nav>();
   const { product, upsertWorkLocation } = useProduct();
-  const existing = product.workLocations[0];
-  const [label, setLabel] = useState(existing?.label ?? '');
-  const [address, setAddress] = useState(existing?.address ?? '');
-  const [notes, setNotes] = useState(existing?.notes ?? '');
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const [kind, setKind] = useState<WorkLocationDraft['kind']>('workplace');
+  const [label, setLabel] = useState('');
+  const [address, setAddress] = useState('');
+  const [notes, setNotes] = useState('');
   const [saved, setSaved] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   const save = () => {
     const hasValue = label.trim() || address.trim() || notes.trim();
     if (!hasValue) return;
+    if (product.workLocations.length >= capabilities.maxWorkplaces) {
+      setLimitMessage(`Free includes up to ${capabilities.maxWorkplaces} familiar places. Choose Plus for more.`);
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
     upsertWorkLocation({
-      id: existing?.id ?? localId('work-place'),
-      label: label.trim() || 'Work place',
+      id: localId('work-place'),
+      label: label.trim() || (kind === 'home' ? 'Home' : kind === 'client' ? 'Client' : 'Work place'),
       address: address.trim(),
       notes: notes.trim(),
-      createdAt: existing?.createdAt,
+      kind,
     });
     setSaved(true);
+    setLimitMessage(null);
+    setLabel('');
+    setAddress('');
+    setNotes('');
   };
 
   return (
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title="Work places are optional"
-        body="Use a simple label and address when it helps explain routine work drives."
+        title="Places you visit often make review faster"
+        body="Familiar places help classify and recover drives. Nothing is saved until you tap Save. Approximate labels are fine."
         emphasis="subtle"
       />
-      <FormField label="Label" value={label} onChangeText={setLabel} placeholder="Office" />
-      <FormField label="Address" value={address} onChangeText={setAddress} placeholder="Street, city" />
+      {limitMessage ? <StatusCard variant="warning" title="Place limit" body={limitMessage} emphasis="subtle" /> : null}
+      <SegmentedControl
+        value={kind}
+        onChange={setKind}
+        options={[
+          { label: 'Home', value: 'home' },
+          { label: 'Work', value: 'workplace' },
+          { label: 'Client', value: 'client' },
+        ]}
+      />
+      <FormField label="Private label" value={label} onChangeText={setLabel} placeholder="Office" />
+      <FormField label="Address or area" value={address} onChangeText={setAddress} placeholder="Street, city, or neighborhood" />
       <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional context" />
-      <PrimaryButton label="Save work place" onPress={save} disabled={!label.trim() && !address.trim() && !notes.trim()} />
-      {saved ? <StatusCard variant="success" title="Saved" body="Work place stored locally." emphasis="subtle" /> : null}
+      <PrimaryButton label="Save place" onPress={save} disabled={!label.trim() && !address.trim() && !notes.trim()} />
+      {saved ? <StatusCard variant="success" title="Saved" body="Place stored locally on this device." emphasis="subtle" /> : null}
       {product.workLocations.length > 0 ? (
-        <ListSection title="Saved work places">
+        <ListSection title="Saved places">
           {product.workLocations.map((loc) => (
-            <EvidenceRow key={loc.id} label={loc.label} value={loc.address || loc.notes || 'No address'} />
+            <EvidenceRow key={loc.id} label={`${loc.label} (${loc.kind})`} value={loc.address || loc.notes || 'No address'} />
           ))}
         </ListSection>
       ) : null}
@@ -749,12 +835,56 @@ export function ComingLaterScreen() {
 }
 
 export function PrivacyScreen() {
+  const { state, resetLocalData, restartOnboarding } = useApp();
+  const { product, resetProductData, setNotificationPreferences } = useProduct();
+  const [message, setMessage] = useState<string | null>(null);
+  const prefs = product.notificationPreferences;
+
+  const exportAll = async () => {
+    try {
+      const bundle = await buildUserDataExport({
+        trips: state.trips,
+        preferredName: product.preferredName,
+        vehicleCount: product.vehicles.length,
+        workPlaceCount: product.workLocations.length,
+      });
+      const uri = await writeUserDataExportFile(bundle);
+      const result = await shareFile(uri, 'application/json', 'Export MileRecover data');
+      setMessage(result.ok || result.reason === 'cancelled' ? 'Export prepared.' : result.message);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not export data.');
+    }
+  };
+
+  const deleteAll = () => {
+    Alert.alert(
+      'Delete local MileRecover data?',
+      'This clears trips, setup, vehicles, places, and tracking samples on this device. Store subscriptions are managed in Google Play or the App Store.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              await clearLocalPrivacyCaches();
+              await resetProductData();
+              resetLocalData();
+              restartOnboarding();
+              setMessage('Local data deleted.');
+            })();
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <ScrollScreen>
       <StatusCard
         variant="info"
         title="Privacy and data"
-        body="MileRecover is local-first in this MVP. Trips, setup answers, vehicles, and places are saved on this device first."
+        body="MileRecover is local-first. Trips, setup answers, vehicles, and places are saved on this device first. Location history is not sold or used for ads."
         emphasis="hero"
       />
       <ListSection title="What is stored">
@@ -763,15 +893,35 @@ export function PrivacyScreen() {
         <EvidenceRow label="Vehicles" value="Optional vehicle details you save" />
         <EvidenceRow label="Analytics" value="Private fields such as notes and coordinates are filtered out" />
       </ListSection>
-      <ListSection title="What is shared">
-        <EvidenceRow label="Reports" value="Only when you export or share" />
-        <EvidenceRow label="Billing" value="Only through a real store purchase flow when configured" />
-        <EvidenceRow label="Fake grants" value="Never" />
+      <ListSection title="Notifications">
+        <SelectionCard
+          title="Local reminders"
+          body={prefs.enabled ? 'On — quiet hours respect evening rest.' : 'Off'}
+          selected={prefs.enabled}
+          onPress={() => setNotificationPreferences({ enabled: !prefs.enabled })}
+        />
+        <SelectionCard
+          title="Trial ending reminder"
+          body="Only when notifications are allowed and this toggle stays on."
+          selected={prefs.trialEnding}
+          onPress={() => setNotificationPreferences({ trialEnding: !prefs.trialEnding })}
+        />
+        <SelectionCard
+          title="Tracking health alerts"
+          body="When protection is degraded and you asked for alerts."
+          selected={prefs.trackingDegraded}
+          onPress={() => setNotificationPreferences({ trackingDegraded: !prefs.trackingDegraded })}
+        />
       </ListSection>
+      <ListSection title="Controls">
+        <PrimaryButton label="Export my data" onPress={() => void exportAll()} />
+        <DestructiveButton label="Delete local data" onPress={deleteAll} />
+      </ListSection>
+      {message ? <StatusCard variant="info" title="Privacy action" body={message} emphasis="subtle" /> : null}
       <StatusCard
         variant="neutral"
-        title="Controls"
-        body="Use Profile > Reset preview data to clear local preview data. Device-level permissions stay controlled by system settings."
+        title="Subscriptions"
+        body="Cancel or manage billing in Google Play or App Store settings. Deleting local data does not cancel a store subscription."
         emphasis="subtle"
       />
     </ScrollScreen>
@@ -782,6 +932,7 @@ export function ExportReportScreen() {
   const navigation = useNavigation<Nav>();
   const { state } = useApp();
   const { product } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
   const [phase, setPhase] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const period = periodFromState(state.reportingPeriod);
@@ -813,6 +964,12 @@ export function ExportReportScreen() {
   };
 
   const exportPdf = async () => {
+    if (!capabilities.canUseStandardPdf) {
+      setMessage('Standard PDF reports are included with Plus after a real store purchase or trial.');
+      setPhase('failed');
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
     if (!canExport) {
       setMessage('No confirmed work drives in this reporting period.');
       setPhase('failed');
@@ -842,11 +999,14 @@ export function ExportReportScreen() {
       <StatusCard
         variant={phase === 'failed' ? 'danger' : phase === 'success' ? 'success' : 'info'}
         title={phase === 'failed' ? 'Could not export' : phase === 'success' ? 'Export handled' : 'Share confirmed work drives'}
-        body={message ?? `Current period: ${period.label}. Exports include ${report.tripCount} confirmed work drive(s).`}
+        body={message ?? `Current period: ${period.label}. Exports include ${report.tripCount} confirmed work drive(s). Free includes CSV. PDF is a Plus capability.`}
         emphasis={phase === 'idle' ? 'subtle' : 'hero'}
       />
       <PrimaryButton label="Share CSV" onPress={() => void exportCsv()} />
-      <SecondaryButton label="Share PDF" onPress={() => void exportPdf()} />
+      <SecondaryButton
+        label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF requires Plus'}
+        onPress={() => void exportPdf()}
+      />
       <SecondaryButton label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
     </ScrollScreen>
   );
@@ -899,6 +1059,7 @@ export function ReportPreviewScreen() {
 }
 
 export function PlanSelectionScreen() {
+  const navigation = useNavigation<Nav>();
   const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
   const [notice, setNotice] = useState<string | null>('Free is active. Paid access requires a real store purchase.');
@@ -997,6 +1158,14 @@ export function PlanSelectionScreen() {
         label="Restore purchases"
         onPress={() => void handleResult(() => purchasePort.restore())}
       />
+      <StatusCard
+        variant="neutral"
+        title="Automatic renewal"
+        body="Subscriptions renew automatically unless cancelled in Google Play or App Store settings. Trial enrollment requires the native store confirmation sheet — an in-app button alone never grants Plus."
+        emphasis="subtle"
+      />
+      <SecondaryButton label="Terms of Use" onPress={() => navigation.navigate('About')} />
+      <SecondaryButton label="Privacy Policy" onPress={() => navigation.navigate('Privacy')} />
     </FixedHeaderScrollScreen>
   );
 }
@@ -1022,7 +1191,7 @@ export function HelpSupportScreen() {
           </Text>
           <Text style={text.subtitle}>When does automatic capture start?</Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            Automatic capture is not available in this release candidate. Manual and imported records work now.
+            After you enable protection with Plus or an active Plus trial, and grant location permissions. Free keeps manual, import, and review.
           </Text>
           <Text style={text.subtitle}>What happens if I restart onboarding?</Text>
           <Text style={text.body}>

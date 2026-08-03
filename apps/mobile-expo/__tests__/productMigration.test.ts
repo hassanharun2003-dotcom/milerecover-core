@@ -4,10 +4,12 @@ import {
   loadProductUiState,
   saveProductUiState,
 } from '../src/product/persistence';
+import { isOnboardingMinimumComplete } from '@milerecover/domain';
 import {
   PRODUCT_UI_STORAGE_KEY,
   PRODUCT_UI_STORAGE_KEY_V1,
   PRODUCT_UI_STORAGE_KEY_V2,
+  PRODUCT_UI_STORAGE_KEY_V3,
   createInitialProductUiState,
 } from '../src/product/types';
 
@@ -71,6 +73,32 @@ describe('Product UI migration', () => {
     expect(state.preferredName).toBeNull();
     expect(state.selectedPlan).toBe('free');
     expect(state.vehicles[0]?.nickname).toBe('Work car');
+  });
+
+  it('migrates incomplete v3 into Finish setup without erasing trips or inventing Plus', async () => {
+    await AsyncStorage.setItem(
+      PRODUCT_UI_STORAGE_KEY_V3,
+      JSON.stringify({
+        schemaVersion: 3,
+        onboardingComplete: true,
+        preferredName: 'Sam',
+        primaryGoal: null,
+        selectedPainPoints: [],
+        drivingType: null,
+        selectedPlan: 'plus',
+        demoModeEnabled: false,
+        manualTrips: [{ id: 'kept-1', date: '2026-01-01', distanceMiles: 11, purpose: 'Client', createdAt: 1 }],
+        vehicles: [{ id: 'v3', nickname: 'Van', year: '2020', make: 'Ford', model: 'Transit', plate: '', isPrimary: true, createdAt: 1, updatedAt: 1 }],
+      }),
+    );
+    const state = await loadProductUiState();
+    expect(state.schemaVersion).toBe(4);
+    expect(state.preferredName).toBe('Sam');
+    expect(state.selectedPlan).toBe('free');
+    expect(state.manualTrips).toHaveLength(1);
+    expect(state.vehicles[0]?.nickname).toBe('Van');
+    expect(state.notificationPreferences.enabled).toBe(true);
+    expect(isOnboardingMinimumComplete(state.onboarding)).toBe(false);
   });
 
   it('preserves genuine preferred name across save/load', async () => {

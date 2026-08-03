@@ -34,7 +34,12 @@ describe('Entitlements UI smoke', () => {
   it('keeps Free manual records usable while Plus unlocks automatic capture only when verified', () => {
     const free = capabilitiesForEntitlement(createFreeEntitlement());
     expect(free.canUseAutomaticCapture).toBe(false);
+    expect(free.canUseStandardPdf).toBe(false);
+    expect(free.canUseGapDetection).toBe(false);
     expect(free.canAddVehicle).toBe(true);
+    expect(free.maxVehicles).toBe(1);
+    expect(free.maxWorkplaces).toBe(2);
+    // Free CSV remains usable in product policy even though PDF is Plus-gated.
 
     const plus: EntitlementSnapshot = {
       ...createFreeEntitlement(),
@@ -44,7 +49,10 @@ describe('Entitlements UI smoke', () => {
       storeVerified: true,
       source: 'store',
     };
-    expect(capabilitiesForEntitlement(plus).canUseAutomaticCapture).toBe(true);
+    const plusCaps = capabilitiesForEntitlement(plus);
+    expect(plusCaps.canUseAutomaticCapture).toBe(true);
+    expect(plusCaps.canUseStandardPdf).toBe(true);
+    expect(plusCaps.canUseGapDetection).toBe(true);
 
     const unverifiedPlus: EntitlementSnapshot = {
       ...plus,

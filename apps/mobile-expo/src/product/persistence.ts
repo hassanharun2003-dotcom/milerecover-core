@@ -197,6 +197,12 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
     pendingPostOnboardingRoute: null,
     showDevTools: allowInternalPreviewTools(),
     trackingEnabled: parsed.trackingEnabled === true,
+    notificationPreferences: {
+      ...base.notificationPreferences,
+      ...(typeof parsed.notificationPreferences === 'object' && parsed.notificationPreferences
+        ? (parsed.notificationPreferences as ProductUiState['notificationPreferences'])
+        : {}),
+    },
     firstConfirmedWorkDriveAt:
       typeof parsed.firstConfirmedWorkDriveAt === 'number' ? parsed.firstConfirmedWorkDriveAt : null,
     firstReportPreviewAt:

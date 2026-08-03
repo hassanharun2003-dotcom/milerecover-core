@@ -10,6 +10,10 @@ import type {
 import { createEmptyOnboardingState, createFreeEntitlement } from '@milerecover/domain';
 import type { PlanTier } from '../fixtures/subscription';
 import type { DemoScenario } from '../fixtures/scenarios';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  type NotificationPreferences,
+} from '../services/notifications';
 
 export type ProductOnboardingStep = OnboardingStepId;
 
@@ -137,6 +141,7 @@ export interface ProductUiState {
   reimbursementCentsPerMile: number | null;
   reportStyle: string | null;
   trackingEnabled: boolean;
+  notificationPreferences: NotificationPreferences;
   firstConfirmedWorkDriveAt: number | null;
   firstReportPreviewAt: number | null;
   firstRecoverySeenAt: number | null;
@@ -192,6 +197,7 @@ export function createInitialProductUiState(): ProductUiState {
     reimbursementCentsPerMile: null,
     reportStyle: null,
     trackingEnabled: false,
+    notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES },
     firstConfirmedWorkDriveAt: null,
     firstReportPreviewAt: null,
     firstRecoverySeenAt: null,

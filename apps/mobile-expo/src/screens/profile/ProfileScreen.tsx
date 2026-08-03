@@ -106,7 +106,7 @@ export function ProfileScreen() {
       <StatusCard
         variant={product.trackingEnabled && diagnostics?.backgroundLimited ? 'warning' : 'neutral'}
         title="Protection diagnostics"
-        body={`Foreground: ${permissions.location}. Background: ${permissions.backgroundLocation}. Engine: ${diagnostics?.engineState ?? 'unknown'}. Capture flag: ${automaticCaptureAvailable ? 'available' : 'unavailable in this build'}.`}
+        body={`Foreground: ${permissions.location}. Background: ${permissions.backgroundLocation}. Engine: ${diagnostics?.engineState ?? 'unknown'}. Capture runtime: ${automaticCaptureAvailable ? 'available' : 'unavailable'}. Samples: ${diagnostics?.sampleCount ?? 0}.`}
         emphasis="subtle"
       />
 

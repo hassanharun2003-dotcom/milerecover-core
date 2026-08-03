@@ -96,10 +96,10 @@ function buildLiveScenario(
     homeState = 'healthy';
     proofBlockReason = 'No confirmed drives yet.';
   } else {
-    homeTitle = 'Log your first work drive';
-    homeDetail = automaticCaptureAvailable
-      ? 'Automatic capture is not active yet. Add a real drive or turn on protection when your plan allows it.'
-      : `Manually logged ${voice.workNoun} drives are protected in your record. Automatic capture is not active.`;
+    homeTitle = 'Protect your first work drive';
+    homeDetail = capabilities.canUseAutomaticCapture
+      ? 'Start protection for automatic capture, or add a drive yourself in a few taps.'
+      : `Manually logged ${voice.workNoun} drives stay in your Free record. Plus adds automatic capture after a real store trial or purchase.`;
     primaryAction = 'Add a drive';
     primaryActionRoute = 'ManualTrip' as ScenarioPresentation['primaryActionRoute'];
     homeState = 'healthy';

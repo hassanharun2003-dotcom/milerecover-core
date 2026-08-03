@@ -57,6 +57,12 @@ const config = {
     '@react-native-community/datetimepicker',
     'expo-sharing',
     [
+      'expo-notifications',
+      {
+        color: '#1F4D36',
+      },
+    ],
+    [
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:

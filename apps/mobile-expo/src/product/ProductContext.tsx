@@ -99,6 +99,7 @@ interface ProductContextValue {
   markReviewHistoryUndone: (entryId: string) => void;
   upsertVehicle: (vehicle: VehicleUpsert) => void;
   upsertWorkLocation: (location: WorkLocationUpsert) => void;
+  setNotificationPreferences: (partial: Partial<ProductUiState['notificationPreferences']>) => void;
   setImportPhase: (phase: ImportFlowPhase, fileLabel?: string | null, csvText?: string | null) => void;
   addImportBatch: (batch: ImportBatchSummary) => void;
   markManualTripsMigrated: () => void;
@@ -538,6 +539,11 @@ export function ProductProvider({
             },
           );
         }),
+      setNotificationPreferences: (partial) =>
+        persist((prev) => ({
+          ...prev,
+          notificationPreferences: { ...prev.notificationPreferences, ...partial },
+        })),
       setImportPhase: (phase, fileLabel, csvText) =>
         persist((prev) => ({
           ...prev,

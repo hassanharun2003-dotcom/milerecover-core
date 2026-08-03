@@ -8,6 +8,7 @@ import { spacing } from '@milerecover/config';
 import {
   buildMileageCsv,
   buildMileageReportData,
+  capabilitiesForEntitlement,
   csvFilename,
   resolveReportPeriod,
   type ReportPeriod,
@@ -69,6 +70,7 @@ export function ProofScreen() {
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
   const period = periodFromState(state.reportingPeriod);
   const tripsForProof = product.demoModeEnabled
     ? DEMO_SCENARIOS[product.demoScenario]?.trips ?? state.trips
@@ -122,6 +124,11 @@ export function ProofScreen() {
   const sharePdf = async () => {
     setMessage(null);
     setError(null);
+    if (!capabilities.canUseStandardPdf) {
+      setError('Standard PDF reports are included with Plus after a real store purchase or trial. CSV remains available on Free.');
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
     const result = await generateAndSharePdf(report);
     if (result.ok || result.reason === 'cancelled') {
       setMessage(result.ok ? 'PDF ready to share.' : result.message);
@@ -170,7 +177,10 @@ export function ProofScreen() {
           </ListSection>
           <ListSection title="Export">
             <ListRow label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
-            <ListRow label="Share PDF" onPress={() => void sharePdf()} />
+            <ListRow
+              label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF requires Plus'}
+              onPress={() => void sharePdf()}
+            />
             <ListRow label="Share CSV" onPress={() => void shareCsv()} />
           </ListSection>
           <View style={{ marginTop: spacing.md }}>

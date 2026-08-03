@@ -54,7 +54,7 @@ describe('Screen render evidence', () => {
       preferredName: null,
     });
     manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
-    expect(liveHome.copy).toMatch(/Log your first work drive/i);
+    expect(liveHome.copy).toMatch(/Protect your first work drive|Log your first work drive/i);
     expect(liveHome.copy).not.toContain('Alex Johnson');
     expect(liveHome.copy).not.toContain('87.6');
     expect(liveHome.copy).not.toContain('Airport pickup');
@@ -102,7 +102,7 @@ describe('Screen render evidence', () => {
       expect(copy.length).toBeGreaterThan(10);
     }
     expect(manifest['manual-trip']).toMatch(/I only know the distance|Add a drive yourself/i);
-    expect(manifest['tracking-active']).toMatch(/Automatic protection is off|unavailable|Plan capability/i);
+    expect(manifest['tracking-active']).toMatch(/Automatic protection is off|Plan capability|Protection is enabled/i);
     expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
     expect(manifest['report-preview']).toMatch(/report|preview|confirmed/i);
     expect(manifest['plan-selection']).toMatch(/Upgrade when it helps/i);
