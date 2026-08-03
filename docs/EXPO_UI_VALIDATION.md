@@ -66,8 +66,11 @@ npm --prefix apps/mobile-expo run deps:validate    # PASS
 | Item | Status |
 |------|--------|
 | Verified preview APK | Build `a0fcf6cd` — package `com.milerecover.app`, runtime `0.1.2` |
+| GitHub prerelease | Tag `android-preview-0.1.2` → `MileRecover-preview-0.1.2.apk` |
+| Direct install URL | https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.2/MileRecover-preview-0.1.2.apk |
+| APK SHA-256 | `87f38692ddc82e9b31ccfbfc70f45443b7ae1c25097d1e1ea583b3ea2a0b5b00` |
 | Preview workflow doc | `docs/PREVIEW_UPDATE_WORKFLOW.md` |
-| OTA publish for runtime `0.1.2` | Blocked until `EXPO_TOKEN` is injected into the Cloud Agent VM (`eas whoami` must succeed) |
+| OTA publish for runtime `0.1.2` | Published — update group `52208176-a688-400d-ab11-11f76e9b3de4` |
 
 ## Android runtime status
 
@@ -95,7 +98,7 @@ npm --prefix apps/mobile-expo run deps:validate    # PASS
 - Tab layout on small Android phone
 - Safe area on iPhone notch devices
 - Real PNG screenshots on hardware
-- OTA apply on runtime `0.1.2` after next publish
+- OTA apply on device after install of preview APK `a0fcf6cd` (update published; device confirmation pending)
 
 ## Known limitations
 
@@ -106,6 +109,7 @@ npm --prefix apps/mobile-expo run deps:validate    # PASS
 
 ## Next milestone
 
-1. Inject `EXPO_TOKEN` into a fresh Cloud Agent run → publish preview OTA for runtime `0.1.2`
-2. Physical device smoke on preview APK `a0fcf6cd`
-3. Background tracking engine (`expo-location`, `expo-task-manager`) with screen-off test matrix
+1. Physical device smoke on preview APK `a0fcf6cd` (install via GitHub prerelease URL)
+2. Confirm Profile → About shows **Preview channel connected** / **0.1.2-preview.1** after OTA
+3. Continue locked design polish in `apps/mobile-expo` (supporting screens, DS primitives)
+4. Background tracking engine (`expo-location`, `expo-task-manager`) with screen-off test matrix

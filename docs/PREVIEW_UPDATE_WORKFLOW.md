@@ -15,9 +15,28 @@ Build ID: `a0fcf6cd-61e0-4317-a694-0da9331daee8`
 - Preview `autoIncrement`: enabled
 - `expo-dev-client` autolinking: excluded for preview/production via `eas-build-pre-install` → `scripts/sync-dev-client-autolinking.cjs`
 
-**Phone install path (preferred):** GitHub prerelease asset  
-`MileRecover-preview-0.1.2.apk` on tag `android-preview-0.1.2`  
-*(Direct asset URL is published only after Cloud Agent `EXPO_TOKEN` can download the verified artifact and create the release.)*
+**Phone install path (preferred):** GitHub prerelease asset — one tap, no login:
+
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.2/MileRecover-preview-0.1.2.apk
+
+- Tag: `android-preview-0.1.2`
+- Filename: `MileRecover-preview-0.1.2.apk`
+- Release page: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.1.2
+
+### Verified artifact fingerprint (build `a0fcf6cd`)
+
+| Check | Value |
+|-------|--------|
+| Package | `com.milerecover.app` |
+| versionName | `0.1.2` |
+| versionCode | `2` |
+| Size | `81572055` bytes (~77.8 MB) |
+| APK SHA-256 | `87f38692ddc82e9b31ccfbfc70f45443b7ae1c25097d1e1ea583b3ea2a0b5b00` |
+| Signer cert SHA-256 | `6d232f83b8859077eb52e50c97197594e6d7848daaa4a8ac0d6944b51f898a20` |
+| Signature scheme | APK Signature Scheme v2 (verified) |
+| Label | MileRecover |
+
+Public download was verified without GitHub login (HTTP 200, size + SHA-256 match).
 
 Expo dashboard page (auth may be required; on-device Expo download has hung at 81.57 MB):  
 https://expo.dev/accounts/milerecover/projects/milerecover/builds/a0fcf6cd-61e0-4317-a694-0da9331daee8
@@ -30,7 +49,13 @@ Build `a0fcf6cd` is the verified Android preview upgrade over the earlier `0.1.0
 
 After installing the preview APK above, close and reopen MileRecover. Profile → About should show **Preview marker: Preview channel connected** and build label **0.1.2-preview.1**.
 
-**Runtime `0.1.2` OTA status:** pending Cloud Agent `EXPO_TOKEN` injection (`npx eas-cli whoami` must succeed in the agent VM). Do not expect a new OTA until that publish completes.
+**Runtime `0.1.2` OTA (published):**
+
+- Update group: `52208176-a688-400d-ab11-11f76e9b3de4`
+- Android update ID: `019fc620-be5c-7e64-adc5-8ce3b4dcee29`
+- iOS update ID: `019fc620-be5c-7790-be8d-4e4a0c5a5bb6`
+- Message: `0.1.2-preview.1: Preview channel connected for runtime 0.1.2`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/52208176-a688-400d-ab11-11f76e9b3de4
 
 Previous `0.1.0` channel marker (for older APK only — will not apply to `0.1.2` runtime):
 
