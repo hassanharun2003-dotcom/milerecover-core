@@ -49,7 +49,7 @@ export interface ScenarioPresentation {
   homeTitle: string;
   homeDetail: string;
   primaryAction: string | null;
-  primaryActionRoute?: 'Review' | 'Profile' | 'Proof' | 'ProtectionAlert';
+  primaryActionRoute?: 'Review' | 'Profile' | 'Proof' | 'ProtectionAlert' | 'ManualTrip';
   weekSummary: WeekSummary;
   activity: ActivityEvent[];
   trips: TripRecord[];

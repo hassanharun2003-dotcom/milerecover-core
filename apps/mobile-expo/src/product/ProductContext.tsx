@@ -14,14 +14,15 @@ import {
   createInitialProductUiState,
   ONBOARDING_STEP_ORDER,
   type DrivingType,
+  type ImportBatchSummary,
   type ImportFlowPhase,
-  type ManualTripDraft,
   type PostOnboardingRoute,
   type PrimaryGoal,
   type ProductOnboardingStep,
   type ProductUiState,
   type ProtectionSetupState,
   type ReviewDecision,
+  type ReviewHistoryEntry,
   type VehicleDraft,
   type WorkLocationDraft,
 } from './types';
@@ -36,29 +37,27 @@ interface ProductContextValue {
   setDrivingType: (type: DrivingType) => void;
   setPreferredName: (name: string | null) => void;
   setProtectionSetupState: (state: ProtectionSetupState) => void;
-  /** @deprecated use setPrimaryGoal */
-  setOnboardingNeed: (need: string) => void;
-  /** @deprecated use setDrivingType */
-  setOnboardingUsage: (usage: string) => void;
   skipPreferredName: () => void;
+  skipVehicleSetup: () => void;
+  skipWorkPlaceSetup: () => void;
   resetOnboarding: () => void;
   setDemoModeEnabled: (enabled: boolean) => void;
   setDemoScenario: (scenario: DemoScenario) => void;
-  /**
-   * Paid tiers only stick in demo mode. Live mode keeps Free until real billing.
-   * Returns whether entitlement actually changed.
-   */
   setSelectedPlan: (plan: PlanTier) => boolean;
   setPendingPostOnboardingRoute: (route: PostOnboardingRoute) => void;
   consumePendingPostOnboardingRoute: () => PostOnboardingRoute;
-  /** Atomic mark for end of onboarding (protection educated + optional deep link). */
   completeProductOnboarding: (route?: PostOnboardingRoute) => void;
   setReviewDecision: (itemId: string, decision: ReviewDecision) => void;
   undoReviewDecision: (itemId: string) => void;
-  addManualTrip: (draft: Omit<ManualTripDraft, 'id' | 'createdAt'>) => void;
-  upsertVehicle: (vehicle: VehicleDraft) => void;
-  upsertWorkLocation: (location: WorkLocationDraft) => void;
-  setImportPhase: (phase: ImportFlowPhase, fileLabel?: string | null) => void;
+  pushReviewHistory: (entry: ReviewHistoryEntry) => void;
+  markReviewHistoryUndone: (entryId: string) => void;
+  upsertVehicle: (vehicle: Omit<VehicleDraft, 'createdAt' | 'updatedAt'> & { createdAt?: number }) => void;
+  upsertWorkLocation: (
+    location: Omit<WorkLocationDraft, 'createdAt' | 'updatedAt'> & { createdAt?: number },
+  ) => void;
+  setImportPhase: (phase: ImportFlowPhase, fileLabel?: string | null, csvText?: string | null) => void;
+  addImportBatch: (batch: ImportBatchSummary) => void;
+  markManualTripsMigrated: () => void;
   resetProductData: () => Promise<void>;
 }
 
@@ -112,17 +111,9 @@ export function ProductProvider({
         void persist({ ...product, onboardingStep: ONBOARDING_STEP_ORDER[idx - 1] });
       },
       setPrimaryGoal: (goal) =>
-        void persist({
-          ...product,
-          primaryGoal: goal,
-          onboardingNeed: goal,
-        }),
+        void persist({ ...product, primaryGoal: goal, onboardingNeed: goal }),
       setDrivingType: (type) =>
-        void persist({
-          ...product,
-          drivingType: type,
-          onboardingUsage: type,
-        }),
+        void persist({ ...product, drivingType: type, onboardingUsage: type }),
       setPreferredName: (name) =>
         void persist({
           ...product,
@@ -130,18 +121,26 @@ export function ProductProvider({
         }),
       setProtectionSetupState: (protectionSetupState) =>
         void persist({ ...product, protectionSetupState }),
-      setOnboardingNeed: (need) => void persist({ ...product, onboardingNeed: need }),
-      setOnboardingUsage: (usage) => void persist({ ...product, onboardingUsage: usage }),
       skipPreferredName: () =>
         void persist({
           ...product,
           onboardingSkippedOptional: true,
-          onboardingStep: 'protection_setup',
+          onboardingStep: 'vehicle_setup',
         }),
+      skipVehicleSetup: () =>
+        void persist({ ...product, onboardingStep: 'work_place_setup' }),
+      skipWorkPlaceSetup: () =>
+        void persist({ ...product, onboardingStep: 'protection_setup' }),
       resetOnboarding: () =>
         void persist({
-          ...createInitialProductUiState(),
-          showDevTools: product.showDevTools,
+          ...product,
+          onboardingStep: 'welcome',
+          onboardingSkippedOptional: false,
+          protectionSetupState:
+            product.protectionSetupState === 'healthy' || product.protectionSetupState === 'configured'
+              ? product.protectionSetupState
+              : 'not_started',
+          pendingPostOnboardingRoute: null,
           demoModeEnabled: false,
         }),
       setDemoModeEnabled: (enabled) =>
@@ -149,7 +148,6 @@ export function ProductProvider({
           ...product,
           demoModeEnabled: enabled && allowInternalPreviewTools(),
           demoScenario: enabled ? product.demoScenario : 'new_user',
-          // Paid demo entitlement clears when leaving demo mode
           selectedPlan: enabled ? product.selectedPlan : 'free',
         }),
       setDemoScenario: (scenario) =>
@@ -159,10 +157,7 @@ export function ProductProvider({
           demoScenario: scenario,
         }),
       setSelectedPlan: (plan) => {
-        if (plan !== 'free' && !product.demoModeEnabled) {
-          // Do not fake a completed purchase in live / production state
-          return false;
-        }
+        if (plan !== 'free' && !product.demoModeEnabled) return false;
         void persist({ ...product, selectedPlan: plan });
         return true;
       },
@@ -170,9 +165,7 @@ export function ProductProvider({
         void persist({ ...product, pendingPostOnboardingRoute: route }),
       consumePendingPostOnboardingRoute: () => {
         const route = product.pendingPostOnboardingRoute;
-        if (route) {
-          void persist({ ...product, pendingPostOnboardingRoute: null });
-        }
+        if (route) void persist({ ...product, pendingPostOnboardingRoute: null });
         return route;
       },
       completeProductOnboarding: (route = null) => {
@@ -204,34 +197,67 @@ export function ProductProvider({
           reviewedHistory: product.reviewedHistory.filter((id) => id !== itemId),
         });
       },
-      addManualTrip: (draft) => {
-        const entry: ManualTripDraft = {
-          ...draft,
-          id: `manual-${Date.now()}`,
-          createdAt: Date.now(),
-        };
-        void persist({ ...product, manualTrips: [entry, ...product.manualTrips] });
-      },
+      pushReviewHistory: (entry) =>
+        void persist({
+          ...product,
+          reviewHistoryEntries: [entry, ...product.reviewHistoryEntries],
+          reviewedHistory: [...new Set([entry.id, ...product.reviewedHistory])],
+          reviewDecisions: { ...product.reviewDecisions, [entry.id]: entry.decision },
+        }),
+      markReviewHistoryUndone: (entryId) =>
+        void persist({
+          ...product,
+          reviewHistoryEntries: product.reviewHistoryEntries.map((e) =>
+            e.id === entryId ? { ...e, undoneAt: Date.now() } : e,
+          ),
+          reviewedHistory: product.reviewedHistory.filter((id) => id !== entryId),
+          reviewDecisions: { ...product.reviewDecisions, [entryId]: null },
+        }),
       upsertVehicle: (vehicle) => {
-        const exists = product.vehicles.some((v) => v.id === vehicle.id);
+        const now = Date.now();
+        const nextVehicle: VehicleDraft = {
+          ...vehicle,
+          make: vehicle.make ?? '',
+          model: vehicle.model ?? '',
+          isPrimary: vehicle.isPrimary ?? product.vehicles.length === 0,
+          createdAt: vehicle.createdAt ?? now,
+          updatedAt: now,
+        };
+        const exists = product.vehicles.some((v) => v.id === nextVehicle.id);
         const vehicles = exists
-          ? product.vehicles.map((v) => (v.id === vehicle.id ? vehicle : v))
-          : [...product.vehicles, vehicle];
+          ? product.vehicles.map((v) => (v.id === nextVehicle.id ? nextVehicle : v))
+          : [...product.vehicles, nextVehicle];
         void persist({ ...product, vehicles });
       },
       upsertWorkLocation: (location) => {
-        const exists = product.workLocations.some((l) => l.id === location.id);
+        const now = Date.now();
+        const nextLoc: WorkLocationDraft = {
+          ...location,
+          notes: location.notes ?? '',
+          createdAt: location.createdAt ?? now,
+          updatedAt: now,
+        };
+        const exists = product.workLocations.some((l) => l.id === nextLoc.id);
         const workLocations = exists
-          ? product.workLocations.map((l) => (l.id === location.id ? location : l))
-          : [...product.workLocations, location];
+          ? product.workLocations.map((l) => (l.id === nextLoc.id ? nextLoc : l))
+          : [...product.workLocations, nextLoc];
         void persist({ ...product, workLocations });
       },
-      setImportPhase: (phase, fileLabel = null) =>
+      setImportPhase: (phase, fileLabel = null, csvText = null) =>
         void persist({
           ...product,
           importPhase: phase,
           importFileLabel: fileLabel ?? product.importFileLabel,
+          importCsvText: csvText === undefined ? product.importCsvText : csvText,
         }),
+      addImportBatch: (batch) =>
+        void persist({
+          ...product,
+          importBatches: [batch, ...product.importBatches],
+          importPhase: 'success',
+        }),
+      markManualTripsMigrated: () =>
+        void persist({ ...product, manualTrips: [], manualTripsMigrated: true }),
       resetProductData: async () => {
         await clearProductUiState();
         setProduct(createInitialProductUiState());

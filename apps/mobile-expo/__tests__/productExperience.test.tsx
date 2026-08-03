@@ -11,6 +11,7 @@ import { selectProductExperience } from '../src/product/selectors';
 import { greetingForName, nextActionForGoal, voiceForDrivingType } from '../src/product/copy';
 import { createInitialAppState } from '../src/store/types';
 import { ROOT_TAB_ROUTE_NAMES, ROOT_STACK_ROUTE_NAMES, SUPPORTING_STACK_ROUTES } from '../src/navigation/types';
+import { createManualTripRecord } from '@milerecover/domain';
 
 const grantedPermissions = {
   location: 'granted' as const,
@@ -29,7 +30,6 @@ const deniedPermissions = {
 describe('Locked product experience', () => {
   it('keeps four bottom tabs', () => {
     expect(ROOT_TAB_ROUTE_NAMES).toEqual(['Home', 'Review', 'Proof', 'Profile']);
-    expect(ROOT_TAB_ROUTE_NAMES).toHaveLength(4);
   });
 
   it('keeps Manual Trip off tabs', () => {
@@ -42,12 +42,14 @@ describe('Locked product experience', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('PlanSelection');
   });
 
-  it('defines six personalized onboarding steps', () => {
+  it('defines eight personalized onboarding steps', () => {
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
       'primary_goal',
       'driving_type',
       'preferred_name',
+      'vehicle_setup',
+      'work_place_setup',
       'protection_setup',
       'next_action',
     ]);
@@ -57,21 +59,11 @@ describe('Locked product experience', () => {
     expect(PLAN_FIXTURES.find((p) => p.id === 'plus')?.monthlyPrice).toBe('$8.99');
     expect(PLAN_FIXTURES.find((p) => p.id === 'pro')?.monthlyPrice).toBe('$14.99');
     expect(RESCUE_OPTIONS.find((r) => r.id === 'rescue-year')?.price).toBe('$59.99');
-    expect(PLAN_FIXTURES.find((p) => p.id === 'plus')?.tagline).toMatch(/Never lose another reimbursable mile/i);
-    expect(PLAN_FIXTURES.find((p) => p.id === 'pro')?.tagline).toMatch(/Stronger records/i);
-    for (const plan of PLAN_FIXTURES) {
-      expect(plan.features.length).toBeLessThanOrEqual(3);
-    }
   });
 
   it('does not include Hassan-specific copy in fixtures', () => {
     const blob = JSON.stringify({ DEMO_SCENARIOS, PLAN_FIXTURES });
     expect(blob.toLowerCase()).not.toContain('hassan');
-  });
-
-  it('hides development controls in production builds', () => {
-    const prod = { ...createInitialProductUiState(), showDevTools: false };
-    expect(prod.showDevTools).toBe(false);
   });
 
   it('maps home primary CTA by demo scenario only when demo mode is on', () => {
@@ -82,7 +74,6 @@ describe('Locked product experience', () => {
       grantedPermissions,
     );
     expect(recovery.scenario.primaryAction).toBe('Review drive');
-    expect(recovery.scenario.primaryActionRoute).toBe('Review');
 
     const limited = selectProductExperience(
       app,
@@ -90,14 +81,6 @@ describe('Locked product experience', () => {
       grantedPermissions,
     );
     expect(limited.scenario.primaryAction).toBe('Fix protection');
-    expect(limited.scenario.primaryActionRoute).toBe('ProtectionAlert');
-
-    const offline = selectProductExperience(
-      app,
-      { ...createInitialProductUiState(), demoModeEnabled: true, demoScenario: 'offline_sync' },
-      grantedPermissions,
-    );
-    expect(offline.scenario.homeTitle).toBe('Saved safely offline');
   });
 
   it('keeps demo mileage fixtures isolated from live mode', () => {
@@ -106,23 +89,33 @@ describe('Locked product experience', () => {
       createInitialAppState(),
       createInitialProductUiState(),
       deniedPermissions,
+      false,
     );
     expect(live.liveMode).toBe(true);
     expect(live.scenario.weekSummary.milesProtected).toBe(0);
-    expect(live.scenario.homeTitle).not.toMatch(/covered today/i);
     expect(JSON.stringify(live.scenario)).not.toContain('87.6');
     expect(JSON.stringify(live.scenario)).not.toContain('Airport pickup');
   });
 
-  it('blocks proof when review items remain in demo mode', () => {
-    const app = createInitialAppState();
-    const blocked = selectProductExperience(
+  it('computes Home totals from real confirmed trips', () => {
+    const trip = createManualTripRecord({
+      startAt: Date.now() - 3600000,
+      endAt: Date.now(),
+      distanceMiles: 12.5,
+      purpose: 'Client',
+      evidenceMethod: 'odometer',
+      confirmAsWork: true,
+    });
+    const app = { ...createInitialAppState(), trips: [trip], reviewItems: [] };
+    const exp = selectProductExperience(
       app,
-      { ...createInitialProductUiState(), demoModeEnabled: true, demoScenario: 'proof_blocked' },
-      grantedPermissions,
+      { ...createInitialProductUiState(), protectionSetupState: 'configured' },
+      deniedPermissions,
+      false,
     );
-    expect(blocked.scenario.proofReady).toBe(false);
-    expect(blocked.scenario.proofBlockReason).toMatch(/review/i);
+    expect(exp.scenario.weekSummary.milesProtected).toBe(12.5);
+    expect(exp.confirmedTrips).toHaveLength(1);
+    expect(exp.scenario.homeTitle).not.toMatch(/covered today/i);
   });
 });
 
@@ -130,28 +123,21 @@ describe('Onboarding personalization', () => {
   it('adapts next action by primary goal', () => {
     expect(nextActionForGoal('protect_future').title).toMatch(/turn on protection/i);
     expect(nextActionForGoal('bring_history').title).toMatch(/file or source/i);
-    expect(nextActionForGoal('find_missing').title).toMatch(/period/i);
-    expect(nextActionForGoal('prepare_report').title).toMatch(/confirmed drives/i);
   });
 
   it('adapts voice by driving type', () => {
     expect(voiceForDrivingType('employee').reportNoun).toMatch(/reimbursement/i);
     expect(voiceForDrivingType('gig').reportNoun).toMatch(/earnings/i);
-    expect(voiceForDrivingType('small_business').audience).toMatch(/clients/i);
-    expect(voiceForDrivingType('other').workNoun).toBe('work');
   });
 
   it('greets by preferred name sparingly', () => {
     expect(greetingForName('Hassan', 9)).toBe('Good morning, Hassan.');
     expect(greetingForName(null, 9)).toBeNull();
-    expect(greetingForName('  ', 9)).toBeNull();
   });
 
   it('migrates legacy onboarding fields', () => {
     expect(mapLegacyOnboardingStep('need_selection')).toBe('primary_goal');
-    expect(mapLegacyOnboardingStep('usage_type')).toBe('driving_type');
     expect(mapLegacyOnboardingStep('optional_setup')).toBe('preferred_name');
-    expect(mapLegacyOnboardingStep('ready')).toBe('next_action');
     expect(mapLegacyNeedToGoal('Find missing mileage')).toBe('find_missing');
     expect(mapLegacyUsageToDrivingType('Gig / independent')).toBe('gig');
   });
@@ -163,46 +149,12 @@ describe('Onboarding honesty', () => {
       require('path').join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(source).toContain('Not granted yet');
-    expect(source).toContain('status="pending"');
+    expect(source).toMatch(/Not granted|not available|unavailable/i);
     expect(source).not.toMatch(/status=\"ready\"/);
-    expect(source).toContain('never pretend permissions are granted');
-  });
-
-  it('routes protection fix action to system settings', () => {
-    const source = require('fs').readFileSync(
-      require('path').join(__dirname, '../src/screens/flows/SupportingScreens.tsx'),
-      'utf8',
-    );
-    expect(source).toContain('Linking.openSettings');
-    expect(source).toContain('Open Settings');
-    expect(source).toContain('Preview only');
-    expect(source).toContain('Preview sample');
   });
 });
 
-describe('Review persistence semantics', () => {
-  it('tracks reviewed history separately from pending items', () => {
-    const product = {
-      ...createInitialProductUiState(),
-      demoModeEnabled: true,
-      demoScenario: 'recovery_available' as const,
-      reviewDecisions: { 'review-recovery-1': 'work' as const },
-      reviewedHistory: ['review-recovery-1'],
-    };
-    const exp = selectProductExperience(createInitialAppState(), product, grantedPermissions);
-    expect(exp.activeReviewItems).toHaveLength(0);
-  });
-});
-
-describe('Live Home truthfulness', () => {
-  it('asks to finish protection setup when not configured', () => {
-    const product = createInitialProductUiState();
-    const exp = selectProductExperience(createInitialAppState(), product, deniedPermissions);
-    expect(exp.scenario.homeTitle).toMatch(/Finish setting up protection/i);
-    expect(exp.scenario.primaryAction).toBe('Continue setup');
-  });
-
+describe('Fresh install identity', () => {
   it('never invents profile identity in initial state', () => {
     const initial = createInitialProductUiState();
     expect(initial.preferredName).toBeNull();

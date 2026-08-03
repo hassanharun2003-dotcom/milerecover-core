@@ -6,6 +6,8 @@ export type ProductOnboardingStep =
   | 'primary_goal'
   | 'driving_type'
   | 'preferred_name'
+  | 'vehicle_setup'
+  | 'work_place_setup'
   | 'protection_setup'
   | 'next_action';
 
@@ -37,14 +39,53 @@ export type ImportFlowPhase =
   | 'success'
   | 'failed';
 
-/** Destinations allowed after finishing onboarding (consumed once on Home). */
 export type PostOnboardingRoute =
   | 'ProtectionAlert'
   | 'BringExistingMileage'
   | 'ManualTrip'
   | 'Proof'
+  | 'MissingTripRecovery'
   | null;
 
+export interface ReviewHistoryEntry {
+  id: string;
+  targetId: string;
+  targetKind: 'trip' | 'recovery';
+  previousSnapshot: unknown;
+  decision: Exclude<ReviewDecision, null>;
+  decidedAt: number;
+  undoneAt: number | null;
+}
+
+export interface VehicleDraft {
+  id: string;
+  nickname: string;
+  make: string;
+  model: string;
+  isPrimary: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorkLocationDraft {
+  id: string;
+  label: string;
+  address: string;
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ImportBatchSummary {
+  id: string;
+  fileLabel: string;
+  importedCount: number;
+  skippedCount: number;
+  duplicateCount: number;
+  createdAt: number;
+}
+
+/** @deprecated migrated into domain TripRecord */
 export interface ManualTripDraft {
   id: string;
   date: string;
@@ -53,57 +94,39 @@ export interface ManualTripDraft {
   createdAt: number;
 }
 
-export interface VehicleDraft {
-  id: string;
-  label: string;
-}
-
-export interface WorkLocationDraft {
-  id: string;
-  label: string;
-  address: string;
-}
-
 export interface ProductUiState {
-  /** Storage schema — bump when migrating fields */
-  schemaVersion: 2;
+  schemaVersion: 3;
   onboardingStep: ProductOnboardingStep;
   preferredName: string | null;
   primaryGoal: PrimaryGoal | null;
   drivingType: DrivingType | null;
   protectionSetupState: ProtectionSetupState;
-  /** Legacy string goal label kept for migration display only */
   onboardingNeed: string | null;
   onboardingUsage: string | null;
   onboardingSkippedOptional: boolean;
-  /**
-   * Internal preview/demo only. When false, Home/Proof never use DEMO_SCENARIOS
-   * invented mileage or identity.
-   */
   demoModeEnabled: boolean;
   demoScenario: DemoScenario;
-  /**
-   * Entitlement from a real source only. Until billing ships this stays `free`
-   * outside explicit internal demo mode.
-   */
   selectedPlan: PlanTier;
-  /** One-shot navigation after onboarding finish — not a durable preference */
   pendingPostOnboardingRoute: PostOnboardingRoute;
   reviewDecisions: Record<string, ReviewDecision>;
   reviewedHistory: string[];
+  reviewHistoryEntries: ReviewHistoryEntry[];
+  /** Legacy — migrated into domain trips once */
   manualTrips: ManualTripDraft[];
   vehicles: VehicleDraft[];
   workLocations: WorkLocationDraft[];
   importPhase: ImportFlowPhase;
   importFileLabel: string | null;
+  importCsvText: string | null;
+  importBatches: ImportBatchSummary[];
   showDevTools: boolean;
+  manualTripsMigrated: boolean;
 }
 
-export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v2';
-/** Prior key — migrated once into v2 */
+export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v3';
+export const PRODUCT_UI_STORAGE_KEY_V2 = '@milerecover/product-ui/v2';
 export const PRODUCT_UI_STORAGE_KEY_V1 = '@milerecover/product-ui/v1';
 
-/** Dev client or standalone preview — never production store builds. */
 export function allowInternalPreviewTools(variant?: string): boolean {
   const v = variant ?? (typeof process !== 'undefined' ? process.env.APP_VARIANT : undefined);
   return Boolean(__DEV__ || v === 'preview' || v === 'development');
@@ -111,7 +134,7 @@ export function allowInternalPreviewTools(variant?: string): boolean {
 
 export function createInitialProductUiState(): ProductUiState {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     onboardingStep: 'welcome',
     preferredName: null,
     primaryGoal: null,
@@ -126,12 +149,16 @@ export function createInitialProductUiState(): ProductUiState {
     pendingPostOnboardingRoute: null,
     reviewDecisions: {},
     reviewedHistory: [],
+    reviewHistoryEntries: [],
     manualTrips: [],
     vehicles: [],
     workLocations: [],
     importPhase: 'idle',
     importFileLabel: null,
+    importCsvText: null,
+    importBatches: [],
     showDevTools: allowInternalPreviewTools(),
+    manualTripsMigrated: false,
   };
 }
 
@@ -140,14 +167,16 @@ export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'primary_goal',
   'driving_type',
   'preferred_name',
+  'vehicle_setup',
+  'work_place_setup',
   'protection_setup',
   'next_action',
 ];
 
 export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string }[] = [
   { id: 'protect_future', label: 'Protect future drives' },
-  { id: 'find_missing', label: 'Find possible missing mileage' },
-  { id: 'bring_history', label: 'Bring existing mileage' },
+  { id: 'find_missing', label: 'Recover possible missing mileage' },
+  { id: 'bring_history', label: 'Bring existing history' },
   { id: 'prepare_report', label: 'Prepare a report' },
 ];
 
@@ -180,20 +209,25 @@ export function mapLegacyUsageToDrivingType(usage: string | null | undefined): D
 export function mapLegacyOnboardingStep(step: string | null | undefined): ProductOnboardingStep {
   switch (step) {
     case 'need_selection':
+    case 'primary_goal':
       return 'primary_goal';
     case 'usage_type':
+    case 'driving_type':
       return 'driving_type';
     case 'optional_setup':
+    case 'preferred_name':
       return 'preferred_name';
+    case 'vehicle_setup':
+      return 'vehicle_setup';
+    case 'work_place_setup':
+      return 'work_place_setup';
+    case 'protection_setup':
+      return 'protection_setup';
     case 'ready':
+    case 'next_action':
       return 'next_action';
     case 'welcome':
-    case 'primary_goal':
-    case 'driving_type':
-    case 'preferred_name':
-    case 'protection_setup':
-    case 'next_action':
-      return step;
+      return 'welcome';
     default:
       return 'welcome';
   }

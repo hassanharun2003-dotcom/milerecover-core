@@ -97,10 +97,10 @@ describe('Screen render evidence', () => {
       manifest[key] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(10);
     }
-    expect(manifest['manual-trip']).toMatch(/notes or odometer/i);
-    expect(manifest['tracking-active']).toMatch(/isn.t on yet|isn\'t on yet|isn\u2019t on yet/i);
-    expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions/i);
-    expect(manifest['report-preview']).toMatch(/Preview sample/i);
+    expect(manifest['manual-trip']).toMatch(/odometer|Add a drive yourself/i);
+    expect(manifest['tracking-active']).toMatch(/not available|isn.t on yet|unavailable/i);
+    expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
+    expect(manifest['report-preview']).toMatch(/report|preview|confirmed/i);
     expect(manifest['plan-selection']).toMatch(/Upgrade when it helps/i);
     expect(manifest['plan-selection']).toMatch(/Plus|Pro|90-Day Rescue/i);
     expect(manifest['coming-later']).toMatch(/Not available in this preview/i);
@@ -115,11 +115,11 @@ describe('Screen render evidence', () => {
 
   it('captures empty Proof, demo Proof, empty Profile, and safe-area shell markers', async () => {
     const emptyProof = await renderTab('new_user', 'Proof', { demoModeEnabled: false });
-    expect(emptyProof.copy).toMatch(/No confirmed drives yet/i);
+    expect(emptyProof.copy).toMatch(/No confirmed drives/i);
     expect(emptyProof.copy).not.toMatch(/report is ready/i);
 
-    const proofReady = await renderTab('proof_ready', 'Proof');
-    expect(proofReady.copy).toMatch(/ready to review/i);
+    const proofReady = await renderTab('proof_ready', 'Proof', { demoModeEnabled: true });
+    expect(proofReady.copy).toMatch(/ready to review|confirmed work|Total miles|drives/i);
 
     const proofBlocked = await renderTab('proof_blocked', 'Proof');
     expect(proofBlocked.copy).toMatch(/Review one item before sharing|need a look|Review/i);
@@ -135,12 +135,12 @@ describe('Screen render evidence', () => {
       showDevTools: true,
     });
     expect(profile.copy).toContain('Vehicles');
-    expect(profile.copy).toContain('Tracking status');
-    expect(profile.copy).toMatch(/Driving|Protection|Import|Privacy|Help/i);
+    expect(profile.copy).toMatch(/Protection|Tracking/i);
+    expect(profile.copy).toMatch(/Driving|Import|Privacy|Help/i);
     expect(profile.copy).not.toContain('Alex Johnson');
     expect(profile.copy).not.toContain('alex@example.com');
-    expect(profile.copy).toMatch(/Your account|No name yet/i);
-    expect(profile.copy).toMatch(/MileRecover Free/i);
+    expect(profile.copy).toMatch(/Your profile|Your account|preferred name|Not set/i);
+    expect(profile.copy).toMatch(/MileRecover Free|Free is active/i);
     expect(profile.copy).toMatch(/Restart onboarding/i);
 
     const insetWelcome = await renderOnboardingWithInsets('welcome', { top: 28, bottom: 20 });

@@ -1,17 +1,17 @@
 {
-  "1-onboarding-welcome": "M Protect every work mile. MileRecover saves future drives, helps find missing mileage, and prepares records you can share—without inventing miles. Get started Bring existing mileage",
+  "1-onboarding-welcome": "M Protect every work mile. MileRecover saves future drives, helps find missing mileage, and prepares records you can share - without inventing miles. Protect my miles Bring existing mileage",
   "2-onboarding-goals": {
-    "protect_future": "Back Next, turn on protection One step remains before MileRecover can watch future drives. We’ll explain each permission first. Continue setup Go to Home",
-    "find_missing": "Back Next, tell us which period to review Start with a period you remember driving. We’ll help you look for quiet stretches—never invent miles. Add a drive to s",
-    "bring_history": "Back Next, choose a file or source Bring what you already have. We’ll organize what we can and show you anything that needs a look. Bring mileage Go to Home",
-    "prepare_report": "Back Next, add or import confirmed drives A report needs confirmed work drives first. Import history or add what you remember. Prepare records Go to Home"
+    "protect_future": "Back Your setup Goal: Protect future drives Driving: Not set Vehicles: 0 Work places: 0 Protection: Tracking engine unavailable in this RC Next, turn on protect",
+    "find_missing": "Back Your setup Goal: Recover possible missing mileage Driving: Not set Vehicles: 0 Work places: 0 Protection: Tracking engine unavailable in this RC Next, tell",
+    "bring_history": "Back Your setup Goal: Bring existing history Driving: Not set Vehicles: 0 Work places: 0 Protection: Tracking engine unavailable in this RC Next, choose a file ",
+    "prepare_report": "Back Your setup Goal: Prepare a report Driving: Not set Vehicles: 0 Work places: 0 Protection: Tracking engine unavailable in this RC Next, add or import confir"
   },
-  "3-home-truthful": "Finish setting up protection Learn what protection needs—then enable access when tracking is available. We never claim coverage we can’t provide. Continue setup PROTECTION Setup Not finished Background access Off Automatic capture Not avail",
-  "4-home-review-item": "One drive may need a look Your phone was quiet for part of this stretch. Ten seconds and you’re done. Review drive PROTECTION Setup Not finished Background access Off Automatic capture Not available in this preview This week Miles kept 28.4",
-  "5-empty-proof": "No confirmed drives yet Confirmed work drives will appear here, ready to review and share. Add a drive ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile",
-  "6-demo-proof": "Your records are ready to review 2026 year to date 3 drives 58.0 miles — none open Preview report EXPORT Share as PDF › Share as CSV › Show period details ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile",
-  "7-empty-profile": "Your account No name yet — add one from Restart onboarding if you like MileRecover Free Upgrade when it helps—never because we rushed you See plans DRIVING Vehicles None › Work places Add › Work schedule Not available in this preview › PROT",
-  "8-plans-monthly": "Upgrade when it helps. No countdowns. No hidden trials. Billing is not connected in this preview. Showing monthly — switch to annual Your plan Free Start covering your work miles $0 / month • Miles you log by hand stay on this device • Calm",
+  "3-home-truthful": "Finish setting up protection Automatic capture is unavailable in this preview. You can still log drives, review uncertain miles, and build reports. Continue setup PROTECTION Setup Not finished Background access Off Automatic capture Not ava",
+  "4-home-review-item": "One drive may need a look Your phone was quiet for part of this stretch. Ten seconds and you’re done. Review drive PROTECTION Setup Not finished Background access Off Automatic capture Not available in this RC This week Miles kept 28.4 Mile",
+  "5-empty-proof": "Week Month Prev. month YTD No confirmed drives in this period Proof uses only confirmed work drives from the selected period. Pending, personal, and rejected drives stay out. Add a drive Current period 2026 year to date. 0 unresolved item(s",
+  "6-demo-proof": "Week Month Prev. month YTD Your records are ready to review 2026 year to date 3 drives 58.0 miles — none open Preview report TOTALS Confirmed work drives 3 Total miles 58.0 mi Manual miles 0.0 mi Imported miles 0.0 mi Recovered miles 0.0 mi",
+  "7-empty-profile": "Your profile Add a preferred name by restarting onboarding. MileRecover Free Free is active. Billing is not connected in this release candidate. See plan preview PROFILE Name Not set Driving type Not set Report style mileage report DRIVING ",
+  "8-plans-monthly": "Upgrade when it helps. Free is shown and usable. Paid plans are preview-only because purchases are not connected. Showing monthly - switch to annual Plan status Free is available now. Billing is not connected. Your plan Free Start covering ",
   "9-plans-annual": "Fixed header toggle switches monthly/annual without sticky overlap",
   "10-safe-area": "insets.top TabScreen + insets.bottom tab bar + FixedHeaderScrollScreen + Ionicons"
 }

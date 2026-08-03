@@ -25,6 +25,7 @@ import {
   TabScreen,
 } from '../../design-system';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
 import { voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
 import { writeTextFile, shareFile } from '../../services/fileShare';
@@ -69,15 +70,18 @@ export function ProofScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const period = periodFromState(state.reportingPeriod);
+  const tripsForProof = product.demoModeEnabled
+    ? DEMO_SCENARIOS[product.demoScenario]?.trips ?? state.trips
+    : state.trips;
   const report = useMemo(
     () =>
       buildMileageReportData({
-        trips: state.trips,
+        trips: tripsForProof,
         period,
         userName: product.preferredName,
         mileageUseType: voiceForDrivingType(product.drivingType).reportNoun,
       }),
-    [period, product.drivingType, product.preferredName, state.trips],
+    [period, product.drivingType, product.preferredName, tripsForProof],
   );
 
   const choosePeriod = (kind: ReportPeriodKind) => {
@@ -101,7 +105,7 @@ export function ProofScreen() {
       return;
     }
     try {
-      const csv = buildMileageCsv(state.trips, {
+      const csv = buildMileageCsv(tripsForProof, {
         periodStart: period.startAt,
         periodEnd: period.endAt,
         vehicleNicknameById: vehicleLookup(product.vehicles),

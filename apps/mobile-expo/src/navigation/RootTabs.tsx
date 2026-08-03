@@ -49,9 +49,14 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 
 export function RootTabs() {
   const insets = useSafeAreaInsets();
-  const { state, permissions } = useApp();
+  const { state, permissions, automaticCaptureAvailable } = useApp();
   const { product } = useProduct();
-  const pendingCount = selectProductExperience(state, product, permissions).activeReviewItems.length;
+  const pendingCount = selectProductExperience(
+    state,
+    product,
+    permissions,
+    automaticCaptureAvailable,
+  ).activeReviewItems.length;
   const bottomPad = Math.max(insets.bottom, spacing.sm);
   const tabBarHeight = 56 + bottomPad;
 
