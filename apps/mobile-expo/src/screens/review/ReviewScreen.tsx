@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { motion } from '@milerecover/config';
 import {
   EmptyState,
   ReviewCard,
@@ -10,10 +11,12 @@ import {
   ScrollScreen,
   SectionHeader,
   SegmentedControl,
+  UndoSnackbar,
 } from '../../design-system';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
+import type { ReviewDecision } from '../../product/types';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 
 type ReviewNav = CompositeNavigationProp<
@@ -46,9 +49,24 @@ export function ReviewScreen() {
   const { product, setReviewDecision, undoReviewDecision } = useProduct();
   const experience = selectProductExperience(state, product, permissions);
   const [segment, setSegment] = useState<'needs' | 'reviewed'>('needs');
+  const [undoItem, setUndoItem] = useState<{ id: string; label: string } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+    };
+  }, []);
 
   const pending = experience.activeReviewItems;
   const reviewedIds = product.reviewedHistory;
+
+  const classify = (id: string, decision: Exclude<ReviewDecision, null>) => {
+    setReviewDecision(id, decision);
+    setUndoItem({ id, label: decisionLabel(decision) });
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndoItem(null), motion.undoSnackbarMs);
+  };
 
   return (
     <ScrollScreen>
@@ -86,9 +104,9 @@ export function ReviewScreen() {
                   navigation.navigate('TripDetails', { tripId: item.id });
                 }
               }}
-              onWork={() => setReviewDecision(item.id, 'work')}
-              onPersonal={() => setReviewDecision(item.id, 'personal')}
-              onNotDrive={() => setReviewDecision(item.id, 'not_drive')}
+              onWork={() => classify(item.id, 'work')}
+              onPersonal={() => classify(item.id, 'personal')}
+              onNotDrive={() => classify(item.id, 'not_drive')}
             />
           ))
         )
@@ -108,6 +126,18 @@ export function ReviewScreen() {
           );
         })
       )}
+
+      {undoItem ? (
+        <UndoSnackbar
+          message={`Marked as ${undoItem.label}`}
+          onUndo={() => {
+            undoReviewDecision(undoItem.id);
+            setUndoItem(null);
+            if (undoTimer.current) clearTimeout(undoTimer.current);
+          }}
+          onDismiss={() => setUndoItem(null)}
+        />
+      ) : null}
     </ScrollScreen>
   );
 }

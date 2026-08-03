@@ -107,9 +107,19 @@ npm --prefix apps/mobile-expo run deps:validate    # PASS
 - Home/Review/Proof still driven by demo fixtures; domain Protection Health not fully wired
 - No RevenueCat or real payments
 
+## Design polish landed (this continuation)
+
+- Design docs reconciled to forest green + four-tab IA
+- DS primitives: DestructiveButton, OfflineBanner, ErrorBanner, FormError, UndoSnackbar, tabular nums
+- Manual trip attestation + editable date
+- Trip details Business / Personal / Reject
+- Vehicle + work location save flows
+- Tracking Active honest stub; Coming Later for unshipped Profile rows
+- Review 4s undo snackbar; Review tab badge for pending count
+- StartupGate migrated onto design-system
+
 ## Next milestone
 
 1. Physical device smoke on preview APK `a0fcf6cd` (install via GitHub prerelease URL)
 2. Confirm Profile → About shows **Preview channel connected** / **0.1.2-preview.1** after OTA
-3. Continue locked design polish in `apps/mobile-expo` (supporting screens, DS primitives)
-4. Background tracking engine (`expo-location`, `expo-task-manager`) with screen-off test matrix
+3. Background tracking engine (`expo-location`, `expo-task-manager`) with screen-off test matrix

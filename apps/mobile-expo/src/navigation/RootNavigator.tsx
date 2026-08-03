@@ -6,6 +6,7 @@ import { BringExistingMileageScreen } from '../screens/import/BringExistingMilea
 import { ImportExceptionReviewScreen, ImportPreviewScreen } from '../screens/import/ImportPreviewScreen';
 import { AboutScreen } from '../screens/about/AboutScreen';
 import {
+  ComingLaterScreen,
   ExportReportScreen,
   HelpSupportScreen,
   ManualTripScreen,
@@ -13,6 +14,7 @@ import {
   PlanSelectionScreen,
   ProtectionAlertScreen,
   ReportPreviewScreen,
+  TrackingActiveScreen,
   TripDetailsScreen,
   VehicleSetupScreen,
   WorkLocationSetupScreen,
@@ -35,11 +37,13 @@ export function RootNavigator() {
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} options={{ title: 'Trip details' }} />
       <Stack.Screen name="MissingTripRecovery" component={MissingTripRecoveryScreen} options={{ title: 'Recovery' }} />
       <Stack.Screen name="ProtectionAlert" component={ProtectionAlertScreen} options={{ title: 'Protection' }} />
+      <Stack.Screen name="TrackingActive" component={TrackingActiveScreen} options={{ title: 'Tracking' }} />
       <Stack.Screen name="BringExistingMileage" component={BringExistingMileageScreen} options={{ title: 'Bring mileage' }} />
       <Stack.Screen name="ImportPreview" component={ImportPreviewScreen} options={{ title: 'Import preview' }} />
       <Stack.Screen name="ImportExceptionReview" component={ImportExceptionReviewScreen} options={{ title: 'Exceptions' }} />
       <Stack.Screen name="VehicleSetup" component={VehicleSetupScreen} options={{ title: 'Vehicles' }} />
       <Stack.Screen name="WorkLocationSetup" component={WorkLocationSetupScreen} options={{ title: 'Work locations' }} />
+      <Stack.Screen name="ComingLater" component={ComingLaterScreen} options={{ title: 'Coming later' }} />
       <Stack.Screen name="ExportReport" component={ExportReportScreen} options={{ title: 'Export' }} />
       <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} options={{ title: 'Preview' }} />
       <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Plans' }} />

@@ -8,6 +8,7 @@ import { spacing } from '@milerecover/config';
 import {
   Badge,
   EvidenceRow,
+  OfflineBanner,
   ProtectionCard,
   ScrollScreen,
   SectionHeader,
@@ -73,6 +74,9 @@ export function HomeScreen() {
 
   return (
     <ScrollScreen>
+      {scenario.homeState === 'offline' ? (
+        <OfflineBanner body="Saved safely offline. Sync will resume when you are back online." />
+      ) : null}
       <StatusCard
         variant={homeVariant(scenario.homeState)}
         title={scenario.homeTitle}

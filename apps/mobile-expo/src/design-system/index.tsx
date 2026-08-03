@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,6 +45,9 @@ export const text = StyleSheet.create({
   },
   inverse: {
     color: colors.text.inverse,
+  },
+  tabular: {
+    fontVariant: typography.tabularNums as unknown as TextStyle['fontVariant'],
   },
 });
 
@@ -189,6 +193,81 @@ export function TertiaryButton({ label, onPress, accessibilityLabel }: { label: 
   );
 }
 
+export function DestructiveButton({ label, onPress, disabled, accessibilityLabel }: {
+  label: string; onPress: () => void; disabled?: boolean; accessibilityLabel?: string;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.destructiveBtn,
+        disabled && styles.btnDisabled,
+        pressed && !disabled && styles.btnPressed,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+    >
+      <Text style={styles.destructiveBtnText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function OfflineBanner({ body = 'Saved safely offline. Sync will resume when you are back online.' }: { body?: string }) {
+  return (
+    <View style={styles.offlineBanner} accessibilityRole="text" accessibilityLabel={body}>
+      <Text style={[text.caption, { color: colors.text.primary, fontWeight: '600' }]}>Offline</Text>
+      <Text style={[text.caption, { color: colors.text.secondary, marginTop: 2 }]}>{body}</Text>
+    </View>
+  );
+}
+
+export function ErrorBanner({ title, body }: { title: string; body: string }) {
+  return (
+    <View style={styles.errorBanner} accessibilityRole="alert" accessibilityLabel={`${title}. ${body}`}>
+      <Text style={[text.subtitle, { color: colors.danger[600] }]}>{title}</Text>
+      <Text style={[text.body, { marginTop: spacing.xs }]}>{body}</Text>
+    </View>
+  );
+}
+
+export function FormError({ message }: { message: string }) {
+  return (
+    <Text style={styles.formError} accessibilityRole="alert">
+      {message}
+    </Text>
+  );
+}
+
+export function UndoSnackbar({
+  message,
+  onUndo,
+  onDismiss,
+}: {
+  message: string;
+  onUndo: () => void;
+  onDismiss?: () => void;
+}) {
+  return (
+    <View style={styles.undoSnackbar} accessibilityRole="summary" accessibilityLabel={message}>
+      <Text style={[text.body, text.inverse, { flex: 1 }]}>{message}</Text>
+      <Pressable
+        onPress={onUndo}
+        accessibilityRole="button"
+        accessibilityLabel="Undo"
+        style={styles.undoSnackbarAction}
+      >
+        <Text style={styles.undoSnackbarActionText}>Undo</Text>
+      </Pressable>
+      {onDismiss ? (
+        <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Dismiss" style={styles.undoSnackbarAction}>
+          <Text style={styles.undoSnackbarActionText}>✕</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export function StatusCard({
   title,
   body,
@@ -245,7 +324,7 @@ export function SummaryCard({ items }: { items: { label: string; value: string }
       {items.map((item) => (
         <View key={item.label} style={styles.summaryItem}>
           <Text style={text.caption}>{item.label}</Text>
-          <Text style={styles.summaryValue}>{item.value}</Text>
+          <Text style={[styles.summaryValue, text.tabular]}>{item.value}</Text>
         </View>
       ))}
     </View>
@@ -548,15 +627,15 @@ export function ProofHeroCard({
       <Text style={[text.body, styles.proofHeroSub]}>{periodLabel}</Text>
       <View style={styles.proofHeroStats}>
         <View style={styles.proofHeroStat}>
-          <Text style={styles.proofHeroStatValue}>{tripCount}</Text>
+          <Text style={[styles.proofHeroStatValue, text.tabular]}>{tripCount}</Text>
           <Text style={styles.proofHeroStatLabel}>trips</Text>
         </View>
         <View style={styles.proofHeroStat}>
-          <Text style={styles.proofHeroStatValue}>{totalMiles}</Text>
+          <Text style={[styles.proofHeroStatValue, text.tabular]}>{totalMiles}</Text>
           <Text style={styles.proofHeroStatLabel}>miles</Text>
         </View>
         <View style={styles.proofHeroStat}>
-          <Text style={styles.proofHeroStatValue}>{unresolved}</Text>
+          <Text style={[styles.proofHeroStatValue, text.tabular]}>{unresolved}</Text>
           <Text style={styles.proofHeroStatLabel}>unresolved</Text>
         </View>
       </View>
@@ -657,6 +736,52 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: colors.forest[700], fontWeight: '600' },
   tertiaryBtn: { minHeight: touchTarget.minHeight, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
   tertiaryBtnText: { color: colors.forest[600], fontWeight: '600' },
+  destructiveBtn: {
+    backgroundColor: colors.danger[100],
+    borderWidth: 1,
+    borderColor: colors.danger[600],
+    borderRadius: radii.md,
+    minHeight: touchTarget.minHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+  },
+  destructiveBtnText: { color: colors.danger[600], fontWeight: '600', fontSize: typography.size.body },
+  offlineBanner: {
+    backgroundColor: colors.neutral[100],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.md,
+    padding: spacing.smMd,
+    marginBottom: spacing.md,
+  },
+  errorBanner: {
+    backgroundColor: colors.danger[100],
+    borderWidth: 1,
+    borderColor: colors.danger[600],
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  formError: {
+    color: colors.danger[600],
+    fontSize: typography.size.body,
+    lineHeight: typography.lineHeight.body,
+    marginBottom: spacing.sm,
+  },
+  undoSnackbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.neutral[900],
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.smMd,
+    marginTop: spacing.md,
+  },
+  undoSnackbarAction: { minHeight: touchTarget.minHeight, justifyContent: 'center', paddingHorizontal: spacing.xs },
+  undoSnackbarActionText: { color: colors.forest[100], fontWeight: '700' },
   btnDisabled: { opacity: 0.5 },
   btnPressed: { opacity: 0.88 },
   cardPressed: { opacity: 0.96 },

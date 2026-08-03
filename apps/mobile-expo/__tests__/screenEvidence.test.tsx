@@ -41,10 +41,15 @@ describe('Screen render evidence', () => {
       ['trip-details', 'TripDetails', { tripId: 'trip-1' }],
       ['missing-recovery', 'MissingTripRecovery', { reviewId: 'review-recovery-1' }],
       ['protection-alert', 'ProtectionAlert'],
+      ['tracking-active', 'TrackingActive'],
+      ['vehicle-setup', 'VehicleSetup'],
+      ['work-location-setup', 'WorkLocationSetup'],
+      ['coming-later', 'ComingLater', { title: 'Notifications', detail: 'Weekly digests coming later.' }],
       ['export-report', 'ExportReport'],
       ['report-preview', 'ReportPreview', { format: 'pdf' }],
       ['plan-selection', 'PlanSelection', { source: 'profile' }],
       ['help-support', 'HelpSupport'],
+      ['about', 'About'],
     ];
 
     for (const [key, route, params] of stacks) {
@@ -53,10 +58,13 @@ describe('Screen render evidence', () => {
       manifest[key] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(10);
     }
+    expect(manifest['manual-trip']).toContain('attest');
+    expect(manifest['tracking-active']).toContain('not active yet');
+    expect(manifest['help-support']).toContain('COMMON QUESTIONS');
     fs.writeFileSync(path.join(evidenceDir, 'stack-evidence.json'), JSON.stringify(manifest, null, 2));
   });
 
-  it('captures proof and review tab copy', async () => {
+  it('captures proof, review, and profile tab copy', async () => {
     const proofReady = await renderTab('proof_ready', 'Proof');
     expect(proofReady.copy).toContain('Ready for proof');
 
@@ -65,5 +73,13 @@ describe('Screen render evidence', () => {
 
     const review = await renderTab('recovery_available', 'Review');
     expect(review.copy).toContain('Needs review');
+
+    const profile = await renderTab('fully_protected', 'Profile');
+    expect(profile.copy).toContain('Vehicles');
+    expect(profile.copy).toContain('Tracking status');
+    fs.writeFileSync(
+      path.join(evidenceDir, 'profile-evidence.json'),
+      JSON.stringify({ profile: profile.copy.slice(0, 600) }, null, 2),
+    );
   });
 });

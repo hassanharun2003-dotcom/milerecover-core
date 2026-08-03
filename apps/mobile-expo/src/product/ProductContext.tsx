@@ -17,6 +17,8 @@ import {
   type ProductOnboardingStep,
   type ProductUiState,
   type ReviewDecision,
+  type VehicleDraft,
+  type WorkLocationDraft,
 } from './types';
 
 interface ProductContextValue {
@@ -34,6 +36,8 @@ interface ProductContextValue {
   setReviewDecision: (itemId: string, decision: ReviewDecision) => void;
   undoReviewDecision: (itemId: string) => void;
   addManualTrip: (draft: Omit<ManualTripDraft, 'id' | 'createdAt'>) => void;
+  upsertVehicle: (vehicle: VehicleDraft) => void;
+  upsertWorkLocation: (location: WorkLocationDraft) => void;
   setImportPhase: (phase: ImportFlowPhase, fileLabel?: string | null) => void;
   resetProductData: () => Promise<void>;
 }
@@ -122,6 +126,20 @@ export function ProductProvider({
           createdAt: Date.now(),
         };
         void persist({ ...product, manualTrips: [entry, ...product.manualTrips] });
+      },
+      upsertVehicle: (vehicle) => {
+        const exists = product.vehicles.some((v) => v.id === vehicle.id);
+        const vehicles = exists
+          ? product.vehicles.map((v) => (v.id === vehicle.id ? vehicle : v))
+          : [...product.vehicles, vehicle];
+        void persist({ ...product, vehicles });
+      },
+      upsertWorkLocation: (location) => {
+        const exists = product.workLocations.some((l) => l.id === location.id);
+        const workLocations = exists
+          ? product.workLocations.map((l) => (l.id === location.id ? location : l))
+          : [...product.workLocations, location];
+        void persist({ ...product, workLocations });
       },
       setImportPhase: (phase, fileLabel = null) =>
         void persist({

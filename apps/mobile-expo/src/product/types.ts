@@ -35,6 +35,12 @@ export interface VehicleDraft {
   label: string;
 }
 
+export interface WorkLocationDraft {
+  id: string;
+  label: string;
+  address: string;
+}
+
 export interface ProductUiState {
   onboardingStep: ProductOnboardingStep;
   onboardingNeed: string | null;
@@ -46,6 +52,7 @@ export interface ProductUiState {
   reviewedHistory: string[];
   manualTrips: ManualTripDraft[];
   vehicles: VehicleDraft[];
+  workLocations: WorkLocationDraft[];
   importPhase: ImportFlowPhase;
   importFileLabel: string | null;
   showDevTools: boolean;
@@ -65,6 +72,7 @@ export function createInitialProductUiState(): ProductUiState {
     reviewedHistory: [],
     manualTrips: [],
     vehicles: [{ id: 'vehicle-1', label: 'Primary vehicle' }],
+    workLocations: [],
     importPhase: 'idle',
     importFileLabel: null,
     showDevTools: __DEV__,

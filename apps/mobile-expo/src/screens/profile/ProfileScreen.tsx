@@ -10,7 +10,6 @@ import {
   ListSection,
   MembershipBanner,
   ScrollScreen,
-  SectionHeader,
   SecondaryButton,
   text,
 } from '../../design-system';
@@ -30,6 +29,7 @@ export function ProfileScreen() {
   const { resetLocalData } = useApp();
   const { product, setDemoScenario, resetProductData, resetOnboarding } = useProduct();
   const plan = PLAN_FIXTURES.find((p) => p.id === product.selectedPlan);
+  const vehicleLabel = product.vehicles[0]?.label ?? 'Primary vehicle';
 
   return (
     <ScrollScreen>
@@ -49,9 +49,26 @@ export function ProfileScreen() {
       />
 
       <ListSection title="Driving setup">
-        <ListRow label="Vehicles" value={String(product.vehicles.length)} onPress={() => navigation.navigate('VehicleSetup')} />
-        <ListRow label="Work locations" onPress={() => navigation.navigate('WorkLocationSetup')} />
-        <ListRow label="Work schedule" value="Optional" />
+        <ListRow
+          label="Vehicles"
+          value={vehicleLabel}
+          onPress={() => navigation.navigate('VehicleSetup')}
+        />
+        <ListRow
+          label="Work locations"
+          value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add'}
+          onPress={() => navigation.navigate('WorkLocationSetup')}
+        />
+        <ListRow
+          label="Work schedule"
+          value="Coming later"
+          onPress={() =>
+            navigation.navigate('ComingLater', {
+              title: 'Work schedule',
+              detail: 'Schedule-aware detection is planned after the tracking engine. Optional for now.',
+            })
+          }
+        />
       </ListSection>
 
       <ListSection title="Bring your mileage">
@@ -61,12 +78,39 @@ export function ProfileScreen() {
 
       <ListSection title="Protection and notifications">
         <ListRow label="Tracking protection" onPress={() => navigation.navigate('ProtectionAlert')} />
-        <ListRow label="Notifications" value="On" />
-        <ListRow label="Battery guidance" value="Tips saved" />
+        <ListRow label="Tracking status" onPress={() => navigation.navigate('TrackingActive')} />
+        <ListRow
+          label="Notifications"
+          value="Coming later"
+          onPress={() =>
+            navigation.navigate('ComingLater', {
+              title: 'Notifications',
+              detail: 'Weekly review digests will be configurable here. Per-trip push is intentionally off by default.',
+            })
+          }
+        />
+        <ListRow
+          label="Battery guidance"
+          value="Coming later"
+          onPress={() =>
+            navigation.navigate('ComingLater', {
+              title: 'Battery guidance',
+              detail: 'Battery-friendly tracking tips appear once background capture ships. Your records already stay offline-first.',
+            })
+          }
+        />
       </ListSection>
 
       <ListSection title="Trust and privacy">
-        <ListRow label="Data and privacy" />
+        <ListRow
+          label="Data and privacy"
+          onPress={() =>
+            navigation.navigate('ComingLater', {
+              title: 'Data and privacy',
+              detail: 'Full privacy controls and retention settings will live here. Local data remains the source of truth on this device.',
+            })
+          }
+        />
         <ListRow label="Help center" onPress={() => navigation.navigate('HelpSupport')} />
         <ListRow label="About MileRecover" onPress={() => navigation.navigate('About')} />
       </ListSection>

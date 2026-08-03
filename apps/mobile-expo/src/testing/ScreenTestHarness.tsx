@@ -9,6 +9,7 @@ import { createInitialProductUiState, type ProductUiState } from '../product/typ
 import { createPreviewPersistenceRepository } from '../persistence/AsyncStoragePersistenceRepository';
 import { AppProvider } from '../store/AppContext';
 import { ProductProvider } from '../product/ProductContext';
+import { UpdateProvider } from '../updates/UpdateProvider';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { ReviewScreen } from '../screens/review/ReviewScreen';
 import { ProofScreen } from '../screens/proof/ProofScreen';
@@ -17,6 +18,7 @@ import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
 import { BringExistingMileageScreen } from '../screens/import/BringExistingMileageScreen';
 import { ImportPreviewScreen } from '../screens/import/ImportPreviewScreen';
 import {
+  ComingLaterScreen,
   ExportReportScreen,
   HelpSupportScreen,
   ManualTripScreen,
@@ -24,8 +26,12 @@ import {
   PlanSelectionScreen,
   ProtectionAlertScreen,
   ReportPreviewScreen,
+  TrackingActiveScreen,
   TripDetailsScreen,
+  VehicleSetupScreen,
+  WorkLocationSetupScreen,
 } from '../screens/flows/SupportingScreens';
+import { AboutScreen } from '../screens/about/AboutScreen';
 import type { RootStackParamList, RootTabParamList } from '../navigation/types';
 import { extractVisibleCopy } from './extractText';
 
@@ -39,7 +45,7 @@ function TestProviders({ children, product }: { children: React.ReactNode; produ
     <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>
       <AppProvider repository={createPreviewPersistenceRepository()}>
         <ProductProvider initialState={product} skipHydration>
-          {children}
+          <UpdateProvider>{children}</UpdateProvider>
         </ProductProvider>
       </AppProvider>
     </SafeAreaProvider>
@@ -114,12 +120,17 @@ export async function renderStackScreen(
     TripDetails: TripDetailsScreen,
     MissingTripRecovery: MissingTripRecoveryScreen,
     ProtectionAlert: ProtectionAlertScreen,
+    TrackingActive: TrackingActiveScreen,
     BringExistingMileage: BringExistingMileageScreen,
     ImportPreview: ImportPreviewScreen,
     ExportReport: ExportReportScreen,
     ReportPreview: ReportPreviewScreen,
     PlanSelection: PlanSelectionScreen,
     HelpSupport: HelpSupportScreen,
+    VehicleSetup: VehicleSetupScreen,
+    WorkLocationSetup: WorkLocationSetupScreen,
+    ComingLater: ComingLaterScreen,
+    About: AboutScreen,
   };
   const Component = screens[name as string];
   await act(async () => {

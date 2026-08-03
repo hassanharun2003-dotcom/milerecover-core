@@ -6,6 +6,9 @@ import { HomeScreen } from '../screens/home/HomeScreen';
 import { ReviewScreen } from '../screens/review/ReviewScreen';
 import { ProofScreen } from '../screens/proof/ProofScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { selectProductExperience } from '../product/selectors';
+import { useApp } from '../store/AppContext';
+import { useProduct } from '../product/ProductContext';
 import { ROOT_TAB_ROUTE_NAMES, type RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -26,6 +29,10 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 }
 
 export function RootTabs() {
+  const { state, permissions } = useApp();
+  const { product } = useProduct();
+  const pendingCount = selectProductExperience(state, product, permissions).activeReviewItems.length;
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -48,6 +55,7 @@ export function RootTabs() {
         component={ReviewScreen}
         options={{
           tabBarAccessibilityLabel: 'Review tab',
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
           tabBarLabel: ({ focused }) => <TabLabel label="Review" focused={focused} />,
         }}
       />
