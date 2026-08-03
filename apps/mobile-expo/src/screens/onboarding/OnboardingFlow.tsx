@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import { ONBOARDING_STEP_ORDER } from '../../product/types';
 import {
@@ -10,19 +10,20 @@ import {
   ScrollScreen,
   SecondaryButton,
   SelectionCard,
+  SoftPanel,
   StatusCard,
-  SummaryCard,
   TertiaryButton,
   WelcomeHero,
+  text,
 } from '../../design-system';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 
 const NEED_OPTIONS = [
-  'Protect future drives',
-  'Recover possible missing mileage',
+  'Keep future drives covered',
+  'Find possible missing miles',
   'Bring existing history',
-  'Prepare a report',
+  'Get a report ready',
 ];
 
 const USAGE_OPTIONS = [
@@ -50,9 +51,9 @@ export function OnboardingFlow() {
     switch (step) {
       case 'welcome':
         return {
-          title: 'Protect every work mile.',
-          body: 'We track new drives, find what others miss, and help you prove every mile with confidence.',
-          primary: 'Protect my miles',
+          title: 'Quietly protect every work mile.',
+          body: 'We’ll keep an eye on your work drives—and help you show them when you need to. No pressure. No invented miles.',
+          primary: 'Start covering my miles',
           secondary: 'Bring existing mileage',
           onPrimary: advanceOnboarding,
           onSecondary: () => {
@@ -84,7 +85,13 @@ export function OnboardingFlow() {
     <AppScreen>
       <ScrollScreen contentStyle={{ paddingTop: spacing.lg }}>
         <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
-        {stepIndex > 0 ? <TertiaryButton label="Back" onPress={backOnboarding} accessibilityLabel="Go back to previous onboarding step" /> : null}
+        {stepIndex > 0 ? (
+          <TertiaryButton
+            label="Back"
+            onPress={backOnboarding}
+            accessibilityLabel="Go back to previous onboarding step"
+          />
+        ) : null}
 
         {'title' in content && content.title ? (
           <View>
@@ -100,7 +107,10 @@ export function OnboardingFlow() {
 
         {content.mode === 'need' ? (
           <View>
-            <StatusCard variant="info" title="What do you need today?" body="One choice is enough. You can change this later." />
+            <Text style={[text.title, { marginBottom: spacing.sm }]}>What do you need today?</Text>
+            <Text style={[text.body, { marginBottom: spacing.md }]}>
+              One choice is enough. You can change this later.
+            </Text>
             {NEED_OPTIONS.map((opt) => (
               <SelectionCard
                 key={opt}
@@ -117,7 +127,10 @@ export function OnboardingFlow() {
 
         {content.mode === 'usage' ? (
           <View>
-            <StatusCard variant="info" title="How do you use work mileage?" body="This helps MileRecover speak your language—not an accountant's." />
+            <Text style={[text.title, { marginBottom: spacing.sm }]}>How do you use work mileage?</Text>
+            <Text style={[text.body, { marginBottom: spacing.md }]}>
+              This helps MileRecover speak plainly—not like software.
+            </Text>
             {USAGE_OPTIONS.map((opt) => (
               <SelectionCard
                 key={opt}
@@ -134,21 +147,21 @@ export function OnboardingFlow() {
 
         {content.mode === 'protection' ? (
           <View>
-            <StatusCard
-              variant="info"
-              title="Set up your protection"
-              body="MileRecover works best with location and background access. We never pretend permissions are granted until you enable them."
-            />
-            <View style={[cardShell, { marginBottom: spacing.md }]}>
+            <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
+            <Text style={[text.body, { marginBottom: spacing.md }]}>
+              MileRecover works best with location and background access. We never pretend permissions are granted until you enable them.
+            </Text>
+            <SoftPanel>
               <ChecklistRow label="Location access" status="pending" />
               <ChecklistRow label="Background tracking" status="pending" />
-              <ChecklistRow label="Battery optimization" status="planned" />
-              <ChecklistRow label="Offline recording" status="planned" />
-            </View>
+              <ChecklistRow label="Battery-friendly capture" status="planned" />
+              <ChecklistRow label="Offline saving" status="planned" />
+            </SoftPanel>
             <StatusCard
               variant="neutral"
               title="Your data stays yours"
-              body="Trips are stored on your device first. Nothing is shared without your action."
+              body="Trips live on your device first. Nothing is shared unless you choose to share it."
+              emphasis="subtle"
             />
             <PrimaryButton label="Continue" onPress={advanceOnboarding} />
           </View>
@@ -156,26 +169,25 @@ export function OnboardingFlow() {
 
         {content.mode === 'optional' ? (
           <View>
-            <StatusCard
-              variant="info"
-              title="Optional setup"
-              body="These details help later reports. You can add them from Profile after Home—skipping is always safe."
-            />
+            <Text style={[text.title, { marginBottom: spacing.sm }]}>Optional details</Text>
+            <Text style={[text.body, { marginBottom: spacing.md }]}>
+              These help later reports. Skip anytime—you can add them from Profile.
+            </Text>
             <SelectionCard
               title="Remind me: add a vehicle"
-              body="Available from Profile after setup—not enabled yet"
+              body="Available from Profile after setup"
               selected={false}
               onPress={advanceOnboarding}
             />
             <SelectionCard
-              title="Remind me: add work locations"
-              body="Available from Profile after setup—not enabled yet"
+              title="Remind me: add work places"
+              body="Available from Profile after setup"
               selected={false}
               onPress={advanceOnboarding}
             />
             <SelectionCard
               title="Remind me: set work pattern"
-              body="Available from Profile after setup—not enabled yet"
+              body="Available from Profile after setup"
               selected={false}
               onPress={advanceOnboarding}
             />
@@ -187,28 +199,26 @@ export function OnboardingFlow() {
           <View>
             <StatusCard
               variant="success"
-              title="You're ready to explore"
-              body="Onboarding is complete. Location and background protection are not granted yet—they unlock when tracking is implemented and you approve system prompts."
+              title="You're set"
+              body="Drive as usual. We’ll ask when something needs a quick look—never invent miles while you’re exploring."
+              emphasis="hero"
             />
-            <SummaryCard
-              items={[
-                { label: 'Background access', value: 'Not granted yet' },
-                { label: 'Location access', value: 'Not granted yet' },
-                { label: 'Battery optimization', value: 'Guidance only' },
-              ]}
+            <SoftPanel>
+              <Text style={[text.caption, { marginBottom: spacing.sm }]}>COMING WITH TRACKING</Text>
+              <ChecklistRow label="Location access" status="pending" />
+              <ChecklistRow label="Background access" status="pending" />
+              <Text style={[text.caption, { marginTop: spacing.sm }]}>
+                Not granted yet—they unlock when tracking ships and you approve the system prompts.
+              </Text>
+            </SoftPanel>
+            <PrimaryButton
+              label="Go to Home"
+              onPress={finish}
+              accessibilityLabel="Finish onboarding and go to Home"
             />
-            <PrimaryButton label="Go to Home" onPress={finish} accessibilityLabel="Finish onboarding and go to Home" />
           </View>
         ) : null}
       </ScrollScreen>
     </AppScreen>
   );
 }
-
-const cardShell = {
-  backgroundColor: '#FFFFFF',
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: '#E7E5E4',
-  padding: 16,
-};

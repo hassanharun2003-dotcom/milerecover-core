@@ -47,15 +47,21 @@ Build `a0fcf6cd` is the verified Android preview upgrade over the earlier `0.1.0
 
 ## Test OTA update published
 
-After installing the preview APK above, close and reopen MileRecover. Profile → About should show **Preview marker: Preview channel connected** and build label **0.1.2-preview.2**.
+After installing the preview APK above, close and reopen MileRecover. Profile → About should show **Preview marker: Preview channel connected** and build label **0.1.2-preview.3**.
 
 **Runtime `0.1.2` OTA (latest published):**
 
+- Update group: _(filled after V2 polish publish)_
+- Android update ID: _(filled after publish)_
+- iOS update ID: _(filled after publish)_
+- Message: `0.1.2-preview.3: V2 user-first product polish`
+- Dashboard: _(filled after publish)_
+- Audit: `docs/V2_PRODUCT_POLISH.md`
+
+Prior design polish OTA (superseded):
+
 - Update group: `1da76f81-dab9-413e-bc54-259d16b0b79a`
-- Android update ID: `019fc627-0c33-70d4-b96d-98d7b7b79e7c`
-- iOS update ID: `019fc627-0c33-79f8-9989-b6d8bf95159c`
 - Message: `0.1.2-preview.2: Locked design polish + preview channel marker`
-- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/1da76f81-dab9-413e-bc54-259d16b0b79a
 
 Prior connectivity OTA (superseded on channel):
 

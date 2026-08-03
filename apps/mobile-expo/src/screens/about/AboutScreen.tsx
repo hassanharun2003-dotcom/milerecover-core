@@ -36,8 +36,9 @@ export function AboutScreen() {
       <SectionHeader title="About MileRecover" />
       <StatusCard
         variant="info"
-        title="Mileage protection"
-        body="Protect every work mile. Track what matters. Find what others miss."
+        title="Quietly protecting your work miles"
+        body="We help you keep every legitimate work mile—and show it clearly when you need to. Never invent miles."
+        emphasis="subtle"
       />
       <ListSection title="Build information">
         <EvidenceRow label="App version" value={Constants.expoConfig?.version ?? '—'} />

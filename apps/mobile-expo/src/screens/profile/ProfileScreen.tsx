@@ -34,83 +34,99 @@ export function ProfileScreen() {
   return (
     <ScrollScreen>
       <View style={{ marginBottom: spacing.lg }}>
-        <Text style={text.title} accessibilityRole="header">Alex Johnson</Text>
+        <Text style={text.title} accessibilityRole="header">
+          Alex Johnson
+        </Text>
         <Text style={text.body}>alex@example.com</Text>
       </View>
 
       <MembershipBanner
         planName={plan?.id === 'free' ? 'MileRecover Free' : `MileRecover ${plan?.name ?? 'Free'}`}
-        detail={plan?.id === 'free' ? 'Upgrade when MileRecover has helped you' : 'Member · protection active'}
+        detail={
+          plan?.id === 'free'
+            ? 'Upgrade when it helps—never because we rushed you'
+            : 'You’re covered · upgrade anytime if you need more'
+        }
       />
       <SecondaryButton
-        label="View plans"
+        label="See plans"
         onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
         accessibilityLabel="View subscription plans"
       />
 
-      <ListSection title="Driving setup">
+      <ListSection title="Driving">
         <ListRow
           label="Vehicles"
           value={vehicleLabel}
           onPress={() => navigation.navigate('VehicleSetup')}
         />
         <ListRow
-          label="Work locations"
+          label="Work places"
           value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add'}
           onPress={() => navigation.navigate('WorkLocationSetup')}
         />
         <ListRow
           label="Work schedule"
-          value="Coming later"
+          value="Soon"
           onPress={() =>
             navigation.navigate('ComingLater', {
               title: 'Work schedule',
-              detail: 'Schedule-aware detection is planned after the tracking engine. Optional for now.',
+              detail:
+                'Schedule-aware help arrives after automatic capture. Optional—and never required to stay covered.',
             })
           }
         />
       </ListSection>
 
-      <ListSection title="Bring your mileage">
-        <ListRow label="Import existing history" onPress={() => navigation.navigate('BringExistingMileage')} />
-        <ListRow label="Export defaults" onPress={() => navigation.navigate('ExportReport')} />
-      </ListSection>
-
-      <ListSection title="Protection and notifications">
-        <ListRow label="Tracking protection" onPress={() => navigation.navigate('ProtectionAlert')} />
+      <ListSection title="Protection">
+        <ListRow label="Background access" onPress={() => navigation.navigate('ProtectionAlert')} />
         <ListRow label="Tracking status" onPress={() => navigation.navigate('TrackingActive')} />
         <ListRow
           label="Notifications"
-          value="Coming later"
+          value="Soon"
           onPress={() =>
             navigation.navigate('ComingLater', {
               title: 'Notifications',
-              detail: 'Weekly review digests will be configurable here. Per-trip push is intentionally off by default.',
+              detail:
+                'Quiet weekly digests will live here. Per-trip noise stays off by default—on purpose.',
             })
           }
         />
         <ListRow
           label="Battery guidance"
-          value="Coming later"
+          value="Soon"
           onPress={() =>
             navigation.navigate('ComingLater', {
               title: 'Battery guidance',
-              detail: 'Battery-friendly tracking tips appear once background capture ships. Your records already stay offline-first.',
+              detail:
+                'Friendly tips arrive with background capture. Your miles already save offline first.',
             })
           }
         />
       </ListSection>
 
-      <ListSection title="Trust and privacy">
+      <ListSection title="Import">
+        <ListRow
+          label="Bring existing history"
+          onPress={() => navigation.navigate('BringExistingMileage')}
+        />
+        <ListRow label="Export defaults" onPress={() => navigation.navigate('ExportReport')} />
+      </ListSection>
+
+      <ListSection title="Privacy">
         <ListRow
           label="Data and privacy"
           onPress={() =>
             navigation.navigate('ComingLater', {
               title: 'Data and privacy',
-              detail: 'Full privacy controls and retention settings will live here. Local data remains the source of truth on this device.',
+              detail:
+                'Full controls arrive as sharing expands. Local data on this device remains your source of truth.',
             })
           }
         />
+      </ListSection>
+
+      <ListSection title="Help">
         <ListRow label="Help center" onPress={() => navigation.navigate('HelpSupport')} />
         <ListRow label="About MileRecover" onPress={() => navigation.navigate('About')} />
       </ListSection>

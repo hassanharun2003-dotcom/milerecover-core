@@ -58,25 +58,26 @@ describe('Screen render evidence', () => {
       manifest[key] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(10);
     }
-    expect(manifest['manual-trip']).toContain('attest');
-    expect(manifest['tracking-active']).toContain('not active yet');
+    expect(manifest['manual-trip']).toMatch(/notes or odometer/i);
+    expect(manifest['tracking-active']).toMatch(/isn.t on yet|isn\'t on yet|isn\u2019t on yet/i);
     expect(manifest['help-support']).toContain('COMMON QUESTIONS');
     fs.writeFileSync(path.join(evidenceDir, 'stack-evidence.json'), JSON.stringify(manifest, null, 2));
   });
 
   it('captures proof, review, and profile tab copy', async () => {
     const proofReady = await renderTab('proof_ready', 'Proof');
-    expect(proofReady.copy).toContain('Ready for proof');
+    expect(proofReady.copy).toMatch(/report is ready/i);
 
     const proofBlocked = await renderTab('proof_blocked', 'Proof');
-    expect(proofBlocked.copy).toContain('Items need review');
+    expect(proofBlocked.copy).toMatch(/need a look/i);
 
     const review = await renderTab('recovery_available', 'Review');
-    expect(review.copy).toContain('Needs review');
+    expect(review.copy).toMatch(/Needs you|About 14\.2/i);
 
     const profile = await renderTab('fully_protected', 'Profile');
     expect(profile.copy).toContain('Vehicles');
     expect(profile.copy).toContain('Tracking status');
+    expect(profile.copy).toMatch(/Driving|Protection|Import|Privacy|Help/i);
     fs.writeFileSync(
       path.join(evidenceDir, 'profile-evidence.json'),
       JSON.stringify({ profile: profile.copy.slice(0, 600) }, null, 2),

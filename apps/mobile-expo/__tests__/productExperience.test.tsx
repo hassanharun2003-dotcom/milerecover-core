@@ -89,9 +89,9 @@ describe('Onboarding honesty', () => {
       require('path').join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(source).toContain("value: 'Not granted yet'");
-    expect(source).not.toMatch(/label: 'Background access',\s*value: 'Ready'/);
-    expect(source).not.toMatch(/label: 'Location access',\s*value: 'Ready'/);
+    expect(source).toContain('Not granted yet');
+    expect(source).toContain("status=\"pending\"");
+    expect(source).not.toMatch(/status=\"ready\"/);
     expect(source).toContain('never pretend permissions are granted');
   });
 
@@ -101,7 +101,7 @@ describe('Onboarding honesty', () => {
       'utf8',
     );
     expect(source).toContain('Linking.openSettings');
-    expect(source).toContain('Open system settings');
+    expect(source).toContain('Open Settings');
   });
 });
 

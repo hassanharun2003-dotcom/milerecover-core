@@ -9,6 +9,7 @@ import {
   EvidenceRow,
   FormError,
   FormField,
+  ListRow,
   ListSection,
   LoadingState,
   PlanCard,
@@ -38,7 +39,7 @@ export function ManualTripScreen() {
   const save = () => {
     const miles = parseFloat(distance);
     if (!date.trim()) {
-      setError('Enter a date for this drive.');
+      setError('Add a date for this drive.');
       return;
     }
     if (!distance.trim() || Number.isNaN(miles) || miles <= 0) {
@@ -50,7 +51,7 @@ export function ManualTripScreen() {
       return;
     }
     if (!attested) {
-      setError('Confirm that this distance is from your records or odometer.');
+      setError('Confirm this distance matches your notes or odometer.');
       return;
     }
     setError(null);
@@ -60,23 +61,23 @@ export function ManualTripScreen() {
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Add manual trip" />
       <StatusCard
         variant="info"
-        title="Manual entry"
-        body="Use this when a drive was not captured automatically. You stay in control—MileRecover never invents mileage."
+        title="Add a drive yourself"
+        body="Use this when something wasn’t captured automatically. You stay in control—we never invent miles."
+        emphasis="subtle"
       />
       <FormField label="Date" value={date} onChangeText={setDate} placeholder="Today or YYYY-MM-DD" />
       <FormField label="Distance (miles)" value={distance} onChangeText={setDistance} placeholder="0.0" />
       <FormField label="Purpose" value={purpose} onChangeText={setPurpose} placeholder="Client visit" />
       <SelectionCard
-        title="I attest this distance is from my records or odometer"
-        body="Required for manual miles so exports stay honest."
+        title="This distance matches my notes or odometer"
+        body="So your log stays trustworthy when you share it."
         selected={attested}
         onPress={() => setAttested((v) => !v)}
       />
       {error ? <FormError message={error} /> : null}
-      <PrimaryButton label="Save manual trip" onPress={save} />
+      <PrimaryButton label="Save drive" onPress={save} />
     </ScrollScreen>
   );
 }
@@ -89,24 +90,23 @@ export function TripDetailsScreen() {
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Trip details" />
       <StatusCard
         variant="info"
-        title="Uncertain route"
-        body="Review the approximate route and confirm whether this was work. Reject only if this drive did not happen."
+        title="We're not sure yet"
+        body="Take a quick look and tell us if this was work. Ten seconds and done."
+        emphasis="subtle"
       />
-      <ListSection title="Provenance">
+      <ListSection title="How we saw this">
         <EvidenceRow label="Source" value="Partially recorded" />
         <EvidenceRow label="Confidence" value="Approximate" />
-        <EvidenceRow label="Trip id" value={tripId} />
       </ListSection>
       <PrimaryButton
-        label="Business"
+        label="Work"
         onPress={() => {
           setReviewDecision(tripId, 'work');
           navigation.goBack();
         }}
-        accessibilityLabel="Classify as business"
+        accessibilityLabel="Classify as work"
       />
       <SecondaryButton
         label="Personal"
@@ -116,12 +116,12 @@ export function TripDetailsScreen() {
         }}
       />
       <DestructiveButton
-        label="Reject — not a drive"
+        label="Wasn't a drive"
         onPress={() => {
           setReviewDecision(tripId, 'not_drive');
           navigation.goBack();
         }}
-        accessibilityLabel="Reject trip as not a drive"
+        accessibilityLabel="Reject as not a drive"
       />
     </ScrollScreen>
   );
@@ -133,20 +133,38 @@ export function MissingTripRecoveryScreen() {
   const { setReviewDecision } = useProduct();
   return (
     <ScrollScreen>
-      <SectionHeader title="Missing trip recovery" />
       <StatusCard
         variant="warning"
         title="Was this a work drive?"
-        body="MileRecover noticed your phone was unavailable during part of this period. We are asking—not assuming."
+        body="Your phone was quiet for part of this stretch. We’re asking—not assuming."
+        emphasis="hero"
       />
-      <ListSection title="Evidence">
-        <EvidenceRow label="Status" value="Suggested recovery" />
-        <EvidenceRow label="Recording" value="Partially recorded gap" />
-        <EvidenceRow label="Distance" value="Approximate" />
+      <ListSection title="Why we’re asking">
+        <EvidenceRow label="Status" value="Might have missed a drive" />
+        <EvidenceRow label="Recording" value="Quiet stretch" />
+        <EvidenceRow label="Distance" value="About 14.2 mi" />
       </ListSection>
-      <PrimaryButton label="Yes, work" onPress={() => { setReviewDecision(route.params.reviewId, 'work'); navigation.goBack(); }} />
-      <SecondaryButton label="Personal" onPress={() => { setReviewDecision(route.params.reviewId, 'personal'); navigation.goBack(); }} />
-      <SecondaryButton label="Not a drive" onPress={() => { setReviewDecision(route.params.reviewId, 'not_drive'); navigation.goBack(); }} />
+      <PrimaryButton
+        label="Yes, work"
+        onPress={() => {
+          setReviewDecision(route.params.reviewId, 'work');
+          navigation.goBack();
+        }}
+      />
+      <SecondaryButton
+        label="Personal"
+        onPress={() => {
+          setReviewDecision(route.params.reviewId, 'personal');
+          navigation.goBack();
+        }}
+      />
+      <SecondaryButton
+        label="Not a drive"
+        onPress={() => {
+          setReviewDecision(route.params.reviewId, 'not_drive');
+          navigation.goBack();
+        }}
+      />
     </ScrollScreen>
   );
 }
@@ -156,27 +174,32 @@ export function ProtectionAlertScreen() {
 
   const openSystemSettings = () => {
     void Linking.openSettings().catch(() => {
-      // If the OS blocks settings deep links, keep the user on this honest guidance screen.
+      // Keep the user on this calm guidance screen if the deep link is blocked.
     });
   };
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Protection alert" />
       <StatusCard
         variant="warning"
-        title="Protection needs attention"
-        body="Background tracking may be restricted. Open system settings to restore location and background access when you are ready."
-        actionLabel="Open system settings"
+        title="Background access is limited"
+        body="We may miss new drives until it’s back on. What’s already saved stays put."
+        actionLabel="Open Settings"
         onAction={openSystemSettings}
+        emphasis="hero"
       />
-      <StatusCard variant="neutral" title="What this means" body="Miles may not be captured while protection is limited. Existing records stay safe." />
+      <StatusCard
+        variant="neutral"
+        title="What this means"
+        body="Your existing records are safe. New automatic capture may pause until background access returns."
+        emphasis="subtle"
+      />
       <SecondaryButton
         label="View tracking status"
         onPress={() => navigation.navigate('TrackingActive')}
-        accessibilityLabel="View tracking status stub"
+        accessibilityLabel="View tracking status"
       />
-      <SecondaryButton label="Back" onPress={() => navigation.goBack()} accessibilityLabel="Go back from protection alert" />
+      <SecondaryButton label="Back" onPress={() => navigation.goBack()} accessibilityLabel="Go back" />
     </ScrollScreen>
   );
 }
@@ -184,21 +207,22 @@ export function ProtectionAlertScreen() {
 export function TrackingActiveScreen() {
   return (
     <ScrollScreen>
-      <SectionHeader title="Tracking status" />
       <StatusCard
         variant="info"
-        title="Tracking engine not active yet"
-        body="Background location and trip detection arrive in a later milestone. Until then, protection guidance and manual entry keep you honest."
+        title="Automatic capture isn’t on yet"
+        body="Until then, add drives you remember—and we’ll never invent miles for you."
+        emphasis="hero"
       />
-      <ListSection title="Honest status">
-        <EvidenceRow label="Engine" value="Unavailable" />
+      <ListSection title="Status">
+        <EvidenceRow label="Automatic capture" value="Coming soon" />
         <EvidenceRow label="Background location" value="Not granted yet" />
-        <EvidenceRow label="Screen-off capture" value="Planned" />
+        <EvidenceRow label="Screen-off coverage" value="Planned" />
       </ListSection>
       <StatusCard
         variant="neutral"
         title="What you can do now"
-        body="Add manual trips for drives you remember, and keep review decisions current. MileRecover will never invent miles while tracking is offline."
+        body="Add manual drives and keep Review current. You’re still covered for what you log."
+        emphasis="subtle"
       />
     </ScrollScreen>
   );
@@ -212,9 +236,21 @@ export function VehicleSetupScreen() {
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Vehicles" />
-      <StatusCard variant="info" title="Optional but helpful" body="Naming your vehicle makes reports clearer. You can change this anytime." />
-      <FormField label="Primary vehicle" value={label} onChangeText={(t) => { setLabel(t); setSaved(false); }} placeholder="e.g. Work sedan" />
+      <StatusCard
+        variant="info"
+        title="Optional—but helpful"
+        body="A clear vehicle name makes reports easier to read later."
+        emphasis="subtle"
+      />
+      <FormField
+        label="Primary vehicle"
+        value={label}
+        onChangeText={(t) => {
+          setLabel(t);
+          setSaved(false);
+        }}
+        placeholder="e.g. Work sedan"
+      />
       <PrimaryButton
         label="Save vehicle"
         onPress={() => {
@@ -222,7 +258,9 @@ export function VehicleSetupScreen() {
           setSaved(true);
         }}
       />
-      {saved ? <StatusCard variant="info" title="Saved" body="Vehicle name updated on this device." /> : null}
+      {saved ? (
+        <StatusCard variant="info" title="Saved" body="Vehicle name updated on this device." emphasis="subtle" />
+      ) : null}
     </ScrollScreen>
   );
 }
@@ -236,21 +274,32 @@ export function WorkLocationSetupScreen() {
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Work locations" />
       <StatusCard
         variant="info"
-        title="Used for context only"
-        body="Work locations help MileRecover understand routine—not to surveil you. Address is optional until tracking arrives."
+        title="Familiar places, optional"
+        body="Work places help MileRecover understand routine—not watch you. Address can wait."
+        emphasis="subtle"
       />
-      <FormField label="Label" value={label} onChangeText={(t) => { setLabel(t); setSaved(false); }} placeholder="Office" />
+      <FormField
+        label="Label"
+        value={label}
+        onChangeText={(t) => {
+          setLabel(t);
+          setSaved(false);
+        }}
+        placeholder="Office"
+      />
       <FormField
         label="Address"
         value={address}
-        onChangeText={(t) => { setAddress(t); setSaved(false); }}
+        onChangeText={(t) => {
+          setAddress(t);
+          setSaved(false);
+        }}
         placeholder="Street, city"
       />
       <PrimaryButton
-        label="Save work location"
+        label="Save work place"
         onPress={() => {
           upsertWorkLocation({
             id: existing?.id ?? 'work-location-1',
@@ -260,7 +309,14 @@ export function WorkLocationSetupScreen() {
           setSaved(true);
         }}
       />
-      {saved ? <StatusCard variant="info" title="Saved" body="Work location stored locally for future context." /> : null}
+      {saved ? (
+        <StatusCard
+          variant="info"
+          title="Saved"
+          body="Work place stored locally for future context."
+          emphasis="subtle"
+        />
+      ) : null}
       {product.workLocations.length > 0 ? (
         <ListSection title="Saved">
           {product.workLocations.map((loc) => (
@@ -276,16 +332,17 @@ export function ComingLaterScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ComingLater'>>();
   return (
     <ScrollScreen>
-      <SectionHeader title={route.params.title} />
       <StatusCard
         variant="info"
-        title="Coming later"
+        title={route.params.title}
         body={route.params.detail}
+        emphasis="hero"
       />
       <StatusCard
         variant="neutral"
-        title="Honest placeholder"
-        body="This setting is intentionally not enabled yet. MileRecover will not pretend a control works before the underlying capability ships."
+        title="Not available yet"
+        body="We’ll turn this on when it’s ready—no fake toggles that pretend to work."
+        emphasis="subtle"
       />
     </ScrollScreen>
   );
@@ -298,8 +355,7 @@ export function ExportReportScreen() {
   if (phase === 'processing') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Export report" />
-        <LoadingState message="Preparing export…" />
+        <LoadingState message="Preparing your file…" />
       </ScrollScreen>
     );
   }
@@ -307,8 +363,14 @@ export function ExportReportScreen() {
   if (phase === 'success') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Export report" />
-        <StatusCard variant="success" title="Export ready" body="Your file reflects confirmed and reviewed records only." actionLabel="Done" onAction={() => setPhase('idle')} />
+        <StatusCard
+          variant="success"
+          title="Your file is ready"
+          body="It reflects confirmed and reviewed drives only."
+          actionLabel="Done"
+          onAction={() => setPhase('idle')}
+          emphasis="hero"
+        />
       </ScrollScreen>
     );
   }
@@ -316,16 +378,26 @@ export function ExportReportScreen() {
   if (phase === 'failed') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Export report" />
-        <StatusCard variant="danger" title="Export failed" body="Try again in a moment. Your records are still safe on this device." actionLabel="Retry export" onAction={() => setPhase('processing')} />
+        <StatusCard
+          variant="danger"
+          title="Couldn’t finish export"
+          body="Try again in a moment. Your records are still safe on this device."
+          actionLabel="Try again"
+          onAction={() => setPhase('processing')}
+          emphasis="hero"
+        />
       </ScrollScreen>
     );
   }
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Export report" />
-      <StatusCard variant="info" title="Choose a format" body="Exports reflect confirmed and reviewed records only. No employer or tax approval is implied." />
+      <StatusCard
+        variant="info"
+        title="Share what you’ve confirmed"
+        body="Exports include confirmed and reviewed drives only. This isn’t tax advice—just a clear log you control."
+        emphasis="subtle"
+      />
       <PrimaryButton
         label="Export as CSV"
         onPress={() => {
@@ -333,10 +405,12 @@ export function ExportReportScreen() {
           setTimeout(() => setPhase('success'), 600);
         }}
       />
-      <PrimaryButton
-        label="Export as PDF"
-        onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
-      />
+      <View style={{ marginTop: spacing.sm }}>
+        <SecondaryButton
+          label="Preview as PDF"
+          onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
+        />
+      </View>
     </ScrollScreen>
   );
 }
@@ -345,16 +419,16 @@ export function ReportPreviewScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ReportPreview'>>();
   return (
     <ScrollScreen>
-      <SectionHeader title="Report preview" />
       <StatusCard
         variant="success"
         title={`${route.params.format.toUpperCase()} preview`}
-        body="This is a visual placeholder. No employer approval, tax compliance, or guaranteed audit acceptance is implied."
+        body="Preview only. Shows confirmed drives for this period—no employer or tax approval is implied."
+        emphasis="hero"
       />
       <ListSection title="Summary">
-        <EvidenceRow label="Reporting period" value="Current period" />
-        <EvidenceRow label="Verified trips" value="Included" />
-        <EvidenceRow label="Unresolved items" value="Excluded until reviewed" />
+        <EvidenceRow label="Period" value="Current period" />
+        <EvidenceRow label="Confirmed drives" value="Included" />
+        <EvidenceRow label="Still open" value="Left out until reviewed" />
       </ListSection>
     </ScrollScreen>
   );
@@ -366,13 +440,21 @@ export function PlanSelectionScreen() {
   const [annual, setAnnual] = useState(false);
   return (
     <ScrollScreen>
-      <SectionHeader title="Choose your plan" />
-      <StatusCard variant="info" title="Upgrade when it helps" body="No countdowns. No hidden trials. Subscribe because MileRecover already helped you." />
-      <SecondaryButton label={annual ? 'Show monthly prices' : 'Show annual prices'} onPress={() => setAnnual((v) => !v)} />
+      <StatusCard
+        variant="info"
+        title="Upgrade when it helps"
+        body="No countdowns. No hidden trials. Subscribe because MileRecover already made life easier."
+        emphasis="subtle"
+      />
+      <SecondaryButton
+        label={annual ? 'Show monthly prices' : 'Show annual prices'}
+        onPress={() => setAnnual((v) => !v)}
+      />
       {PLAN_FIXTURES.filter((p) => p.id !== 'free').map((plan) => (
         <PlanCard
           key={plan.id}
           name={plan.name}
+          tagline={plan.tagline}
           price={annual ? plan.annualPrice : plan.monthlyPrice}
           period={annual ? 'year' : 'month'}
           features={plan.features.slice(0, 4)}
@@ -383,9 +465,16 @@ export function PlanSelectionScreen() {
           }}
         />
       ))}
-      <SectionHeader title="One-time rescue" />
+      <SectionHeader title="One-time catch-up" />
+      <ListSection title="No subscription required">
+        {RESCUE_OPTIONS.map((r) => (
+          <ListRow key={r.id} label={r.name} value={r.price} />
+        ))}
+      </ListSection>
       {RESCUE_OPTIONS.map((r) => (
-        <StatusCard key={r.id} variant="neutral" title={r.name} body={`${r.description} · ${r.price} · no subscription required`} />
+        <Text key={`${r.id}-d`} style={[text.caption, { marginBottom: spacing.sm, color: colors.text.secondary }]}>
+          {r.name}: {r.description}
+        </Text>
       ))}
     </ScrollScreen>
   );
@@ -394,21 +483,25 @@ export function PlanSelectionScreen() {
 export function HelpSupportScreen() {
   return (
     <ScrollScreen>
-      <SectionHeader title="Help and support" />
-      <StatusCard variant="info" title="We are here" body="Questions about protection, review, or proof? Reach out anytime." />
+      <StatusCard
+        variant="info"
+        title="We’re here"
+        body="Questions about protection, review, or sharing a report? Ask anytime."
+        emphasis="subtle"
+      />
       <ListSection title="Common questions">
         <View style={{ gap: spacing.sm }}>
           <Text style={text.subtitle}>Why do trips need review?</Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            MileRecover prefers trust over automation. Uncertain drives stay pending until you confirm.
+            We prefer trust over automation. Uncertain drives stay pending until you confirm.
           </Text>
           <Text style={text.subtitle}>Will MileRecover invent miles?</Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            Never. Gaps stay visible. Manual entry requires your attestation.
+            Never. Gaps stay visible. Manual drives need your confirmation.
           </Text>
-          <Text style={text.subtitle}>When does tracking start?</Text>
+          <Text style={text.subtitle}>When does automatic capture start?</Text>
           <Text style={text.body}>
-            Background capture ships after the preview design lock. Until then, use manual trips and review.
+            Automatic tracking is coming. For now, manual drives and Review keep you covered.
           </Text>
         </View>
       </ListSection>
@@ -416,10 +509,8 @@ export function HelpSupportScreen() {
         variant="neutral"
         title="Contact"
         body="Email support@milerecover.com with your build label from Profile → About."
+        emphasis="subtle"
       />
-      <Text style={[text.caption, { color: colors.text.secondary, marginTop: spacing.md }]}>
-        Help center articles expand as the product ships.
-      </Text>
     </ScrollScreen>
   );
 }

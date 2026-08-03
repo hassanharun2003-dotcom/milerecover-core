@@ -164,7 +164,7 @@ export function PrimaryButton({ label, onPress, disabled, loading, accessibility
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
-      <Text style={styles.primaryBtnText}>{loading ? 'Working…' : label}</Text>
+      <Text style={styles.primaryBtnText}>{loading ? 'One moment…' : label}</Text>
     </Pressable>
   );
 }
@@ -268,42 +268,65 @@ export function UndoSnackbar({
   );
 }
 
+export function SoftPanel({ children }: { children: React.ReactNode }) {
+  return <View style={styles.softPanel}>{children}</View>;
+}
+
 export function StatusCard({
   title,
   body,
   variant = 'success',
   actionLabel,
   onAction,
+  emphasis = 'default',
 }: {
   title: string;
   body: string;
   variant?: StatusVariant;
   actionLabel?: string;
   onAction?: () => void;
+  /** hero = one dark focal surface; subtle = borderless calm panel */
+  emphasis?: 'default' | 'hero' | 'subtle';
 }) {
   const c = statusColors(variant);
   const isAlert = variant === 'warning' || variant === 'danger';
-  const isProtected = variant === 'success';
+  const isHeroSuccess = variant === 'success' && emphasis === 'hero';
+  const isSubtle = emphasis === 'subtle';
   return (
     <View
       style={[
         styles.statusCard,
         isAlert
           ? { backgroundColor: c.bg, borderColor: c.fg }
-          : isProtected
+          : isHeroSuccess
             ? styles.statusCardProtected
-            : { backgroundColor: c.bg, borderColor: colors.border.default },
+            : isSubtle
+              ? styles.statusCardSubtle
+              : { backgroundColor: c.bg, borderColor: colors.border.default },
       ]}
       accessibilityRole="summary"
       accessibilityLabel={`${title}. ${body}`}
     >
-      <Text style={[text.subtitle, isAlert ? { color: c.fg } : isProtected ? styles.statusProtectedTitle : { color: colors.text.primary }]}>
+      <Text
+        style={[
+          text.subtitle,
+          isAlert
+            ? { color: c.fg }
+            : isHeroSuccess
+              ? styles.statusProtectedTitle
+              : { color: colors.text.primary },
+        ]}
+      >
         {title}
       </Text>
       <Text
         style={[
           text.body,
-          isAlert ? { color: colors.text.primary } : isProtected ? styles.statusProtectedBody : { color: colors.text.secondary },
+          isAlert
+            ? { color: colors.text.primary }
+            : isHeroSuccess
+              ? styles.statusProtectedBody
+              : { color: colors.text.secondary },
           { marginTop: spacing.xs },
         ]}
       >
@@ -464,6 +487,7 @@ export function PlanCard({
   features,
   highlighted,
   onSelect,
+  tagline,
 }: {
   name: string;
   price: string;
@@ -471,14 +495,21 @@ export function PlanCard({
   features: string[];
   highlighted?: boolean;
   onSelect: () => void;
+  tagline?: string;
 }) {
   return (
     <View style={[cardBase, highlighted && styles.planHighlighted]}>
-      {highlighted ? <Badge label="Most popular" variant="info" /> : null}
+      {highlighted ? <Badge label="Most chosen" variant="info" /> : null}
       <Text style={[text.title, { marginTop: spacing.sm }]}>{name}</Text>
-      <Text style={text.subtitle}>{price}<Text style={text.body}> / {period}</Text></Text>
+      {tagline ? <Text style={[text.body, { marginTop: spacing.xs, color: colors.forest[700] }]}>{tagline}</Text> : null}
+      <Text style={[text.subtitle, { marginTop: spacing.sm }]}>
+        {price}
+        <Text style={text.body}> / {period}</Text>
+      </Text>
       {features.map((f) => (
-        <Text key={f} style={[text.body, { marginTop: spacing.xs }]}>• {f}</Text>
+        <Text key={f} style={[text.body, { marginTop: spacing.xs }]}>
+          • {f}
+        </Text>
       ))}
       <View style={{ marginTop: spacing.md }}>
         <PrimaryButton label={`Choose ${name}`} onPress={onSelect} />
@@ -579,7 +610,7 @@ export function SafeAreaFooter({ children }: { children: React.ReactNode }) {
 }
 
 export function ProtectionCard({ children }: { children: React.ReactNode }) {
-  return <View style={[cardBase, styles.protectionCard]} accessibilityRole="summary">{children}</View>;
+  return <View style={styles.softPanel} accessibilityRole="summary">{children}</View>;
 }
 
 export function WelcomeHero({ title, body }: { title: string; body: string }) {
@@ -618,26 +649,38 @@ export function ProofHeroCard({
   periodLabel: string;
   tripCount: number;
   totalMiles: string;
-  unresolved: string;
+  unresolved?: string | null;
   onPreview: () => void;
 }) {
+  const showUnresolved = unresolved != null && unresolved !== '' && unresolved !== '0';
   return (
-    <View style={styles.proofHero} accessibilityRole="summary" accessibilityLabel={`Ready for proof. ${tripCount} trips. ${totalMiles} miles.`}>
-      <Text style={[text.title, text.inverse]}>Ready for proof</Text>
+    <View
+      style={styles.proofHero}
+      accessibilityRole="summary"
+      accessibilityLabel={`Your report is ready. ${tripCount} trips. ${totalMiles} miles.`}
+    >
+      <Text style={[text.title, text.inverse]}>Your report is ready whenever you need it</Text>
       <Text style={[text.body, styles.proofHeroSub]}>{periodLabel}</Text>
       <View style={styles.proofHeroStats}>
         <View style={styles.proofHeroStat}>
           <Text style={[styles.proofHeroStatValue, text.tabular]}>{tripCount}</Text>
-          <Text style={styles.proofHeroStatLabel}>trips</Text>
+          <Text style={styles.proofHeroStatLabel}>drives</Text>
         </View>
         <View style={styles.proofHeroStat}>
           <Text style={[styles.proofHeroStatValue, text.tabular]}>{totalMiles}</Text>
           <Text style={styles.proofHeroStatLabel}>miles</Text>
         </View>
-        <View style={styles.proofHeroStat}>
-          <Text style={[styles.proofHeroStatValue, text.tabular]}>{unresolved}</Text>
-          <Text style={styles.proofHeroStatLabel}>unresolved</Text>
-        </View>
+        {showUnresolved ? (
+          <View style={styles.proofHeroStat}>
+            <Text style={[styles.proofHeroStatValue, text.tabular]}>{unresolved}</Text>
+            <Text style={styles.proofHeroStatLabel}>still open</Text>
+          </View>
+        ) : (
+          <View style={styles.proofHeroStat}>
+            <Text style={[styles.proofHeroStatValue, text.tabular]}>✓</Text>
+            <Text style={styles.proofHeroStatLabel}>clear</Text>
+          </View>
+        )}
       </View>
       <PrimaryButton label="Preview report" onPress={onPreview} accessibilityLabel="Preview mileage report" />
     </View>
@@ -678,7 +721,7 @@ export function ReviewedItemCard({
 export function MembershipBanner({ planName, detail }: { planName: string; detail: string }) {
   return (
     <View style={styles.membershipBanner} accessibilityRole="summary" accessibilityLabel={`${planName}. ${detail}`}>
-      <Text style={[text.subtitle, text.inverse]}>{planName}</Text>
+      <Text style={[text.subtitle, { color: colors.forest[800] }]}>{planName}</Text>
       <Text style={[text.body, styles.membershipBannerSub]}>{detail}</Text>
     </View>
   );
@@ -787,6 +830,18 @@ const styles = StyleSheet.create({
   cardPressed: { opacity: 0.96 },
   statusCard: { borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.md, borderWidth: 1 },
   statusCardProtected: { backgroundColor: colors.forest[800], borderColor: colors.forest[700] },
+  statusCardSubtle: {
+    backgroundColor: colors.background.card,
+    borderColor: 'transparent',
+    borderWidth: 0,
+    ...shadows.card,
+  },
+  softPanel: {
+    backgroundColor: colors.forest[100],
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
   statusProtectedTitle: { color: colors.text.inverse },
   statusProtectedBody: { color: colors.forest[100] },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -853,7 +908,14 @@ const styles = StyleSheet.create({
   },
   mapPlaceholderText: { color: colors.forest[700], fontWeight: '600', fontSize: typography.size.caption },
   reviewCardTop: { flexDirection: 'row', marginBottom: spacing.sm },
-  membershipBanner: { backgroundColor: colors.forest[800], borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.lg },
-  membershipBannerSub: { color: colors.forest[100], marginTop: spacing.xs },
-  loadingState: { ...cardBase, alignItems: 'center', paddingVertical: spacing.xl },
+  membershipBanner: {
+    backgroundColor: colors.forest[100],
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.forest[500],
+  },
+  membershipBannerSub: { color: colors.text.secondary, marginTop: spacing.xs },
+  loadingState: { ...cardBase, alignItems: 'center', paddingVertical: spacing.xl, borderWidth: 0 },
 });

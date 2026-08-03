@@ -9,7 +9,6 @@ import {
   ReviewCard,
   ReviewedItemCard,
   ScrollScreen,
-  SectionHeader,
   SegmentedControl,
   UndoSnackbar,
 } from '../../design-system';
@@ -38,9 +37,9 @@ function decisionLabel(decision: string | null | undefined): string {
 }
 
 function provenanceForItem(kind: string): string {
-  if (kind === 'possible_missing_trip') return 'Suggested recovery';
-  if (kind === 'uncertain_classification') return 'Uncertain route';
-  return 'Needs review';
+  if (kind === 'possible_missing_trip') return 'Might have missed';
+  if (kind === 'uncertain_classification') return "We're not sure yet";
+  return 'Needs a look';
 }
 
 export function ReviewScreen() {
@@ -70,11 +69,10 @@ export function ReviewScreen() {
 
   return (
     <ScrollScreen>
-      <SectionHeader title={`Needs review${pending.length > 0 ? ` · ${pending.length}` : ''}`} />
       <SegmentedControl
         options={[
-          { label: `Needs review (${pending.length})`, value: 'needs' },
-          { label: `Reviewed (${reviewedIds.length})`, value: 'reviewed' },
+          { label: `Needs you (${pending.length})`, value: 'needs' },
+          { label: `Done (${reviewedIds.length})`, value: 'reviewed' },
         ]}
         value={segment}
         onChange={setSegment}
@@ -84,8 +82,8 @@ export function ReviewScreen() {
         pending.length === 0 ? (
           <EmptyState
             title="All clear"
-            body="Nothing needs your attention right now. MileRecover will surface uncertain trips here—one decision at a time."
-            actionLabel="Add manual trip"
+            body="Nothing needs a decision right now. We’ll bring uncertain drives here—one at a time, ten seconds and done."
+            actionLabel="Add a drive"
             onAction={() => navigation.navigate('ManualTrip')}
           />
         ) : (
@@ -94,7 +92,11 @@ export function ReviewScreen() {
               key={item.id}
               title={item.title}
               subtitle={item.subtitle}
-              distance={item.distanceMiles != null ? `${item.distanceMiles.toFixed(1)} mi approximate` : 'Distance uncertain'}
+              distance={
+                item.distanceMiles != null
+                  ? `About ${item.distanceMiles.toFixed(1)} mi`
+                  : 'Distance unclear'
+              }
               reason={item.reason}
               provenance={provenanceForItem(item.kind)}
               onPress={() => {
@@ -111,15 +113,18 @@ export function ReviewScreen() {
           ))
         )
       ) : reviewedIds.length === 0 ? (
-        <EmptyState title="No reviewed items yet" body="Decisions you make will appear here with the option to undo." />
+        <EmptyState
+          title="No decisions yet"
+          body="Choices you make show up here so you can undo if you change your mind."
+        />
       ) : (
         reviewedIds.map((id) => {
           const item = experience.scenario.reviewItems.find((r) => r.id === id);
           return (
             <ReviewedItemCard
               key={id}
-              title={item?.title ?? 'Reviewed item'}
-              subtitle={item?.subtitle ?? 'Your decision is saved'}
+              title={item?.title ?? 'Reviewed drive'}
+              subtitle={item?.subtitle ?? 'Your choice is saved'}
               decisionLabel={decisionLabel(product.reviewDecisions[id])}
               onUndo={() => undoReviewDecision(id)}
             />
