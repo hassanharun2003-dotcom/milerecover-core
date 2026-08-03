@@ -1,0 +1,15 @@
+{
+  "name": "@milerecover/config",
+  "version": "0.1.0-package-3",
+  "private": true,
+  "description": "MileRecover design tokens and shared configuration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
