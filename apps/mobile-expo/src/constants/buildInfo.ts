@@ -15,3 +15,12 @@ export type AppVariant = 'development' | 'preview' | 'production';
 export function isStandaloneBuild(variant: AppVariant | string | undefined): boolean {
   return variant === 'preview' || variant === 'production';
 }
+
+/** expo-dev-client must not be autolinked into standalone preview/production APKs. */
+export function getDevClientAutolinkingExclude(
+  variant: string = typeof process !== 'undefined' && process.env.APP_VARIANT
+    ? process.env.APP_VARIANT
+    : 'development',
+): string[] {
+  return variant === 'development' ? [] : ['expo-dev-client'];
+}

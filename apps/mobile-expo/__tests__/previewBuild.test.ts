@@ -4,9 +4,9 @@ import {
   APP_BUILD_LABEL,
   APP_PACKAGE_ID,
   APP_VERSION,
+  getDevClientAutolinkingExclude,
   isStandaloneBuild,
 } from '../src/constants/buildInfo';
-import { getDevClientAutolinkingExclude } from '../app.config';
 
 const root = path.join(__dirname, '..');
 
@@ -60,5 +60,6 @@ describe('Verified Android preview build a0fcf6cd configuration', () => {
       'sync-dev-client-autolinking.cjs',
     );
     expect(syncScript).toContain("exclude = variant === 'development' ? [] : ['expo-dev-client']");
+    expect(appConfigSource).toContain("APP_VARIANT === 'development' ? [] : ['expo-dev-client']");
   });
 });
