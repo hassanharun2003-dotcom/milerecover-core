@@ -43,7 +43,7 @@ Focus: polish only. No brand, nav, or feature redesign.
 - `npm run typecheck:mobile-expo` — passed  
 - `npm run check:all` — passed  
 - UI evidence under `docs/assets/ui-evidence/`  
-- Screen comps under `/opt/cursor/artifacts/screenshots/10of10-*.png`
+- Screen comps under `docs/assets/screenshots/10of10-*.png`
 
 ## OTA
 
