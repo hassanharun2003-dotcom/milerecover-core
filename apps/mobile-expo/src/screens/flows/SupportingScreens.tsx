@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,11 +8,13 @@ import { spacing } from '@milerecover/config';
 import {
   buildMileageCsv,
   buildMileageReportData,
+  capabilitiesForEntitlement,
   createManualTripRecord,
   csvFilename,
   formatDateLocal,
   formatTimeLocal,
   reportHasExportableTrips,
+  shouldOfferTrial,
   validateManualTripInput,
   type MileageReportData,
   type ReportPeriod,
@@ -31,6 +34,7 @@ import {
   ScrollScreen,
   SecondaryButton,
   SelectionCard,
+  SegmentedControl,
   SoftPanel,
   StatusCard,
   text,
@@ -42,6 +46,9 @@ import { useProduct } from '../../product/ProductContext';
 import type { ReviewDecision, VehicleDraft } from '../../product/types';
 import { writeTextFile, shareFile } from '../../services/fileShare';
 import { generateAndSharePdf } from '../../services/pdfReport';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
+import { getPurchasePort, trialRenewalCopy, type PurchasePeriod } from '../../services/purchases';
+import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
 import { useApp } from '../../store/AppContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -110,9 +117,14 @@ export function ManualTripScreen() {
   const existing = route.params?.tripId
     ? state.trips.find((trip) => trip.id === route.params?.tripId)
     : null;
-  const [date, setDate] = useState(existing ? formatDateLocal(existing.startAt) : '');
-  const [startTime, setStartTime] = useState(existing ? formatTimeLocal(existing.startAt) : '');
-  const [endTime, setEndTime] = useState(existing ? formatTimeLocal(existing.endAt) : '');
+  const initialStart = existing ? new Date(existing.startAt) : new Date();
+  const initialEnd = existing ? new Date(existing.endAt) : new Date(Date.now() + 30 * 60000);
+  const [driveDate, setDriveDate] = useState(initialStart);
+  const [startTime, setStartTime] = useState(initialStart);
+  const [endTime, setEndTime] = useState(initialEnd);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [addTime, setAddTime] = useState(Boolean(existing));
+  const [distanceMode, setDistanceMode] = useState<'distance' | 'places'>('distance');
   const [distance, setDistance] = useState(existing ? existing.distanceMiles.toString() : '');
   const [purpose, setPurpose] = useState(existing?.purpose ?? '');
   const [startLabel, setStartLabel] = useState(existing?.startLabel ?? '');
@@ -120,18 +132,52 @@ export function ManualTripScreen() {
   const [vehicleId, setVehicleId] = useState<string | null>(existing?.vehicleId ?? null);
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [evidenceMethod, setEvidenceMethod] = useState<TripEvidenceMethod | null>(
-    existing?.evidenceMethod ?? null,
+    existing?.evidenceMethod ?? 'user_estimate',
   );
-  const [confirmAsWork, setConfirmAsWork] = useState(existing?.classification === 'business');
+  const [classification, setClassification] = useState<'work' | 'personal' | 'later'>(
+    existing?.classification === 'business'
+      ? 'work'
+      : existing?.classification === 'personal'
+        ? 'personal'
+        : 'later',
+  );
+  const [showDetails, setShowDetails] = useState(Boolean(existing?.vehicleId || existing?.notes || existing?.evidenceMethod));
   const [error, setError] = useState<string | null>(null);
 
-  const save = () => {
-    const startAt = parseDateAndTime(date, startTime);
-    const endAt = parseDateAndTime(date, endTime);
-    if (startAt == null || endAt == null) {
-      setError('Use date YYYY-MM-DD and times like 09:30.');
-      return;
+  const purposeChips = (() => {
+    switch (product.primaryGoal) {
+      case 'employee_reimbursement':
+        return ['Client meeting', 'Office errand', 'Training', 'Worksite visit'];
+      case 'gig_delivery':
+        return ['Delivery shift', 'Pickup run', 'Dropoff route', 'Hotspot reposition'];
+      case 'self_employed_business':
+        return ['Client visit', 'Supply run', 'Job site', 'Business meeting'];
+      default:
+        return ['Work drive', 'Client visit', 'Delivery', 'Errand for work'];
     }
+  })();
+
+  const applyDateOffset = (daysBack: number) => {
+    const next = new Date();
+    next.setDate(next.getDate() - daysBack);
+    setDriveDate(next);
+    setShowDatePicker(false);
+  };
+
+  const composeDateTime = (day: Date, time: Date, fallbackHour: number, fallbackMinute: number): number => {
+    const next = new Date(day);
+    next.setHours(
+      addTime ? time.getHours() : fallbackHour,
+      addTime ? time.getMinutes() : fallbackMinute,
+      0,
+      0,
+    );
+    return next.getTime();
+  };
+
+  const save = () => {
+    const startAt = composeDateTime(driveDate, startTime, 9, 0);
+    const endAt = composeDateTime(driveDate, endTime, 9, 30);
     const input = {
       id: existing?.id,
       startAt,
@@ -142,20 +188,32 @@ export function ManualTripScreen() {
       endLabel,
       vehicleId,
       notes,
-      evidenceMethod: evidenceMethod ?? ('' as TripEvidenceMethod),
-      confirmAsWork,
+      evidenceMethod: evidenceMethod ?? 'user_estimate',
+      confirmAsWork: classification === 'work',
     };
     const errors = validateManualTripInput(input);
     if (errors.length > 0) {
       setError(errors.map((item) => item.message).join(' '));
       return;
     }
-    const trip = createManualTripRecord(input);
+    const created = createManualTripRecord(input);
+    const trip =
+      classification === 'personal'
+        ? { ...created, status: 'personal' as const, classification: 'personal' as const, confidence: 'high' as const }
+        : classification === 'later'
+          ? { ...created, status: 'pending' as const, classification: 'unclassified' as const, confidence: 'medium' as const }
+          : created;
     upsertTrip({
       ...trip,
       source: existing?.source ?? trip.source,
       createdAt: existing?.createdAt ?? trip.createdAt,
       updatedAt: Date.now(),
+    });
+    logEvent(ANALYTICS_EVENTS.manualTripSaved, {
+      classification,
+      hasTime: addTime,
+      hasVehicle: Boolean(vehicleId),
+      hasPlaces: Boolean(startLabel || endLabel),
     });
     navigation.goBack();
   };
@@ -180,47 +238,125 @@ export function ManualTripScreen() {
       <StatusCard
         variant="info"
         title={existing ? 'Edit this drive' : 'Add a drive yourself'}
-        body="Use real notes, calendar details, odometer readings, or a clear estimate. MileRecover will not invent miles."
+        body="Use what you know. MileRecover will not invent route distance from labels or familiar places."
         emphasis="subtle"
       />
-      <FormField label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
-      <FormField label="Start time" value={startTime} onChangeText={setStartTime} placeholder="09:00" />
-      <FormField label="End time" value={endTime} onChangeText={setEndTime} placeholder="10:00" />
-      <FormField label="Distance (miles)" value={distance} onChangeText={setDistance} placeholder="0.0" />
-      <FormField label="Purpose" value={purpose} onChangeText={setPurpose} placeholder="Client visit" />
-      <FormField label="Start label" value={startLabel} onChangeText={setStartLabel} placeholder="Home" />
-      <FormField label="End label" value={endLabel} onChangeText={setEndLabel} placeholder="Client office" />
-      {product.vehicles.length > 0 ? (
-        <ListSection title="Vehicle">
-          <EvidenceRow label="Selected" value={vehicleId ? vehicleLookup(product.vehicles)[vehicleId] : 'None'} />
-          {product.vehicles.map((vehicle) => (
-            <SelectionCard
-              key={vehicle.id}
-              title={vehicleLabel(vehicle)}
-              selected={vehicleId === vehicle.id}
-              onPress={() => setVehicleId(vehicleId === vehicle.id ? null : vehicle.id)}
-            />
-          ))}
-        </ListSection>
-      ) : null}
-      <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional details" />
-      <ListSection title="Evidence">
-        {EVIDENCE_OPTIONS.map((option) => (
-          <SelectionCard
-            key={option.id}
-            title={option.label}
-            body={option.body}
-            selected={evidenceMethod === option.id}
-            onPress={() => setEvidenceMethod(option.id)}
+      <ListSection title="When">
+        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.sm }}>
+          <SecondaryButton label="Today" onPress={() => applyDateOffset(0)} />
+          <SecondaryButton label="Yesterday" onPress={() => applyDateOffset(1)} />
+          <SecondaryButton label="Pick date" onPress={() => setShowDatePicker((value) => !value)} />
+        </View>
+        <EvidenceRow label="Selected date" value={formatDateLocal(driveDate.getTime())} />
+        {showDatePicker ? (
+          <DateTimePicker
+            value={driveDate}
+            mode="date"
+            onChange={(_, selected) => {
+              if (selected) setDriveDate(selected);
+            }}
           />
-        ))}
+        ) : null}
+        <SelectionCard
+          title="Add time"
+          body={addTime ? 'Start and end time are included.' : 'Optional. Date alone uses a simple default time window.'}
+          selected={addTime}
+          onPress={() => setAddTime((value) => !value)}
+        />
+        {addTime ? (
+          <>
+            <Text style={[text.caption, { marginBottom: spacing.xs }]}>Start time</Text>
+            <DateTimePicker value={startTime} mode="time" onChange={(_, selected) => selected && setStartTime(selected)} />
+            <Text style={[text.caption, { marginBottom: spacing.xs }]}>End time</Text>
+            <DateTimePicker value={endTime} mode="time" onChange={(_, selected) => selected && setEndTime(selected)} />
+          </>
+        ) : null}
       </ListSection>
+
+      <ListSection title="Distance">
+        <SelectionCard
+          title="I only know the distance"
+          body="Enter the miles you know. This is the default path."
+          selected={distanceMode === 'distance'}
+          onPress={() => setDistanceMode('distance')}
+        />
+        <SelectionCard
+          title="Use familiar place labels"
+          body="Labels can explain the drive, but you still enter the mileage."
+          selected={distanceMode === 'places'}
+          onPress={() => setDistanceMode('places')}
+        />
+        <FormField label="Distance (miles)" value={distance} onChangeText={setDistance} placeholder="0.0" />
+        {distanceMode === 'places' ? (
+          <>
+            <FormField label="Start label" value={startLabel} onChangeText={setStartLabel} placeholder="Home" />
+            <FormField label="End label" value={endLabel} onChangeText={setEndLabel} placeholder="Client office" />
+            {product.workLocations.map((location) => (
+              <View key={location.id} style={{ marginBottom: spacing.sm }}>
+                <SecondaryButton label={`Start: ${location.label}`} onPress={() => setStartLabel(location.label)} />
+                <SecondaryButton label={`End: ${location.label}`} onPress={() => setEndLabel(location.label)} />
+              </View>
+            ))}
+          </>
+        ) : null}
+      </ListSection>
+
+      <ListSection title="Purpose">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+          {purposeChips.map((chip) => (
+            <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
+          ))}
+        </View>
+        <FormField label="Purpose" value={purpose} onChangeText={setPurpose} placeholder="Client visit" />
+      </ListSection>
+
+      <ListSection title="Classification">
+        <SegmentedControl
+          value={classification}
+          onChange={setClassification}
+          options={[
+            { label: 'Work', value: 'work' },
+            { label: 'Personal', value: 'personal' },
+            { label: 'Decide later', value: 'later' },
+          ]}
+        />
+      </ListSection>
+
       <SelectionCard
-        title="Confirm as work"
-        body="If unchecked, this drive goes to Review before it is reportable."
-        selected={confirmAsWork}
-        onPress={() => setConfirmAsWork((value) => !value)}
+        title="Add details or evidence"
+        body="Optional vehicle, notes, and evidence method."
+        selected={showDetails}
+        onPress={() => setShowDetails((value) => !value)}
       />
+      {showDetails ? (
+        <>
+          {product.vehicles.length > 0 ? (
+            <ListSection title="Vehicle">
+              <EvidenceRow label="Selected" value={vehicleId ? vehicleLookup(product.vehicles)[vehicleId] : 'None'} />
+              {product.vehicles.map((vehicle) => (
+                <SelectionCard
+                  key={vehicle.id}
+                  title={vehicleLabel(vehicle)}
+                  selected={vehicleId === vehicle.id}
+                  onPress={() => setVehicleId(vehicleId === vehicle.id ? null : vehicle.id)}
+                />
+              ))}
+            </ListSection>
+          ) : null}
+          <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional details" />
+          <ListSection title="Evidence">
+            {EVIDENCE_OPTIONS.map((option) => (
+              <SelectionCard
+                key={option.id}
+                title={option.label}
+                body={option.body}
+                selected={evidenceMethod === option.id}
+                onPress={() => setEvidenceMethod(option.id)}
+              />
+            ))}
+          </ListSection>
+        </>
+      ) : null}
       {error ? <FormError message={error} /> : null}
       <PrimaryButton label={existing ? 'Save changes' : 'Save drive'} onPress={save} />
       {existing ? <DestructiveButton label="Delete trip" onPress={confirmDelete} /> : null}
@@ -425,29 +561,81 @@ export function ProtectionAlertScreen() {
 }
 
 export function TrackingActiveScreen() {
+  const navigation = useNavigation<Nav>();
   const { permissions, automaticCaptureAvailable } = useApp();
+  const { product, setTrackingEnabled } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
+
+  const refreshDiagnostics = () => {
+    void getTrackingDiagnostics().then(setDiagnostics);
+  };
+
+  useEffect(() => {
+    refreshDiagnostics();
+  }, [product.trackingEnabled]);
+
+  const canStart = capabilities.canUseAutomaticCapture;
+  const start = () => {
+    if (!canStart) {
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    setTrackingEnabled(true);
+    logEvent(ANALYTICS_EVENTS.trackingStarted, { source: 'tracking_screen' });
+    refreshDiagnostics();
+  };
+  const stop = () => {
+    setTrackingEnabled(false);
+    logEvent(ANALYTICS_EVENTS.trackingStopped, { source: 'tracking_screen' });
+    refreshDiagnostics();
+  };
+
   return (
     <ScrollScreen>
       <StatusCard
-        variant="info"
-        title={automaticCaptureAvailable ? 'Tracking status' : 'Automatic capture is not on yet'}
+        variant={product.trackingEnabled && canStart ? 'info' : 'warning'}
+        title={product.trackingEnabled && canStart ? 'Protection is enabled' : 'Automatic protection is off'}
         body={
-          automaticCaptureAvailable
-            ? 'Tracking depends on the permission status shown here.'
-            : 'This release candidate supports manual, imported, and recovered records. It does not run a tracking engine.'
+          canStart
+            ? 'Start or stop automatic capture here. The diagnostics below come from the tracking controller.'
+            : 'Automatic capture requires Plus access from a real entitlement. Plans will explain the trial without granting fake access.'
         }
         emphasis="hero"
       />
       <ListSection title="Status">
-        <EvidenceRow label="Automatic capture" value={automaticCaptureAvailable ? 'Available' : 'Unavailable in this RC'} />
+        <EvidenceRow label="Plan capability" value={canStart ? 'Allowed' : 'Not included'} />
+        <EvidenceRow label="Tracking preference" value={product.trackingEnabled ? 'Enabled' : 'Off'} />
+        <EvidenceRow label="Runtime capture flag" value={automaticCaptureAvailable ? 'Available' : 'Unavailable in this build'} />
         <EvidenceRow label="Foreground location" value={permissions.location} />
         <EvidenceRow label="Background location" value={permissions.backgroundLocation} />
-        <EvidenceRow label="Screen-off coverage" value={automaticCaptureAvailable ? 'Requires background location' : 'Unavailable in this RC'} />
+        <EvidenceRow label="Controller state" value={diagnostics?.engineState ?? 'unknown'} />
+        <EvidenceRow label="Background registered" value={diagnostics?.backgroundRegistered ? 'Yes' : 'No'} />
+        <EvidenceRow label="Buffered samples" value={String(diagnostics?.sampleCount ?? 0)} />
+        <EvidenceRow
+          label="Last sample"
+          value={diagnostics?.lastSampleAt ? `${formatDateLocal(diagnostics.lastSampleAt)} ${formatTimeLocal(diagnostics.lastSampleAt)}` : 'None'}
+        />
       </ListSection>
+      {diagnostics?.backgroundLimited ? (
+        <StatusCard
+          variant="warning"
+          title="Background capture is limited"
+          body={diagnostics.backgroundLimitedReason ?? 'The controller reports limited background coverage.'}
+          emphasis="subtle"
+        />
+      ) : null}
+      <PrimaryButton
+        label={product.trackingEnabled ? 'Protection already enabled' : 'Start protection'}
+        onPress={start}
+        disabled={product.trackingEnabled && canStart}
+      />
+      <SecondaryButton label="Stop protection" onPress={stop} disabled={!product.trackingEnabled} />
+      <SecondaryButton label="Refresh diagnostics" onPress={refreshDiagnostics} />
       <StatusCard
         variant="neutral"
         title="What you can do now"
-        body="Add manual drives, import CSV history, and review possible missing trips. Reports use only confirmed work drives."
+        body="Manual drives, imports, recovery review, and reports remain available even when automatic capture is off."
         emphasis="subtle"
       />
     </ScrollScreen>
@@ -554,6 +742,36 @@ export function ComingLaterScreen() {
         variant="neutral"
         title="Not available in this preview"
         body="This screen is intentionally honest: no fake switches, no placeholder success states."
+        emphasis="subtle"
+      />
+    </ScrollScreen>
+  );
+}
+
+export function PrivacyScreen() {
+  return (
+    <ScrollScreen>
+      <StatusCard
+        variant="info"
+        title="Privacy and data"
+        body="MileRecover is local-first in this MVP. Trips, setup answers, vehicles, and places are saved on this device first."
+        emphasis="hero"
+      />
+      <ListSection title="What is stored">
+        <EvidenceRow label="Trips" value="Manual, imported, recovered, and automatic records on device" />
+        <EvidenceRow label="Places" value="Labels and addresses you enter" />
+        <EvidenceRow label="Vehicles" value="Optional vehicle details you save" />
+        <EvidenceRow label="Analytics" value="Private fields such as notes and coordinates are filtered out" />
+      </ListSection>
+      <ListSection title="What is shared">
+        <EvidenceRow label="Reports" value="Only when you export or share" />
+        <EvidenceRow label="Billing" value="Only through a real store purchase flow when configured" />
+        <EvidenceRow label="Fake grants" value="Never" />
+      </ListSection>
+      <StatusCard
+        variant="neutral"
+        title="Controls"
+        body="Use Profile > Reset preview data to clear local preview data. Device-level permissions stay controlled by system settings."
         emphasis="subtle"
       />
     </ScrollScreen>
@@ -681,18 +899,29 @@ export function ReportPreviewScreen() {
 }
 
 export function PlanSelectionScreen() {
-  const { product, setSelectedPlan } = useProduct();
+  const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
-  const [notice, setNotice] = useState<string | null>('Free is available now. Billing is not connected.');
+  const [notice, setNotice] = useState<string | null>('Free is active. Paid access requires a real store purchase.');
   const [selectedRescue, setSelectedRescue] = useState<string | null>(null);
+  const period: PurchasePeriod = annual ? 'annual' : 'monthly';
+  const purchasePort = getPurchasePort();
+  const entitlement = product.entitlement;
+  const trialEligible = shouldOfferTrial(entitlement, 'plus_only_capability', {
+    lastOfferAt: product.paywallCaps.lastTrialOfferAt,
+    dismissedSession: product.paywallCaps.trialOfferDismissedSession,
+  });
 
-  const onChoosePlan = (planId: 'plus' | 'pro') => {
-    const applied = setSelectedPlan(planId);
-    setNotice(
-      applied
-        ? `${planId === 'plus' ? 'Plus' : 'Pro'} applied in demo mode only.`
-        : 'Preview only - billing is not connected. Your plan stays Free until a real purchase succeeds.',
-    );
+  const handleResult = async (action: () => Promise<Awaited<ReturnType<typeof purchasePort.purchasePlus>>>) => {
+    const result = await action();
+    if (result.ok) {
+      setEntitlement(result.entitlement);
+      setNotice('Purchase verified by the store.');
+      return;
+    }
+    if (result.reason === 'store_unavailable') {
+      logEvent(ANALYTICS_EVENTS.purchaseUnavailable, { surface: 'plans' });
+    }
+    setNotice(result.message);
   };
 
   return (
@@ -701,7 +930,7 @@ export function PlanSelectionScreen() {
         <View>
           <Text style={text.subtitle}>Upgrade when it helps.</Text>
           <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Free is shown and usable. Paid plans are preview-only because purchases are not connected.
+            Current plan: {entitlement.planId.toUpperCase()} ({entitlement.status}). No paid plan is granted unless the store verifies it.
           </Text>
           <SecondaryButton
             label={annual ? 'Showing annual - switch to monthly' : 'Showing monthly - switch to annual'}
@@ -711,16 +940,23 @@ export function PlanSelectionScreen() {
       }
     >
       {notice ? <StatusCard variant="info" title="Plan status" body={notice} emphasis="subtle" /> : null}
-      <PlanCard
-        name="Free"
-        tagline={PLAN_FIXTURES[0].tagline}
-        price="$0"
-        period={annual ? 'year' : 'month'}
-        features={PLAN_FIXTURES[0].features}
-        current={product.selectedPlan === 'free'}
-        onSelect={() => {
+      {trialEligible ? (
+        <StatusCard
+          variant="success"
+          title="Start 7-day Plus trial"
+          body={trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
+          actionLabel="Start 7-day Plus trial"
+          onAction={() => void handleResult(() => purchasePort.purchasePlusTrial(period))}
+          emphasis="subtle"
+        />
+      ) : null}
+      <SelectionCard
+        title="Free - $0"
+        body={`${PLAN_FIXTURES[0].tagline}. ${PLAN_FIXTURES[0].features.join(' ')}`}
+        selected={entitlement.planId === 'free'}
+        onPress={() => {
           setSelectedPlan('free');
-          setNotice('You remain on Free. Upgrade only when it helps.');
+          setNotice('Free remains active. Your existing records stay available.');
         }}
       />
       {PLAN_FIXTURES.filter((plan) => plan.id !== 'free').map((plan) => (
@@ -732,14 +968,18 @@ export function PlanSelectionScreen() {
           period={annual ? 'year' : 'month'}
           features={plan.features}
           highlighted={plan.highlighted}
-          current={product.selectedPlan === plan.id}
+          current={entitlement.planId === plan.id}
           savingsLabel={annual ? plan.annualSavingsLabel : undefined}
-          onSelect={() => onChoosePlan(plan.id as 'plus' | 'pro')}
+          onSelect={() =>
+            void handleResult(() =>
+              plan.id === 'plus' ? purchasePort.purchasePlus(period) : purchasePort.purchasePro(period),
+            )
+          }
         />
       ))}
       <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>One-time catch-up</Text>
       <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-        Preview selection only. Billing is not connected in this release candidate.
+        Rescue products are one-time purchases. If billing is unavailable, nothing is unlocked.
       </Text>
       {RESCUE_OPTIONS.map((option) => (
         <SelectionCard
@@ -749,10 +989,14 @@ export function PlanSelectionScreen() {
           selected={selectedRescue === option.id}
           onPress={() => {
             setSelectedRescue(option.id);
-            setNotice(`Preview only - ${option.name} is not purchased.`);
+            void handleResult(() => purchasePort.purchaseRescue(option.id));
           }}
         />
       ))}
+      <SecondaryButton
+        label="Restore purchases"
+        onPress={() => void handleResult(() => purchasePort.restore())}
+      />
     </FixedHeaderScrollScreen>
   );
 }

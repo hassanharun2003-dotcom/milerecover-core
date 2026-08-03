@@ -3,15 +3,12 @@ import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../src/fixtures/subscription';
 import {
   ONBOARDING_STEP_ORDER,
   createInitialProductUiState,
-  mapLegacyNeedToGoal,
-  mapLegacyOnboardingStep,
-  mapLegacyUsageToDrivingType,
 } from '../src/product/types';
 import { selectProductExperience } from '../src/product/selectors';
 import { greetingForName, nextActionForGoal, voiceForDrivingType } from '../src/product/copy';
 import { createInitialAppState } from '../src/store/types';
 import { ROOT_TAB_ROUTE_NAMES, ROOT_STACK_ROUTE_NAMES, SUPPORTING_STACK_ROUTES } from '../src/navigation/types';
-import { createManualTripRecord } from '@milerecover/domain';
+import { createManualTripRecord, mapLegacyGoal, mapLegacyPattern } from '@milerecover/domain';
 
 const grantedPermissions = {
   location: 'granted' as const,
@@ -42,16 +39,18 @@ describe('Locked product experience', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('PlanSelection');
   });
 
-  it('defines eight personalized onboarding steps', () => {
+  it('defines ten schema v4 onboarding steps', () => {
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
       'primary_goal',
-      'driving_type',
+      'pain_points',
+      'driving_pattern',
       'preferred_name',
       'vehicle_setup',
-      'work_place_setup',
-      'protection_setup',
-      'next_action',
+      'familiar_places',
+      'protection_education',
+      'permissions_education',
+      'ready',
     ]);
   });
 
@@ -121,13 +120,13 @@ describe('Locked product experience', () => {
 
 describe('Onboarding personalization', () => {
   it('adapts next action by primary goal', () => {
-    expect(nextActionForGoal('protect_future').title).toMatch(/turn on protection/i);
-    expect(nextActionForGoal('bring_history').title).toMatch(/file or source/i);
+    expect(nextActionForGoal('employee_reimbursement').title).toMatch(/turn on protection/i);
+    expect(nextActionForGoal('mixed').title).toMatch(/file or source/i);
   });
 
-  it('adapts voice by driving type', () => {
-    expect(voiceForDrivingType('employee').reportNoun).toMatch(/reimbursement/i);
-    expect(voiceForDrivingType('gig').reportNoun).toMatch(/earnings/i);
+  it('adapts voice by driving pattern', () => {
+    expect(voiceForDrivingType('regular_locations').reportNoun).toMatch(/reimbursement/i);
+    expect(voiceForDrivingType('delivery_rideshare').reportNoun).toMatch(/earnings/i);
   });
 
   it('greets by preferred name sparingly', () => {
@@ -136,10 +135,9 @@ describe('Onboarding personalization', () => {
   });
 
   it('migrates legacy onboarding fields', () => {
-    expect(mapLegacyOnboardingStep('need_selection')).toBe('primary_goal');
-    expect(mapLegacyOnboardingStep('optional_setup')).toBe('preferred_name');
-    expect(mapLegacyNeedToGoal('Find missing mileage')).toBe('find_missing');
-    expect(mapLegacyUsageToDrivingType('Gig / independent')).toBe('gig');
+    expect(mapLegacyGoal('Employee reimbursement')).toBe('employee_reimbursement');
+    expect(mapLegacyGoal('Bring history')).toBe('mixed');
+    expect(mapLegacyPattern('Gig / independent')).toBe('delivery_rideshare');
   });
 });
 

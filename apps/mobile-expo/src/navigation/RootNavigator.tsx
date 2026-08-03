@@ -12,6 +12,7 @@ import {
   ManualTripScreen,
   MissingTripRecoveryScreen,
   PlanSelectionScreen,
+  PrivacyScreen,
   ProtectionAlertScreen,
   ReportPreviewScreen,
   TrackingActiveScreen,
@@ -19,6 +20,7 @@ import {
   VehicleSetupScreen,
   WorkLocationSetupScreen,
 } from '../screens/flows/SupportingScreens';
+import { EditSetupScreen } from '../screens/profile/EditSetupScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -51,6 +53,8 @@ export function RootNavigator() {
       <Stack.Screen name="ExportReport" component={ExportReportScreen} options={{ title: 'Export' }} />
       <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} options={{ title: 'Preview' }} />
       <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Plans' }} />
+      <Stack.Screen name="EditSetup" component={EditSetupScreen} options={{ title: 'Edit setup' }} />
+      <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
       <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: 'Help' }} />
       <Stack.Screen name="About" component={AboutScreen} options={{ title: 'About' }} />
     </Stack.Navigator>

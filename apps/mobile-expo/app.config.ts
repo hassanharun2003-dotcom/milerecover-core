@@ -2,7 +2,7 @@
  * Dynamic Expo config — APP_VARIANT selects dev-client vs standalone preview/production.
  * Set via EAS build profile env (development | preview | production).
  *
- * RC preview: version/runtime 0.1.3 adds location, document picker, sharing, print native modules.
+ * Production MVP: version/runtime 0.1.4 adds datetime picker and production MVP UI.
  * Keep this file free of TypeScript type annotations — Expo evaluates it as JS on CI.
  * Standalone preview/production exclude expo-dev-client via eas-build-pre-install.
  */
@@ -18,7 +18,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.1.3',
+  version: '0.1.4',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -54,6 +54,7 @@ const config = {
   },
   plugins: [
     ...(IS_DEV_CLIENT ? ['expo-dev-client'] : []),
+    '@react-native-community/datetimepicker',
     'expo-sharing',
     [
       'expo-location',

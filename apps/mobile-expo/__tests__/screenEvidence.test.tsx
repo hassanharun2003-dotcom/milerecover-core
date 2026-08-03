@@ -24,21 +24,23 @@ describe('Screen render evidence', () => {
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-welcome']).toMatch(/Protect every work mile/i);
+    expect(manifest['onboarding-welcome']).toMatch(/Your miles\. Protected\. Nothing left behind/i);
     expect(manifest['onboarding-primary_goal']).toMatch(/What would help you most/i);
-    expect(manifest['onboarding-driving_type']).toMatch(/How do you use work mileage/i);
+    expect(manifest['onboarding-pain_points']).toMatch(/What gets in the way/i);
+    expect(manifest['onboarding-driving_pattern']).toMatch(/How do you use work mileage/i);
     expect(manifest['onboarding-preferred_name']).toMatch(/What should we call you/i);
-    expect(manifest['onboarding-protection_setup']).toMatch(/How protection works/i);
-    expect(manifest['onboarding-next_action']).toMatch(/turn on protection|Go to Home/i);
+    expect(manifest['onboarding-protection_education']).toMatch(/How protection works/i);
+    expect(manifest['onboarding-permissions_education']).toMatch(/Permissions for automatic capture/i);
+    expect(manifest['onboarding-ready']).toMatch(/turn on protection|Go to Home|Next/i);
 
-    for (const goal of ['protect_future', 'find_missing', 'bring_history', 'prepare_report'] as const) {
-      const { copy } = await renderOnboarding('next_action', { primaryGoal: goal });
+    for (const goal of ['employee_reimbursement', 'gig_delivery', 'self_employed_business', 'mixed'] as const) {
+      const { copy } = await renderOnboarding('ready', { primaryGoal: goal });
       manifest[`onboarding-next-${goal}`] = copy.slice(0, 400);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-next-bring_history']).toMatch(/file or source/i);
-    expect(manifest['onboarding-next-find_missing']).toMatch(/period/i);
-    expect(manifest['onboarding-next-prepare_report']).toMatch(/confirmed drives/i);
+    expect(manifest['onboarding-next-mixed']).toMatch(/file or source/i);
+    expect(manifest['onboarding-next-gig_delivery']).toMatch(/turn on protection/i);
+    expect(manifest['onboarding-next-self_employed_business']).toMatch(/business records|confirmed work|Add a drive/i);
 
     fs.writeFileSync(path.join(evidenceDir, 'onboarding-evidence.json'), JSON.stringify(manifest, null, 2));
   });
@@ -52,7 +54,7 @@ describe('Screen render evidence', () => {
       preferredName: null,
     });
     manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
-    expect(liveHome.copy).toMatch(/Finish setting up protection/i);
+    expect(liveHome.copy).toMatch(/Log your first work drive/i);
     expect(liveHome.copy).not.toContain('Alex Johnson');
     expect(liveHome.copy).not.toContain('87.6');
     expect(liveHome.copy).not.toContain('Airport pickup');
@@ -84,6 +86,8 @@ describe('Screen render evidence', () => {
       ['export-report', 'ExportReport'],
       ['report-preview', 'ReportPreview', { format: 'pdf' }],
       ['plan-selection', 'PlanSelection', { source: 'profile' }],
+      ['edit-setup', 'EditSetup'],
+      ['privacy', 'Privacy'],
       ['help-support', 'HelpSupport'],
       ['about', 'About'],
     ];
@@ -97,12 +101,14 @@ describe('Screen render evidence', () => {
       manifest[key] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(10);
     }
-    expect(manifest['manual-trip']).toMatch(/odometer|Add a drive yourself/i);
-    expect(manifest['tracking-active']).toMatch(/not available|isn.t on yet|unavailable/i);
+    expect(manifest['manual-trip']).toMatch(/I only know the distance|Add a drive yourself/i);
+    expect(manifest['tracking-active']).toMatch(/Automatic protection is off|unavailable|Plan capability/i);
     expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
     expect(manifest['report-preview']).toMatch(/report|preview|confirmed/i);
     expect(manifest['plan-selection']).toMatch(/Upgrade when it helps/i);
     expect(manifest['plan-selection']).toMatch(/Plus|Pro|90-Day Rescue/i);
+    expect(manifest['edit-setup']).toMatch(/Adjust setup|Primary goal/i);
+    expect(manifest['privacy']).toMatch(/Privacy and data|local-first/i);
     expect(manifest['coming-later']).toMatch(/Not available in this preview/i);
     expect(manifest['about']).toMatch(/Restart onboarding/i);
     expect(manifest['plan-selection']).toMatch(/monthly|annual/i);
@@ -140,11 +146,11 @@ describe('Screen render evidence', () => {
     expect(profile.copy).not.toContain('Alex Johnson');
     expect(profile.copy).not.toContain('alex@example.com');
     expect(profile.copy).toMatch(/Your profile|Your account|preferred name|Not set/i);
-    expect(profile.copy).toMatch(/MileRecover Free|Free is active/i);
+    expect(profile.copy).toMatch(/MileRecover FREE|Status: free/i);
     expect(profile.copy).toMatch(/Restart onboarding/i);
 
     const insetWelcome = await renderOnboardingWithInsets('welcome', { top: 28, bottom: 20 });
-    expect(insetWelcome.copy).toMatch(/Protect every work mile/i);
+    expect(insetWelcome.copy).toMatch(/Your miles\. Protected\. Nothing left behind/i);
 
     const shellSource = fs.readFileSync(
       path.join(__dirname, '../src/design-system/screenShell.tsx'),
@@ -183,10 +189,10 @@ describe('Screen render evidence', () => {
         {
           '1-onboarding-welcome': (await renderOnboarding('welcome')).copy.slice(0, 240),
           '2-onboarding-goals': {
-            protect_future: (await renderOnboarding('next_action', { primaryGoal: 'protect_future' })).copy.slice(0, 160),
-            find_missing: (await renderOnboarding('next_action', { primaryGoal: 'find_missing' })).copy.slice(0, 160),
-            bring_history: (await renderOnboarding('next_action', { primaryGoal: 'bring_history' })).copy.slice(0, 160),
-            prepare_report: (await renderOnboarding('next_action', { primaryGoal: 'prepare_report' })).copy.slice(0, 160),
+            employee_reimbursement: (await renderOnboarding('ready', { primaryGoal: 'employee_reimbursement' })).copy.slice(0, 160),
+            gig_delivery: (await renderOnboarding('ready', { primaryGoal: 'gig_delivery' })).copy.slice(0, 160),
+            self_employed_business: (await renderOnboarding('ready', { primaryGoal: 'self_employed_business' })).copy.slice(0, 160),
+            mixed: (await renderOnboarding('ready', { primaryGoal: 'mixed' })).copy.slice(0, 160),
           },
           '3-home-truthful': liveHome.copy.slice(0, 240),
           '4-home-review-item': (await renderMainTabs('recovery_available')).copy.slice(0, 240),

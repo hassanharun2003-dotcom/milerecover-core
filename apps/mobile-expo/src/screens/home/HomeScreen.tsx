@@ -5,6 +5,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
+import { capabilitiesForEntitlement } from '@milerecover/domain';
 import {
   Badge,
   EvidenceRow,
@@ -23,6 +24,7 @@ import { greetingForName } from '../../product/copy';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
+import { TrialOfferCard } from '../../components/TrialOfferCard';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 
 type HomeNav = CompositeNavigationProp<
@@ -60,11 +62,12 @@ function activityBadge(kind: ActivityEventKind): string | null {
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
-  const { product, consumePendingPostOnboardingRoute } = useProduct();
+  const { product, consumePendingPostOnboardingRoute, markFirstConfirmedWorkDrive } = useProduct();
   const recoveryRefreshed = useRef(false);
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const { scenario, secondaryAction, liveMode } = experience;
   const greeting = greetingForName(product.preferredName);
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
 
   useEffect(() => {
     const route = consumePendingPostOnboardingRoute();
@@ -86,8 +89,18 @@ export function HomeScreen() {
     refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
   }, [experience.confirmedTrips.length, product.workLocations, refreshRecoverySuggestions]);
 
+  useEffect(() => {
+    if (liveMode && experience.confirmedTrips.length > 0 && product.firstConfirmedWorkDriveAt == null) {
+      markFirstConfirmedWorkDrive();
+    }
+  }, [experience.confirmedTrips.length, liveMode, markFirstConfirmedWorkDrive, product.firstConfirmedWorkDriveAt]);
+
   const handlePrimary = () => {
     if (scenario.primaryActionRoute === 'ProtectionAlert') {
+      if (!capabilities.canUseAutomaticCapture) {
+        navigation.navigate('PlanSelection', { source: 'upgrade' });
+        return;
+      }
       navigation.navigate('ProtectionAlert');
       return;
     }
@@ -100,6 +113,9 @@ export function HomeScreen() {
   const handleSecondary = () => {
     if (!secondaryAction) return;
     if (secondaryAction.route === 'Review') navigation.navigate('Review');
+    else if (secondaryAction.route === 'ProtectionAlert' && !capabilities.canUseAutomaticCapture) {
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+    }
     else navigation.navigate(secondaryAction.route);
   };
 
@@ -129,6 +145,8 @@ export function HomeScreen() {
         onAction={scenario.primaryAction ? handlePrimary : undefined}
         emphasis="hero"
       />
+
+      <TrialOfferCard onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })} />
 
       <SoftPanel>
         <Text style={[text.caption, { marginBottom: spacing.sm }]}>PROTECTION</Text>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -10,14 +10,16 @@ import {
   ListSection,
   MembershipBanner,
   SecondaryButton,
+  StatusCard,
   TabScreen,
   text,
 } from '../../design-system';
 import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
-import { voiceForDrivingType } from '../../product/copy';
+import { protectionLabel, voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
-import { DRIVING_TYPE_OPTIONS } from '../../product/types';
+import { DRIVING_PATTERN_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
+import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
 import { useApp } from '../../store/AppContext';
 
 type ProfileNav = CompositeNavigationProp<
@@ -27,7 +29,7 @@ type ProfileNav = CompositeNavigationProp<
 
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
-  const { resetLocalData, restartOnboarding } = useApp();
+  const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable } = useApp();
   const {
     product,
     setDemoScenario,
@@ -35,9 +37,15 @@ export function ProfileScreen() {
     resetProductData,
     resetOnboarding,
   } = useProduct();
+  const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
   const displayName = product.preferredName?.trim() || 'Your profile';
-  const drivingType = DRIVING_TYPE_OPTIONS.find((option) => option.id === product.drivingType)?.label;
+  const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label;
+  const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label;
   const voice = voiceForDrivingType(product.drivingType);
+
+  useEffect(() => {
+    void getTrackingDiagnostics().then(setDiagnostics);
+  }, [product.trackingEnabled]);
 
   return (
     <TabScreen>
@@ -46,22 +54,24 @@ export function ProfileScreen() {
           {displayName}
         </Text>
         <Text style={text.body}>
-          {product.preferredName ? 'Saved on this device' : 'Add a preferred name by restarting onboarding.'}
+          {product.preferredName ? 'Saved on this device' : 'Add a preferred name anytime.'}
         </Text>
       </View>
 
       <MembershipBanner
-        planName="MileRecover Free"
-        detail="Free is active. Billing is not connected in this release candidate."
+        planName={`MileRecover ${product.entitlement.planId.toUpperCase()}`}
+        detail={`Status: ${product.entitlement.status}. Source: ${product.entitlement.source}.`}
       />
       <SecondaryButton
-        label="See plan preview"
+        label="Manage plan"
         onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
       />
 
       <ListSection title="Profile">
-        <ListRow label="Name" value={product.preferredName?.trim() || 'Not set'} showChevron={false} />
-        <ListRow label="Driving type" value={drivingType ?? 'Not set'} showChevron={false} />
+        <ListRow label="Preferred name" value={product.preferredName?.trim() || 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="Primary goal" value={primaryGoal ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="Pain points" value={product.selectedPainPoints.length ? String(product.selectedPainPoints.length) : 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="Driving pattern" value={drivingType ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow label="Report style" value={voice.reportNoun} showChevron={false} />
       </ListSection>
 
@@ -79,22 +89,32 @@ export function ProfileScreen() {
       </ListSection>
 
       <ListSection title="Records">
-        <ListRow label="Protection" onPress={() => navigation.navigate('ProtectionAlert')} />
+        <ListRow
+          label="Protection education"
+          value={protectionLabel(product.protectionSetupState)}
+          onPress={() => navigation.navigate('ProtectionAlert')}
+        />
+        <ListRow
+          label="Tracking status"
+          value={diagnostics?.engineState ?? (product.trackingEnabled ? 'enabled' : 'off')}
+          onPress={() => navigation.navigate('TrackingActive')}
+        />
         <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
         <ListRow label="Export report" onPress={() => navigation.navigate('ExportReport')} />
       </ListSection>
+
+      <StatusCard
+        variant={product.trackingEnabled && diagnostics?.backgroundLimited ? 'warning' : 'neutral'}
+        title="Protection diagnostics"
+        body={`Foreground: ${permissions.location}. Background: ${permissions.backgroundLocation}. Engine: ${diagnostics?.engineState ?? 'unknown'}. Capture flag: ${automaticCaptureAvailable ? 'available' : 'unavailable in this build'}.`}
+        emphasis="subtle"
+      />
 
       <ListSection title="Privacy">
         <ListRow
           label="Data and privacy"
           value="Local first"
-          onPress={() =>
-            navigation.navigate('ComingLater', {
-              title: 'Data and privacy',
-              detail:
-                'Full privacy controls are not available in this preview. Trips remain local first and exports happen only when you share them.',
-            })
-          }
+          onPress={() => navigation.navigate('Privacy')}
         />
       </ListSection>
 

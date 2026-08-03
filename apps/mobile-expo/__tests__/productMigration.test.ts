@@ -18,14 +18,15 @@ describe('Product UI migration', () => {
 
   it('returns fresh truthful defaults when nothing is stored', async () => {
     const state = await loadProductUiState();
-    expect(state.schemaVersion).toBe(3);
+    expect(state.schemaVersion).toBe(4);
+    expect(state.onboarding.schemaVersion).toBe(4);
     expect(state.demoModeEnabled).toBe(false);
     expect(state.selectedPlan).toBe('free');
     expect(state.preferredName).toBeNull();
     expect(state.vehicles).toEqual([]);
   });
 
-  it('migrates v1 storage into v3 without inventing Plus or mileage', async () => {
+  it('migrates v1 storage into v4 without inventing Plus or mileage', async () => {
     await AsyncStorage.setItem(
       PRODUCT_UI_STORAGE_KEY_V1,
       JSON.stringify({
@@ -41,9 +42,11 @@ describe('Product UI migration', () => {
     );
 
     const state = await loadProductUiState();
-    expect(state.schemaVersion).toBe(3);
-    expect(state.primaryGoal).toBe('protect_future');
-    expect(state.drivingType).toBe('employee');
+    expect(state.schemaVersion).toBe(4);
+    expect(state.onboarding.schemaVersion).toBe(4);
+    expect(state.primaryGoal).toBe('mixed');
+    expect(state.drivingType).toBe('regular_locations');
+    expect(state.selectedPainPoints).toContain('forget_to_track');
     expect(state.preferredName).toBe('Hassan');
     expect(state.manualTrips).toHaveLength(1);
     expect(state.selectedPlan).toBe('free');
@@ -53,7 +56,7 @@ describe('Product UI migration', () => {
     expect(await AsyncStorage.getItem(PRODUCT_UI_STORAGE_KEY)).toBeTruthy();
   });
 
-  it('migrates v2 into v3 and strips Alex Johnson fixture identity', async () => {
+  it('migrates v2 into v4 and strips Alex Johnson fixture identity', async () => {
     await AsyncStorage.setItem(
       PRODUCT_UI_STORAGE_KEY_V2,
       JSON.stringify({
@@ -74,13 +77,19 @@ describe('Product UI migration', () => {
     const next = {
       ...createInitialProductUiState(),
       preferredName: 'Sam',
-      primaryGoal: 'prepare_report' as const,
-      drivingType: 'gig' as const,
+      onboarding: {
+        ...createInitialProductUiState().onboarding,
+        preferredName: 'Sam',
+        primaryGoal: 'self_employed_business',
+        drivingPattern: 'delivery_rideshare',
+      },
+      primaryGoal: 'self_employed_business' as const,
+      drivingType: 'delivery_rideshare' as const,
     };
     await saveProductUiState(next);
     const loaded = await loadProductUiState();
     expect(loaded.preferredName).toBe('Sam');
-    expect(loaded.primaryGoal).toBe('prepare_report');
+    expect(loaded.primaryGoal).toBe('self_employed_business');
   });
 
   it('clears product UI state for preview reset', async () => {

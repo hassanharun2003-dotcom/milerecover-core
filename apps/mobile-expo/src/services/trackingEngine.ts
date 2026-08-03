@@ -339,3 +339,13 @@ export function createTrackingController(options: TrackingControllerOptions): Tr
   }
   return singletonController;
 }
+
+export async function getTrackingDiagnostics(): Promise<TrackingDiagnostics> {
+  if (!singletonController) {
+    singletonController = new TrackingControllerImpl({
+      onTripClosed: () => undefined,
+      isAllowed: () => false,
+    });
+  }
+  return singletonController.getDiagnostics();
+}

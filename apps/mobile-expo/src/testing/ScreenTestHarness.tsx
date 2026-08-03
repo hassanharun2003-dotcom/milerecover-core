@@ -25,6 +25,7 @@ import {
   MissingTripRecoveryScreen,
   PlanSelectionScreen,
   ProtectionAlertScreen,
+  PrivacyScreen,
   ReportPreviewScreen,
   TrackingActiveScreen,
   TripDetailsScreen,
@@ -32,6 +33,7 @@ import {
   WorkLocationSetupScreen,
 } from '../screens/flows/SupportingScreens';
 import { AboutScreen } from '../screens/about/AboutScreen';
+import { EditSetupScreen } from '../screens/profile/EditSetupScreen';
 import type { RootStackParamList, RootTabParamList } from '../navigation/types';
 import { extractVisibleCopy } from './extractText';
 
@@ -104,6 +106,8 @@ export async function renderMainTabs(scenario: DemoScenario, extra?: Partial<Pro
             <Stack.Screen name="ExportReport" component={ExportReportScreen} />
             <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} />
             <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} />
+            <Stack.Screen name="EditSetup" component={EditSetupScreen} />
+            <Stack.Screen name="Privacy" component={PrivacyScreen} />
             <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
           </Stack.Navigator>
         </NavigationContainer>
@@ -132,6 +136,8 @@ export async function renderStackScreen(
     ExportReport: ExportReportScreen,
     ReportPreview: ReportPreviewScreen,
     PlanSelection: PlanSelectionScreen,
+    EditSetup: EditSetupScreen,
+    Privacy: PrivacyScreen,
     HelpSupport: HelpSupportScreen,
     VehicleSetup: VehicleSetupScreen,
     WorkLocationSetup: WorkLocationSetupScreen,
@@ -185,7 +191,8 @@ export async function renderOnboarding(
   extra?: Partial<ProductUiState>,
 ) {
   let tree!: TestRenderer.ReactTestRenderer;
-  const initial = { ...createInitialProductUiState(), onboardingStep: step, ...extra };
+  const base = createInitialProductUiState();
+  const initial = { ...base, onboarding: { ...base.onboarding, currentStep: step }, onboardingStep: step, ...extra };
   await act(async () => {
     tree = TestRenderer.create(
       <TestProviders product={initial}>
@@ -204,7 +211,8 @@ export async function renderOnboardingWithInsets(
   extra?: Partial<ProductUiState>,
 ) {
   let tree!: TestRenderer.ReactTestRenderer;
-  const initial = { ...createInitialProductUiState(), onboardingStep: step, ...extra };
+  const base = createInitialProductUiState();
+  const initial = { ...base, onboarding: { ...base.onboarding, currentStep: step }, onboardingStep: step, ...extra };
   await act(async () => {
     tree = TestRenderer.create(
       <SafeAreaProvider

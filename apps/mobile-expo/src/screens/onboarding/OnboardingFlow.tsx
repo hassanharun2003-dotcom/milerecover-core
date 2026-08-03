@@ -1,18 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
-  DRIVING_TYPE_OPTIONS,
+  DRIVING_PATTERN_OPTIONS,
   ONBOARDING_STEP_ORDER,
   PAIN_POINT_OPTIONS,
   PRIMARY_GOAL_OPTIONS,
-  type DrivingType,
   type PainPoint,
-  type PrimaryGoal,
 } from '../../product/types';
 import { nextActionForGoal } from '../../product/copy';
 import {
-  ChecklistRow,
   FormField,
   OnboardingScreen,
   PrimaryButton,
@@ -22,11 +19,13 @@ import {
   SoftPanel,
   StatusCard,
   TertiaryButton,
-  WelcomeHero,
   text,
 } from '../../design-system';
+import { YEARS, MAKES, MODELS_BY_MAKE } from '../../data/vehicles';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
+import { CarRouteHero } from '../../components/CarRouteHero';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 
 function permissionStatusLabel(status: string): string {
   if (status === 'granted') return 'Granted';
@@ -37,6 +36,26 @@ function permissionStatusLabel(status: string): string {
 
 function makeLocalId(prefix: string): string {
   return `${prefix}-${Date.now()}`;
+}
+
+function optionLabel<T extends string>(options: { id: T; label: string }[], id: T | null): string {
+  return options.find((option) => option.id === id)?.label ?? 'Not set';
+}
+
+function readyBody(goal: typeof PRIMARY_GOAL_OPTIONS[number]['id'] | null, pains: PainPoint[]): string {
+  if (pains.includes('older_mileage')) {
+    return 'We will help you catch up older mileage with review-first recovery. Nothing gets added without your confirmation.';
+  }
+  if (goal === 'employee_reimbursement') {
+    return 'Your setup is ready for clean reimbursement records and future work-drive protection.';
+  }
+  if (goal === 'gig_delivery') {
+    return 'Your setup is ready for delivery shifts, missed-drive review, and earnings-friendly mileage records.';
+  }
+  if (goal === 'self_employed_business') {
+    return 'Your setup is ready for client drives and business records you can explain later.';
+  }
+  return 'Your setup is ready. Start with the next action that best protects your miles.';
 }
 
 export function OnboardingFlow() {
@@ -67,36 +86,56 @@ export function OnboardingFlow() {
   } = useProduct();
 
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
+  const [vehicleMode, setVehicleMode] = useState<'choice' | 'form'>('choice');
   const [vehicleNickname, setVehicleNickname] = useState('');
+  const [vehicleYear, setVehicleYear] = useState(YEARS[0]);
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
+  const [placeKind, setPlaceKind] = useState<'home' | 'workplace' | 'client' | 'other'>('workplace');
   const [workLabel, setWorkLabel] = useState('');
   const [workAddress, setWorkAddress] = useState('');
-  const [workNotes, setWorkNotes] = useState('');
+  const [requestedForeground, setRequestedForeground] = useState(false);
+  const [requestedBackground, setRequestedBackground] = useState(false);
   const step = product.onboardingStep;
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
   const next = nextActionForGoal(product.primaryGoal);
   const foregroundReady = permissions.location === 'granted';
   const backgroundReady = permissions.backgroundLocation === 'granted';
   const selectedPainPoints = product.selectedPainPoints;
+  const availableModels = vehicleMake ? MODELS_BY_MAKE[vehicleMake] ?? [] : [];
+
+  useEffect(() => {
+    logEvent(ANALYTICS_EVENTS.onboardingStepViewed, { step });
+  }, [step]);
 
   const finish = (deepLink: boolean) => {
     completeProductOnboarding(deepLink ? next.route : null);
+    logEvent(ANALYTICS_EVENTS.onboardingCompleted, {
+      goal: product.primaryGoal ?? 'unset',
+      painCount: product.selectedPainPoints.length,
+      nextAction: next.id,
+    });
     finishOnboarding();
   };
 
-  const saveVehicle = () => {
+  const saveVehicle = (continueAfterSave: boolean) => {
     const hasVehicle = vehicleNickname.trim() || vehicleMake.trim() || vehicleModel.trim();
     if (hasVehicle) {
       upsertVehicle({
         id: makeLocalId('vehicle'),
         nickname: vehicleNickname.trim() || [vehicleMake.trim(), vehicleModel.trim()].filter(Boolean).join(' ') || 'My vehicle',
+        year: vehicleYear,
         make: vehicleMake.trim(),
         model: vehicleModel.trim(),
         isPrimary: product.vehicles.length === 0,
       });
     }
-    advanceOnboarding();
+    setVehicleNickname('');
+    setVehicleMake('');
+    setVehicleModel('');
+    setVehicleYear(YEARS[0]);
+    setVehicleMode(continueAfterSave ? 'choice' : 'form');
+    if (continueAfterSave) advanceOnboarding();
   };
 
   const togglePainPoint = (painPoint: PainPoint) => {
@@ -107,19 +146,20 @@ export function OnboardingFlow() {
   };
 
   const saveWorkPlace = () => {
-    const hasWorkPlace = workLabel.trim() || workAddress.trim() || workNotes.trim();
+    const hasWorkPlace = workLabel.trim() || workAddress.trim();
     if (hasWorkPlace) {
       upsertWorkLocation({
         id: makeLocalId('work-place'),
         label: workLabel.trim() || 'Work place',
         address: workAddress.trim(),
-        notes: workNotes.trim(),
+        notes: '',
+        kind: placeKind,
       });
     }
     advanceOnboarding();
   };
 
-  const continueAfterProtection = () => {
+  const markProtectionStateFromPermissions = () => {
     if (automaticCaptureAvailable && foregroundReady && backgroundReady) {
       setProtectionSetupState('configured');
     } else if (foregroundReady && !backgroundReady) {
@@ -127,10 +167,10 @@ export function OnboardingFlow() {
     } else {
       setProtectionSetupState('educated');
     }
-    advanceOnboarding();
   };
 
   const continueAfterPermissions = () => {
+    markProtectionStateFromPermissions();
     patchOnboarding({
       permissionsEducationAcknowledged: true,
       completedSteps: [...product.onboarding.completedSteps, 'permissions_education'],
@@ -138,11 +178,13 @@ export function OnboardingFlow() {
     advanceOnboarding();
   };
 
-  const welcome = useMemo(
-    () => ({
-      title: 'Protect every work mile.',
-      body: 'MileRecover saves future drives, helps find missing mileage, and prepares records you can share - without inventing miles.',
-    }),
+  const protectionPanels = useMemo(
+    () => [
+      ['No fake miles', 'Manual entries, imports, and recovery suggestions require real details or your review.'],
+      ['You decide work vs personal', 'MileRecover can surface a drive, but reports use only confirmed work drives.'],
+      ['Local-first records', 'Your setup and trips are saved on this device first. You choose what to export.'],
+      ['Tracking is controlled by you', 'Automatic capture starts only when you enable tracking and permissions allow it.'],
+    ],
     [],
   );
 
@@ -159,15 +201,25 @@ export function OnboardingFlow() {
 
       {step === 'welcome' ? (
         <View>
-          <WelcomeHero title={welcome.title} body={welcome.body} />
+          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Your miles. Protected. Nothing left behind.
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.sm }]}>
+            MileRecover protects future drives, helps recover missed mileage, and prepares records you can explain.
+          </Text>
+          <CarRouteHero />
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
             <PrimaryButton
-              label="Get started"
-              onPress={advanceOnboarding}
+              label="Protect my miles"
+              onPress={() => {
+                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'protect' });
+                advanceOnboarding();
+              }}
             />
             <SecondaryButton
-              label="I have older mileage"
+              label="Bring existing mileage"
               onPress={() => {
+                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'bring_existing' });
                 setPrimaryGoal('mixed');
                 setSelectedPainPoints(['older_mileage']);
                 setOnboardingStep('driving_pattern');
@@ -189,9 +241,10 @@ export function OnboardingFlow() {
             <SelectionCard
               key={opt.id}
               title={opt.label}
+              body={opt.body}
               selected={product.primaryGoal === opt.id}
               onPress={() => {
-                setPrimaryGoal(opt.id as PrimaryGoal);
+                setPrimaryGoal(opt.id);
                 advanceOnboarding();
               }}
             />
@@ -227,13 +280,13 @@ export function OnboardingFlow() {
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             This changes how MileRecover talks - and what a report is for.
           </Text>
-          {DRIVING_TYPE_OPTIONS.map((opt) => (
+          {DRIVING_PATTERN_OPTIONS.map((opt) => (
             <SelectionCard
               key={opt.id}
               title={opt.label}
               selected={product.drivingType === opt.id}
               onPress={() => {
-                setDrivingType(opt.id as DrivingType);
+                setDrivingType(opt.id);
                 advanceOnboarding();
               }}
             />
@@ -274,18 +327,76 @@ export function OnboardingFlow() {
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>Add a vehicle?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Optional. A nickname makes reports easier to read later.
+            Optional. A vehicle nickname can make reports easier to read later.
           </Text>
-          <FormField
-            label="Nickname"
-            value={vehicleNickname}
-            onChangeText={setVehicleNickname}
-            placeholder="Work sedan"
-          />
-          <FormField label="Make" value={vehicleMake} onChangeText={setVehicleMake} placeholder="Toyota" />
-          <FormField label="Model" value={vehicleModel} onChangeText={setVehicleModel} placeholder="Camry" />
-          <PrimaryButton label="Save vehicle" onPress={saveVehicle} />
-          <TertiaryButton label="Skip vehicle" onPress={skipVehicleSetup} />
+          {vehicleMode === 'choice' ? (
+            <>
+              <SelectionCard
+                title="Add a vehicle"
+                body="One vehicle is enough to start."
+                selected={false}
+                onPress={() => setVehicleMode('form')}
+              />
+              <SelectionCard
+                title="I use more than one"
+                body="Add the first now. You can add another before continuing."
+                selected={false}
+                onPress={() => setVehicleMode('form')}
+              />
+              <TertiaryButton label="Skip vehicle" onPress={skipVehicleSetup} />
+            </>
+          ) : (
+            <>
+              <FormField
+                label="Nickname"
+                value={vehicleNickname}
+                onChangeText={setVehicleNickname}
+                placeholder="Work sedan"
+              />
+              <Text style={[text.caption, { marginBottom: spacing.xs }]}>Year</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+                {YEARS.slice(0, 6).map((year) => (
+                  <SecondaryButton key={year} label={vehicleYear === year ? `${year} selected` : year} onPress={() => setVehicleYear(year)} />
+                ))}
+              </View>
+              <Text style={[text.caption, { marginBottom: spacing.xs }]}>Make</Text>
+              {MAKES.slice(0, 8).map((make) => (
+                <SelectionCard
+                  key={make}
+                  title={make}
+                  selected={vehicleMake === make}
+                  onPress={() => {
+                    setVehicleMake(make);
+                    setVehicleModel('');
+                  }}
+                />
+              ))}
+              {availableModels.length > 0 ? (
+                <>
+                  <Text style={[text.caption, { marginBottom: spacing.xs }]}>Model</Text>
+                  {availableModels.map((model) => (
+                    <SelectionCard
+                      key={model}
+                      title={model}
+                      selected={vehicleModel === model}
+                      onPress={() => setVehicleModel(model)}
+                    />
+                  ))}
+                </>
+              ) : null}
+              <PrimaryButton
+                label="Save vehicle and continue"
+                onPress={() => saveVehicle(true)}
+                disabled={!vehicleMake || !vehicleModel}
+              />
+              <SecondaryButton
+                label="Save and add another"
+                onPress={() => saveVehicle(false)}
+                disabled={!vehicleMake || !vehicleModel}
+              />
+              <TertiaryButton label="Skip vehicle" onPress={skipVehicleSetup} />
+            </>
+          )}
         </View>
       ) : null}
 
@@ -295,6 +406,22 @@ export function OnboardingFlow() {
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             Optional. Saved places can help explain routine work drives without sharing anything automatically.
           </Text>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.md }}>
+            {[
+              ['home', 'Home'],
+              ['workplace', 'Workplace'],
+              ['client', 'Client'],
+            ].map(([kind, label]) => (
+              <SecondaryButton
+                key={kind}
+                label={label}
+                onPress={() => {
+                  setPlaceKind(kind as 'home' | 'workplace' | 'client');
+                  setWorkLabel(label);
+                }}
+              />
+            ))}
+          </View>
           <FormField label="Label" value={workLabel} onChangeText={setWorkLabel} placeholder="Office" />
           <FormField
             label="Address"
@@ -302,7 +429,6 @@ export function OnboardingFlow() {
             onChangeText={setWorkAddress}
             placeholder="Street, city"
           />
-          <FormField label="Notes" value={workNotes} onChangeText={setWorkNotes} placeholder="Optional context" />
           <PrimaryButton label="Save work place" onPress={saveWorkPlace} />
           <TertiaryButton label="Skip work place" onPress={skipWorkPlaceSetup} />
         </View>
@@ -312,19 +438,23 @@ export function OnboardingFlow() {
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            MileRecover saves observed location samples only when you enable tracking. It never marks a drive
-            as work until you confirm it.
+            MileRecover saves observed location samples only when you enable tracking. It never marks a drive as work until you confirm it.
           </Text>
-          <StatusCard
-            variant="neutral"
-            title="Your data stays yours"
-            body="Trips live on this device first. Nothing is shared unless you choose to share it."
-            emphasis="subtle"
-          />
+          <CarRouteHero compact />
+          {protectionPanels.map(([title, body]) => (
+            <SoftPanel key={title}>
+              <Text style={[text.subtitle, { marginBottom: spacing.xs }]}>{title}</Text>
+              <Text style={text.body}>{body}</Text>
+            </SoftPanel>
+          ))}
           <PrimaryButton
             label="Continue"
             onPress={() => {
               setProtectionSetupState('educated');
+              patchOnboarding({
+                protectionEducationAcknowledged: true,
+                completedSteps: [...product.onboarding.completedSteps, 'protection_education'],
+              });
               advanceOnboarding();
             }}
           />
@@ -338,22 +468,29 @@ export function OnboardingFlow() {
             We explain before any system prompt. We never mark a permission ready until the device says it is granted.
           </Text>
           <SoftPanel>
-            <ChecklistRow label={`Location permission: ${permissionStatusLabel(permissions.location)}`} status={foregroundReady ? 'ready' : 'pending'} />
-            <ChecklistRow label={`Background location: ${permissionStatusLabel(permissions.backgroundLocation)}`} status={backgroundReady ? 'ready' : 'pending'} />
-            <ChecklistRow label="Battery optimization" status="planned" />
-            <ChecklistRow label="Notifications" status="planned" />
-            <ChecklistRow label="Tracking engine" status="planned" />
+            <Text style={text.body}>Foreground location: {permissionStatusLabel(permissions.location)}</Text>
+            <Text style={text.body}>Background location: {permissionStatusLabel(permissions.backgroundLocation)}</Text>
+            <Text style={text.body}>Tracking engine: {automaticCaptureAvailable ? 'Available when plan allows' : 'Unavailable in this build'}</Text>
             <Text style={[text.caption, { marginTop: spacing.sm }]}>
               Foreground capture can work with location permission. Background capture may stay limited if the device
               or build does not allow it.
             </Text>
           </SoftPanel>
           <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
-            <PrimaryButton label="Request foreground location" onPress={() => void requestLocationPermission()} />
+            <PrimaryButton
+              label={requestedForeground ? 'Foreground requested' : 'Request foreground location'}
+              onPress={() => {
+                setRequestedForeground(true);
+                void requestLocationPermission();
+              }}
+            />
             <SecondaryButton
-              label="Request background location"
-              onPress={() => void requestBackgroundPermission()}
-              disabled={!foregroundReady}
+              label={requestedBackground ? 'Background requested' : 'Request background location'}
+              onPress={() => {
+                setRequestedBackground(true);
+                void requestBackgroundPermission();
+              }}
+              disabled={!requestedForeground && !foregroundReady}
               accessibilityLabel="Request background location permission"
             />
           </View>
@@ -366,7 +503,6 @@ export function OnboardingFlow() {
           <PrimaryButton
             label="Continue"
             onPress={() => {
-              continueAfterProtection();
               continueAfterPermissions();
             }}
           />
@@ -378,15 +514,16 @@ export function OnboardingFlow() {
           <SoftPanel>
             <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Your setup</Text>
             <Text style={text.body}>Goal: {PRIMARY_GOAL_OPTIONS.find((g) => g.id === product.primaryGoal)?.label ?? 'Protect future drives'}</Text>
-            <Text style={text.body}>Driving: {DRIVING_TYPE_OPTIONS.find((d) => d.id === product.drivingType)?.label ?? 'Not set'}</Text>
+            <Text style={text.body}>Pain points: {product.selectedPainPoints.length}</Text>
+            <Text style={text.body}>Driving: {optionLabel(DRIVING_PATTERN_OPTIONS, product.drivingType)}</Text>
             <Text style={text.body}>Vehicles: {product.vehicles.length}</Text>
             <Text style={text.body}>Work places: {product.workLocations.length}</Text>
-            <Text style={text.body}>Protection: {automaticCaptureAvailable ? 'Ready when permissions are granted' : 'Tracking engine unavailable in this RC'}</Text>
+            <Text style={text.body}>Protection: {foregroundReady ? 'Permission path started' : 'Can be enabled later'}</Text>
           </SoftPanel>
           <StatusCard
             variant="success"
             title={next.title}
-            body={next.body}
+            body={`${readyBody(product.primaryGoal, product.selectedPainPoints)} ${next.body}`}
             emphasis="hero"
           />
           <PrimaryButton

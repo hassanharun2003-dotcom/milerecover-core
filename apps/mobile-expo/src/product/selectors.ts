@@ -1,4 +1,5 @@
 import {
+  capabilitiesForEntitlement,
   isConfirmedWorkTrip,
   prioritizeReviewItems,
   type PermissionSnapshot,
@@ -38,15 +39,12 @@ function buildLiveScenario(
     .reduce((sum, t) => sum + t.distanceMiles, 0);
   const locationOk = permissions.location === 'granted';
   const backgroundOk = permissions.backgroundLocation === 'granted';
-  const protectionConfigured =
-    product.protectionSetupState === 'configured' ||
-    product.protectionSetupState === 'healthy' ||
-    product.protectionSetupState === 'limited';
-  const protectionLimited =
-    product.protectionSetupState === 'limited' ||
-    (automaticCaptureAvailable &&
-      product.protectionSetupState === 'configured' &&
-      (!locationOk || !backgroundOk));
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const automaticCaptureAllowed =
+    automaticCaptureAvailable &&
+    product.trackingEnabled &&
+    capabilities.canUseAutomaticCapture;
+  const trackingDegraded = product.trackingEnabled && (!capabilities.canUseAutomaticCapture || !locationOk || !backgroundOk);
 
   let homeTitle: string;
   let homeDetail: string;
@@ -56,24 +54,11 @@ function buildLiveScenario(
   let proofReady = false;
   let proofBlockReason: string | null = null;
 
-  if (
-    !protectionConfigured ||
-    product.protectionSetupState === 'not_started' ||
-    product.protectionSetupState === 'educated'
-  ) {
-    homeTitle = 'Finish setting up protection';
-    homeDetail = automaticCaptureAvailable
-      ? 'One step remains before MileRecover can watch future drives.'
-      : 'Automatic capture is unavailable in this preview. You can still log drives, review uncertain miles, and build reports.';
-    primaryAction = 'Continue setup';
-    primaryActionRoute = 'ProtectionAlert';
-    homeState = 'protection_limited';
-    proofBlockReason = confirmed.length
-      ? null
-      : 'Add or confirm work drives before a report can be ready.';
-  } else if (protectionLimited) {
+  if (trackingDegraded) {
     homeTitle = 'Protection needs attention';
-    homeDetail = 'Background access is off, so a drive could be missed. What’s already saved stays put.';
+    homeDetail = capabilities.canUseAutomaticCapture
+      ? 'Tracking is enabled, but permissions or background access are not ready. Saved records stay put.'
+      : 'Tracking is enabled, but automatic capture is not included in the current plan.';
     primaryAction = 'Fix protection';
     primaryActionRoute = 'ProtectionAlert';
     homeState = 'protection_limited';
@@ -85,34 +70,40 @@ function buildLiveScenario(
     primaryActionRoute = 'Review';
     homeState = 'recovery_available';
     proofBlockReason = 'Review one item before sharing.';
-  } else if (confirmed.length === 0) {
-    homeTitle = automaticCaptureAvailable
-      ? 'You’re ready for your first work drive'
-      : 'Log your first work drive';
+  } else if (recoveredMiles > 0) {
+    homeTitle = 'Recovered mileage is saved';
+    homeDetail = `${recoveredMiles.toFixed(1)} recovered miles are now in your confirmed work record.`;
+    primaryAction = 'Preview report';
+    primaryActionRoute = 'Proof';
+    homeState = 'healthy';
+    proofReady = confirmedMiles > 0;
+    proofBlockReason = proofReady ? null : 'Confirm work drives before sharing.';
+  } else if (confirmedMiles > 0) {
+    homeTitle = 'Your report is ready';
+    homeDetail =
+      confirmed.length === 1
+        ? 'One confirmed work drive is ready to preview.'
+        : `${confirmed.length} confirmed work drives are ready to preview.`;
+    primaryAction = 'Preview report';
+    primaryActionRoute = 'Proof';
+    homeState = 'healthy';
+    proofReady = true;
+    proofBlockReason = null;
+  } else if (automaticCaptureAllowed && locationOk && backgroundOk) {
+    homeTitle = 'You’re covered today';
+    homeDetail = 'Automatic capture is enabled and permissions are ready.';
+    primaryAction = null;
+    homeState = 'healthy';
+    proofBlockReason = 'No confirmed drives yet.';
+  } else {
+    homeTitle = 'Log your first work drive';
     homeDetail = automaticCaptureAvailable
-      ? 'MileRecover will keep the record once tracking begins.'
+      ? 'Automatic capture is not active yet. Add a real drive or turn on protection when your plan allows it.'
       : `Manually logged ${voice.workNoun} drives are protected in your record. Automatic capture is not active.`;
     primaryAction = 'Add a drive';
     primaryActionRoute = 'ManualTrip' as ScenarioPresentation['primaryActionRoute'];
     homeState = 'healthy';
     proofBlockReason = 'No confirmed drives yet.';
-  } else if (automaticCaptureAvailable && locationOk && backgroundOk) {
-    homeTitle = 'You’re covered today';
-    homeDetail = 'Your latest work drive was saved.';
-    primaryAction = null;
-    homeState = 'healthy';
-    proofReady = pending.length === 0 && confirmedMiles > 0;
-    proofBlockReason = proofReady ? null : 'Confirm work drives before sharing.';
-  } else {
-    homeTitle = 'Your record is up to date';
-    homeDetail =
-      confirmed.length === 1
-        ? 'Your latest work drive was saved.'
-        : `${confirmed.length} confirmed work drives are on record.`;
-    primaryAction = null;
-    homeState = 'healthy';
-    proofReady = pending.length === 0 && confirmedMiles > 0;
-    proofBlockReason = proofReady ? null : 'Confirm work drives before sharing.';
   }
 
   if (pending.length === 0 && confirmedMiles > 0) {

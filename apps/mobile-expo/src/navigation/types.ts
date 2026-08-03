@@ -14,6 +14,8 @@ export const SUPPORTING_STACK_ROUTES = [
   'ExportReport',
   'ReportPreview',
   'PlanSelection',
+  'EditSetup',
+  'Privacy',
   'HelpSupport',
   'About',
 ] as const;
@@ -54,6 +56,8 @@ export type RootStackParamList = {
   ExportReport: undefined;
   ReportPreview: { format: 'csv' | 'pdf' | 'reimbursement' | 'log' };
   PlanSelection: { source?: 'profile' | 'upgrade' };
+  EditSetup: undefined;
+  Privacy: undefined;
   HelpSupport: undefined;
   About: undefined;
 };
