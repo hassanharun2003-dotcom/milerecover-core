@@ -38,5 +38,20 @@ Focus: polish only. No brand, nav, or feature redesign.
 
 ## Validation
 
-See CI / local `npm run test:mobile-expo`, `npm run test:domain`, `npm run check:all`.  
-UI evidence under `docs/assets/ui-evidence/`.
+- `npm run test:mobile-expo` — 54 passed  
+- `npm run test:domain` — 43 passed  
+- `npm run typecheck:mobile-expo` — passed  
+- `npm run check:all` — passed  
+- UI evidence under `docs/assets/ui-evidence/`  
+- Screen comps under `/opt/cursor/artifacts/screenshots/10of10-*.png`
+
+## OTA
+
+- Update group: `ad83fcbf-221c-4980-b7b9-5bf4118e1e85`  
+- Android update ID: `019fc8b8-2f02-70bd-a494-73b095ec330c`  
+- iOS update ID: `019fc8b8-2f02-7e7b-b01d-15943fe296cf`  
+- Message: `0.1.4-mvp.3 10/10 experience pass: lean onboarding, earned trial, relief home`  
+- Commit: `ce35b6d77215934058ddeefd42fcfd740999e81d`  
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/ad83fcbf-221c-4980-b7b9-5bf4118e1e85  
+
+Requires an installed `0.1.4` preview APK. Close and reopen the app to pull the update.
