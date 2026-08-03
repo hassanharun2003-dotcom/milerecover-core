@@ -19,3 +19,10 @@ Optional name / vehicle / places / permissions after Home via Finish setup card.
 ## Physical acceptance checklist
 
 See PR description / final agent response.
+
+## OTA
+
+- Update group: `c95d56ad-5183-43fa-9c77-2aa104043360`
+- Android update ID: `019fc975-93e1-7db4-ac59-552b4ef5e408`
+- iOS update ID: `019fc975-93e1-7364-b81d-99508f7c05e5`
+- Commit: `f3a07b7e784f83a2fbef5ec03fda5627883f0b7a`
