@@ -15,9 +15,28 @@ Build ID: `a0fcf6cd-61e0-4317-a694-0da9331daee8`
 - Preview `autoIncrement`: enabled
 - `expo-dev-client` autolinking: excluded for preview/production via `eas-build-pre-install` → `scripts/sync-dev-client-autolinking.cjs`
 
-**Phone install path (preferred):** GitHub prerelease asset  
-`MileRecover-preview-0.1.2.apk` on tag `android-preview-0.1.2`  
-*(Direct asset URL is published only after Cloud Agent `EXPO_TOKEN` can download the verified artifact and create the release.)*
+**Phone install path (preferred):** GitHub prerelease asset — one tap, no login:
+
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.2/MileRecover-preview-0.1.2.apk
+
+- Tag: `android-preview-0.1.2`
+- Filename: `MileRecover-preview-0.1.2.apk`
+- Release page: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.1.2
+
+### Verified artifact fingerprint (build `a0fcf6cd`)
+
+| Check | Value |
+|-------|--------|
+| Package | `com.milerecover.app` |
+| versionName | `0.1.2` |
+| versionCode | `2` |
+| Size | `81572055` bytes (~77.8 MB) |
+| APK SHA-256 | `87f38692ddc82e9b31ccfbfc70f45443b7ae1c25097d1e1ea583b3ea2a0b5b00` |
+| Signer cert SHA-256 | `6d232f83b8859077eb52e50c97197594e6d7848daaa4a8ac0d6944b51f898a20` |
+| Signature scheme | APK Signature Scheme v2 (verified) |
+| Label | MileRecover |
+
+Public download was verified without GitHub login (HTTP 200, size + SHA-256 match).
 
 Expo dashboard page (auth may be required; on-device Expo download has hung at 81.57 MB):  
 https://expo.dev/accounts/milerecover/projects/milerecover/builds/a0fcf6cd-61e0-4317-a694-0da9331daee8
@@ -28,9 +47,35 @@ Build `a0fcf6cd` is the verified Android preview upgrade over the earlier `0.1.0
 
 ## Test OTA update published
 
-After installing the preview APK above, close and reopen MileRecover. Profile → About should show **Preview marker: Preview channel connected** and build label **0.1.2-preview.1**.
+After installing the preview APK above, close and reopen MileRecover. Profile → About should show **Preview marker: Preview channel connected** and build label **0.1.2-preview.4**.
 
-**Runtime `0.1.2` OTA status:** pending Cloud Agent `EXPO_TOKEN` injection (`npx eas-cli whoami` must succeed in the agent VM). Do not expect a new OTA until that publish completes.
+**Runtime `0.1.2` OTA (latest published):**
+
+- Update group: `ed85da34-cb5d-477a-ab97-47bc3fdb1264`
+- Android update ID: `019fc66f-e527-7a27-a723-5c7ee3656056`
+- iOS update ID: `019fc66f-e527-752f-b77d-1fcf36dc2c19`
+- Message: `0.1.2-preview.4 experience integrity + personalized first run`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/ed85da34-cb5d-477a-ab97-47bc3fdb1264`
+
+Prior V2 polish OTA (superseded):
+
+- Update group: `9624b236-82cc-43d1-9bcd-ad8d6b92733f`
+- Android update ID: `019fc644-a6e2-76e1-a5d3-c9a10fc8f9ea`
+- iOS update ID: `019fc644-a6e2-742b-a90f-8b003a20bda8`
+- Message: `0.1.2-preview.3: V2 user-first product polish`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/9624b236-82cc-43d1-9bcd-ad8d6b92733f`
+- Audit: `docs/V2_PRODUCT_POLISH.md`
+
+Prior design polish OTA (superseded):
+
+- Update group: `1da76f81-dab9-413e-bc54-259d16b0b79a`
+- Message: `0.1.2-preview.2: Locked design polish + preview channel marker`
+
+Prior connectivity OTA (superseded on channel):
+
+- Update group: `52208176-a688-400d-ab11-11f76e9b3de4`
+- Android update ID: `019fc620-be5c-7e64-adc5-8ce3b4dcee29`
+- Message: `0.1.2-preview.1: Preview channel connected for runtime 0.1.2`
 
 Previous `0.1.0` channel marker (for older APK only — will not apply to `0.1.2` runtime):
 

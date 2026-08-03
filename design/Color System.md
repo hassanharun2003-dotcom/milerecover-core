@@ -1,8 +1,10 @@
 # MileRecover Color System
 
-**Status:** Foundational  
-**Last Updated:** July 2026  
+**Status:** Locked for Expo product UI  
+**Last Updated:** August 2026  
 **Owner:** Design
+
+**Implementation source of truth:** `packages/config/src/tokens.ts` (deep forest green primary).
 
 ---
 
@@ -10,10 +12,10 @@
 
 Color communicates **state and trust**, not brand vanity.
 
-- Green = confirmed, defensible
+- Forest green = brand anchor, confirmed, defensible
 - Amber = needs attention, not error
 - Red = error or rejected (sparingly)
-- Navy = trust anchor, primary brand
+- White / warm canvas = calm surfaces
 
 **Never use color alone** to indicate trip classification (pair with icon + label).
 
@@ -21,19 +23,21 @@ Color communicates **state and trust**, not brand vanity.
 
 ## Brand Palette
 
-### Primary — Trust Navy
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `brand-900` | #0A1628 | #E8EDF4 | Primary text on brand |
-| `brand-700` | #1A3A5C | #B8C9DC | Headers, nav |
-| `brand-500` | #2B5F8A | #6B9BC4 | Primary actions |
-| `brand-100` | #E8F0F7 | #1A2A3D | Brand backgrounds |
+### Primary — Forest Green (locked)
+| Token | Light | Use |
+|---|---|---|
+| `forest-900` | #0B2E1F | Headers, brand marks |
+| `forest-800` | #13402C | Dark cards / membership |
+| `forest-700` | #1B5538 | Primary actions, tab focus |
+| `forest-600` | #236B47 | Borders, links |
+| `forest-500` | #2D8056 | Accents / focus |
+| `forest-100` | #E8F3ED | Soft brand backgrounds |
 
-### Accent — Proof Green
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `proof-600` | #1B7D4E | #4ADE80 | Confirmed business |
-| `proof-100` | #E6F5ED | #0D2818 | Success backgrounds |
+### Accent — Protected / Proof Green
+| Token | Light | Use |
+|---|---|---|
+| `protected-600` / `proof-600` | #1B7D4E | Confirmed business |
+| `protected-100` / `proof-100` | #E6F5ED | Success backgrounds |
 
 ### Warning — Review Amber
 | Token | Light | Dark | Use |
@@ -63,7 +67,7 @@ Color communicates **state and trust**, not brand vanity.
 | `surface-primary` | neutral-0 | Main background |
 | `surface-secondary` | neutral-100 | Cards |
 | `border-default` | neutral-200 | Dividers, inputs |
-| `action-primary` | brand-500 | Primary buttons |
+| `action-primary` | forest-700 | Primary buttons |
 | `action-destructive` | #DC2626 | Delete trip (confirm required) |
 | `status-offline` | neutral-600 | Offline indicator |
 | `status-syncing` | brand-500 | Sync in progress |

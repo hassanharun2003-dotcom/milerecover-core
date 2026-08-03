@@ -22,3 +22,36 @@ jest.mock('expo-constants', () => ({
     },
   },
 }));
+
+jest.mock('expo-notifications', () => ({
+  getPermissionsAsync: jest.fn(async () => ({ granted: false, status: 'undetermined', canAskAgain: true })),
+  requestPermissionsAsync: jest.fn(async () => ({ granted: false, status: 'denied', canAskAgain: true })),
+  scheduleNotificationAsync: jest.fn(async () => 'mock-id'),
+}));
+
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: () => React.createElement('DateTimePicker'),
+  };
+});
+
+jest.mock('expo-task-manager', () => ({
+  defineTask: jest.fn(),
+  isTaskDefined: jest.fn(() => false),
+  isAvailableAsync: jest.fn(async () => false),
+}));
+
+jest.mock('expo-location', () => ({
+  Accuracy: { Balanced: 3 },
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
+  getForegroundPermissionsAsync: jest.fn(async () => ({ status: 'undetermined', canAskAgain: true })),
+  getBackgroundPermissionsAsync: jest.fn(async () => ({ status: 'undetermined', canAskAgain: true })),
+  requestForegroundPermissionsAsync: jest.fn(async () => ({ status: 'denied', canAskAgain: true })),
+  requestBackgroundPermissionsAsync: jest.fn(async () => ({ status: 'denied', canAskAgain: true })),
+  watchPositionAsync: jest.fn(async () => ({ remove: jest.fn() })),
+  hasStartedLocationUpdatesAsync: jest.fn(async () => false),
+  startLocationUpdatesAsync: jest.fn(async () => undefined),
+  stopLocationUpdatesAsync: jest.fn(async () => undefined),
+}));

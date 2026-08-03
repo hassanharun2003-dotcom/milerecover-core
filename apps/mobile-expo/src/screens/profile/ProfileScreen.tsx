@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -9,16 +9,18 @@ import {
   ListRow,
   ListSection,
   MembershipBanner,
-  ScrollScreen,
-  SectionHeader,
   SecondaryButton,
+  StatusCard,
+  TabScreen,
   text,
 } from '../../design-system';
-import { PLAN_FIXTURES } from '../../fixtures/subscription';
 import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
-import { useApp } from '../../store/AppContext';
-import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { protectionLabel, voiceForDrivingType } from '../../product/copy';
+import { useProduct } from '../../product/ProductContext';
+import { DRIVING_PATTERN_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
+import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
+import { useApp } from '../../store/AppContext';
 
 type ProfileNav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Profile'>,
@@ -27,70 +29,150 @@ type ProfileNav = CompositeNavigationProp<
 
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
-  const { resetLocalData } = useApp();
-  const { product, setDemoScenario, resetProductData, resetOnboarding } = useProduct();
-  const plan = PLAN_FIXTURES.find((p) => p.id === product.selectedPlan);
+  const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable } = useApp();
+  const {
+    product,
+    setDemoScenario,
+    setDemoModeEnabled,
+    resetProductData,
+    resetOnboarding,
+  } = useProduct();
+  const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
+  const displayName = product.preferredName?.trim() || 'Your profile';
+  const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label;
+  const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label;
+  const voice = voiceForDrivingType(product.drivingType);
+
+  useEffect(() => {
+    void getTrackingDiagnostics().then(setDiagnostics);
+  }, [product.trackingEnabled, product.entitlement.planId]);
 
   return (
-    <ScrollScreen>
+    <TabScreen>
       <View style={{ marginBottom: spacing.lg }}>
-        <Text style={text.title} accessibilityRole="header">Alex Johnson</Text>
-        <Text style={text.body}>alex@example.com</Text>
+        <Text style={text.title} accessibilityRole="header">
+          {displayName}
+        </Text>
+        <Text style={text.body}>
+          {product.preferredName ? 'Saved on this device' : 'Add a preferred name anytime.'}
+        </Text>
       </View>
 
       <MembershipBanner
-        planName={plan?.id === 'free' ? 'MileRecover Free' : `MileRecover ${plan?.name ?? 'Free'}`}
-        detail={plan?.id === 'free' ? 'Upgrade when MileRecover has helped you' : 'Member · protection active'}
+        planName={
+          product.entitlement.planId === 'free'
+            ? 'You’re on Free'
+            : `MileRecover ${product.entitlement.planId.toUpperCase()}`
+        }
+        detail={
+          product.entitlement.status === 'trialActive'
+            ? 'Plus trial is active.'
+            : product.entitlement.planId === 'free'
+              ? 'Upgrade anytime when watching or PDF reports would help.'
+              : 'Purchases confirm in the App Store or Google Play.'
+        }
       />
       <SecondaryButton
-        label="View plans"
+        label="Manage plan"
         onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
-        accessibilityLabel="View subscription plans"
       />
 
-      <ListSection title="Driving setup">
-        <ListRow label="Vehicles" value={String(product.vehicles.length)} onPress={() => navigation.navigate('VehicleSetup')} />
-        <ListRow label="Work locations" onPress={() => navigation.navigate('WorkLocationSetup')} />
-        <ListRow label="Work schedule" value="Optional" />
+      <ListSection title="Profile">
+        <ListRow label="Preferred name" value={product.preferredName?.trim() || 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="Primary goal" value={primaryGoal ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="What gets in the way" value={product.selectedPainPoints.length ? String(product.selectedPainPoints.length) : 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="Driving pattern" value={drivingType ?? 'Not set'} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="Report style" value={voice.reportNoun} showChevron={false} />
       </ListSection>
 
-      <ListSection title="Bring your mileage">
-        <ListRow label="Import existing history" onPress={() => navigation.navigate('BringExistingMileage')} />
-        <ListRow label="Export defaults" onPress={() => navigation.navigate('ExportReport')} />
+      <ListSection title="Driving">
+        <ListRow
+          label="Vehicles"
+          value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add anytime'}
+          onPress={() => navigation.navigate('VehicleSetup')}
+        />
+        <ListRow
+          label="Familiar places"
+          value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}
+          onPress={() => navigation.navigate('WorkLocationSetup')}
+        />
       </ListSection>
 
-      <ListSection title="Protection and notifications">
-        <ListRow label="Tracking protection" onPress={() => navigation.navigate('ProtectionAlert')} />
-        <ListRow label="Notifications" value="On" />
-        <ListRow label="Battery guidance" value="Tips saved" />
+      <ListSection title="Records">
+        <ListRow
+          label="Coverage setup"
+          value={protectionLabel(product.protectionSetupState)}
+          onPress={() => navigation.navigate('ProtectionAlert')}
+        />
+        <ListRow
+          label="Watching status"
+          value={product.trackingEnabled ? 'On' : 'Off'}
+          onPress={() => navigation.navigate('TrackingActive')}
+        />
+        <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
+        <ListRow label="Export report" onPress={() => navigation.navigate('ExportReport')} />
       </ListSection>
 
-      <ListSection title="Trust and privacy">
-        <ListRow label="Data and privacy" />
-        <ListRow label="Help center" onPress={() => navigation.navigate('HelpSupport')} />
-        <ListRow label="About MileRecover" onPress={() => navigation.navigate('About')} />
+      <StatusCard
+        variant={product.trackingEnabled && diagnostics?.backgroundLimited ? 'warning' : 'neutral'}
+        title="Coverage status"
+        body={
+          product.trackingEnabled && permissions.location === 'granted' && permissions.backgroundLocation === 'granted'
+            ? 'Protected — watching is on.'
+            : product.trackingEnabled || permissions.location === 'granted'
+              ? 'Partially protected — one permission or plan step may still help.'
+              : `Not yet — add drives anytime. Auto-tracking ${automaticCaptureAvailable ? 'is ready when you turn watching on with Plus.' : 'isn’t available on this device yet.'}`
+        }
+        emphasis="subtle"
+      />
+
+      <ListSection title="Privacy">
+        <ListRow
+          label="Data and privacy"
+          value="Local first"
+          onPress={() => navigation.navigate('Privacy')}
+        />
+      </ListSection>
+
+      <ListSection title="Help">
+        <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
+        <ListRow label="About" onPress={() => navigation.navigate('About')} />
+        <ListRow
+          label="Restart onboarding"
+          onPress={() => {
+            resetOnboarding();
+            restartOnboarding();
+          }}
+        />
       </ListSection>
 
       {product.showDevTools ? (
-        <ListSection title="Development only">
-          {DEMO_SCENARIO_LIST.map((s) => (
-            <ListRow
-              key={s.id}
-              label={s.label}
-              value={product.demoScenario === s.id ? 'Active' : undefined}
-              onPress={() => setDemoScenario(s.id)}
-            />
-          ))}
-          <ListRow label="Reset onboarding" onPress={resetOnboarding} />
+        <ListSection title="Internal preview tools">
           <ListRow
-            label="Clear local development data"
+            label="Demo mode"
+            value={product.demoModeEnabled ? 'On' : 'Off'}
+            onPress={() => setDemoModeEnabled(!product.demoModeEnabled)}
+          />
+          {product.demoModeEnabled
+            ? DEMO_SCENARIO_LIST.map((scenario) => (
+                <ListRow
+                  key={scenario.id}
+                  label={scenario.label}
+                  value={product.demoScenario === scenario.id ? 'Active' : undefined}
+                  onPress={() => setDemoScenario(scenario.id)}
+                />
+              ))
+            : null}
+          <ListRow
+            label="Reset preview data"
             onPress={() => {
               void resetProductData();
               resetLocalData();
+              restartOnboarding();
             }}
           />
         </ListSection>
       ) : null}
-    </ScrollScreen>
+    </TabScreen>
   );
 }

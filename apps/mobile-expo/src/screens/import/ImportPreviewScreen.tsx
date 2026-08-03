@@ -1,57 +1,90 @@
-import React, { useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { analyzeCsvImport, importRowsToTrips } from '@milerecover/domain';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
   EvidenceRow,
+  FormError,
   ListSection,
   ListRow,
   LoadingState,
   PrimaryButton,
   ScrollScreen,
-  SectionHeader,
   SecondaryButton,
   StatusCard,
   SummaryCard,
 } from '../../design-system';
-import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { useProduct } from '../../product/ProductContext';
+import { useApp } from '../../store/AppContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+function batchId(): string {
+  return `import-${Date.now()}`;
+}
+
 export function ImportPreviewScreen() {
   const navigation = useNavigation<Nav>();
-  const { product, setImportPhase } = useProduct();
+  const { state, upsertTrip } = useApp();
+  const { product, setImportPhase, addImportBatch } = useProduct();
+  const [error, setError] = useState<string | null>(null);
+  const analysis = useMemo(
+    () => analyzeCsvImport(product.importCsvText ?? ''),
+    [product.importCsvText],
+  );
+  const importPlan = useMemo(
+    () => importRowsToTrips(analysis.validRows, state.trips),
+    [analysis.validRows, state.trips],
+  );
+  const issueCount = analysis.issues.length;
+  const duplicateCount = importPlan.duplicatesSkipped;
+  const importableCount = importPlan.trips.length;
 
-  useEffect(() => {
-    if (product.importPhase !== 'processing') return;
-    const timer = setTimeout(() => setImportPhase('preview'), 800);
-    return () => clearTimeout(timer);
-  }, [product.importPhase, setImportPhase]);
+  const finishImport = () => {
+    if (!product.importCsvText) {
+      setError('Pick a CSV file before importing.');
+      return;
+    }
+    importPlan.trips.forEach((trip) => upsertTrip(trip));
+    addImportBatch({
+      id: batchId(),
+      fileLabel: product.importFileLabel ?? 'CSV import',
+      importedCount: importPlan.trips.length,
+      skippedCount: analysis.skipped,
+      duplicateCount,
+      createdAt: Date.now(),
+    });
+    navigation.navigate('MainTabs', { screen: 'Home' });
+  };
 
   if (product.importPhase === 'processing') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Import preview" />
-        <LoadingState message="Organizing your mileage…" />
-        <SecondaryButton label="Cancel import" onPress={() => { setImportPhase('idle'); navigation.goBack(); }} />
+        <LoadingState message="Organizing your mileage..." />
+        <SecondaryButton
+          label="Cancel"
+          onPress={() => {
+            setImportPhase('idle');
+            navigation.goBack();
+          }}
+        />
       </ScrollScreen>
     );
   }
 
-  if (product.importPhase === 'failed') {
+  if (!product.importCsvText || product.importPhase === 'failed') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Import preview" />
         <StatusCard
           variant="danger"
-          title="Import could not finish"
-          body="Your file is still here. Nothing was discarded. Try again or review unsupported rows."
-          actionLabel="Try again"
-          onAction={() => setImportPhase('processing', product.importFileLabel)}
+          title="No readable CSV selected"
+          body="Go back and choose a CSV file. Nothing has been imported."
+          emphasis="hero"
         />
-        <SecondaryButton label="Go back" onPress={() => navigation.goBack()} />
+        <SecondaryButton label="Pick a CSV" onPress={() => navigation.navigate('BringExistingMileage')} />
       </ScrollScreen>
     );
   }
@@ -61,45 +94,53 @@ export function ImportPreviewScreen() {
       footer={
         <View style={{ padding: spacing.md, gap: spacing.sm }}>
           <PrimaryButton
-            label="Finish import"
-            onPress={() => {
-              setImportPhase('success');
-              navigation.navigate('MainTabs', { screen: 'Home' });
-            }}
+            label={importableCount > 0 ? `Import ${importableCount} trip${importableCount === 1 ? '' : 's'}` : 'No trips to import'}
+            onPress={finishImport}
+            disabled={importableCount === 0}
           />
           <SecondaryButton
-            label="Review exceptions"
-            onPress={() => {
-              setImportPhase('review_required');
-              navigation.navigate('ImportExceptionReview');
-            }}
+            label="Review issues"
+            onPress={() => navigation.navigate('ImportExceptionReview')}
+            disabled={issueCount === 0 && duplicateCount === 0}
           />
         </View>
       }
     >
-      <SectionHeader title="Import preview" />
       <StatusCard
-        variant="success"
-        title="Ready to review"
-        body="Nothing was silently discarded. Unsupported rows stay available for your review."
+        variant={importableCount > 0 ? 'success' : 'warning'}
+        title="CSV preview"
+        body="These counts come from your selected file. Rows with issues or duplicates are not silently imported."
+        emphasis="hero"
       />
       <SummaryCard
         items={[
-          { label: 'Trips found', value: '214' },
-          { label: 'Distance', value: '1,842 mi' },
-          { label: 'Need review', value: '12' },
+          { label: 'Valid rows', value: String(analysis.validRows.length) },
+          { label: 'Importable', value: String(importableCount) },
+          { label: 'Issues', value: String(issueCount + duplicateCount) },
         ]}
       />
-      <ListSection title="Import details">
-        <EvidenceRow label="Selected file" value={product.importFileLabel ?? 'Sample import'} />
-        <EvidenceRow label="Date range" value="Jan 1 – Jul 31, 2026" />
-        <EvidenceRow label="Vehicles detected" value="2" />
-        <EvidenceRow label="Duplicates handled" value="8 merged safely" />
-        <EvidenceRow label="Rows not understood" value="3 kept for review" />
+      {error ? <FormError message={error} /> : null}
+      <ListSection title="Column mapping">
+        <EvidenceRow label="Selected file" value={product.importFileLabel ?? 'CSV import'} />
+        <EvidenceRow label="Headers found" value={analysis.headers.length > 0 ? analysis.headers.join(', ') : 'None'} />
+        <EvidenceRow label="Date column" value={analysis.headers.some((h) => /date|day/i.test(h)) ? 'Detected' : 'Missing'} />
+        <EvidenceRow label="Distance column" value={analysis.headers.some((h) => /mile|distance/i.test(h)) ? 'Detected' : 'Missing'} />
+        <EvidenceRow label="Purpose column" value={analysis.headers.some((h) => /purpose|reason/i.test(h)) ? 'Detected if present' : 'Optional'} />
       </ListSection>
-      <ListSection title="What happens next">
-        <ListRow label="Organized trips" value="Ready in Review" />
-        <ListRow label="Unsupported rows" value="Never silently discarded" />
+      <ListSection title="Import details">
+        <EvidenceRow label="Rows skipped by parser" value={String(analysis.skipped)} />
+        <EvidenceRow label="Duplicates skipped" value={String(duplicateCount)} />
+        <EvidenceRow label="Rows needing review" value={String(issueCount)} />
+      </ListSection>
+      <ListSection title="Preview rows">
+        {analysis.validRows.slice(0, 8).map((row) => (
+          <EvidenceRow
+            key={row.rowNumber}
+            label={`Row ${row.rowNumber}: ${row.purpose}`}
+            value={`${row.date}, ${row.distanceMiles.toFixed(1)} mi`}
+          />
+        ))}
+        {analysis.validRows.length === 0 ? <ListRow label="No valid rows found" value="Check issues" /> : null}
       </ListSection>
     </ScrollScreen>
   );
@@ -107,16 +148,49 @@ export function ImportPreviewScreen() {
 
 export function ImportExceptionReviewScreen() {
   const navigation = useNavigation<Nav>();
+  const { state } = useApp();
+  const { product } = useProduct();
+  const analysis = useMemo(
+    () => analyzeCsvImport(product.importCsvText ?? ''),
+    [product.importCsvText],
+  );
+  const importPlan = useMemo(
+    () => importRowsToTrips(analysis.validRows, state.trips),
+    [analysis.validRows, state.trips],
+  );
+
   return (
     <ScrollScreen>
-      <SectionHeader title="Import exceptions" />
-      <SummaryCard items={[{ label: 'Rows to review', value: '3' }]} />
-      <ListSection title="Needs your input">
-        <ListRow label="Row 42 · distance unclear" value="Review" onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })} />
-        <ListRow label="Row 87 · duplicate date" value="Review" />
-        <ListRow label="Row 103 · unknown vehicle" value="Review" />
+      <StatusCard
+        variant="info"
+        title="Rows to check"
+        body="Invalid rows and duplicates are left out. Fix the CSV and import again when you want those rows included."
+        emphasis="subtle"
+      />
+      <SummaryCard
+        items={[
+          { label: 'Row issues', value: String(analysis.issues.length) },
+          { label: 'Duplicates', value: String(importPlan.duplicatesSkipped) },
+        ]}
+      />
+      <ListSection title="Issues">
+        {analysis.issues.length === 0 ? (
+          <ListRow label="No parser issues found" value="Good" showChevron={false} />
+        ) : (
+          analysis.issues.map((issue) => (
+            <ListRow
+              key={`${issue.rowNumber}-${issue.message}`}
+              label={issue.rowNumber > 0 ? `Row ${issue.rowNumber}` : 'File'}
+              value={issue.message}
+              showChevron={false}
+            />
+          ))
+        )}
+        {importPlan.duplicatesSkipped > 0 ? (
+          <ListRow label="Duplicate rows" value={`${importPlan.duplicatesSkipped} skipped`} showChevron={false} />
+        ) : null}
       </ListSection>
-      <PrimaryButton label="Done reviewing" onPress={() => navigation.goBack()} />
+      <PrimaryButton label="Back to preview" onPress={() => navigation.goBack()} />
     </ScrollScreen>
   );
 }

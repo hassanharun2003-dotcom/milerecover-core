@@ -1,36 +1,56 @@
-import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
-import { ONBOARDING_STEP_ORDER } from '../../product/types';
 import {
-  AppScreen,
-  ChecklistRow,
+  DRIVING_PATTERN_OPTIONS,
+  ONBOARDING_STEP_ORDER,
+  PAIN_POINT_OPTIONS,
+  PRIMARY_GOAL_OPTIONS,
+  type PainPoint,
+  type ProductOnboardingStep,
+} from '../../product/types';
+import { nextActionForGoal } from '../../product/copy';
+import {
+  OnboardingScreen,
   PrimaryButton,
   ProgressIndicator,
-  ScrollScreen,
   SecondaryButton,
   SelectionCard,
+  SoftPanel,
   StatusCard,
-  SummaryCard,
   TertiaryButton,
-  WelcomeHero,
+  text,
 } from '../../design-system';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
+import { CarRouteHero } from '../../components/CarRouteHero';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 
-const NEED_OPTIONS = [
-  'Protect future drives',
-  'Recover possible missing mileage',
-  'Bring existing history',
-  'Prepare a report',
-];
+function optionLabel<T extends string>(options: { id: T; label: string }[], id: T | null): string {
+  return options.find((option) => option.id === id)?.label ?? 'Not set';
+}
 
-const USAGE_OPTIONS = [
-  'Employee reimbursement',
-  'Gig or independent driving',
-  'Small business',
-  'Other work driving',
-];
+function readyBody(goal: typeof PRIMARY_GOAL_OPTIONS[number]['id'] | null, pains: PainPoint[]): string {
+  if (pains.includes('older_mileage')) {
+    return 'You’re ready to bring older miles back together — nothing is added without your say-so.';
+  }
+  if (goal === 'employee_reimbursement') {
+    return 'Your reimbursement record is ready to begin.';
+  }
+  if (goal === 'gig_delivery') {
+    return 'You’re ready to protect your first work shift.';
+  }
+  if (goal === 'self_employed_business') {
+    return 'Your business mileage record is ready.';
+  }
+  return 'You’re set. Home will show what to do next.';
+}
+
+function remapLegacyStep(step: ProductOnboardingStep): ProductOnboardingStep {
+  if (ONBOARDING_STEP_ORDER.includes(step)) return step;
+  if (step === 'permissions_education') return 'ready';
+  return 'protection_education';
+}
 
 export function OnboardingFlow() {
   const { finishOnboarding } = useApp();
@@ -38,177 +58,213 @@ export function OnboardingFlow() {
     product,
     advanceOnboarding,
     backOnboarding,
-    setOnboardingNeed,
-    setOnboardingUsage,
-    skipOptionalSetup,
+    patchOnboarding,
+    setOnboardingStep,
+    setPrimaryGoal,
+    setSelectedPainPoints,
+    setDrivingType,
+    setProtectionSetupState,
+    completeProductOnboarding,
   } = useProduct();
 
-  const step = product.onboardingStep;
-  const stepIndex = ONBOARDING_STEP_ORDER.indexOf(step);
+  const step = remapLegacyStep(product.onboardingStep);
+  const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
+  const next = nextActionForGoal(product.primaryGoal);
+  const selectedPainPoints = product.selectedPainPoints;
 
-  const content = useMemo(() => {
-    switch (step) {
-      case 'welcome':
-        return {
-          title: 'Protect every work mile.',
-          body: 'We track new drives, find what others miss, and help you prove every mile with confidence.',
-          primary: 'Protect my miles',
-          secondary: 'Bring existing mileage',
-          onPrimary: advanceOnboarding,
-          onSecondary: () => {
-            setOnboardingNeed('Bring existing history');
-            advanceOnboarding();
-          },
-        };
-      case 'need_selection':
-        return { mode: 'need' as const };
-      case 'usage_type':
-        return { mode: 'usage' as const };
-      case 'protection_setup':
-        return { mode: 'protection' as const };
-      case 'optional_setup':
-        return { mode: 'optional' as const };
-      case 'ready':
-        return { mode: 'ready' as const };
-      default:
-        return { mode: 'ready' as const };
+  useEffect(() => {
+    if (product.onboardingStep !== step) {
+      setOnboardingStep(step);
     }
-  }, [step, advanceOnboarding, setOnboardingNeed]);
+  }, [product.onboardingStep, setOnboardingStep, step]);
 
-  const finish = () => {
-    advanceOnboarding();
+  useEffect(() => {
+    logEvent(ANALYTICS_EVENTS.onboardingStepViewed, { step });
+  }, [step]);
+
+  const finish = (deepLink: boolean) => {
+    completeProductOnboarding(deepLink ? next.route : null);
+    logEvent(ANALYTICS_EVENTS.onboardingCompleted, {
+      goal: product.primaryGoal ?? 'unset',
+      painCount: product.selectedPainPoints.length,
+      nextAction: next.id,
+    });
     finishOnboarding();
   };
 
+  const togglePainPoint = (painPoint: PainPoint) => {
+    const nextPainPoints = selectedPainPoints.includes(painPoint)
+      ? selectedPainPoints.filter((item) => item !== painPoint)
+      : [...selectedPainPoints, painPoint];
+    setSelectedPainPoints(nextPainPoints);
+  };
+
+  const protectionPanels = useMemo(
+    () => [
+      ['A drive happens', 'MileRecover can quietly notice movement when you turn watching on.'],
+      ['You stay in control', 'Anything uncertain waits in Review. We never invent miles or silently decide work vs personal.'],
+    ],
+    [],
+  );
+
   return (
-    <AppScreen>
-      <ScrollScreen contentStyle={{ paddingTop: spacing.lg }}>
-        <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
-        {stepIndex > 0 ? <TertiaryButton label="Back" onPress={backOnboarding} accessibilityLabel="Go back to previous onboarding step" /> : null}
+    <OnboardingScreen>
+      <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+      {stepIndex > 0 ? (
+        <TertiaryButton
+          label="Back"
+          onPress={backOnboarding}
+          accessibilityLabel="Go back to previous onboarding step"
+        />
+      ) : null}
 
-        {'title' in content && content.title ? (
-          <View>
-            <WelcomeHero title={content.title} body={content.body ?? ''} />
-            <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-              <PrimaryButton label={content.primary!} onPress={content.onPrimary!} />
-              {'secondary' in content && content.secondary ? (
-                <SecondaryButton label={content.secondary} onPress={content.onSecondary!} />
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-
-        {content.mode === 'need' ? (
-          <View>
-            <StatusCard variant="info" title="What do you need today?" body="One choice is enough. You can change this later." />
-            {NEED_OPTIONS.map((opt) => (
-              <SelectionCard
-                key={opt}
-                title={opt}
-                selected={product.onboardingNeed === opt}
-                onPress={() => {
-                  setOnboardingNeed(opt);
-                  advanceOnboarding();
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {content.mode === 'usage' ? (
-          <View>
-            <StatusCard variant="info" title="How do you use work mileage?" body="This helps MileRecover speak your language—not an accountant's." />
-            {USAGE_OPTIONS.map((opt) => (
-              <SelectionCard
-                key={opt}
-                title={opt}
-                selected={product.onboardingUsage === opt}
-                onPress={() => {
-                  setOnboardingUsage(opt);
-                  advanceOnboarding();
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {content.mode === 'protection' ? (
-          <View>
-            <StatusCard
-              variant="info"
-              title="Set up your protection"
-              body="MileRecover works best with location and background access. We never pretend permissions are granted until you enable them."
+      {step === 'welcome' ? (
+        <View>
+          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Your miles. Protected. Nothing left behind.
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.sm }]}>
+            Capture, recover, review, and prove your work mileage — without inventing anything.
+          </Text>
+          <CarRouteHero />
+          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+            <PrimaryButton
+              label="Protect my miles"
+              onPress={() => {
+                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'protect' });
+                advanceOnboarding();
+              }}
             />
-            <View style={[cardShell, { marginBottom: spacing.md }]}>
-              <ChecklistRow label="Location access" status="pending" />
-              <ChecklistRow label="Background tracking" status="pending" />
-              <ChecklistRow label="Battery optimization" status="planned" />
-              <ChecklistRow label="Offline recording" status="planned" />
-            </View>
-            <StatusCard
-              variant="neutral"
-              title="Your data stays yours"
-              body="Trips are stored on your device first. Nothing is shared without your action."
+            <SecondaryButton
+              label="Bring existing mileage"
+              onPress={() => {
+                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'bring_existing' });
+                setPrimaryGoal('mixed');
+                setSelectedPainPoints(['older_mileage']);
+                setOnboardingStep('driving_pattern');
+              }}
             />
-            <PrimaryButton label="Continue" onPress={advanceOnboarding} />
           </View>
-        ) : null}
+        </View>
+      ) : null}
 
-        {content.mode === 'optional' ? (
-          <View>
-            <StatusCard
-              variant="info"
-              title="Optional setup"
-              body="These details help later reports. You can add them from Profile after Home—skipping is always safe."
-            />
+      {step === 'primary_goal' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>
+            What do you need MileRecover to protect?
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Tap one. You can change this later in Profile.
+          </Text>
+          {PRIMARY_GOAL_OPTIONS.map((opt) => (
             <SelectionCard
-              title="Remind me: add a vehicle"
-              body="Available from Profile after setup—not enabled yet"
-              selected={false}
-              onPress={advanceOnboarding}
+              key={opt.id}
+              title={opt.label}
+              body={opt.body}
+              selected={product.primaryGoal === opt.id}
+              onPress={() => {
+                setPrimaryGoal(opt.id);
+                advanceOnboarding();
+              }}
             />
-            <SelectionCard
-              title="Remind me: add work locations"
-              body="Available from Profile after setup—not enabled yet"
-              selected={false}
-              onPress={advanceOnboarding}
-            />
-            <SelectionCard
-              title="Remind me: set work pattern"
-              body="Available from Profile after setup—not enabled yet"
-              selected={false}
-              onPress={advanceOnboarding}
-            />
-            <TertiaryButton label="Skip for now" onPress={skipOptionalSetup} />
-          </View>
-        ) : null}
+          ))}
+        </View>
+      ) : null}
 
-        {content.mode === 'ready' ? (
-          <View>
-            <StatusCard
-              variant="success"
-              title="You're ready to explore"
-              body="Onboarding is complete. Location and background protection are not granted yet—they unlock when tracking is implemented and you approve system prompts."
+      {step === 'pain_points' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>What usually causes the most trouble?</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Tap anything that sounds familiar. One is enough.
+          </Text>
+          {PAIN_POINT_OPTIONS.map((opt) => (
+            <SelectionCard
+              key={opt.id}
+              title={opt.label}
+              selected={selectedPainPoints.includes(opt.id)}
+              onPress={() => togglePainPoint(opt.id)}
             />
-            <SummaryCard
-              items={[
-                { label: 'Background access', value: 'Not granted yet' },
-                { label: 'Location access', value: 'Not granted yet' },
-                { label: 'Battery optimization', value: 'Guidance only' },
-              ]}
+          ))}
+          <PrimaryButton
+            label="Continue"
+            onPress={advanceOnboarding}
+            disabled={selectedPainPoints.length === 0}
+          />
+        </View>
+      ) : null}
+
+      {step === 'driving_pattern' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>How do your work drives look?</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>Tap one. We’ll use the right words.</Text>
+          {DRIVING_PATTERN_OPTIONS.map((opt) => (
+            <SelectionCard
+              key={opt.id}
+              title={opt.label}
+              selected={product.drivingType === opt.id}
+              onPress={() => {
+                setDrivingType(opt.id);
+                advanceOnboarding();
+              }}
             />
-            <PrimaryButton label="Go to Home" onPress={finish} accessibilityLabel="Finish onboarding and go to Home" />
+          ))}
+        </View>
+      ) : null}
+
+      {step === 'protection_education' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            You stay in control. We never invent miles or silently decide uncertain drives.
+          </Text>
+          <CarRouteHero compact />
+          {protectionPanels.map(([title, body]) => (
+            <SoftPanel key={title}>
+              <Text style={[text.subtitle, { marginBottom: spacing.xs }]}>{title}</Text>
+              <Text style={text.body}>{body}</Text>
+            </SoftPanel>
+          ))}
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              setProtectionSetupState('educated');
+              patchOnboarding({
+                protectionEducationAcknowledged: true,
+                completedSteps: [...product.onboarding.completedSteps, 'protection_education'],
+              });
+              advanceOnboarding();
+            }}
+          />
+        </View>
+      ) : null}
+
+      {step === 'ready' ? (
+        <View>
+          <StatusCard
+            variant="success"
+            title="You’re ready"
+            body={readyBody(product.primaryGoal, product.selectedPainPoints)}
+            emphasis="hero"
+          />
+          <Text style={[text.caption, { marginBottom: spacing.md }]}>
+            {PRIMARY_GOAL_OPTIONS.find((g) => g.id === product.primaryGoal)?.label ?? 'Your miles'}
+            {' · '}
+            {optionLabel(DRIVING_PATTERN_OPTIONS, product.drivingType)}
+          </Text>
+          <PrimaryButton
+            label="Go to Home"
+            onPress={() => finish(false)}
+            accessibilityLabel="Finish onboarding and go to Home"
+          />
+          <View style={{ marginTop: spacing.sm }}>
+            <SecondaryButton
+              label={next.cta}
+              onPress={() => finish(true)}
+              accessibilityLabel={next.cta}
+            />
           </View>
-        ) : null}
-      </ScrollScreen>
-    </AppScreen>
+        </View>
+      ) : null}
+    </OnboardingScreen>
   );
 }
-
-const cardShell = {
-  backgroundColor: '#FFFFFF',
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: '#E7E5E4',
-  padding: 16,
-};

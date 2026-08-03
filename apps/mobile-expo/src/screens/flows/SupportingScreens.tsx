@@ -1,11 +1,31 @@
-import React, { useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Text, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
+  buildMileageCsv,
+  buildMileageReportData,
+  capabilitiesForEntitlement,
+  createManualTripRecord,
+  csvFilename,
+  formatDateLocal,
+  formatTimeLocal,
+  reportHasExportableTrips,
+  shouldOfferTrial,
+  validateManualTripInput,
+  type MileageReportData,
+  type ReportPeriod,
+  type TripEvidenceMethod,
+  type TripRecord,
+} from '@milerecover/domain';
+import {
+  DestructiveButton,
   EvidenceRow,
+  FixedHeaderScrollScreen,
+  FormError,
   FormField,
   ListSection,
   LoadingState,
@@ -13,62 +33,419 @@ import {
   PrimaryButton,
   ScrollScreen,
   SecondaryButton,
-  SectionHeader,
+  SelectionCard,
+  SegmentedControl,
+  SoftPanel,
   StatusCard,
   text,
 } from '../../design-system';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
-import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { nextActionForGoal, voiceForDrivingType } from '../../product/copy';
+import { useProduct } from '../../product/ProductContext';
+import type { ReviewDecision, VehicleDraft, WorkLocationDraft } from '../../product/types';
+import { writeTextFile, shareFile } from '../../services/fileShare';
+import { generateAndSharePdf } from '../../services/pdfReport';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
+import {
+  buildUserDataExport,
+  clearLocalPrivacyCaches,
+  writeUserDataExportFile,
+} from '../../services/dataPrivacy';
+import { getPurchasePort, trialRenewalCopy, type PurchasePeriod } from '../../services/purchases';
+import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
+import { useApp } from '../../store/AppContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+const EVIDENCE_OPTIONS: { id: TripEvidenceMethod; label: string; body: string }[] = [
+  { id: 'map_estimate', label: 'Route calculated', body: 'Distance from a calculated route or map check.' },
+  { id: 'odometer', label: 'Odometer', body: 'Start/end odometer or written log.' },
+  { id: 'calendar_receipt_note', label: 'Another record', body: 'Calendar, receipt, or other record.' },
+  { id: 'user_estimate', label: 'Best estimate', body: 'Best memory — clearly labeled as estimated.' },
+];
+
+const VEHICLE_YEAR_CHOICES = Array.from({ length: 30 }, (_, index) => String(new Date().getFullYear() - index));
+const COMMON_MAKES = ['Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan', 'Hyundai', 'Kia', 'Subaru', 'Tesla', 'Other'];
+
+function localId(prefix: string): string {
+  return `${prefix}-${Date.now()}`;
+}
+
+function parseDateAndTime(date: string, time: string): number | null {
+  const match = date.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const timeMatch = time.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match || !timeMatch) return null;
+  const ms = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    Number(timeMatch[1]),
+    Number(timeMatch[2]),
+    0,
+    0,
+  ).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function periodFromState(period: { id: string; label: string; startAt: number; endAt: number }): ReportPeriod {
+  return { kind: 'custom', ...period };
+}
+
+function vehicleLabel(vehicle: VehicleDraft): string {
+  return vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
+}
+
+function vehicleLookup(vehicles: VehicleDraft[]): Record<string, string> {
+  return vehicles.reduce<Record<string, string>>((acc, vehicle) => {
+    acc[vehicle.id] = vehicleLabel(vehicle);
+    return acc;
+  }, {});
+}
+
+function reportData(
+  trips: TripRecord[],
+  period: ReportPeriod,
+  userName: string | null,
+  drivingType: ReturnType<typeof voiceForDrivingType> | null,
+): MileageReportData {
+  return buildMileageReportData({
+    trips,
+    period,
+    userName,
+    mileageUseType: drivingType?.reportNoun ?? null,
+  });
+}
+
 export function ManualTripScreen() {
   const navigation = useNavigation<Nav>();
-  const { addManualTrip } = useProduct();
-  const [distance, setDistance] = useState('12.4');
-  const [purpose, setPurpose] = useState('Client visit');
+  const route = useRoute<RouteProp<RootStackParamList, 'ManualTrip'>>();
+  const { state, upsertTrip, deleteTrip } = useApp();
+  const { product } = useProduct();
+  const existing = route.params?.tripId
+    ? state.trips.find((trip) => trip.id === route.params?.tripId)
+    : null;
+  const initialStart = existing ? new Date(existing.startAt) : new Date();
+  const initialEnd = existing ? new Date(existing.endAt) : new Date(Date.now() + 30 * 60000);
+  const [driveDate, setDriveDate] = useState(initialStart);
+  const [startTime, setStartTime] = useState(initialStart);
+  const [endTime, setEndTime] = useState(initialEnd);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [addTime, setAddTime] = useState(Boolean(existing));
+  const [distance, setDistance] = useState(existing ? existing.distanceMiles.toString() : '');
+  const [purpose, setPurpose] = useState(existing?.purpose ?? '');
+  const [startLabel, setStartLabel] = useState(existing?.startLabel ?? '');
+  const [endLabel, setEndLabel] = useState(existing?.endLabel ?? '');
+  const [vehicleId, setVehicleId] = useState<string | null>(existing?.vehicleId ?? null);
+  const [notes, setNotes] = useState(existing?.notes ?? '');
+  const [evidenceMethod, setEvidenceMethod] = useState<TripEvidenceMethod | null>(
+    existing?.evidenceMethod ?? 'user_estimate',
+  );
+  const [classification, setClassification] = useState<'work' | 'personal' | 'later'>(
+    existing?.classification === 'business'
+      ? 'work'
+      : existing?.classification === 'personal'
+        ? 'personal'
+        : existing
+          ? 'later'
+          : 'work',
+  );
+  const [showDetails, setShowDetails] = useState(
+    Boolean(existing?.vehicleId || existing?.notes || existing?.purpose),
+  );
   const [error, setError] = useState<string | null>(null);
 
+  const purposeChips = (() => {
+    switch (product.primaryGoal) {
+      case 'employee_reimbursement':
+        return ['Client visit', 'Between work locations', 'Meeting or training', 'Airport or business travel', 'Other work drive'];
+      case 'gig_delivery':
+        return ['Delivery', 'Pickup', 'Repositioning', 'Supply or fuel stop', 'Other work drive'];
+      case 'self_employed_business':
+        return ['Client visit', 'Supplies', 'Bank or post office', 'Business meeting', 'Other work drive'];
+      default:
+        return ['Client visit', 'Delivery', 'Between work locations', 'Business meeting', 'Other work drive'];
+    }
+  })();
+  const customPurpose = purpose.length > 0 && !purposeChips.includes(purpose);
+  const placeChips = [
+    ...product.workLocations.map((location) => location.label),
+    'Home',
+    'Work',
+  ].filter((label, index, all) => label && all.indexOf(label) === index);
+
+  const applyDateOffset = (daysBack: number) => {
+    const next = new Date();
+    next.setDate(next.getDate() - daysBack);
+    setDriveDate(next);
+    setShowDatePicker(false);
+  };
+
+  const composeDateTime = (day: Date, time: Date, fallbackHour: number, fallbackMinute: number): number => {
+    const next = new Date(day);
+    next.setHours(
+      addTime ? time.getHours() : fallbackHour,
+      addTime ? time.getMinutes() : fallbackMinute,
+      0,
+      0,
+    );
+    return next.getTime();
+  };
+
   const save = () => {
-    const miles = parseFloat(distance);
-    if (!distance.trim() || Number.isNaN(miles) || miles <= 0) {
-      setError('Enter a distance greater than zero.');
+    if (purpose === 'Other work drive') {
+      setError('Enter a short purpose for Other work drive.');
       return;
     }
-    if (!purpose.trim()) {
-      setError('Add a short purpose so future you remembers this drive.');
+    const startAt = composeDateTime(driveDate, startTime, 9, 0);
+    const endAt = composeDateTime(driveDate, endTime, 9, 30);
+    const input = {
+      id: existing?.id,
+      startAt,
+      endAt,
+      distanceMiles: Number.parseFloat(distance),
+      purpose,
+      startLabel,
+      endLabel,
+      vehicleId,
+      notes,
+      evidenceMethod: evidenceMethod ?? 'user_estimate',
+      confirmAsWork: classification === 'work',
+    };
+    const errors = validateManualTripInput(input);
+    if (errors.length > 0) {
+      setError(errors.map((item) => item.message).join(' '));
       return;
     }
-    setError(null);
-    addManualTrip({ date: 'Today', distanceMiles: miles, purpose: purpose.trim() });
+    const created = createManualTripRecord(input);
+    const trip =
+      classification === 'personal'
+        ? { ...created, status: 'personal' as const, classification: 'personal' as const, confidence: 'high' as const }
+        : classification === 'later'
+          ? { ...created, status: 'pending' as const, classification: 'unclassified' as const, confidence: 'medium' as const }
+          : created;
+    upsertTrip({
+      ...trip,
+      source: existing?.source ?? trip.source,
+      createdAt: existing?.createdAt ?? trip.createdAt,
+      updatedAt: Date.now(),
+    });
+    logEvent(ANALYTICS_EVENTS.manualTripSaved, {
+      classification,
+      hasTime: addTime,
+      hasVehicle: Boolean(vehicleId),
+      hasPlaces: Boolean(startLabel || endLabel),
+    });
     navigation.goBack();
+  };
+
+  const confirmDelete = () => {
+    if (!existing) return;
+    Alert.alert('Delete this trip?', 'This removes the trip from your local record.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deleteTrip(existing.id);
+          navigation.goBack();
+        },
+      },
+    ]);
   };
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Add manual trip" />
-      <StatusCard variant="info" title="Manual entry" body="Use this when a drive was not captured automatically. You stay in control." />
-      <FormField label="Date" value="Today" />
-      <FormField label="Distance (miles)" value={distance} onChangeText={setDistance} placeholder="0.0" />
-      <FormField label="Purpose" value={purpose} onChangeText={setPurpose} placeholder="Client visit" />
-      {error ? <Text style={[text.body, { color: '#B91C1C', marginBottom: spacing.sm }]} accessibilityRole="alert">{error}</Text> : null}
-      <PrimaryButton label="Save manual trip" onPress={save} />
+      <StatusCard
+        variant="info"
+        title={existing ? 'Edit this drive' : 'Add a drive'}
+        body="Three quick steps. We won’t invent a route."
+        emphasis="subtle"
+      />
+
+      <ListSection title="1 · Work or personal?">
+        <SegmentedControl
+          value={classification}
+          onChange={setClassification}
+          options={[
+            { label: 'Work', value: 'work' },
+            { label: 'Personal', value: 'personal' },
+            { label: 'Later', value: 'later' },
+          ]}
+        />
+      </ListSection>
+
+      <ListSection title="2 · Start & end">
+        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.sm }}>
+          <SecondaryButton label="Today" onPress={() => applyDateOffset(0)} />
+          <SecondaryButton label="Yesterday" onPress={() => applyDateOffset(1)} />
+          <SecondaryButton label="Pick date" onPress={() => setShowDatePicker((value) => !value)} />
+        </View>
+        <EvidenceRow label="Date" value={formatDateLocal(driveDate.getTime())} />
+        {showDatePicker ? (
+          <DateTimePicker
+            value={driveDate}
+            mode="date"
+            onChange={(_, selected) => {
+              if (selected) setDriveDate(selected);
+            }}
+          />
+        ) : null}
+        <FormField label="Start" value={startLabel} onChangeText={setStartLabel} placeholder="Where you started" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm }}>
+          {placeChips.map((chip) => (
+            <SecondaryButton key={`start-${chip}`} label={chip} onPress={() => setStartLabel(chip)} />
+          ))}
+        </View>
+        <FormField label="End" value={endLabel} onChangeText={setEndLabel} placeholder="Where you finished" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {placeChips.map((chip) => (
+            <SecondaryButton key={`end-${chip}`} label={chip} onPress={() => setEndLabel(chip)} />
+          ))}
+        </View>
+      </ListSection>
+
+      <ListSection title="3 · Distance">
+        <FormField label="Miles" value={distance} onChangeText={setDistance} placeholder="0.0" />
+      </ListSection>
+
+      <SelectionCard
+        title="More details"
+        body="Purpose, time, vehicle, notes — optional."
+        selected={showDetails}
+        onPress={() => setShowDetails((value) => !value)}
+      />
+      {showDetails ? (
+        <>
+          <ListSection title="Purpose">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+              {purposeChips.map((chip) => (
+                <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
+              ))}
+            </View>
+            {purpose && purpose !== 'Other work drive' ? (
+              <EvidenceRow label="Selected purpose" value={purpose} />
+            ) : null}
+            {purpose === 'Other work drive' || customPurpose ? (
+              <FormField
+                label="Custom purpose"
+                value={purpose === 'Other work drive' ? '' : purpose}
+                onChangeText={(value) => setPurpose(value.trim() ? value : 'Other work drive')}
+                placeholder="Describe the work drive"
+              />
+            ) : null}
+          </ListSection>
+          <SelectionCard
+            title="Add time"
+            body={addTime ? 'Start and end time are included.' : 'Optional. Date alone is fine.'}
+            selected={addTime}
+            onPress={() => setAddTime((value) => !value)}
+          />
+          {addTime ? (
+            <>
+              <Text style={[text.caption, { marginBottom: spacing.xs }]}>Start time</Text>
+              <DateTimePicker
+                value={startTime}
+                mode="time"
+                onChange={(_, selected) => selected && setStartTime(selected)}
+              />
+              <Text style={[text.caption, { marginBottom: spacing.xs }]}>End time</Text>
+              <DateTimePicker
+                value={endTime}
+                mode="time"
+                onChange={(_, selected) => selected && setEndTime(selected)}
+              />
+            </>
+          ) : null}
+          {product.vehicles.length > 0 ? (
+            <ListSection title="Vehicle">
+              <EvidenceRow
+                label="Selected"
+                value={vehicleId ? vehicleLookup(product.vehicles)[vehicleId] : 'None'}
+              />
+              {product.vehicles.map((vehicle) => (
+                <SelectionCard
+                  key={vehicle.id}
+                  title={vehicleLabel(vehicle)}
+                  selected={vehicleId === vehicle.id}
+                  onPress={() => setVehicleId(vehicleId === vehicle.id ? null : vehicle.id)}
+                />
+              ))}
+            </ListSection>
+          ) : null}
+          <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional" />
+          <ListSection title="How you know the miles">
+            {EVIDENCE_OPTIONS.map((option) => (
+              <SelectionCard
+                key={option.id}
+                title={option.label}
+                body={option.body}
+                selected={evidenceMethod === option.id}
+                onPress={() => setEvidenceMethod(option.id)}
+              />
+            ))}
+          </ListSection>
+        </>
+      ) : null}
+      {error ? <FormError message={error} /> : null}
+      <PrimaryButton label={existing ? 'Save changes' : 'Save drive'} onPress={save} />
+      {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
     </ScrollScreen>
   );
 }
 
 export function TripDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'TripDetails'>>();
+  const navigation = useNavigation<Nav>();
+  const { state, classifyTrip } = useApp();
+  const { pushReviewHistory } = useProduct();
+  const trip = state.trips.find((item) => item.id === route.params.tripId);
+
+  if (!trip) {
+    return (
+      <ScrollScreen>
+        <StatusCard variant="warning" title="Trip not found" body="This record is no longer available." emphasis="hero" />
+      </ScrollScreen>
+    );
+  }
+
+  const classify = (decision: Exclude<ReviewDecision, null>) => {
+    const action = decision === 'work' ? 'work' : decision === 'personal' ? 'personal' : 'not_drive';
+    classifyTrip(trip.id, action);
+    pushReviewHistory({
+      id: `review-trip-${trip.id}`,
+      targetId: trip.id,
+      targetKind: 'trip',
+      previousSnapshot: trip,
+      decision,
+      decidedAt: Date.now(),
+      undoneAt: null,
+    });
+    navigation.goBack();
+  };
+
   return (
     <ScrollScreen>
-      <SectionHeader title="Trip details" />
-      <StatusCard variant="info" title="Uncertain route" body="Review the approximate route and confirm whether this was work." />
-      <ListSection title="Provenance">
-        <EvidenceRow label="Source" value="Partially recorded" />
-        <EvidenceRow label="Confidence" value="Approximate" />
-        <EvidenceRow label="Trip id" value={route.params.tripId} />
+      <StatusCard
+        variant="info"
+        title="Review this trip"
+        body="Confirm only what you know. Personal and rejected trips stay out of reports."
+        emphasis="subtle"
+      />
+      <ListSection title="Trip">
+        <EvidenceRow label="Date" value={formatDateLocal(trip.startAt)} />
+        <EvidenceRow label="Time" value={`${formatTimeLocal(trip.startAt)} - ${formatTimeLocal(trip.endAt)}`} />
+        <EvidenceRow label="Distance" value={`${trip.distanceMiles.toFixed(1)} mi`} />
+        <EvidenceRow label="Purpose" value={trip.purpose ?? 'Not set'} />
+        <EvidenceRow label="Start" value={trip.startLabel ?? 'Not set'} />
+        <EvidenceRow label="End" value={trip.endLabel ?? 'Not set'} />
+        <EvidenceRow label="Source" value={trip.source} />
+        <EvidenceRow label="Evidence" value={trip.evidenceMethod ?? 'Not set'} />
       </ListSection>
+      <PrimaryButton label="Work" onPress={() => classify('work')} accessibilityLabel="Classify as work" />
+      <SecondaryButton label="Personal" onPress={() => classify('personal')} />
+      <DestructiveButton label="Wasn't a drive" onPress={() => classify('not_drive')} />
+      <SecondaryButton label="Edit trip" onPress={() => navigation.navigate('ManualTrip', { tripId: trip.id })} />
     </ScrollScreen>
   );
 }
@@ -76,136 +453,639 @@ export function TripDetailsScreen() {
 export function MissingTripRecoveryScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'MissingTripRecovery'>>();
   const navigation = useNavigation<Nav>();
-  const { setReviewDecision } = useProduct();
+  const { state, confirmRecovery, rejectRecovery } = useApp();
+  const { pushReviewHistory } = useProduct();
+  const reviewItem = state.reviewItems.find((item) => item.id === route.params.reviewId);
+  const candidateId =
+    reviewItem && reviewItem.kind === 'possible_missing_trip'
+      ? reviewItem.recoveryCandidateId
+      : route.params.reviewId.replace(/^review-recovery-/, '');
+  const candidate = state.recoveryCandidates.find((item) => item.id === candidateId);
+  const [distance, setDistance] = useState(candidate?.proposedDistanceMiles?.toString() ?? '');
+  const [purpose, setPurpose] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  if (!candidate) {
+    return (
+      <ScrollScreen>
+        <StatusCard variant="warning" title="Recovery item not found" body="This suggestion is no longer available." emphasis="hero" />
+      </ScrollScreen>
+    );
+  }
+
+  const remember = (decision: Exclude<ReviewDecision, null>) => {
+    pushReviewHistory({
+      id: route.params.reviewId,
+      targetId: candidate.id,
+      targetKind: 'recovery',
+      previousSnapshot: candidate,
+      decision,
+      decidedAt: Date.now(),
+      undoneAt: null,
+    });
+  };
+
+  const confirm = () => {
+    const miles = Number.parseFloat(distance);
+    if (!Number.isFinite(miles) || miles <= 0) {
+      setError('Enter the distance before confirming this recovered drive.');
+      return;
+    }
+    const created = confirmRecovery(candidate.id, miles, purpose.trim() || 'Recovered work drive');
+    if (!created) {
+      setError('Could not confirm this recovery item.');
+      return;
+    }
+    remember('work');
+    navigation.goBack();
+  };
+
+  const reject = (decision: 'personal' | 'not_drive') => {
+    rejectRecovery(candidate.id);
+    remember(decision);
+    navigation.goBack();
+  };
+
   return (
     <ScrollScreen>
-      <SectionHeader title="Missing trip recovery" />
       <StatusCard
         variant="warning"
         title="Was this a work drive?"
-        body="MileRecover noticed your phone was unavailable during part of this period. We are asking—not assuming."
+        body={candidate.plainLanguageExplanation}
+        emphasis="hero"
       />
-      <ListSection title="Evidence">
-        <EvidenceRow label="Status" value="Suggested recovery" />
-        <EvidenceRow label="Recording" value="Partially recorded gap" />
-        <EvidenceRow label="Distance" value="Approximate" />
+      <ListSection title="Why we are asking">
+        <EvidenceRow label="Confidence" value={candidate.confidence} />
+        <EvidenceRow
+          label="Time"
+          value={`${formatDateLocal(candidate.proposedStartAt)} ${formatTimeLocal(candidate.proposedStartAt)} - ${formatTimeLocal(candidate.proposedEndAt)}`}
+        />
+        <EvidenceRow
+          label="Suggested distance"
+          value={candidate.proposedDistanceMiles != null ? `${candidate.proposedDistanceMiles.toFixed(1)} mi` : 'Needs your entry'}
+        />
+        {candidate.evidence.map((evidence) => (
+          <EvidenceRow key={`${evidence.kind}-${evidence.summary}`} label={evidence.kind} value={evidence.summary} />
+        ))}
       </ListSection>
-      <PrimaryButton label="Yes, work" onPress={() => { setReviewDecision(route.params.reviewId, 'work'); navigation.goBack(); }} />
-      <SecondaryButton label="Personal" onPress={() => { setReviewDecision(route.params.reviewId, 'personal'); navigation.goBack(); }} />
-      <SecondaryButton label="Not a drive" onPress={() => { setReviewDecision(route.params.reviewId, 'not_drive'); navigation.goBack(); }} />
+      <FormField label="Distance (miles)" value={distance} onChangeText={setDistance} placeholder="0.0" />
+      <FormField label="Purpose" value={purpose} onChangeText={setPurpose} placeholder="Recovered work drive" />
+      {error ? <FormError message={error} /> : null}
+      <PrimaryButton label="Confirm work drive" onPress={confirm} />
+      <SecondaryButton label="Personal, leave out" onPress={() => reject('personal')} />
+      <DestructiveButton label="Not a drive" onPress={() => reject('not_drive')} />
     </ScrollScreen>
   );
 }
 
 export function ProtectionAlertScreen() {
   const navigation = useNavigation<Nav>();
+  const {
+    permissions,
+    automaticCaptureAvailable,
+    requestLocationPermission,
+    requestBackgroundPermission,
+    refreshPermissions,
+    openSystemSettings,
+  } = useApp();
+  const { product, setProtectionSetupState } = useProduct();
+  const foregroundReady = permissions.location === 'granted';
+  const backgroundReady = permissions.backgroundLocation === 'granted';
 
-  const openSystemSettings = () => {
-    void Linking.openSettings().catch(() => {
-      // If the OS blocks settings deep links, keep the user on this honest guidance screen.
-    });
+  return (
+    <ScrollScreen>
+      <StatusCard
+        variant={foregroundReady && backgroundReady ? 'info' : 'warning'}
+        title={
+          foregroundReady && backgroundReady
+            ? 'You’re protected'
+            : foregroundReady
+              ? 'Partially protected'
+              : 'Not yet protected'
+        }
+        body={
+          automaticCaptureAvailable
+            ? 'Allow location so future drives can be saved. You can change this anytime in Settings.'
+            : 'Auto-tracking isn’t available on this device yet. Manual drives still work.'
+        }
+        emphasis="hero"
+      />
+      <SoftPanel>
+        <EvidenceRow label="While using the app" value={foregroundReady ? 'On' : 'Off'} />
+        <EvidenceRow label="In the background" value={backgroundReady ? 'On' : 'Off'} />
+      </SoftPanel>
+      <PrimaryButton label="Allow location while using the app" onPress={() => void requestLocationPermission()} />
+      <SecondaryButton
+        label="Allow location in the background"
+        onPress={() => void requestBackgroundPermission()}
+        disabled={!foregroundReady}
+      />
+      <SecondaryButton label="Open Settings" onPress={() => void openSystemSettings()} />
+      <SecondaryButton label="Refresh" onPress={() => void refreshPermissions()} />
+      {product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated' ? (
+        <PrimaryButton
+          label="Looks good — continue"
+          onPress={() => setProtectionSetupState('configured')}
+          accessibilityLabel="Mark watching setup complete"
+        />
+      ) : null}
+      <SecondaryButton label="See watching status" onPress={() => navigation.navigate('TrackingActive')} />
+    </ScrollScreen>
+  );
+}
+
+export function TrackingActiveScreen() {
+  const navigation = useNavigation<Nav>();
+  const { permissions, automaticCaptureAvailable } = useApp();
+  const { product, setTrackingEnabled } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
+
+  const refreshDiagnostics = () => {
+    void getTrackingDiagnostics().then(setDiagnostics);
+  };
+
+  useEffect(() => {
+    refreshDiagnostics();
+  }, [product.trackingEnabled]);
+
+  const canStart = capabilities.canUseAutomaticCapture;
+  const start = () => {
+    if (!canStart) {
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    setTrackingEnabled(true);
+    logEvent(ANALYTICS_EVENTS.trackingStarted, { source: 'tracking_screen' });
+    refreshDiagnostics();
+  };
+  const stop = () => {
+    setTrackingEnabled(false);
+    logEvent(ANALYTICS_EVENTS.trackingStopped, { source: 'tracking_screen' });
+    refreshDiagnostics();
   };
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Protection alert" />
       <StatusCard
-        variant="warning"
-        title="Protection needs attention"
-        body="Background tracking may be restricted. Open system settings to restore location and background access when you are ready."
-        actionLabel="Open system settings"
-        onAction={openSystemSettings}
+        variant={product.trackingEnabled && canStart ? 'info' : 'warning'}
+        title={
+          product.trackingEnabled && canStart
+            ? 'Watching is on'
+            : canStart
+              ? 'Watching is off'
+              : 'Watching needs Plus'
+        }
+        body={
+          canStart
+            ? 'Here’s whether we’re watching, and whether location is allowed.'
+            : 'Automatic watching comes with Plus after a real store trial or purchase. Manual drives stay free.'
+        }
+        emphasis="hero"
       />
-      <StatusCard variant="neutral" title="What this means" body="Miles may not be captured while protection is limited. Existing records stay safe." />
-      <SecondaryButton label="Back" onPress={() => navigation.goBack()} accessibilityLabel="Go back from protection alert" />
+      <ListSection title="Are you protected?">
+        <EvidenceRow
+          label="Status"
+          value={
+            product.trackingEnabled && canStart && permissions.location === 'granted'
+              ? 'Yes'
+              : product.trackingEnabled || permissions.location === 'granted'
+                ? 'Partially'
+                : 'Not yet'
+          }
+        />
+        <EvidenceRow label="Watching" value={product.trackingEnabled && canStart ? 'On' : 'Off'} />
+        <EvidenceRow label="While using the app" value={permissions.location === 'granted' ? 'On' : 'Off'} />
+        <EvidenceRow label="In the background" value={permissions.backgroundLocation === 'granted' ? 'On' : 'Off'} />
+        <EvidenceRow
+          label="Last location check"
+          value={
+            diagnostics?.lastSampleAt
+              ? `${formatDateLocal(diagnostics.lastSampleAt)} ${formatTimeLocal(diagnostics.lastSampleAt)}`
+              : 'None yet'
+          }
+        />
+      </ListSection>
+      {diagnostics?.backgroundLimited && product.trackingEnabled ? (
+        <StatusCard
+          variant="warning"
+          title="Background watching is limited"
+          body="Some drives may be missed when the app isn’t open. Open Settings if you want fuller coverage."
+          emphasis="subtle"
+        />
+      ) : null}
+      <PrimaryButton
+        label={product.trackingEnabled ? 'Watching is already on' : 'Start watching'}
+        onPress={start}
+        disabled={product.trackingEnabled && canStart}
+      />
+      <SecondaryButton label="Stop watching" onPress={stop} disabled={!product.trackingEnabled} />
+      <SecondaryButton label="Refresh status" onPress={refreshDiagnostics} />
+      <StatusCard
+        variant="neutral"
+        title="Still available on Free"
+        body="Add drives by hand, import history, review, and share CSV anytime — even when watching is off."
+        emphasis="subtle"
+      />
     </ScrollScreen>
   );
 }
 
 export function VehicleSetupScreen() {
+  const navigation = useNavigation<Nav>();
+  const { product, upsertVehicle } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const primary = product.vehicles[0];
+  const [nickname, setNickname] = useState(primary?.nickname ?? '');
+  const [year, setYear] = useState(primary?.year ?? '');
+  const [make, setMake] = useState(primary?.make ?? '');
+  const [model, setModel] = useState(primary?.model ?? '');
+  const [plate, setPlate] = useState(primary?.plate ?? '');
+  const [saved, setSaved] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const atFreeLimit = !primary && product.vehicles.length >= capabilities.maxVehicles;
+
+  const save = () => {
+    const hasValue = nickname.trim() || make.trim() || model.trim() || year.trim();
+    if (!hasValue) return;
+    if (atFreeLimit) {
+      setLimitMessage(`Free includes up to ${capabilities.maxVehicles} vehicle. Choose Plus for more.`);
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    upsertVehicle({
+      id: primary?.id ?? localId('vehicle'),
+      nickname: nickname.trim() || [year.trim(), make.trim(), model.trim()].filter(Boolean).join(' ') || 'My vehicle',
+      year: year.trim(),
+      make: make.trim(),
+      model: model.trim() || (make === 'Other' ? 'Other' : ''),
+      plate: plate.trim(),
+      isPrimary: primary?.isPrimary ?? product.vehicles.length === 0,
+      createdAt: primary?.createdAt,
+    });
+    setSaved(true);
+    setLimitMessage(null);
+  };
+
   return (
     <ScrollScreen>
-      <SectionHeader title="Vehicles" />
-      <FormField label="Primary vehicle" value="Primary vehicle" />
-      <StatusCard variant="info" title="Optional but helpful" body="Naming your vehicle makes reports clearer." />
+      <StatusCard
+        variant="info"
+        title="Which vehicle carries your work miles?"
+        body="Tap year and make first. Nickname and plate are optional. Nothing is invented."
+        emphasis="subtle"
+      />
+      {limitMessage ? <StatusCard variant="warning" title="Vehicle limit" body={limitMessage} emphasis="subtle" /> : null}
+      <ListSection title="Year">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {VEHICLE_YEAR_CHOICES.slice(0, 8).map((choice) => (
+            <SecondaryButton key={choice} label={choice} onPress={() => setYear(choice)} />
+          ))}
+        </View>
+        {year ? <EvidenceRow label="Selected year" value={year} /> : null}
+      </ListSection>
+      <ListSection title="Make">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {COMMON_MAKES.map((choice) => (
+            <SecondaryButton key={choice} label={choice} onPress={() => setMake(choice)} />
+          ))}
+        </View>
+        {make ? <EvidenceRow label="Selected make" value={make} /> : null}
+        {!COMMON_MAKES.includes(make) || make === 'Other' ? (
+          <FormField
+            label="Custom make"
+            value={make === 'Other' ? '' : make}
+            onChangeText={(value) => setMake(value.trim() ? value : 'Other')}
+            placeholder="Enter make"
+          />
+        ) : null}
+      </ListSection>
+      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Camry or Other" />
+      <FormField label="Nickname (optional)" value={nickname} onChangeText={setNickname} placeholder="Work sedan" />
+      <FormField label="License plate (optional)" value={plate} onChangeText={setPlate} placeholder="Optional" />
+      <PrimaryButton label="Save vehicle" onPress={save} disabled={!nickname.trim() && !make.trim() && !model.trim() && !year.trim()} />
+      {saved ? <StatusCard variant="success" title="Saved" body="Vehicle details are stored locally." emphasis="subtle" /> : null}
+      {product.vehicles.length > 0 ? (
+        <ListSection title="Saved vehicles">
+          {product.vehicles.map((vehicle) => (
+            <EvidenceRow
+              key={vehicle.id}
+              label={vehicleLabel(vehicle)}
+              value={[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'No make/model'}
+            />
+          ))}
+        </ListSection>
+      ) : null}
     </ScrollScreen>
   );
 }
 
 export function WorkLocationSetupScreen() {
+  const navigation = useNavigation<Nav>();
+  const { product, upsertWorkLocation } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const [kind, setKind] = useState<WorkLocationDraft['kind']>('workplace');
+  const [label, setLabel] = useState('');
+  const [address, setAddress] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
+
+  const save = () => {
+    const hasValue = label.trim() || address.trim() || notes.trim();
+    if (!hasValue) return;
+    if (product.workLocations.length >= capabilities.maxWorkplaces) {
+      setLimitMessage(`Free includes up to ${capabilities.maxWorkplaces} familiar places. Choose Plus for more.`);
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    upsertWorkLocation({
+      id: localId('work-place'),
+      label: label.trim() || (kind === 'home' ? 'Home' : kind === 'client' ? 'Client' : 'Work place'),
+      address: address.trim(),
+      notes: notes.trim(),
+      kind,
+    });
+    setSaved(true);
+    setLimitMessage(null);
+    setLabel('');
+    setAddress('');
+    setNotes('');
+  };
+
   return (
     <ScrollScreen>
-      <SectionHeader title="Work locations" />
-      <FormField label="Office" value="Add an address" placeholder="Street, city" />
-      <StatusCard variant="info" title="Used for context only" body="Work locations help MileRecover understand routine—not to surveil you." />
+      <StatusCard
+        variant="info"
+        title="Places you visit often make review faster"
+        body="Familiar places help classify and recover drives. Nothing is saved until you tap Save. Approximate labels are fine."
+        emphasis="subtle"
+      />
+      {limitMessage ? <StatusCard variant="warning" title="Place limit" body={limitMessage} emphasis="subtle" /> : null}
+      <SegmentedControl
+        value={kind}
+        onChange={setKind}
+        options={[
+          { label: 'Home', value: 'home' },
+          { label: 'Work', value: 'workplace' },
+          { label: 'Client', value: 'client' },
+        ]}
+      />
+      <FormField label="Private label" value={label} onChangeText={setLabel} placeholder="Office" />
+      <FormField label="Address or area" value={address} onChangeText={setAddress} placeholder="Street, city, or neighborhood" />
+      <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional context" />
+      <PrimaryButton label="Save place" onPress={save} disabled={!label.trim() && !address.trim() && !notes.trim()} />
+      {saved ? <StatusCard variant="success" title="Saved" body="Place stored locally on this device." emphasis="subtle" /> : null}
+      {product.workLocations.length > 0 ? (
+        <ListSection title="Saved places">
+          {product.workLocations.map((loc) => (
+            <EvidenceRow key={loc.id} label={`${loc.label} (${loc.kind})`} value={loc.address || loc.notes || 'No address'} />
+          ))}
+        </ListSection>
+      ) : null}
+    </ScrollScreen>
+  );
+}
+
+export function ComingLaterScreen() {
+  const route = useRoute<RouteProp<RootStackParamList, 'ComingLater'>>();
+  return (
+    <ScrollScreen>
+      <StatusCard variant="info" title={route.params.title} body={route.params.detail} emphasis="hero" />
+      <StatusCard
+        variant="neutral"
+        title="Not available in this preview"
+        body="This screen is intentionally honest: no fake switches, no placeholder success states."
+        emphasis="subtle"
+      />
+    </ScrollScreen>
+  );
+}
+
+export function PrivacyScreen() {
+  const { state, resetLocalData, restartOnboarding } = useApp();
+  const { product, resetProductData, setNotificationPreferences } = useProduct();
+  const [message, setMessage] = useState<string | null>(null);
+  const prefs = product.notificationPreferences;
+
+  const exportAll = async () => {
+    try {
+      const bundle = await buildUserDataExport({
+        trips: state.trips,
+        preferredName: product.preferredName,
+        vehicleCount: product.vehicles.length,
+        workPlaceCount: product.workLocations.length,
+      });
+      const uri = await writeUserDataExportFile(bundle);
+      const result = await shareFile(uri, 'application/json', 'Export MileRecover data');
+      setMessage(result.ok || result.reason === 'cancelled' ? 'Export prepared.' : result.message);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not export data.');
+    }
+  };
+
+  const deleteAll = () => {
+    Alert.alert(
+      'Delete local MileRecover data?',
+      'This clears trips, setup, vehicles, places, and tracking samples on this device. Store subscriptions are managed in Google Play or the App Store.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              await clearLocalPrivacyCaches();
+              await resetProductData();
+              resetLocalData();
+              restartOnboarding();
+              setMessage('Local data deleted.');
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <ScrollScreen>
+      <StatusCard
+        variant="info"
+        title="Privacy and data"
+        body="MileRecover is local-first. Trips, setup answers, vehicles, and places are saved on this device first. Location history is not sold or used for ads."
+        emphasis="hero"
+      />
+      <ListSection title="What is stored">
+        <EvidenceRow label="Trips" value="Manual, imported, recovered, and automatic records on device" />
+        <EvidenceRow label="Places" value="Labels and addresses you enter" />
+        <EvidenceRow label="Vehicles" value="Optional vehicle details you save" />
+        <EvidenceRow label="Analytics" value="Private fields such as notes and coordinates are filtered out" />
+      </ListSection>
+      <ListSection title="Notifications">
+        <SelectionCard
+          title="Local reminders"
+          body={prefs.enabled ? 'On — quiet hours respect evening rest.' : 'Off'}
+          selected={prefs.enabled}
+          onPress={() => setNotificationPreferences({ enabled: !prefs.enabled })}
+        />
+        <SelectionCard
+          title="Trial ending reminder"
+          body="Only when notifications are allowed and this toggle stays on."
+          selected={prefs.trialEnding}
+          onPress={() => setNotificationPreferences({ trialEnding: !prefs.trialEnding })}
+        />
+        <SelectionCard
+          title="Tracking health alerts"
+          body="When protection is degraded and you asked for alerts."
+          selected={prefs.trackingDegraded}
+          onPress={() => setNotificationPreferences({ trackingDegraded: !prefs.trackingDegraded })}
+        />
+      </ListSection>
+      <ListSection title="Controls">
+        <PrimaryButton label="Export my data" onPress={() => void exportAll()} />
+        <DestructiveButton label="Delete local data" onPress={deleteAll} />
+      </ListSection>
+      {message ? <StatusCard variant="info" title="Privacy action" body={message} emphasis="subtle" /> : null}
+      <StatusCard
+        variant="neutral"
+        title="Subscriptions"
+        body="Cancel or manage billing in Google Play or App Store settings. Deleting local data does not cancel a store subscription."
+        emphasis="subtle"
+      />
     </ScrollScreen>
   );
 }
 
 export function ExportReportScreen() {
   const navigation = useNavigation<Nav>();
+  const { state } = useApp();
+  const { product, markFirstExport } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
   const [phase, setPhase] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+  const [message, setMessage] = useState<string | null>(null);
+  const period = periodFromState(state.reportingPeriod);
+  const report = reportData(state.trips, period, product.preferredName, voiceForDrivingType(product.drivingType));
+  const canExport = reportHasExportableTrips(state.trips, period);
+
+  const exportCsv = async () => {
+    if (!canExport) {
+      setMessage('No confirmed work drives in this reporting period.');
+      setPhase('failed');
+      return;
+    }
+    setPhase('processing');
+    try {
+      const csv = buildMileageCsv(state.trips, {
+        periodStart: period.startAt,
+        periodEnd: period.endAt,
+        vehicleNicknameById: vehicleLookup(product.vehicles),
+      });
+      const uri = await writeTextFile(csvFilename(period.label), csv);
+      const result = await shareFile(uri, 'text/csv', 'Share MileRecover CSV');
+      if (!result.ok && result.reason !== 'cancelled') throw new Error(result.message);
+      if (result.ok) markFirstExport();
+      setMessage(result.ok ? 'CSV ready to share.' : result.message);
+      setPhase('success');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not export CSV.');
+      setPhase('failed');
+    }
+  };
+
+  const exportPdf = async () => {
+    if (!capabilities.canUseStandardPdf) {
+      setMessage('PDF reports come with Plus. CSV stays free.');
+      setPhase('failed');
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    if (!canExport) {
+      setMessage('No confirmed work drives in this reporting period.');
+      setPhase('failed');
+      return;
+    }
+    setPhase('processing');
+    const result = await generateAndSharePdf(report);
+    if (result.ok || result.reason === 'cancelled') {
+      if (result.ok) markFirstExport();
+      setMessage(result.ok ? 'PDF ready to share.' : result.message);
+      setPhase('success');
+    } else {
+      setMessage(result.message);
+      setPhase('failed');
+    }
+  };
 
   if (phase === 'processing') {
     return (
       <ScrollScreen>
-        <SectionHeader title="Export report" />
-        <LoadingState message="Preparing export…" />
-      </ScrollScreen>
-    );
-  }
-
-  if (phase === 'success') {
-    return (
-      <ScrollScreen>
-        <SectionHeader title="Export report" />
-        <StatusCard variant="success" title="Export ready" body="Your file reflects confirmed and reviewed records only." actionLabel="Done" onAction={() => setPhase('idle')} />
-      </ScrollScreen>
-    );
-  }
-
-  if (phase === 'failed') {
-    return (
-      <ScrollScreen>
-        <SectionHeader title="Export report" />
-        <StatusCard variant="danger" title="Export failed" body="Try again in a moment. Your records are still safe on this device." actionLabel="Retry export" onAction={() => setPhase('processing')} />
+        <LoadingState message="Preparing your file..." />
       </ScrollScreen>
     );
   }
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Export report" />
-      <StatusCard variant="info" title="Choose a format" body="Exports reflect confirmed and reviewed records only. No employer or tax approval is implied." />
-      <PrimaryButton
-        label="Export as CSV"
-        onPress={() => {
-          setPhase('processing');
-          setTimeout(() => setPhase('success'), 600);
-        }}
+      <StatusCard
+        variant={phase === 'failed' ? 'danger' : phase === 'success' ? 'success' : 'info'}
+        title={phase === 'failed' ? 'Could not export' : phase === 'success' ? 'Export handled' : 'Share confirmed work drives'}
+        body={message ?? `${period.label} · ${report.tripCount} work drive(s). CSV is free. PDF is Plus.`}
+        emphasis={phase === 'idle' ? 'subtle' : 'hero'}
       />
-      <PrimaryButton
-        label="Export as PDF"
-        onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
+      <PrimaryButton label="Share CSV" onPress={() => void exportCsv()} />
+      <SecondaryButton
+        label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF with Plus'}
+        onPress={() => void exportPdf()}
       />
+      <SecondaryButton label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
     </ScrollScreen>
   );
 }
 
 export function ReportPreviewScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ReportPreview'>>();
+  const { state } = useApp();
+  const { product } = useProduct();
+  const period = periodFromState(state.reportingPeriod);
+  const report = reportData(state.trips, period, product.preferredName, voiceForDrivingType(product.drivingType));
+  const formatLabel = route.params.format.toUpperCase();
+
   return (
     <ScrollScreen>
-      <SectionHeader title="Report preview" />
       <StatusCard
-        variant="success"
-        title={`${route.params.format.toUpperCase()} preview`}
-        body="This is a visual placeholder. No employer approval, tax compliance, or guaranteed audit acceptance is implied."
+        variant="info"
+        title="Report preview of real data"
+        body={`${formatLabel} preview for ${period.label}. For your records — not tax or legal advice.`}
+        emphasis="hero"
       />
-      <ListSection title="Summary">
-        <EvidenceRow label="Reporting period" value="Current period" />
-        <EvidenceRow label="Verified trips" value="Included" />
-        <EvidenceRow label="Unresolved items" value="Excluded until reviewed" />
+      <SoftPanel>
+        <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>{report.title}</Text>
+        <EvidenceRow label="Period" value={report.period.label} />
+        <EvidenceRow label="Driver" value={report.userName ?? 'Add a name in Profile'} />
+        <EvidenceRow label="Work drives" value={String(report.tripCount)} />
+        <EvidenceRow label="Total miles" value={report.totalMiles.toFixed(1)} />
+        <EvidenceRow
+          label="Open items left out"
+          value={report.unresolvedCount === 0 ? '0 · all reviewed' : String(report.unresolvedCount)}
+        />
+      </SoftPanel>
+      <ListSection title="Line items">
+        {report.lineItems.length === 0 ? (
+          <StatusCard
+            variant="neutral"
+            title="No work drives yet"
+            body="Confirmed work drives will appear here with date, purpose, places, and miles."
+            emphasis="subtle"
+          />
+        ) : (
+          report.lineItems.map((item) => (
+            <EvidenceRow
+              key={item.id}
+              label={`${item.dateLabel} - ${item.purpose}`}
+              value={`${item.distanceMiles.toFixed(1)} mi - ${item.startLabel} to ${item.endLabel}`}
+            />
+          ))
+        )}
       </ListSection>
     </ScrollScreen>
   );
@@ -213,40 +1093,170 @@ export function ReportPreviewScreen() {
 
 export function PlanSelectionScreen() {
   const navigation = useNavigation<Nav>();
-  const { setSelectedPlan } = useProduct();
+  const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [selectedRescue, setSelectedRescue] = useState<string | null>(null);
+  const period: PurchasePeriod = annual ? 'annual' : 'monthly';
+  const purchasePort = getPurchasePort();
+  const entitlement = product.entitlement;
+  const trialEligible = shouldOfferTrial(entitlement, 'plus_only_capability', {
+    lastOfferAt: product.paywallCaps.lastTrialOfferAt,
+    dismissedSession: product.paywallCaps.trialOfferDismissedSession,
+  });
+  const plusFixture = PLAN_FIXTURES.find((plan) => plan.id === 'plus')!;
+  const proFixture = PLAN_FIXTURES.find((plan) => plan.id === 'pro')!;
+  const freeFixture = PLAN_FIXTURES.find((plan) => plan.id === 'free')!;
+
+  const handleResult = async (action: () => Promise<Awaited<ReturnType<typeof purchasePort.purchasePlus>>>) => {
+    const result = await action();
+    if (result.ok) {
+      setEntitlement(result.entitlement);
+      setNotice('You’re all set — Plus is active.');
+      return;
+    }
+    if (result.reason === 'store_unavailable') {
+      logEvent(ANALYTICS_EVENTS.purchaseUnavailable, { surface: 'plans' });
+    }
+    setNotice(result.message);
+  };
+
   return (
-    <ScrollScreen>
-      <SectionHeader title="Choose your plan" />
-      <StatusCard variant="info" title="Upgrade when it helps" body="No countdowns. No hidden trials. Subscribe because MileRecover already helped you." />
-      <SecondaryButton label={annual ? 'Show monthly prices' : 'Show annual prices'} onPress={() => setAnnual((v) => !v)} />
-      {PLAN_FIXTURES.filter((p) => p.id !== 'free').map((plan) => (
-        <PlanCard
-          key={plan.id}
-          name={plan.name}
-          price={annual ? plan.annualPrice : plan.monthlyPrice}
-          period={annual ? 'year' : 'month'}
-          features={plan.features.slice(0, 4)}
-          highlighted={plan.highlighted}
-          onSelect={() => {
-            setSelectedPlan(plan.id);
-            navigation.goBack();
+    <FixedHeaderScrollScreen
+      header={
+        <View>
+          <Text style={text.subtitle}>Keep the protection that already helped.</Text>
+          <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}. Plus is
+            $8.99/month — easy to justify when one missed drive costs more.
+          </Text>
+          <SegmentedControl
+            value={annual ? 'annual' : 'monthly'}
+            onChange={(value) => setAnnual(value === 'annual')}
+            options={[
+              { label: 'Monthly', value: 'monthly' },
+              { label: 'Annual', value: 'annual' },
+            ]}
+          />
+        </View>
+      }
+    >
+      {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
+      <PlanCard
+        name={plusFixture.name}
+        tagline={plusFixture.tagline}
+        price={annual ? plusFixture.annualPrice : plusFixture.monthlyPrice}
+        period={annual ? 'year' : 'month'}
+        features={plusFixture.features}
+        highlighted
+        current={entitlement.planId === 'plus'}
+        savingsLabel={annual ? plusFixture.annualSavingsLabel : undefined}
+        onSelect={() =>
+          void handleResult(() =>
+            trialEligible ? purchasePort.purchasePlusTrial(period) : purchasePort.purchasePlus(period),
+          )
+        }
+      />
+      {trialEligible ? (
+        <Text style={[text.caption, { marginBottom: spacing.md }]}>
+          Eligible for a 7-day Plus trial. {trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
+        </Text>
+      ) : null}
+      <PlanCard
+        name={proFixture.name}
+        tagline={proFixture.tagline}
+        price={annual ? proFixture.annualPrice : proFixture.monthlyPrice}
+        period={annual ? 'year' : 'month'}
+        features={proFixture.features}
+        highlighted={false}
+        current={entitlement.planId === 'pro'}
+        savingsLabel={annual ? proFixture.annualSavingsLabel : undefined}
+        onSelect={() => void handleResult(() => purchasePort.purchasePro(period))}
+      />
+      <SelectionCard
+        title={`Stay on Free · ${freeFixture.monthlyPrice}`}
+        body={`${freeFixture.tagline}. Your saved miles always stay available.`}
+        selected={entitlement.planId === 'free'}
+        onPress={() => {
+          setSelectedPlan('free');
+          setNotice('You’re on Free. Your existing records stay available.');
+        }}
+      />
+      <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>One-time catch-up</Text>
+      <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+        Not a subscription. If a purchase can’t complete, nothing changes on your account.
+      </Text>
+      {RESCUE_OPTIONS.map((option) => (
+        <SelectionCard
+          key={option.id}
+          title={`${option.name} · ${option.price}`}
+          body={option.description}
+          selected={selectedRescue === option.id}
+          onPress={() => {
+            setSelectedRescue(option.id);
+            void handleResult(() => purchasePort.purchaseRescue(option.id));
           }}
         />
       ))}
-      <SectionHeader title="One-time rescue" />
-      {RESCUE_OPTIONS.map((r) => (
-        <StatusCard key={r.id} variant="neutral" title={r.name} body={`${r.description} · ${r.price} · no subscription required`} />
-      ))}
-    </ScrollScreen>
+      <SecondaryButton
+        label="Restore purchases"
+        onPress={() => void handleResult(() => purchasePort.restore())}
+      />
+      <StatusCard
+        variant="neutral"
+        title="Renewal"
+        body="Subscriptions renew unless you cancel in Google Play or App Store settings. An in-app button alone never starts a trial."
+        emphasis="subtle"
+      />
+      <SecondaryButton label="Terms of Use" onPress={() => navigation.navigate('About')} />
+      <SecondaryButton label="Privacy Policy" onPress={() => navigation.navigate('Privacy')} />
+    </FixedHeaderScrollScreen>
   );
 }
 
 export function HelpSupportScreen() {
+  const { resetOnboarding } = useProduct();
+  const { restartOnboarding } = useApp();
+  const next = nextActionForGoal(null);
+
   return (
     <ScrollScreen>
-      <SectionHeader title="Help and support" />
-      <StatusCard variant="info" title="We are here" body="Questions about protection, review, or proof? Reach out anytime." />
+      <StatusCard
+        variant="info"
+        title="Help and support"
+        body="MileRecover keeps records local first, asks before classifying uncertain drives, and excludes unresolved trips from reports."
+        emphasis="subtle"
+      />
+      <ListSection title="Common questions">
+        <View style={{ gap: spacing.sm }}>
+          <Text style={text.subtitle}>Will MileRecover invent miles?</Text>
+          <Text style={[text.body, { marginBottom: spacing.sm }]}>
+            No. Manual entries, imports, and recovery suggestions all require real details or your confirmation.
+          </Text>
+          <Text style={text.subtitle}>When does automatic watching start?</Text>
+          <Text style={[text.body, { marginBottom: spacing.sm }]}>
+            After you turn watching on with Plus or a Plus trial, and allow location. Free still lets you add drives, import, and review.
+          </Text>
+          <Text style={text.subtitle}>What happens if I restart onboarding?</Text>
+          <Text style={text.body}>
+            Trips stay on this device. Only the onboarding questions restart, beginning with {next.cta.toLowerCase()}.
+          </Text>
+        </View>
+      </ListSection>
+      <PrimaryButton
+        label="Restart onboarding"
+        onPress={() => {
+          resetOnboarding();
+          restartOnboarding();
+        }}
+        accessibilityLabel="Restart onboarding while preserving trips"
+      />
+      <StatusCard
+        variant="neutral"
+        title="Contact"
+        body="Email support@milerecover.com with your app version from Profile → About."
+        emphasis="subtle"
+      />
     </ScrollScreen>
   );
 }

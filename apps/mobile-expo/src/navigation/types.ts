@@ -4,14 +4,18 @@ export const SUPPORTING_STACK_ROUTES = [
   'TripDetails',
   'MissingTripRecovery',
   'ProtectionAlert',
+  'TrackingActive',
   'BringExistingMileage',
   'ImportPreview',
   'ImportExceptionReview',
   'VehicleSetup',
   'WorkLocationSetup',
+  'ComingLater',
   'ExportReport',
   'ReportPreview',
   'PlanSelection',
+  'EditSetup',
+  'Privacy',
   'HelpSupport',
   'About',
 ] as const;
@@ -38,18 +42,22 @@ export type RootTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList> | undefined;
-  ManualTrip: undefined;
+  ManualTrip: { tripId?: string } | undefined;
   TripDetails: { tripId: string };
   MissingTripRecovery: { reviewId: string };
   ProtectionAlert: undefined;
+  TrackingActive: undefined;
   BringExistingMileage: undefined;
   ImportPreview: undefined;
   ImportExceptionReview: undefined;
   VehicleSetup: undefined;
   WorkLocationSetup: undefined;
+  ComingLater: { title: string; detail: string };
   ExportReport: undefined;
   ReportPreview: { format: 'csv' | 'pdf' | 'reimbursement' | 'log' };
   PlanSelection: { source?: 'profile' | 'upgrade' };
+  EditSetup: undefined;
+  Privacy: undefined;
   HelpSupport: undefined;
   About: undefined;
 };
