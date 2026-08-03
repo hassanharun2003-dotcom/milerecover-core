@@ -1,27 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
+import { analyzeCsvImport } from '@milerecover/domain';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
+  FormError,
   ImportOptionCard,
   ScrollScreen,
   StatusCard,
   SummaryCard,
   TertiaryButton,
 } from '../../design-system';
-import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { useProduct } from '../../product/ProductContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function BringExistingMileageScreen() {
   const navigation = useNavigation<Nav>();
   const { product, setImportPhase } = useProduct();
+  const [error, setError] = useState<string | null>(null);
 
-  const startImport = (label: string) => {
-    setImportPhase('processing', label);
-    navigation.navigate('ImportPreview');
+  const pickCsv = async () => {
+    setError(null);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset) {
+        setError('No file was selected.');
+        return;
+      }
+      const text = await new File(asset.uri).text();
+      const analysis = analyzeCsvImport(text);
+      if (analysis.headers.length === 0 && analysis.issues.length > 0) {
+        setImportPhase('failed', asset.name, text);
+        setError(analysis.issues[0].message);
+        return;
+      }
+      setImportPhase('preview', asset.name, text);
+      navigation.navigate('ImportPreview');
+    } catch (err) {
+      setImportPhase('failed');
+      setError(err instanceof Error ? err.message : 'Could not read this CSV file.');
+    }
   };
 
   return (
@@ -29,32 +58,15 @@ export function BringExistingMileageScreen() {
       <StatusCard
         variant="info"
         title="Bring your history with you"
-        body="Upload what you already have. We’ll organize what we can and show you anything that needs a look—nothing disappears quietly."
+        body="Pick a CSV file. We will analyze the columns, show issues, and import only rows we can read without hiding duplicates."
         emphasis="hero"
       />
-      <ImportOptionCard
-        title="Mileage export"
-        subtitle="From another mileage app"
-        onPress={() => startImport('Mileage export')}
-      />
-      <ImportOptionCard
-        title="Spreadsheet or CSV"
-        subtitle="Your existing log"
-        onPress={() => startImport('Spreadsheet.csv')}
-      />
-      <ImportOptionCard
-        title="PDF report"
-        subtitle="A report you already have"
-        onPress={() => startImport('Report.pdf')}
-      />
+      <ImportOptionCard title="Pick CSV file" subtitle="Mileage exports or spreadsheets saved as CSV" onPress={() => void pickCsv()} />
       <View style={styles.tertiary}>
-        <TertiaryButton
-          label="Use calendar suggestions"
-          onPress={() => startImport('Calendar feed')}
-        />
         <TertiaryButton label="Add drives by hand" onPress={() => navigation.navigate('ManualTrip')} />
         <TertiaryButton label="Start fresh instead" onPress={() => navigation.goBack()} />
       </View>
+      {error ? <FormError message={error} /> : null}
       {product.importFileLabel ? (
         <View style={styles.selected}>
           <SummaryCard items={[{ label: 'Last selected', value: product.importFileLabel }]} />

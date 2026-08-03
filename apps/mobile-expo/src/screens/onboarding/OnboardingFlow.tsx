@@ -26,8 +26,25 @@ import {
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 
+function permissionStatusLabel(status: string): string {
+  if (status === 'granted') return 'Granted';
+  if (status === 'denied') return 'Denied';
+  if (status === 'restricted') return 'Open Settings';
+  return 'Not asked yet';
+}
+
+function makeLocalId(prefix: string): string {
+  return `${prefix}-${Date.now()}`;
+}
+
 export function OnboardingFlow() {
-  const { finishOnboarding } = useApp();
+  const {
+    finishOnboarding,
+    permissions,
+    requestLocationPermission,
+    requestBackgroundPermission,
+    automaticCaptureAvailable,
+  } = useApp();
   const {
     product,
     advanceOnboarding,
@@ -37,23 +54,73 @@ export function OnboardingFlow() {
     setPreferredName,
     setProtectionSetupState,
     skipPreferredName,
+    skipVehicleSetup,
+    skipWorkPlaceSetup,
+    upsertVehicle,
+    upsertWorkLocation,
     completeProductOnboarding,
   } = useProduct();
 
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
+  const [vehicleNickname, setVehicleNickname] = useState('');
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [workLabel, setWorkLabel] = useState('');
+  const [workAddress, setWorkAddress] = useState('');
+  const [workNotes, setWorkNotes] = useState('');
   const step = product.onboardingStep;
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
   const next = nextActionForGoal(product.primaryGoal);
+  const foregroundReady = permissions.location === 'granted';
+  const backgroundReady = permissions.backgroundLocation === 'granted';
 
   const finish = (deepLink: boolean) => {
     completeProductOnboarding(deepLink ? next.route : null);
     finishOnboarding();
   };
 
+  const saveVehicle = () => {
+    const hasVehicle = vehicleNickname.trim() || vehicleMake.trim() || vehicleModel.trim();
+    if (hasVehicle) {
+      upsertVehicle({
+        id: makeLocalId('vehicle'),
+        nickname: vehicleNickname.trim() || [vehicleMake.trim(), vehicleModel.trim()].filter(Boolean).join(' ') || 'My vehicle',
+        make: vehicleMake.trim(),
+        model: vehicleModel.trim(),
+        isPrimary: product.vehicles.length === 0,
+      });
+    }
+    advanceOnboarding();
+  };
+
+  const saveWorkPlace = () => {
+    const hasWorkPlace = workLabel.trim() || workAddress.trim() || workNotes.trim();
+    if (hasWorkPlace) {
+      upsertWorkLocation({
+        id: makeLocalId('work-place'),
+        label: workLabel.trim() || 'Work place',
+        address: workAddress.trim(),
+        notes: workNotes.trim(),
+      });
+    }
+    advanceOnboarding();
+  };
+
+  const continueAfterProtection = () => {
+    if (automaticCaptureAvailable && foregroundReady && backgroundReady) {
+      setProtectionSetupState('configured');
+    } else if (foregroundReady && !backgroundReady) {
+      setProtectionSetupState('limited');
+    } else {
+      setProtectionSetupState('educated');
+    }
+    advanceOnboarding();
+  };
+
   const welcome = useMemo(
     () => ({
       title: 'Protect every work mile.',
-      body: 'MileRecover saves future drives, helps find missing mileage, and prepares records you can share—without inventing miles.',
+      body: 'MileRecover saves future drives, helps find missing mileage, and prepares records you can share - without inventing miles.',
     }),
     [],
   );
@@ -73,7 +140,13 @@ export function OnboardingFlow() {
         <View>
           <WelcomeHero title={welcome.title} body={welcome.body} />
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-            <PrimaryButton label="Get started" onPress={advanceOnboarding} />
+            <PrimaryButton
+              label="Protect my miles"
+              onPress={() => {
+                setPrimaryGoal('protect_future');
+                advanceOnboarding();
+              }}
+            />
             <SecondaryButton
               label="Bring existing mileage"
               onPress={() => {
@@ -91,7 +164,7 @@ export function OnboardingFlow() {
             What would help you most right now?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            One selection is enough. We’ll use it to choose your next step.
+            One selection is enough. We will use it to choose your next step.
           </Text>
           {PRIMARY_GOAL_OPTIONS.map((opt) => (
             <SelectionCard
@@ -111,7 +184,7 @@ export function OnboardingFlow() {
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>How do you use work mileage?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            This changes how MileRecover talks—and what a report is for.
+            This changes how MileRecover talks - and what a report is for.
           </Text>
           {DRIVING_TYPE_OPTIONS.map((opt) => (
             <SelectionCard
@@ -131,7 +204,7 @@ export function OnboardingFlow() {
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>What should we call you?</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Optional. Used sparingly—like a calm greeting, not on every card.
+            Optional. Used sparingly - like a calm greeting, not on every card.
           </Text>
           <FormField
             label="Preferred name"
@@ -156,23 +229,69 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
+      {step === 'vehicle_setup' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>Add a vehicle?</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Optional. A nickname makes reports easier to read later.
+          </Text>
+          <FormField
+            label="Nickname"
+            value={vehicleNickname}
+            onChangeText={setVehicleNickname}
+            placeholder="Work sedan"
+          />
+          <FormField label="Make" value={vehicleMake} onChangeText={setVehicleMake} placeholder="Toyota" />
+          <FormField label="Model" value={vehicleModel} onChangeText={setVehicleModel} placeholder="Camry" />
+          <PrimaryButton label="Save vehicle" onPress={saveVehicle} />
+          <TertiaryButton label="Skip vehicle" onPress={skipVehicleSetup} />
+        </View>
+      ) : null}
+
+      {step === 'work_place_setup' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]}>Any regular work places?</Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Optional. Saved places can help explain routine work drives without sharing anything automatically.
+          </Text>
+          <FormField label="Label" value={workLabel} onChangeText={setWorkLabel} placeholder="Office" />
+          <FormField
+            label="Address"
+            value={workAddress}
+            onChangeText={setWorkAddress}
+            placeholder="Street, city"
+          />
+          <FormField label="Notes" value={workNotes} onChangeText={setWorkNotes} placeholder="Optional context" />
+          <PrimaryButton label="Save work place" onPress={saveWorkPlace} />
+          <TertiaryButton label="Skip work place" onPress={skipWorkPlaceSetup} />
+        </View>
+      ) : null}
+
       {step === 'protection_setup' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]}>How protection works</Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            We explain before any system prompt. We never pretend permissions are granted until Android
-            confirms them—and never label unavailable features Ready.
+            We explain before any system prompt. We never mark a permission ready until the device says it is granted.
           </Text>
           <SoftPanel>
-            <ChecklistRow label="Location permission" status="pending" />
-            <ChecklistRow label="Background location" status="pending" />
+            <ChecklistRow label={`Location permission: ${permissionStatusLabel(permissions.location)}`} status={foregroundReady ? 'ready' : 'pending'} />
+            <ChecklistRow label={`Background location: ${permissionStatusLabel(permissions.backgroundLocation)}`} status={backgroundReady ? 'ready' : 'pending'} />
             <ChecklistRow label="Battery optimization" status="planned" />
             <ChecklistRow label="Notifications" status="planned" />
             <ChecklistRow label="Tracking engine" status="planned" />
             <Text style={[text.caption, { marginTop: spacing.sm }]}>
-              Not granted yet—automatic capture is not active in this preview.
+              Automatic capture is not active in this release candidate, even if permissions are granted.
             </Text>
           </SoftPanel>
+          <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+            <PrimaryButton label="Request foreground location" onPress={() => void requestLocationPermission()} />
+            <SecondaryButton
+              label="Request background location"
+              onPress={() => void requestBackgroundPermission()}
+              disabled={!foregroundReady}
+              accessibilityLabel="Request background location permission"
+            />
+          </View>
           <StatusCard
             variant="neutral"
             title="Your data stays yours"
@@ -181,16 +300,21 @@ export function OnboardingFlow() {
           />
           <PrimaryButton
             label="Continue"
-            onPress={() => {
-              setProtectionSetupState('educated');
-              advanceOnboarding();
-            }}
+            onPress={continueAfterProtection}
           />
         </View>
       ) : null}
 
       {step === 'next_action' ? (
         <View>
+          <SoftPanel>
+            <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Your setup</Text>
+            <Text style={text.body}>Goal: {PRIMARY_GOAL_OPTIONS.find((g) => g.id === product.primaryGoal)?.label ?? 'Protect future drives'}</Text>
+            <Text style={text.body}>Driving: {DRIVING_TYPE_OPTIONS.find((d) => d.id === product.drivingType)?.label ?? 'Not set'}</Text>
+            <Text style={text.body}>Vehicles: {product.vehicles.length}</Text>
+            <Text style={text.body}>Work places: {product.workLocations.length}</Text>
+            <Text style={text.body}>Protection: {automaticCaptureAvailable ? 'Ready when permissions are granted' : 'Tracking engine unavailable in this RC'}</Text>
+          </SoftPanel>
           <StatusCard
             variant="success"
             title={next.title}

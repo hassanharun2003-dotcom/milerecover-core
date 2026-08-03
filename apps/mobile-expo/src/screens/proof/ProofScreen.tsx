@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -6,109 +6,174 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
+  buildMileageCsv,
+  buildMileageReportData,
+  csvFilename,
+  resolveReportPeriod,
+  type ReportPeriod,
+  type ReportPeriodKind,
+} from '@milerecover/domain';
+import {
   EmptyState,
+  FormError,
   ListRow,
   ListSection,
   ProofHeroCard,
   SecondaryButton,
+  SegmentedControl,
   StatusCard,
   TabScreen,
-  TertiaryButton,
 } from '../../design-system';
-import { selectProductExperience } from '../../product/selectors';
-import { useApp } from '../../store/AppContext';
-import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { voiceForDrivingType } from '../../product/copy';
+import { useProduct } from '../../product/ProductContext';
+import { writeTextFile, shareFile } from '../../services/fileShare';
+import { generateAndSharePdf } from '../../services/pdfReport';
+import { useApp } from '../../store/AppContext';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Proof'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+const PERIOD_OPTIONS: { label: string; value: ReportPeriodKind }[] = [
+  { label: 'Week', value: 'this_week' },
+  { label: 'Month', value: 'this_month' },
+  { label: 'Prev. month', value: 'previous_month' },
+  { label: 'YTD', value: 'ytd' },
+];
+
+function periodFromState(period: { id: string; label: string; startAt: number; endAt: number }): ReportPeriod {
+  const kind = PERIOD_OPTIONS.some((option) => option.value === period.id)
+    ? (period.id as ReportPeriodKind)
+    : 'custom';
+  return { kind, label: period.label, startAt: period.startAt, endAt: period.endAt };
+}
+
+function vehicleLookup(vehicles: { id: string; nickname: string; make: string; model: string }[]): Record<string, string> {
+  return vehicles.reduce<Record<string, string>>((acc, vehicle) => {
+    acc[vehicle.id] = vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
+    return acc;
+  }, {});
+}
+
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
-  const { state, permissions } = useApp();
+  const { state, setReportingPeriod } = useApp();
   const { product } = useProduct();
-  const { scenario, liveMode, voice } = selectProductExperience(state, product, permissions);
-  const [showDetails, setShowDetails] = useState(false);
-  const confirmedCount = scenario.trips.length + product.manualTrips.length;
-  const hasRecords = confirmedCount > 0 || scenario.periodMiles > 0;
+  const [periodKind, setPeriodKind] = useState<ReportPeriodKind>(
+    PERIOD_OPTIONS.some((option) => option.value === state.reportingPeriod.id)
+      ? (state.reportingPeriod.id as ReportPeriodKind)
+      : 'ytd',
+  );
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const period = periodFromState(state.reportingPeriod);
+  const report = useMemo(
+    () =>
+      buildMileageReportData({
+        trips: state.trips,
+        period,
+        userName: product.preferredName,
+        mileageUseType: voiceForDrivingType(product.drivingType).reportNoun,
+      }),
+    [period, product.drivingType, product.preferredName, state.trips],
+  );
 
-  if (!scenario.proofReady && !hasRecords) {
-    return (
-      <TabScreen>
-        <EmptyState
-          title="No confirmed drives yet"
-          body={`Confirmed ${voice.workNoun} drives will appear here, ready to review and ${voice.shareVerb}.`}
-          actionLabel="Add a drive"
-          onAction={() => navigation.navigate('ManualTrip')}
-        />
-      </TabScreen>
-    );
-  }
+  const choosePeriod = (kind: ReportPeriodKind) => {
+    setPeriodKind(kind);
+    setMessage(null);
+    setError(null);
+    const next = resolveReportPeriod(kind);
+    setReportingPeriod({
+      id: kind,
+      label: next.label,
+      startAt: next.startAt,
+      endAt: next.endAt,
+    });
+  };
 
-  if (!scenario.proofReady) {
-    return (
-      <TabScreen>
-        <StatusCard
-          variant="warning"
-          title="Review one item before sharing"
-          body={scenario.proofBlockReason ?? 'A quick decision in Review and you’ll be ready.'}
-          actionLabel="Review drives"
-          onAction={() => navigation.navigate('Review')}
-          emphasis="hero"
-        />
-        <View style={{ marginTop: spacing.sm }}>
-          <SecondaryButton
-            label="Preview sample layout"
-            onPress={() => navigation.navigate('ReportPreview', { format: 'log' })}
-          />
-        </View>
-      </TabScreen>
-    );
-  }
+  const shareCsv = async () => {
+    setMessage(null);
+    setError(null);
+    if (report.tripCount === 0) {
+      setError('No confirmed work drives in this period to export.');
+      return;
+    }
+    try {
+      const csv = buildMileageCsv(state.trips, {
+        periodStart: period.startAt,
+        periodEnd: period.endAt,
+        vehicleNicknameById: vehicleLookup(product.vehicles),
+      });
+      const uri = await writeTextFile(csvFilename(period.label), csv);
+      const result = await shareFile(uri, 'text/csv', 'Share MileRecover CSV');
+      if (!result.ok && result.reason !== 'cancelled') throw new Error(result.message);
+      setMessage(result.ok ? 'CSV ready to share.' : result.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not share CSV.');
+    }
+  };
+
+  const sharePdf = async () => {
+    setMessage(null);
+    setError(null);
+    const result = await generateAndSharePdf(report);
+    if (result.ok || result.reason === 'cancelled') {
+      setMessage(result.ok ? 'PDF ready to share.' : result.message);
+    } else {
+      setError(result.message);
+    }
+  };
 
   return (
     <TabScreen>
-      <ProofHeroCard
-        periodLabel={state.reportingPeriod.label}
-        tripCount={confirmedCount}
-        totalMiles={scenario.periodMiles.toFixed(1)}
-        unresolved={null}
-        title="Your records are ready to review"
-        onPreview={() => navigation.navigate('ReportPreview', { format: 'reimbursement' })}
-      />
+      <SegmentedControl options={PERIOD_OPTIONS} value={periodKind} onChange={choosePeriod} />
 
-      <ListSection title="Export">
-        <ListRow label="Share as PDF" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
-        <ListRow label="Share as CSV" onPress={() => navigation.navigate('ExportReport')} />
-      </ListSection>
-
-      <View style={{ marginTop: spacing.md }}>
-        <TertiaryButton
-          label={showDetails ? 'Hide period details' : 'Show period details'}
-          onPress={() => setShowDetails((v) => !v)}
-        />
-      </View>
-
-      {showDetails ? (
+      {report.tripCount === 0 ? (
         <>
-          <ListSection title="Included this period">
-            <ListRow label="Confirmed work drives" value={`${confirmedCount}`} />
-            <ListRow label="Miles found" value={`${scenario.weekSummary.recoveredMiles.toFixed(1)} mi`} />
-            <ListRow
-              label="Brought from history"
-              value={!liveMode && scenario.id === 'imported_history' ? '214 organized' : 'None'}
-            />
-            <ListRow label="Added by you" value={String(product.manualTrips.length)} />
-          </ListSection>
-          <ListSection title="What’s behind the report">
-            <ListRow label="Route summaries" value="When available" />
-            <ListRow label="Work places" value="Optional" />
-            <ListRow label="Notes and photos" value="When you add them" />
-          </ListSection>
+          <EmptyState
+            title="No confirmed drives in this period"
+            body="Proof uses only confirmed work drives from the selected period. Pending, personal, and rejected drives stay out."
+            actionLabel="Add a drive"
+            onAction={() => navigation.navigate('ManualTrip')}
+          />
+          <StatusCard
+            variant="neutral"
+            title="Current period"
+            body={`${period.label}. ${report.unresolvedCount} unresolved item(s) are excluded.`}
+            emphasis="subtle"
+          />
         </>
-      ) : null}
+      ) : (
+        <>
+          <ProofHeroCard
+            periodLabel={period.label}
+            tripCount={report.tripCount}
+            totalMiles={report.totalMiles.toFixed(1)}
+            unresolved={String(report.unresolvedCount)}
+            title="Your records are ready to review"
+            onPreview={() => navigation.navigate('ReportPreview', { format: 'reimbursement' })}
+          />
+          {message ? <StatusCard variant="success" title="Export" body={message} emphasis="subtle" /> : null}
+          {error ? <FormError message={error} /> : null}
+          <ListSection title="Totals">
+            <ListRow label="Confirmed work drives" value={String(report.tripCount)} showChevron={false} />
+            <ListRow label="Total miles" value={`${report.totalMiles.toFixed(1)} mi`} showChevron={false} />
+            <ListRow label="Manual miles" value={`${report.manualMiles.toFixed(1)} mi`} showChevron={false} />
+            <ListRow label="Imported miles" value={`${report.importedMiles.toFixed(1)} mi`} showChevron={false} />
+            <ListRow label="Recovered miles" value={`${report.recoveredMiles.toFixed(1)} mi`} showChevron={false} />
+          </ListSection>
+          <ListSection title="Export">
+            <ListRow label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
+            <ListRow label="Share PDF" onPress={() => void sharePdf()} />
+            <ListRow label="Share CSV" onPress={() => void shareCsv()} />
+          </ListSection>
+          <View style={{ marginTop: spacing.md }}>
+            <SecondaryButton label="Add another drive" onPress={() => navigation.navigate('ManualTrip')} />
+          </View>
+        </>
+      )}
     </TabScreen>
   );
 }

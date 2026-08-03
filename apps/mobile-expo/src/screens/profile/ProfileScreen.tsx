@@ -13,11 +13,12 @@ import {
   TabScreen,
   text,
 } from '../../design-system';
-import { PLAN_FIXTURES } from '../../fixtures/subscription';
 import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
-import { useApp } from '../../store/AppContext';
-import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { voiceForDrivingType } from '../../product/copy';
+import { useProduct } from '../../product/ProductContext';
+import { DRIVING_TYPE_OPTIONS } from '../../product/types';
+import { useApp } from '../../store/AppContext';
 
 type ProfileNav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Profile'>,
@@ -34,8 +35,9 @@ export function ProfileScreen() {
     resetProductData,
     resetOnboarding,
   } = useProduct();
-  const plan = PLAN_FIXTURES.find((p) => p.id === product.selectedPlan);
-  const displayName = product.preferredName?.trim() || 'Your account';
+  const displayName = product.preferredName?.trim() || 'Your profile';
+  const drivingType = DRIVING_TYPE_OPTIONS.find((option) => option.id === product.drivingType)?.label;
+  const voice = voiceForDrivingType(product.drivingType);
 
   return (
     <TabScreen>
@@ -44,25 +46,24 @@ export function ProfileScreen() {
           {displayName}
         </Text>
         <Text style={text.body}>
-          {product.preferredName
-            ? 'Signed in on this device'
-            : 'No name yet — add one from Restart onboarding if you like'}
+          {product.preferredName ? 'Saved on this device' : 'Add a preferred name by restarting onboarding.'}
         </Text>
       </View>
 
       <MembershipBanner
-        planName={plan?.id === 'free' ? 'MileRecover Free' : `MileRecover ${plan?.name ?? 'Free'}`}
-        detail={
-          plan?.id === 'free'
-            ? 'Upgrade when it helps—never because we rushed you'
-            : 'Active entitlement on this preview'
-        }
+        planName="MileRecover Free"
+        detail="Free is active. Billing is not connected in this release candidate."
       />
       <SecondaryButton
-        label="See plans"
+        label="See plan preview"
         onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
-        accessibilityLabel="View subscription plans"
       />
+
+      <ListSection title="Profile">
+        <ListRow label="Name" value={product.preferredName?.trim() || 'Not set'} showChevron={false} />
+        <ListRow label="Driving type" value={drivingType ?? 'Not set'} showChevron={false} />
+        <ListRow label="Report style" value={voice.reportNoun} showChevron={false} />
+      </ListSection>
 
       <ListSection title="Driving">
         <ListRow
@@ -72,71 +73,34 @@ export function ProfileScreen() {
         />
         <ListRow
           label="Work places"
-          value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add'}
+          value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'None'}
           onPress={() => navigation.navigate('WorkLocationSetup')}
         />
-        <ListRow
-          label="Work schedule"
-          value="Not available in this preview"
-          onPress={() =>
-            navigation.navigate('ComingLater', {
-              title: 'Work schedule',
-              detail:
-                'Schedule-aware help is not available in this preview. It will open when the capability ships—no fake toggle.',
-            })
-          }
-        />
       </ListSection>
 
-      <ListSection title="Protection">
-        <ListRow label="Background access" onPress={() => navigation.navigate('ProtectionAlert')} />
-        <ListRow label="Tracking status" onPress={() => navigation.navigate('TrackingActive')} />
-        <ListRow
-          label="Notifications"
-          value="Not available in this preview"
-          onPress={() =>
-            navigation.navigate('ComingLater', {
-              title: 'Notifications',
-              detail: 'Quiet weekly digests are not available in this preview.',
-            })
-          }
-        />
-        <ListRow
-          label="Battery guidance"
-          value="Not available in this preview"
-          onPress={() =>
-            navigation.navigate('ComingLater', {
-              title: 'Battery guidance',
-              detail: 'Battery tips arrive with background capture. Not available in this preview.',
-            })
-          }
-        />
-      </ListSection>
-
-      <ListSection title="Import">
-        <ListRow
-          label="Bring existing history"
-          onPress={() => navigation.navigate('BringExistingMileage')}
-        />
-        <ListRow label="Export defaults" onPress={() => navigation.navigate('ExportReport')} />
+      <ListSection title="Records">
+        <ListRow label="Protection" onPress={() => navigation.navigate('ProtectionAlert')} />
+        <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
+        <ListRow label="Export report" onPress={() => navigation.navigate('ExportReport')} />
       </ListSection>
 
       <ListSection title="Privacy">
         <ListRow
           label="Data and privacy"
+          value="Local first"
           onPress={() =>
             navigation.navigate('ComingLater', {
               title: 'Data and privacy',
               detail:
-                'Full privacy controls are not available in this preview. Local data on this device remains your source of truth.',
+                'Full privacy controls are not available in this preview. Trips remain local first and exports happen only when you share them.',
             })
           }
         />
       </ListSection>
 
       <ListSection title="Help">
-        <ListRow label="Help center" onPress={() => navigation.navigate('HelpSupport')} />
-        <ListRow label="About MileRecover" onPress={() => navigation.navigate('About')} />
+        <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
+        <ListRow label="About" onPress={() => navigation.navigate('About')} />
         <ListRow
           label="Restart onboarding"
           onPress={() => {
@@ -154,12 +118,12 @@ export function ProfileScreen() {
             onPress={() => setDemoModeEnabled(!product.demoModeEnabled)}
           />
           {product.demoModeEnabled
-            ? DEMO_SCENARIO_LIST.map((s) => (
+            ? DEMO_SCENARIO_LIST.map((scenario) => (
                 <ListRow
-                  key={s.id}
-                  label={s.label}
-                  value={product.demoScenario === s.id ? 'Active' : undefined}
-                  onPress={() => setDemoScenario(s.id)}
+                  key={scenario.id}
+                  label={scenario.label}
+                  value={product.demoScenario === scenario.id ? 'Active' : undefined}
+                  onPress={() => setDemoScenario(scenario.id)}
                 />
               ))
             : null}

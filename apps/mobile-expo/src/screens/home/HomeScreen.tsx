@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -59,9 +59,10 @@ function activityBadge(kind: ActivityEventKind): string | null {
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
-  const { state, permissions } = useApp();
+  const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
   const { product, consumePendingPostOnboardingRoute } = useProduct();
-  const experience = selectProductExperience(state, product, permissions);
+  const recoveryRefreshed = useRef(false);
+  const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const { scenario, secondaryAction, liveMode } = experience;
   const greeting = greetingForName(product.preferredName);
 
@@ -71,10 +72,19 @@ export function HomeScreen() {
       if (route === 'Proof') navigation.navigate('Proof');
       return;
     }
-    navigation.navigate(route);
+    if (route === 'ProtectionAlert') navigation.navigate('ProtectionAlert');
+    else if (route === 'ManualTrip') navigation.navigate('ManualTrip');
+    else if (route === 'BringExistingMileage') navigation.navigate('BringExistingMileage');
+    else if (route === 'MissingTripRecovery') navigation.navigate('Review');
     // Intentionally once on mount / when pending is set
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.pendingPostOnboardingRoute]);
+
+  useEffect(() => {
+    if (recoveryRefreshed.current || experience.confirmedTrips.length === 0) return;
+    recoveryRefreshed.current = true;
+    refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
+  }, [experience.confirmedTrips.length, product.workLocations, refreshRecoverySuggestions]);
 
   const handlePrimary = () => {
     if (scenario.primaryActionRoute === 'ProtectionAlert') {
@@ -84,6 +94,7 @@ export function HomeScreen() {
     if (scenario.primaryActionRoute === 'Review') navigation.navigate('Review');
     else if (scenario.primaryActionRoute === 'Profile') navigation.navigate('Profile');
     else if (scenario.primaryActionRoute === 'Proof') navigation.navigate('Proof');
+    else if (scenario.primaryActionRoute === 'ManualTrip') navigation.navigate('ManualTrip');
   };
 
   const handleSecondary = () => {
@@ -107,7 +118,7 @@ export function HomeScreen() {
       ) : null}
 
       {scenario.homeState === 'offline' ? (
-        <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
+        <OfflineBanner body="Your miles are safe on this device. Sync resumes when you are back online." />
       ) : null}
 
       <StatusCard
@@ -141,7 +152,7 @@ export function HomeScreen() {
                 : 'Off'
           }
         />
-        <EvidenceRow label="Automatic capture" value="Not available in this preview" />
+        <EvidenceRow label="Automatic capture" value={automaticCaptureAvailable ? 'Available' : 'Not available in this RC'} />
       </SoftPanel>
 
       {showWeekSummary ? (
@@ -164,7 +175,7 @@ export function HomeScreen() {
         <StatusCard
           variant="neutral"
           title="Nothing recorded yet"
-          body="When a real drive is saved—or you add one—it shows up here. We never invent miles."
+          body="When a real drive is saved - or you add one - it shows up here. We never invent miles."
           emphasis="subtle"
         />
       ) : (
