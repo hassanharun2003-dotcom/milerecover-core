@@ -13,7 +13,7 @@ https://expo.dev/accounts/milerecover/projects/milerecover/builds/a0fcf6cd
 - Channel: `preview`
 - Build ID: `a0fcf6cd`
 - Preview `autoIncrement`: enabled
-- `expo-dev-client` autolinking: excluded for preview/production (EAS build sync)
+- `expo-dev-client` autolinking: excluded for preview/production via `eas-build-pre-install` → `scripts/sync-dev-client-autolinking.cjs`
 
 ## Verified upgrade notes
 
@@ -61,7 +61,7 @@ Optional: Profile → **About MileRecover** → **Check for updates**, or tap **
 ## Standalone preview guarantees
 
 - `APP_VARIANT=preview` → no `expo-dev-client` config plugin
-- On EAS Build, `package.json` `expo.autolinking.exclude` includes `expo-dev-client` for non-development variants
+- On EAS Build, `eas-build-pre-install` sets `package.json` `expo.autolinking.exclude` to `expo-dev-client` for non-development variants
 - Updates enabled for preview/production; disabled for development client
 
 ## What requires a new APK

@@ -16,6 +16,13 @@ function readJson(fileName: string): Record<string, unknown> {
 
 describe('Verified Android preview build a0fcf6cd configuration', () => {
   const appConfigSource = fs.readFileSync(path.join(root, 'app.config.ts'), 'utf8');
+  const syncScript = fs.readFileSync(
+    path.join(root, 'scripts/sync-dev-client-autolinking.cjs'),
+    'utf8',
+  );
+  const packageJson = readJson('package.json') as {
+    scripts?: { 'eas-build-pre-install'?: string };
+  };
   const eas = readJson('eas.json') as {
     build: {
       preview: {
@@ -49,7 +56,9 @@ describe('Verified Android preview build a0fcf6cd configuration', () => {
     expect(getDevClientAutolinkingExclude('preview')).toEqual(['expo-dev-client']);
     expect(getDevClientAutolinkingExclude('production')).toEqual(['expo-dev-client']);
     expect(getDevClientAutolinkingExclude('development')).toEqual([]);
-    expect(appConfigSource).toContain('getDevClientAutolinkingExclude');
-    expect(appConfigSource).toContain('syncAutolinkingExcludeForEasBuild');
+    expect(packageJson.scripts?.['eas-build-pre-install']).toContain(
+      'sync-dev-client-autolinking.cjs',
+    );
+    expect(syncScript).toContain("exclude = variant === 'development' ? [] : ['expo-dev-client']");
   });
 });

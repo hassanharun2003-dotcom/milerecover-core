@@ -16,7 +16,8 @@
     "update:preview": "eas update --channel preview --environment preview --non-interactive",
     "update:production": "eas update --channel production --environment production --non-interactive",
     "prebuild:android": "expo prebuild --platform android --no-install",
-    "prebuild:ios": "expo prebuild --platform ios --no-install"
+    "prebuild:ios": "expo prebuild --platform ios --no-install",
+    "eas-build-pre-install": "node ./scripts/sync-dev-client-autolinking.cjs"
   },
   "dependencies": {
     "@babel/runtime": "~7.29.0",
