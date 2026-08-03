@@ -2,6 +2,9 @@
 
 Build label: `0.1.2-preview.4` · Runtime: `0.1.2` · App: `apps/mobile-expo` only
 
+OTA update group: `ed85da34-cb5d-477a-ab97-47bc3fdb1264`  
+Android update ID: `019fc66f-e527-7a27-a723-5c7ee3656056`
+
 ## What changed
 
 1. **Shared screen shells** (`src/design-system/screenShell.tsx`)

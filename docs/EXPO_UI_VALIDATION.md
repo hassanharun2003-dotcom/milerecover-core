@@ -70,7 +70,7 @@ npm --prefix apps/mobile-expo run deps:validate    # PASS
 | Direct install URL | https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.2/MileRecover-preview-0.1.2.apk |
 | APK SHA-256 | `87f38692ddc82e9b31ccfbfc70f45443b7ae1c25097d1e1ea583b3ea2a0b5b00` |
 | Preview workflow doc | `docs/PREVIEW_UPDATE_WORKFLOW.md` |
-| OTA publish for runtime `0.1.2` | Published — see `docs/PREVIEW_UPDATE_WORKFLOW.md` (target label `0.1.2-preview.3`) |
+| OTA publish for runtime `0.1.2` | Published — see `docs/PREVIEW_UPDATE_WORKFLOW.md` (target label `0.1.2-preview.4`) |
 | V2 user-first polish | `docs/V2_PRODUCT_POLISH.md` — copy/hierarchy/empty states; tabs unchanged |
 
 ## Android runtime status
