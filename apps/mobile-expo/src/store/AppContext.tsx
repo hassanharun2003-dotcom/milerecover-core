@@ -36,7 +36,7 @@ import {
 } from '../services/locationPermissions';
 import { createInitialAppState, type MileRecoverAppState } from './types';
 
-export type ClassifyAction = 'work' | 'personal' | 'not_drive';
+export type ClassifyAction = 'work' | 'personal' | 'not_drive' | 'not_sure';
 
 interface AppContextValue {
   state: MileRecoverAppState;
@@ -262,7 +262,15 @@ export function AppProvider({ children, repository }: AppProviderProps) {
         const updated =
           action === 'not_drive'
             ? rejectTrip(current)
-            : applyClassification(current, action === 'work' ? 'business' : 'personal');
+            : action === 'not_sure'
+              ? {
+                  ...current,
+                  classification: 'unclassified' as const,
+                  status: 'pending' as const,
+                  confidence: 'low' as const,
+                  updatedAt: Date.now(),
+                }
+              : applyClassification(current, action === 'work' ? 'business' : 'personal');
         commit((prev) => ({
           ...prev,
           trips: prev.trips.map((t) => (t.id === tripId ? updated : t)),

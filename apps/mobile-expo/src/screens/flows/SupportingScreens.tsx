@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, BackHandler, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import {
   formatTimeLocal,
   MAX_TRIP_DISTANCE_MILES,
   reportHasExportableTrips,
+  resolveProtectionStatus,
   shouldOfferTrial,
   validateManualTripInput,
   type MileageReportData,
@@ -128,6 +129,7 @@ function reportData(
   userName: string | null,
   drivingType: ReturnType<typeof voiceForDrivingType> | null,
   primaryGoal: Parameters<typeof buildMileageReportData>[0]['primaryGoal'] = null,
+  localeProfile: Parameters<typeof buildMileageReportData>[0]['localeProfile'] = null,
 ): MileageReportData {
   return buildMileageReportData({
     trips,
@@ -135,6 +137,7 @@ function reportData(
     userName,
     mileageUseType: drivingType?.reportNoun ?? null,
     primaryGoal,
+    localeProfile,
   });
 }
 
@@ -836,6 +839,7 @@ export function MissingTripRecoveryScreen() {
 export function ProtectionAlertScreen() {
   const navigation = useNavigation<Nav>();
   const {
+    state,
     permissions,
     automaticCaptureAvailable,
     requestLocationPermission,
@@ -843,40 +847,99 @@ export function ProtectionAlertScreen() {
     refreshPermissions,
     openSystemSettings,
   } = useApp();
-  const { product, setProtectionSetupState } = useProduct();
+  const { product, setProtectionSetupState, setTrackingEnabled } = useProduct();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const protection = resolveProtectionStatus({
+    permissions,
+    trackingEnabled: product.trackingEnabled,
+    canUseAutomaticCapture: capabilities.canUseAutomaticCapture && automaticCaptureAvailable,
+    trackingEngineState: state.trackingEngineState,
+    lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
+    lastSyncAt: state.lastSyncAt,
+    pendingReviewCount: state.reviewItems.length,
+  });
   const foregroundReady = permissions.location === 'granted';
   const backgroundReady = permissions.backgroundLocation === 'granted';
+  const issue = protection.primaryIssue;
+  const statusVariant =
+    protection.status === 'protected'
+      ? ('success' as const)
+      : protection.status === 'off'
+        ? ('info' as const)
+        : ('warning' as const);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void refreshPermissions();
+    });
+    return () => sub.remove();
+  }, [refreshPermissions]);
 
   return (
     <ScrollScreen>
       <StatusCard
-        variant={foregroundReady && backgroundReady ? 'info' : 'warning'}
-        title={
-          foregroundReady && backgroundReady
-            ? 'You’re protected'
-            : foregroundReady
-              ? 'Partially protected'
-              : 'Not yet protected'
-        }
-        body={
-          automaticCaptureAvailable
-            ? 'Allow location so future drives can be saved. You can change this anytime in Settings.'
-            : 'Auto-tracking isn’t available on this device yet. Manual drives still work.'
-        }
+        variant={statusVariant}
+        title={protection.title}
+        body={protection.detail}
         emphasis="hero"
       />
+      {issue ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>{issue.what}</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{issue.why}</Text>
+          {issue.action === 'open_location_settings' || issue.action === 'open_battery_settings' ? (
+            <PrimaryButton label={issue.actionLabel} onPress={() => void openSystemSettings()} />
+          ) : null}
+          {issue.action === 'enable_watching' ? (
+            <PrimaryButton
+              label={issue.actionLabel}
+              onPress={() => {
+                if (!capabilities.canUseAutomaticCapture) {
+                  navigation.navigate('PlanSelection', { source: 'upgrade' });
+                  return;
+                }
+                setTrackingEnabled(true);
+              }}
+            />
+          ) : null}
+          {issue.action === 'review_trips' ? (
+            <PrimaryButton
+              label={issue.actionLabel}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })}
+            />
+          ) : null}
+        </SoftPanel>
+      ) : (
+        <SoftPanel>
+          <Text style={text.body}>
+            {automaticCaptureAvailable
+              ? 'Location and watching look ready. Manual drives always remain available.'
+              : 'Auto-tracking isn’t available on this device yet. Manual drives still work.'}
+          </Text>
+        </SoftPanel>
+      )}
       <SoftPanel>
         <EvidenceRow label="While using the app" value={foregroundReady ? 'On' : 'Off'} />
         <EvidenceRow label="In the background" value={backgroundReady ? 'On' : 'Off'} />
+        <EvidenceRow
+          label="Battery restrictions"
+          value={permissions.batteryOptimizationRestricted ? 'May stop tracking' : 'OK'}
+        />
       </SoftPanel>
-      <PrimaryButton label="Allow location while using the app" onPress={() => void requestLocationPermission()} />
-      <SecondaryButton
-        label="Allow location in the background"
-        onPress={() => void requestBackgroundPermission()}
-        disabled={!foregroundReady}
-      />
-      <SecondaryButton label="Open Settings" onPress={() => void openSystemSettings()} />
-      <SecondaryButton label="Refresh" onPress={() => void refreshPermissions()} />
+      {!foregroundReady ? (
+        <PrimaryButton
+          label="Allow location while using the app"
+          onPress={() => void requestLocationPermission()}
+        />
+      ) : null}
+      {foregroundReady && !backgroundReady ? (
+        <SecondaryButton
+          label="Allow location in the background"
+          onPress={() => void requestBackgroundPermission()}
+        />
+      ) : null}
+      <SecondaryButton label="Open settings" onPress={() => void openSystemSettings()} />
+      <SecondaryButton label="Check again" onPress={() => void refreshPermissions()} />
       {product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated' ? (
         <PrimaryButton
           label="Looks good — continue"
@@ -884,6 +947,12 @@ export function ProtectionAlertScreen() {
           accessibilityLabel="Mark watching setup complete"
         />
       ) : null}
+      <StatusCard
+        variant="info"
+        title="Manual tracking always works"
+        body="If automatic watching is limited, add drives yourself. Nothing is invented."
+        emphasis="subtle"
+      />
       <SecondaryButton label="See watching status" onPress={() => navigation.navigate('TrackingActive')} />
     </ScrollScreen>
   );
@@ -1274,6 +1343,7 @@ export function ExportReportScreen() {
     product.preferredName,
     voiceForDrivingType(product.drivingType),
     product.primaryGoal,
+    product.localeProfile,
   );
   const canExport = reportHasExportableTrips(state.trips, period);
 
@@ -1398,6 +1468,7 @@ export function ReportPreviewScreen() {
     product.preferredName,
     voiceForDrivingType(product.drivingType),
     product.primaryGoal,
+    product.localeProfile,
   );
 
   return (

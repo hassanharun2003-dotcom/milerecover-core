@@ -14,7 +14,9 @@ import {
   inferDrivingPatternFromGoal,
   inferNextAction,
   isOnboardingMinimumComplete,
+  rateForTimestamp,
   type EntitlementSnapshot,
+  type LocaleProfile,
   type NextActionId,
   type PainPoint,
   type VersionedOnboardingState,
@@ -75,6 +77,7 @@ interface ProductContextValue {
   setSelectedPainPoints: (painPoints: PainPoint[]) => void;
   setDrivingType: (type: DrivingType) => void;
   setPreferredName: (name: string | null) => void;
+  setLocaleProfile: (profile: LocaleProfile) => void;
   setProtectionSetupState: (state: ProtectionSetupState) => void;
   skipPreferredName: () => void;
   skipVehicleSetup: () => void;
@@ -302,6 +305,21 @@ export function ProductProvider({
             completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'preferred_name']),
           }),
         ),
+      setLocaleProfile: (localeProfile) =>
+        persist((prev) => {
+          const currentRate = rateForTimestamp(localeProfile.rates, Date.now());
+          return patchOnboardingState(
+            {
+              ...prev,
+              localeProfile,
+              reimbursementCentsPerMile: currentRate?.centsPerMile ?? prev.reimbursementCentsPerMile,
+            },
+            {
+              countryStepAcknowledged: true,
+              completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'country']),
+            },
+          );
+        }),
       setProtectionSetupState: (protectionSetupState) =>
         persist((prev) =>
           patchOnboardingState(

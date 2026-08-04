@@ -2,6 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { BackHandler, Platform, Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
+  localeProfileFromCountry,
+  recommendCountryFromLocale,
+  type CountryCode,
+  type CurrencyCode,
+  type DistanceUnit,
+} from '@milerecover/domain';
+import {
+  COUNTRY_OPTIONS,
   ONBOARDING_STEP_ORDER,
   PAIN_POINT_OPTIONS,
   PRIMARY_GOAL_OPTIONS,
@@ -78,6 +86,7 @@ export function OnboardingFlow() {
     setPrimaryGoal,
     setSelectedPainPoints,
     setPreferredName,
+    setLocaleProfile,
     skipPreferredName,
     skipVehicleSetup,
     upsertVehicle,
@@ -92,6 +101,15 @@ export function OnboardingFlow() {
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
   const [vehicleNickname, setVehicleNickname] = useState('');
   const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
+  const recommendedCountry = recommendCountryFromLocale(
+    typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined,
+  );
+  const [countryDraft, setCountryDraft] = useState<CountryCode>(
+    product.localeProfile.countryCode || recommendedCountry,
+  );
+  const [otherUnit, setOtherUnit] = useState<DistanceUnit>('mi');
+  const [otherCurrency, setOtherCurrency] = useState<CurrencyCode>('OTHER');
+  const [otherRate, setOtherRate] = useState('');
 
   const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
@@ -261,6 +279,80 @@ export function OnboardingFlow() {
               emphasis="subtle"
             />
           ) : null}
+        </View>
+      ) : null}
+
+      {step === 'country' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Where do you drive for work?
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            We’ll use local units and currency. You can change this later in Profile. This is not tax advice.
+          </Text>
+          {COUNTRY_OPTIONS.map((opt) => (
+            <SelectionCard
+              key={opt.id}
+              title={opt.label}
+              body={opt.id === recommendedCountry ? 'Suggested from your device' : undefined}
+              selected={countryDraft === opt.id}
+              onPress={() => setCountryDraft(opt.id)}
+            />
+          ))}
+          {countryDraft === 'OTHER' ? (
+            <SoftPanel>
+              <Text style={[text.body, { marginBottom: spacing.sm }]}>
+                Choose units and a custom reimbursement rate (optional).
+              </Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <SelectionCard
+                  title="Miles"
+                  selected={otherUnit === 'mi'}
+                  onPress={() => setOtherUnit('mi')}
+                />
+                <SelectionCard
+                  title="Kilometers"
+                  selected={otherUnit === 'km'}
+                  onPress={() => setOtherUnit('km')}
+                />
+              </View>
+              <FormField
+                label="Currency code (optional)"
+                value={otherCurrency === 'OTHER' ? '' : otherCurrency}
+                onChangeText={(value) => {
+                  const next = value.trim().toUpperCase();
+                  if (!next) setOtherCurrency('OTHER');
+                  else if (['USD', 'CAD', 'GBP', 'AUD', 'EUR'].includes(next)) {
+                    setOtherCurrency(next as CurrencyCode);
+                  }
+                }}
+                placeholder="e.g. EUR"
+                autoCapitalize="characters"
+              />
+              <FormField
+                label={`Rate (cents per ${otherUnit === 'km' ? 'mile stored' : 'mile'})`}
+                value={otherRate}
+                onChangeText={setOtherRate}
+                placeholder="e.g. 45"
+                keyboardType="decimal-pad"
+              />
+            </SoftPanel>
+          ) : null}
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              const cents = Number.parseFloat(otherRate);
+              const profile = localeProfileFromCountry(countryDraft, {
+                distanceUnit: countryDraft === 'OTHER' ? otherUnit : undefined,
+                currencyCode: countryDraft === 'OTHER' ? otherCurrency : undefined,
+                centsPerMile:
+                  countryDraft === 'OTHER' && Number.isFinite(cents) && cents > 0 ? cents : undefined,
+              });
+              setLocaleProfile(profile);
+              advanceOnboarding();
+            }}
+            accessibilityLabel="Save country and continue"
+          />
         </View>
       ) : null}
 

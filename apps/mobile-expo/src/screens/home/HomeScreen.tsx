@@ -5,7 +5,14 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
-import { capabilitiesForEntitlement } from '@milerecover/domain';
+import {
+  capabilitiesForEntitlement,
+  estimatedValueCents,
+  formatCurrencyCents,
+  formatDistance,
+  rateForTimestamp,
+  resolveProtectionStatus,
+} from '@milerecover/domain';
 import {
   Badge,
   OfflineBanner,
@@ -85,8 +92,35 @@ export function HomeScreen() {
     capabilities.canUseAutomaticCapture &&
     permissions.location === 'granted' &&
     permissions.backgroundLocation === 'granted';
+  const protection = resolveProtectionStatus({
+    permissions,
+    trackingEnabled: product.trackingEnabled,
+    canUseAutomaticCapture: capabilities.canUseAutomaticCapture && automaticCaptureAvailable,
+    trackingEngineState: state.trackingEngineState,
+    lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
+    lastSyncAt: state.lastSyncAt,
+    pendingReviewCount: experience.activeReviewItems.length,
+    offline: scenario.homeState === 'offline',
+  });
+
+  const protectionVariant =
+    protection.status === 'protected'
+      ? ('success' as const)
+      : protection.status === 'off'
+        ? ('info' as const)
+        : protection.status === 'limited'
+          ? ('warning' as const)
+          : ('danger' as const);
   const confirmedCount = experience.confirmedTrips.length;
   const recoveredCount = experience.confirmedTrips.filter((trip) => trip.source === 'recovered').length;
+  const locale = product.localeProfile;
+  const currentRate = rateForTimestamp(locale.rates, Date.now());
+  const protectedMiles = scenario.weekSummary.milesProtected;
+  const estimatedProtected =
+    currentRate != null ? estimatedValueCents(protectedMiles, currentRate.centsPerMile) : null;
+  const recoveredMiles = scenario.weekSummary.recoveredMiles;
+  const estimatedRecovered =
+    currentRate != null ? estimatedValueCents(recoveredMiles, currentRate.centsPerMile) : null;
   const trialMoment = earnedTrialMoment(product, confirmedCount);
   const firstWeek =
     isWithinFirstWeek(product.onboarding.completedAt) ||
@@ -231,6 +265,31 @@ export function HomeScreen() {
       ) : null}
 
       <StatusCard
+        variant={protectionVariant}
+        title={protection.title}
+        body={protection.detail}
+        actionLabel={
+          protection.primaryIssue?.action === 'open_location_settings' ||
+          protection.primaryIssue?.action === 'open_battery_settings' ||
+          protection.primaryIssue?.action === 'enable_watching'
+            ? protection.primaryIssue.actionLabel
+            : protection.primaryIssue?.action === 'review_trips'
+              ? protection.primaryIssue.actionLabel
+              : undefined
+        }
+        onAction={
+          protection.primaryIssue?.action === 'review_trips'
+            ? () => navigation.navigate('Review')
+            : protection.primaryIssue?.action === 'enable_watching' ||
+                protection.primaryIssue?.action === 'open_location_settings' ||
+                protection.primaryIssue?.action === 'open_battery_settings'
+              ? () => navigation.navigate('ProtectionAlert')
+              : undefined
+        }
+        emphasis="subtle"
+      />
+
+      <StatusCard
         variant={homeVariant(scenario.homeState)}
         title={scenario.homeTitle}
         body={scenario.homeDetail}
@@ -303,16 +362,49 @@ export function HomeScreen() {
       {showWeekSummary ? (
         <>
           <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
-            This week
+            This period
           </Text>
           <SummaryCard
             items={[
-              { label: 'Miles kept', value: scenario.weekSummary.milesProtected.toFixed(1) },
-              { label: 'Miles found', value: scenario.weekSummary.recoveredMiles.toFixed(1) },
-              { label: 'Ready to share', value: scenario.weekSummary.milesReadyForProof.toFixed(1) },
+              {
+                label: locale.distanceUnit === 'km' ? 'Distance kept' : 'Miles kept',
+                value: formatDistance(protectedMiles, locale.distanceUnit, locale.localeTag, 1).replace(
+                  ` ${locale.distanceUnit}`,
+                  '',
+                ),
+              },
+              {
+                label: 'Estimated value',
+                value:
+                  estimatedProtected != null
+                    ? formatCurrencyCents(estimatedProtected, locale.currencyCode, locale.localeTag)
+                    : '—',
+              },
+              {
+                label: 'Miles recovered',
+                value: formatDistance(recoveredMiles, locale.distanceUnit, locale.localeTag, 1).replace(
+                  ` ${locale.distanceUnit}`,
+                  '',
+                ),
+              },
             ]}
           />
+          {estimatedRecovered != null && recoveredMiles > 0 ? (
+            <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+              Estimated value recovered{' '}
+              {formatCurrencyCents(estimatedRecovered, locale.currencyCode, locale.localeTag)}
+            </Text>
+          ) : null}
         </>
+      ) : null}
+
+      {liveMode && confirmedCount === 0 && protection.status === 'protected' ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>You’re protected</Text>
+          <Text style={[text.body, { marginTop: spacing.xs }]}>
+            Your drives will appear here after you travel.
+          </Text>
+        </SoftPanel>
       ) : null}
 
       <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>Recent</Text>

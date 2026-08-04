@@ -457,30 +457,51 @@ export function ReviewCard({
   title,
   subtitle,
   distance,
+  estimatedValue,
   reason,
   provenance,
+  evidence,
+  vehicle,
   onPress,
   onWork,
   onPersonal,
+  onEdit,
+  onNotSure,
   onNotDrive,
 }: {
   title: string;
   subtitle: string;
   distance: string;
+  estimatedValue?: string | null;
   reason: string;
   provenance?: string;
+  evidence?: string | null;
+  vehicle?: string | null;
   onPress?: () => void;
   onWork: () => void;
   onPersonal: () => void;
-  onNotDrive: () => void;
+  onEdit?: () => void;
+  onNotSure?: () => void;
+  onNotDrive?: () => void;
 }) {
+  const a11y = [
+    title,
+    subtitle,
+    distance,
+    estimatedValue,
+    provenance,
+    evidence,
+    vehicle,
+  ]
+    .filter(Boolean)
+    .join('. ');
   return (
     <Pressable
       style={({ pressed }) => [cardBase, pressed && styles.cardPressed]}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="summary"
-      accessibilityLabel={`${title}. ${subtitle}`}
+      accessibilityLabel={a11y}
     >
       <View style={styles.reviewCardTop}>
         <MapPlaceholder />
@@ -488,14 +509,43 @@ export function ReviewCard({
           <Text style={text.subtitle}>{title}</Text>
           <Text style={[text.body, { marginTop: spacing.xs }]}>{subtitle}</Text>
           <Text style={[text.caption, { marginTop: spacing.sm }]}>{distance}</Text>
+          {estimatedValue ? (
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>{estimatedValue}</Text>
+          ) : null}
+          {vehicle ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{vehicle}</Text> : null}
+          {evidence ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{evidence}</Text> : null}
           {provenance ? <Badge label={provenance} variant="info" /> : null}
           <Text style={[text.caption, { marginTop: spacing.xs }]}>{reason}</Text>
         </View>
       </View>
       <View style={styles.reviewActions}>
-        <SecondaryButton label="Work" onPress={onWork} accessibilityLabel="Yes, work drive" />
-        <SecondaryButton label="Personal" onPress={onPersonal} />
-        <TertiaryButton label="Not a drive" onPress={onNotDrive} />
+        <SecondaryButton
+          label="Work"
+          onPress={onWork}
+          accessibilityLabel={`Mark as work drive. ${title}`}
+        />
+        <SecondaryButton
+          label="Personal"
+          onPress={onPersonal}
+          accessibilityLabel={`Mark as personal drive. ${title}`}
+        />
+        {onEdit ? (
+          <SecondaryButton label="Edit" onPress={onEdit} accessibilityLabel={`Edit trip. ${title}`} />
+        ) : null}
+        {onNotSure ? (
+          <TertiaryButton
+            label="Not sure"
+            onPress={onNotSure}
+            accessibilityLabel={`Mark as not sure. ${title}`}
+          />
+        ) : null}
+        {onNotDrive ? (
+          <TertiaryButton
+            label="Not a drive"
+            onPress={onNotDrive}
+            accessibilityLabel={`Exclude as not a drive. ${title}`}
+          />
+        ) : null}
       </View>
     </Pressable>
   );

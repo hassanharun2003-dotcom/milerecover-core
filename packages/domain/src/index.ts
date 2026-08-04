@@ -16,3 +16,6 @@ export * from './import/csvImport';
 export * from './entitlements/types';
 export * from './tracking/segmentation';
 export * from './onboarding/completeness';
+export * from './localization/types';
+export * from './protection-health/status';
+export * from './proof/readiness';

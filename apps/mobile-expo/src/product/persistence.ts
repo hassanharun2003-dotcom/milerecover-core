@@ -9,6 +9,8 @@ import {
   isOnboardingVersionStale,
   mapLegacyGoal,
   mapLegacyPattern,
+  migrateLocaleProfile,
+  rateForTimestamp,
   type VersionedOnboardingState,
 } from '@milerecover/domain';
 import {
@@ -237,6 +239,12 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
       typeof parsed.celebratedFirstRecoveryAt === 'number' ? parsed.celebratedFirstRecoveryAt : null,
     finishSetupDismissedAt:
       typeof parsed.finishSetupDismissedAt === 'number' ? parsed.finishSetupDismissedAt : null,
+    localeProfile: migrateLocaleProfile(parsed.localeProfile, now),
+    reimbursementCentsPerMile:
+      typeof parsed.reimbursementCentsPerMile === 'number'
+        ? parsed.reimbursementCentsPerMile
+        : rateForTimestamp(migrateLocaleProfile(parsed.localeProfile, now).rates, now)?.centsPerMile ??
+          null,
   };
   if (!merged.demoModeEnabled) {
     merged.entitlement = createFreeEntitlement(now);

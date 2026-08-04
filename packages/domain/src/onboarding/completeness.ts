@@ -1,6 +1,7 @@
 export type OnboardingStepId =
   | 'welcome'
   | 'account'
+  | 'country'
   | 'primary_goal'
   | 'pain_points'
   | 'driving_pattern'
@@ -41,9 +42,9 @@ export type NextActionId =
 
 /**
  * Bump when essential onboarding screens/questions change and stale installs must re-enter.
- * v6: full first-launch path (account, permissions, personalization, vehicle, protection).
+ * v7: country/units step after account; full first-launch path retained.
  */
-export const CURRENT_ONBOARDING_VERSION = 6;
+export const CURRENT_ONBOARDING_VERSION = 7;
 
 export interface VersionedOnboardingState {
   schemaVersion: 4;
@@ -59,6 +60,8 @@ export interface VersionedOnboardingState {
   permissionsEducationAcknowledged: boolean;
   /** Optional account step acknowledged (signed in or skipped). */
   accountStepAcknowledged?: boolean;
+  /** Country/units step acknowledged. */
+  countryStepAcknowledged?: boolean;
   nextActionSelected: NextActionId | null;
   /** Timestamp when the current onboarding version was completed. */
   completedAt: number | null;
@@ -81,6 +84,7 @@ export function createEmptyOnboardingState(now = Date.now()): VersionedOnboardin
     protectionEducationAcknowledged: false,
     permissionsEducationAcknowledged: false,
     accountStepAcknowledged: false,
+    countryStepAcknowledged: false,
     nextActionSelected: null,
     completedAt: null,
     completedOnboardingVersion: null,

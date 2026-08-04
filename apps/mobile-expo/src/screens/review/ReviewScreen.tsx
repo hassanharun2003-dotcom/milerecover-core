@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { motion } from '@milerecover/config';
 import {
+  estimatedValueCents,
+  formatCurrencyCents,
+  formatDistance,
+  rateForTimestamp,
   type RecoveryCandidate,
   type ReviewItem,
   type TripRecord,
@@ -41,6 +45,8 @@ function decisionLabel(decision: string | null | undefined): string {
       return 'Personal';
     case 'not_drive':
       return 'Not a drive';
+    case 'not_sure':
+      return 'Not sure';
     default:
       return 'Saved';
   }
@@ -61,6 +67,21 @@ function isRecoveryCandidate(value: unknown): value is RecoveryCandidate {
   return Boolean(value && typeof value === 'object' && 'proposedStartAt' in value && 'plainLanguageExplanation' in value);
 }
 
+function captureSourceLabel(source: TripRecord['source'] | undefined): string {
+  switch (source) {
+    case 'auto_detected':
+      return 'Automatic capture';
+    case 'recovered':
+      return 'Recovered';
+    case 'imported':
+      return 'Imported';
+    case 'manual':
+      return 'Manual entry';
+    default:
+      return 'Needs review';
+  }
+}
+
 export function ReviewScreen() {
   const navigation = useNavigation<ReviewNav>();
   const {
@@ -79,6 +100,13 @@ export function ReviewScreen() {
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = experience.activeReviewItems;
   const reviewed = product.reviewHistoryEntries.filter((entry) => !entry.undoneAt);
+  const locale = product.localeProfile;
+
+  const workMilesReady = useMemo(() => {
+    return experience.confirmedTrips
+      .filter((trip) => trip.classification === 'business' && trip.status === 'confirmed')
+      .reduce((sum, trip) => sum + trip.distanceMiles, 0);
+  }, [experience.confirmedTrips]);
 
   useEffect(() => {
     if (pending.some((item) => item.kind === 'possible_missing_trip') && product.firstMissingTripSeenAt == null) {
@@ -126,6 +154,10 @@ export function ReviewScreen() {
         navigation.navigate('MissingTripRecovery', { reviewId: item.id });
         return;
       }
+      if (decision === 'not_sure') {
+        pushDecision(item, decision, candidate, candidate.id, 'recovery');
+        return;
+      }
       rejectRecovery(candidate.id);
       pushDecision(item, decision, candidate, candidate.id, 'recovery');
       return;
@@ -149,6 +181,22 @@ export function ReviewScreen() {
     if (undoTimer.current) clearTimeout(undoTimer.current);
   };
 
+  const estimateForMiles = (miles: number | null | undefined, at: number): string | null => {
+    if (miles == null) return null;
+    const rate = rateForTimestamp(locale.rates, at);
+    if (!rate) return null;
+    const cents = estimatedValueCents(miles, rate.centsPerMile);
+    if (cents == null) return null;
+    return `Estimated value ${formatCurrencyCents(cents, locale.currencyCode, locale.localeTag)}`;
+  };
+
+  const caughtUpBody =
+    workMilesReady > 0
+      ? `${formatDistance(workMilesReady, locale.distanceUnit, locale.localeTag)} of work travel ${
+          locale.distanceUnit === 'km' ? 'are' : 'are'
+        } ready for Proof.`
+      : 'We’ll let you know when something needs a quick look. Nothing uncertain enters Proof until you decide.';
+
   return (
     <TabScreen>
       <SegmentedControl
@@ -163,10 +211,7 @@ export function ReviewScreen() {
       {segment === 'needs' ? (
         pending.length === 0 ? (
           <>
-            <EmptyState
-              title="You’re caught up"
-              body="We’ll let you know when something needs a quick look. Nothing uncertain enters a report until you decide."
-            />
+            <EmptyState title="All caught up" body={caughtUpBody} />
             <CarRouteHero />
             <SoftPanel>
               <Text style={text.body}>
@@ -175,26 +220,57 @@ export function ReviewScreen() {
             </SoftPanel>
           </>
         ) : (
-          pending.map((item) => (
-            <ReviewCard
-              key={item.id}
-              title={item.title}
-              subtitle={item.subtitle}
-              distance={item.distanceMiles != null ? `${item.distanceMiles.toFixed(1)} mi` : 'Distance needed'}
-              reason={item.reason}
-              provenance={provenanceForItem(item.kind)}
-              onPress={() => {
-                if (item.kind === 'possible_missing_trip') {
-                  navigation.navigate('MissingTripRecovery', { reviewId: item.id });
-                } else {
-                  navigation.navigate('TripDetails', { tripId: item.tripId });
+          pending.map((item) => {
+            const tripId = item.kind === 'possible_missing_trip' ? null : item.tripId;
+            const trip = tripId ? state.trips.find((record) => record.id === tripId) : undefined;
+            const vehicle = trip?.vehicleId
+              ? product.vehicles.find((v) => v.id === trip.vehicleId)
+              : null;
+            const vehicleLabel = vehicle
+              ? vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
+              : null;
+            const insufficientEvidence =
+              item.kind === 'low_confidence_trip' ||
+              item.kind === 'conflicted_trip' ||
+              item.distanceMiles == null ||
+              trip?.confidence === 'low';
+            const at = trip?.startAt ?? Date.now();
+            return (
+              <ReviewCard
+                key={item.id}
+                title={item.title}
+                subtitle={item.subtitle}
+                distance={
+                  item.distanceMiles != null
+                    ? formatDistance(item.distanceMiles, locale.distanceUnit, locale.localeTag)
+                    : 'Distance needed'
                 }
-              }}
-              onWork={() => decide(item, 'work')}
-              onPersonal={() => decide(item, 'personal')}
-              onNotDrive={() => decide(item, 'not_drive')}
-            />
-          ))
+                estimatedValue={estimateForMiles(item.distanceMiles, at)}
+                reason={item.reason}
+                provenance={provenanceForItem(item.kind)}
+                evidence={trip ? captureSourceLabel(trip.source) : provenanceForItem(item.kind)}
+                vehicle={vehicleLabel}
+                onPress={() => {
+                  if (item.kind === 'possible_missing_trip') {
+                    navigation.navigate('MissingTripRecovery', { reviewId: item.id });
+                  } else {
+                    navigation.navigate('TripDetails', { tripId: item.tripId });
+                  }
+                }}
+                onWork={() => decide(item, 'work')}
+                onPersonal={() => decide(item, 'personal')}
+                onEdit={() => {
+                  if (item.kind === 'possible_missing_trip') {
+                    navigation.navigate('MissingTripRecovery', { reviewId: item.id });
+                  } else {
+                    navigation.navigate('TripDetails', { tripId: item.tripId });
+                  }
+                }}
+                onNotSure={insufficientEvidence ? () => decide(item, 'not_sure') : undefined}
+                onNotDrive={() => decide(item, 'not_drive')}
+              />
+            );
+          })
         )
       ) : reviewed.length === 0 ? (
         <EmptyState

@@ -12,11 +12,12 @@ describe('Authoritative onboarding versioning', () => {
   it('uses the full first-launch path', () => {
     expect(ONBOARDING_STEP_ORDER[0]).toBe('welcome');
     expect(ONBOARDING_STEP_ORDER).toContain('account');
+    expect(ONBOARDING_STEP_ORDER).toContain('country');
     expect(ONBOARDING_STEP_ORDER).toContain('permissions_education');
     expect(ONBOARDING_STEP_ORDER).toContain('vehicle_setup');
     expect(ONBOARDING_STEP_ORDER).toContain('protection_education');
     expect(ONBOARDING_STEP_ORDER[ONBOARDING_STEP_ORDER.length - 1]).toBe('ready');
-    expect(CURRENT_ONBOARDING_VERSION).toBe(6);
+    expect(CURRENT_ONBOARDING_VERSION).toBe(7);
   });
 
   it('clean install is incomplete and starts at welcome', () => {

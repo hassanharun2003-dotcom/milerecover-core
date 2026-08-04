@@ -111,10 +111,25 @@ export function ProfileScreen() {
         onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
       />
 
-      <ListSection title="Profile">
+      <ListSection title="Account">
         <ListRow
           label="Preferred name"
           value={product.preferredName?.trim() || 'Not set'}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow
+          label="Country"
+          value={product.localeProfile.countryDisplayName}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow
+          label="Units"
+          value={product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles'}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow
+          label="Currency"
+          value={product.localeProfile.currencyCode}
           onPress={() => navigation.navigate('EditSetup')}
         />
         <ListRow
@@ -142,14 +157,28 @@ export function ProfileScreen() {
           onPress={() => navigation.navigate('VehicleSetup')}
         />
         <ListRow
+          label="Tracking preferences"
+          value={product.trackingEnabled ? 'Watching on' : 'Manual ready'}
+          onPress={() => navigation.navigate(watchingFullyOn ? 'TrackingActive' : 'ProtectionAlert')}
+        />
+        <ListRow
           label="Familiar places"
           value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}
           onPress={() => navigation.navigate('WorkLocationSetup')}
         />
+        <ListRow
+          label="Custom rate"
+          value={
+            product.reimbursementCentsPerMile != null
+              ? `${product.reimbursementCentsPerMile}¢/mi`
+              : 'Not set'
+          }
+          onPress={() => navigation.navigate('EditSetup')}
+        />
       </ListSection>
 
+      <Text style={[text.caption, { marginTop: spacing.md, marginBottom: spacing.xs }]}>PROTECTION</Text>
       <SoftPanel>
-        <Text style={[text.caption, { marginBottom: spacing.xs }]}>COVERAGE</Text>
         <Text style={text.subtitle}>{coverageTitle}</Text>
         <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{coverageBody}</Text>
         <PrimaryButton
@@ -169,15 +198,24 @@ export function ProfileScreen() {
         <ListRow label="Export report" onPress={() => navigation.navigate('ExportReport')} />
       </ListSection>
 
-      <ListSection title="Privacy">
+      <ListSection title="Plan">
+        <ListRow
+          label="Subscription"
+          value={product.entitlement.planId === 'free' ? 'Free' : product.entitlement.planId}
+          onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
+        />
+        <ListRow
+          label="Restore purchases"
+          onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
+        />
+      </ListSection>
+
+      <ListSection title="Support">
         <ListRow
           label="Data and privacy"
           value="Local first"
           onPress={() => navigation.navigate('Privacy')}
         />
-      </ListSection>
-
-      <ListSection title="Help">
         <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
         <ListRow label="About" onPress={() => navigation.navigate('About')} />
       </ListSection>

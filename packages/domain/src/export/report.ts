@@ -1,4 +1,12 @@
 import type { MileageGoal } from '../onboarding/completeness';
+import {
+  estimatedValueCents,
+  formatDistance,
+  rateForTimestamp,
+  reportDisclaimerForTone,
+  reportTitleForTone,
+  type LocaleProfile,
+} from '../localization/types';
 import { isConfirmedWorkTrip, type TripRecord } from '../trips/types';
 import { filterExportableTrips } from './csv';
 
@@ -55,6 +63,12 @@ export interface ReportLineItem {
   startLabel: string;
   endLabel: string;
   distanceMiles: number;
+  /** Display-formatted distance using locale units when provided. */
+  distanceLabel?: string;
+  /** Estimated value in cents using the rate effective at trip start. */
+  estimatedValueCents?: number | null;
+  rateCentsPerMile?: number | null;
+  rateSource?: string | null;
   source: string;
   evidence: string;
   notes: string;
@@ -72,6 +86,11 @@ export interface MileageReportData {
   importedMiles: number;
   manualMiles: number;
   unresolvedCount: number;
+  /** Sum of estimated values for exportable trips (null when no rate). */
+  estimatedValueCents: number | null;
+  countryCode: string | null;
+  distanceUnit: string | null;
+  currencyCode: string | null;
   lineItems: ReportLineItem[];
   disclaimer: string;
 }
@@ -122,6 +141,8 @@ export function buildMileageReportData(input: {
   mileageUseType?: string | null;
   primaryGoal?: MileageGoal | null;
   reportTitle?: string | null;
+  disclaimer?: string | null;
+  localeProfile?: LocaleProfile | null;
   generatedAt?: number;
 }): MileageReportData {
   const generatedAt = input.generatedAt ?? Date.now();
@@ -136,10 +157,43 @@ export function buildMileageReportData(input: {
   const sumBy = (source: TripRecord['source']) =>
     exportable.filter((t) => t.source === source).reduce((s, t) => s + t.distanceMiles, 0);
 
+  const locale = input.localeProfile ?? null;
   const title =
     input.reportTitle?.trim() ||
+    (locale ? reportTitleForTone(locale.reportTone, input.period.label) : null) ||
     reportTitleForGoal(input.primaryGoal) ||
     'Work mileage report';
+
+  const disclaimer =
+    input.disclaimer?.trim() ||
+    (locale ? reportDisclaimerForTone(locale.reportTone) : null) ||
+    'This report summarizes confirmed work drives you recorded or confirmed in MileRecover. It is not tax, legal, or employer advice. Unresolved and personal drives are excluded.';
+
+  let estimatedTotal: number | null = null;
+  const lineItems = exportable.map((t) => {
+    const rate = locale ? rateForTimestamp(locale.rates, t.startAt) : null;
+    const estimate = rate ? estimatedValueCents(t.distanceMiles, rate.centsPerMile) : null;
+    if (estimate != null) {
+      estimatedTotal = (estimatedTotal ?? 0) + estimate;
+    }
+    return {
+      id: t.id,
+      dateLabel: dateLabel(t.startAt),
+      purpose: t.purpose?.trim() || 'Work drive',
+      startLabel: t.startLabel?.trim() || '',
+      endLabel: t.endLabel?.trim() || '',
+      distanceMiles: t.distanceMiles,
+      distanceLabel: locale
+        ? formatDistance(t.distanceMiles, locale.distanceUnit, locale.localeTag)
+        : `${t.distanceMiles.toFixed(1)} mi`,
+      estimatedValueCents: estimate,
+      rateCentsPerMile: rate?.centsPerMile ?? null,
+      rateSource: rate?.source ?? null,
+      source: t.source,
+      evidence: t.evidenceMethod ?? '—',
+      notes: t.notes ?? '',
+    };
+  });
 
   return {
     title,
@@ -153,19 +207,12 @@ export function buildMileageReportData(input: {
     importedMiles: sumBy('imported'),
     manualMiles: sumBy('manual'),
     unresolvedCount,
-    lineItems: exportable.map((t) => ({
-      id: t.id,
-      dateLabel: dateLabel(t.startAt),
-      purpose: t.purpose?.trim() || 'Work drive',
-      startLabel: t.startLabel?.trim() || '',
-      endLabel: t.endLabel?.trim() || '',
-      distanceMiles: t.distanceMiles,
-      source: t.source,
-      evidence: t.evidenceMethod ?? '—',
-      notes: t.notes ?? '',
-    })),
-    disclaimer:
-      'This report summarizes confirmed work drives you recorded or confirmed in MileRecover. It is not tax, legal, or employer advice. Unresolved and personal drives are excluded.',
+    estimatedValueCents: estimatedTotal,
+    countryCode: locale?.countryCode ?? null,
+    distanceUnit: locale?.distanceUnit ?? null,
+    currencyCode: locale?.currencyCode ?? null,
+    lineItems,
+    disclaimer,
   };
 }
 

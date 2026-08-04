@@ -10,6 +10,10 @@ import {
   buildMileageReportData,
   capabilitiesForEntitlement,
   csvFilename,
+  formatCurrencyCents,
+  formatDistance,
+  proofReadinessForTrip,
+  proofReadinessLabel,
   resolveReportPeriod,
   type ReportPeriod,
   type ReportPeriodKind,
@@ -87,6 +91,7 @@ export function ProofScreen() {
   const tripsForProof = product.demoModeEnabled
     ? DEMO_SCENARIOS[product.demoScenario]?.trips ?? state.trips
     : state.trips;
+  const locale = product.localeProfile;
   const report = useMemo(
     () =>
       buildMileageReportData({
@@ -95,9 +100,26 @@ export function ProofScreen() {
         userName: product.preferredName,
         mileageUseType: voiceForDrivingType(product.drivingType).reportNoun,
         primaryGoal: product.primaryGoal,
+        localeProfile: locale,
       }),
-    [period, product.drivingType, product.preferredName, product.primaryGoal, tripsForProof],
+    [locale, period, product.drivingType, product.preferredName, product.primaryGoal, tripsForProof],
   );
+  const readinessCounts = useMemo(() => {
+    const confirmed = tripsForProof.filter(
+      (trip) => trip.status === 'confirmed' && trip.classification === 'business',
+    );
+    let ready = 0;
+    let needsAttention = 0;
+    for (const trip of confirmed) {
+      const status = proofReadinessForTrip(trip);
+      if (status === 'ready' || status === 'recovered' || status === 'imported' || status === 'user_corrected') {
+        ready += 1;
+      } else {
+        needsAttention += 1;
+      }
+    }
+    return { ready, needsAttention, total: confirmed.length };
+  }, [tripsForProof]);
 
   const choosePeriod = (kind: ReportPeriodKind) => {
     setPeriodKind(kind);
@@ -222,21 +244,58 @@ export function ProofScreen() {
           {message ? <StatusCard variant="success" title="Export" body={message} emphasis="subtle" /> : null}
           {upsell ? <StatusCard variant="info" title="Plus feature" body={upsell} emphasis="subtle" /> : null}
           {error ? <FormError message={error} /> : null}
-          <ListSection title="Totals">
-            <ListRow label="Confirmed work drives" value={String(report.tripCount)} showChevron={false} />
-            <ListRow label="Total miles" value={`${report.totalMiles.toFixed(1)} mi`} showChevron={false} />
-            <ListRow label="Manual miles" value={`${report.manualMiles.toFixed(1)} mi`} showChevron={false} />
-            <ListRow label="Imported miles" value={`${report.importedMiles.toFixed(1)} mi`} showChevron={false} />
-            <ListRow label="Recovered miles" value={`${report.recoveredMiles.toFixed(1)} mi`} showChevron={false} />
+          <ListSection title="Monthly proof summary">
+            <ListRow label="Accepted work distance" value={formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag)} showChevron={false} />
+            <ListRow
+              label="Estimated value"
+              value={
+                report.estimatedValueCents != null
+                  ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
+                  : 'Set a rate in Profile'
+              }
+              showChevron={false}
+            />
+            <ListRow label="Trips ready" value={String(readinessCounts.ready)} showChevron={false} />
+            <ListRow label="Needs attention" value={String(readinessCounts.needsAttention)} showChevron={false} />
+            <ListRow
+              label="Recovered"
+              value={formatDistance(report.recoveredMiles, locale.distanceUnit, locale.localeTag)}
+              showChevron={false}
+            />
+            <ListRow
+              label="Imported"
+              value={formatDistance(report.importedMiles, locale.distanceUnit, locale.localeTag)}
+              showChevron={false}
+            />
           </ListSection>
-          <ListSection title="Export">
+          <ListSection title="Readiness">
+            {tripsForProof
+              .filter((trip) => trip.status === 'confirmed' && trip.classification === 'business')
+              .slice(0, 8)
+              .map((trip) => (
+                <ListRow
+                  key={trip.id}
+                  label={trip.purpose?.trim() || 'Work drive'}
+                  value={proofReadinessLabel(proofReadinessForTrip(trip))}
+                  showChevron={false}
+                />
+              ))}
+          </ListSection>
+          <ListSection title="Prepare report">
             <StatusCard
               variant="neutral"
               title="What’s free"
               body="Preview report and CSV are free. PDF reports are available with Plus."
               emphasis="subtle"
             />
-            <ListRow label="Preview report · Free" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
+            <ListRow
+              label="Prepare report · Preview"
+              onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
+            />
+            <ListRow
+              label={readinessCounts.needsAttention > 0 ? 'Review issues' : 'Review trips'}
+              onPress={() => navigation.navigate('Review')}
+            />
             <ListRow
               label={capabilities.canUseStandardPdf ? 'Share PDF' : 'Create PDF report · Plus'}
               onPress={() => void sharePdf()}
@@ -244,7 +303,7 @@ export function ProofScreen() {
               disabled={exportBusy && !pdfBusy}
             />
             <ListRow
-              label="Share CSV · Free"
+              label="Share records · CSV"
               value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
               onPress={() => void shareCsv()}
               busy={csvBusy || (shareBusy && !pdfBusy)}

@@ -26,6 +26,7 @@ describe('Screen render evidence', () => {
     }
     expect(manifest['onboarding-welcome']).toMatch(/Protect every work mile|Get started|MileRecover/i);
     expect(manifest['onboarding-account']).toMatch(/Sign in|Skip for now|Google/i);
+    expect(manifest['onboarding-country']).toMatch(/Where do you drive|United States|Other country/i);
     expect(manifest['onboarding-permissions_education']).toMatch(/How location helps|Allow location/i);
     expect(manifest['onboarding-preferred_name']).toMatch(/What should we call you/i);
     expect(manifest['onboarding-primary_goal']).toMatch(/What do you use work mileage for/i);
@@ -128,7 +129,7 @@ describe('Screen render evidence', () => {
     expect(emptyProof.copy).not.toMatch(/report is ready/i);
 
     const proofReady = await renderTab('proof_ready', 'Proof', { demoModeEnabled: true });
-    expect(proofReady.copy).toMatch(/ready to review|confirmed work|Total miles|drives/i);
+    expect(proofReady.copy).toMatch(/ready to review|confirmed work|Accepted work|Prepare report|drives|Estimated value/i);
 
     const proofBlocked = await renderTab('proof_blocked', 'Proof');
     expect(proofBlocked.copy).toMatch(/Review one item before sharing|need a look|Review/i);
@@ -145,7 +146,7 @@ describe('Screen render evidence', () => {
     });
     expect(profile.copy).toContain('Vehicles');
     expect(profile.copy).toMatch(/Coverage|Watching|Protection|Tracking/i);
-    expect(profile.copy).toMatch(/Driving|Import|Privacy|Help/i);
+    expect(profile.copy).toMatch(/Driving|Import|Help|Support|Country/i);
     expect(profile.copy).not.toContain('Alex Johnson');
     expect(profile.copy).not.toContain('alex@example.com');
     expect(profile.copy).toMatch(/Your profile|Your account|preferred name|Not set/i);

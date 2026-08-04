@@ -43,6 +43,7 @@ describe('Locked product experience', () => {
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
       'account',
+      'country',
       'permissions_education',
       'preferred_name',
       'primary_goal',

@@ -1,6 +1,7 @@
 import type {
   DrivingPattern,
   EntitlementSnapshot,
+  LocaleProfile,
   MileageGoal,
   NextActionId,
   OnboardingStepId,
@@ -11,6 +12,8 @@ import {
   createEmptyOnboardingState,
   createFreeEntitlement,
   CURRENT_ONBOARDING_VERSION,
+  localeProfileFromCountry,
+  recommendCountryFromLocale,
 } from '@milerecover/domain';
 import type { PlanTier } from '../fixtures/subscription';
 import type { DemoScenario } from '../fixtures/scenarios';
@@ -33,7 +36,7 @@ export type ProtectionSetupState =
   | 'limited'
   | 'healthy';
 
-export type ReviewDecision = 'work' | 'personal' | 'not_drive' | null;
+export type ReviewDecision = 'work' | 'personal' | 'not_drive' | 'not_sure' | null;
 
 export type ImportFlowPhase =
   | 'idle'
@@ -145,6 +148,8 @@ export interface ProductUiState {
   showDevTools: boolean;
   manualTripsMigrated: boolean;
   reimbursementCentsPerMile: number | null;
+  /** International profile — units, currency, effective-dated rates. */
+  localeProfile: LocaleProfile;
   reportStyle: string | null;
   trackingEnabled: boolean;
   notificationPreferences: NotificationPreferences;
@@ -209,6 +214,7 @@ export function createInitialProductUiState(): ProductUiState {
     showDevTools: allowInternalPreviewTools(),
     manualTripsMigrated: false,
     reimbursementCentsPerMile: null,
+    localeProfile: localeProfileFromCountry(recommendCountryFromLocale(undefined)),
     reportStyle: null,
     trackingEnabled: false,
     notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES },
@@ -226,12 +232,13 @@ export function createInitialProductUiState(): ProductUiState {
 }
 
 /**
- * Full first-launch path (v6).
- * Account / permissions / vehicle may be skipped; goal + pains + Finish are required.
+ * Full first-launch path (v7).
+ * Account / country / permissions / vehicle may be skipped; goal + pains + Finish are required.
  */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'welcome',
   'account',
+  'country',
   'permissions_education',
   'preferred_name',
   'primary_goal',
@@ -239,6 +246,14 @@ export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'vehicle_setup',
   'protection_education',
   'ready',
+];
+
+export const COUNTRY_OPTIONS = [
+  { id: 'US' as const, label: 'United States' },
+  { id: 'CA' as const, label: 'Canada' },
+  { id: 'GB' as const, label: 'United Kingdom' },
+  { id: 'AU' as const, label: 'Australia' },
+  { id: 'OTHER' as const, label: 'Other country' },
 ];
 
 export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: string }[] = [
