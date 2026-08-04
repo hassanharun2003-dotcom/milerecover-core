@@ -64,10 +64,11 @@ export function AboutScreen() {
       <SecondaryButton
         label="Restart onboarding"
         onPress={() => {
-          resetOnboarding();
+          // Full onboarding reset (vehicles/places/setup). Trips stay on device.
+          resetOnboarding({ keepVehicles: false });
           restartOnboarding();
         }}
-        accessibilityLabel="Restart onboarding for preview testing"
+        accessibilityLabel="Restart onboarding from the beginning"
       />
       {updatesActive ? (
         <View style={{ gap: spacing.sm, marginTop: spacing.md }}>

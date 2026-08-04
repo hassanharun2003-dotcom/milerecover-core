@@ -9,8 +9,14 @@ import { createInitialProductUiState, ONBOARDING_STEP_ORDER } from '../src/produ
 import { createInitialAppState } from '../src/store/types';
 
 describe('Authoritative onboarding versioning', () => {
-  it('uses four essential screens', () => {
-    expect(ONBOARDING_STEP_ORDER).toEqual(['welcome', 'primary_goal', 'pain_points', 'ready']);
+  it('uses the full first-launch path', () => {
+    expect(ONBOARDING_STEP_ORDER[0]).toBe('welcome');
+    expect(ONBOARDING_STEP_ORDER).toContain('account');
+    expect(ONBOARDING_STEP_ORDER).toContain('permissions_education');
+    expect(ONBOARDING_STEP_ORDER).toContain('vehicle_setup');
+    expect(ONBOARDING_STEP_ORDER).toContain('protection_education');
+    expect(ONBOARDING_STEP_ORDER[ONBOARDING_STEP_ORDER.length - 1]).toBe('ready');
+    expect(CURRENT_ONBOARDING_VERSION).toBe(6);
   });
 
   it('clean install is incomplete and starts at welcome', () => {
@@ -95,7 +101,6 @@ describe('Authoritative onboarding versioning', () => {
     };
     expect(isOnboardingVersionStale(completed)).toBe(false);
     expect(isOnboardingMinimumComplete(completed)).toBe(true);
-    // Invalidate helper is only for stale installs — do not call it on current completions.
   });
 
   it('restarting onboarding clears completion but keeps domain trips untouched by this helper', () => {

@@ -230,7 +230,13 @@ export function ProofScreen() {
             <ListRow label="Recovered miles" value={`${report.recoveredMiles.toFixed(1)} mi`} showChevron={false} />
           </ListSection>
           <ListSection title="Export">
-            <ListRow label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
+            <StatusCard
+              variant="neutral"
+              title="What’s free"
+              body="Preview report and CSV are free. PDF reports are available with Plus."
+              emphasis="subtle"
+            />
+            <ListRow label="Preview report · Free" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
             <ListRow
               label={capabilities.canUseStandardPdf ? 'Share PDF' : 'Create PDF report · Plus'}
               onPress={() => void sharePdf()}
@@ -238,7 +244,7 @@ export function ProofScreen() {
               disabled={exportBusy && !pdfBusy}
             />
             <ListRow
-              label="Share CSV"
+              label="Share CSV · Free"
               value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
               onPress={() => void shareCsv()}
               busy={csvBusy || (shareBusy && !pdfBusy)}

@@ -1,5 +1,6 @@
 export type OnboardingStepId =
   | 'welcome'
+  | 'account'
   | 'primary_goal'
   | 'pain_points'
   | 'driving_pattern'
@@ -38,8 +39,11 @@ export type NextActionId =
   | 'add_workplace'
   | 'begin_rescue';
 
-/** Bump when essential onboarding screens/questions change and stale installs must re-enter. */
-export const CURRENT_ONBOARDING_VERSION = 5;
+/**
+ * Bump when essential onboarding screens/questions change and stale installs must re-enter.
+ * v6: full first-launch path (account, permissions, personalization, vehicle, protection).
+ */
+export const CURRENT_ONBOARDING_VERSION = 6;
 
 export interface VersionedOnboardingState {
   schemaVersion: 4;
@@ -53,6 +57,8 @@ export interface VersionedOnboardingState {
   familiarPlacesSetupState: 'skipped' | 'added' | 'not_started';
   protectionEducationAcknowledged: boolean;
   permissionsEducationAcknowledged: boolean;
+  /** Optional account step acknowledged (signed in or skipped). */
+  accountStepAcknowledged?: boolean;
   nextActionSelected: NextActionId | null;
   /** Timestamp when the current onboarding version was completed. */
   completedAt: number | null;
@@ -74,6 +80,7 @@ export function createEmptyOnboardingState(now = Date.now()): VersionedOnboardin
     familiarPlacesSetupState: 'not_started',
     protectionEducationAcknowledged: false,
     permissionsEducationAcknowledged: false,
+    accountStepAcknowledged: false,
     nextActionSelected: null,
     completedAt: null,
     completedOnboardingVersion: null,
@@ -96,7 +103,10 @@ export function inferDrivingPatternFromGoal(goal: MileageGoal | null): DrivingPa
   }
 }
 
-/** Essential answers present for the current 4-screen flow (before version stamp). */
+/**
+ * Home is unlocked only after the user finishes the current onboarding version.
+ * Account/permissions/vehicle may be skipped, but goal + pain + final stamp are required.
+ */
 export function isOnboardingMinimumComplete(state: VersionedOnboardingState): boolean {
   return (
     state.primaryGoal != null &&
@@ -115,8 +125,6 @@ export function isOnboardingCurrentComplete(state: VersionedOnboardingState): bo
 /** True when a prior completion exists but is older than CURRENT_ONBOARDING_VERSION. */
 export function isOnboardingVersionStale(state: VersionedOnboardingState): boolean {
   if (state.completedAt == null && state.completedOnboardingVersion == null) {
-    // Legacy boolean-only / old schema: treated as stale only when answers imply prior finish
-    // without a current version stamp — handled by callers that see completedAt without version.
     return false;
   }
   if (state.completedAt != null && state.completedOnboardingVersion == null) return true;
@@ -148,10 +156,15 @@ export function invalidateStaleOnboardingCompletion(
   return next;
 }
 
-/** Essential steps only — name/vehicle/places/permissions never block. */
+/** Resume helper — place user on the first unfinished required answer or finish step. */
 export function nextIncompleteEssentialStep(state: VersionedOnboardingState): OnboardingStepId | null {
+  if (state.currentStep === 'welcome' && state.completedSteps.length === 0 && state.primaryGoal == null) {
+    return 'welcome';
+  }
   if (state.primaryGoal == null) {
-    return state.currentStep === 'welcome' ? 'welcome' : 'primary_goal';
+    return state.completedSteps.includes('welcome') || state.currentStep !== 'welcome'
+      ? 'primary_goal'
+      : 'welcome';
   }
   if (state.selectedPainPoints.length === 0) return 'pain_points';
   if (state.nextActionSelected == null || state.completedAt == null) return 'ready';

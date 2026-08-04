@@ -219,11 +219,12 @@ export function HomeScreen() {
 
   return (
     <TabScreen>
-      {greeting ? (
-        <Text style={[text.body, { marginBottom: spacing.xs }]} accessibilityRole="text">
-          {greeting}
-        </Text>
-      ) : null}
+      <Text
+        style={[text.subtitle, { marginBottom: spacing.xs }]}
+        accessibilityRole="text"
+      >
+        {greeting ?? 'Welcome back.'}
+      </Text>
 
       {scenario.homeState === 'offline' ? (
         <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
@@ -316,12 +317,14 @@ export function HomeScreen() {
 
       <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>Recent</Text>
       {scenario.activity.length === 0 ? (
-        <StatusCard
-          variant="neutral"
-          title="No work drives yet"
-          body="We’ll be here when your next trip starts."
-          emphasis="subtle"
-        />
+        <SoftPanel>
+          <Text style={text.subtitle}>Nothing here yet</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            Add a work drive when you know the miles, or turn on watching later for automatic coverage.
+            Nothing is invented.
+          </Text>
+          <SecondaryButton label="Add your first drive" onPress={() => navigation.navigate('ManualTrip')} />
+        </SoftPanel>
       ) : (
         scenario.activity.map((event) => (
           <View key={event.id} style={{ marginBottom: spacing.sm }}>

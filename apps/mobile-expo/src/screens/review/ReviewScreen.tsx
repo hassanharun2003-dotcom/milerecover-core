@@ -14,10 +14,14 @@ import {
   ReviewCard,
   ReviewedItemCard,
   SegmentedControl,
+  SoftPanel,
   TabScreen,
   TertiaryButton,
+  text,
   UndoSnackbar,
 } from '../../design-system';
+import { Text } from 'react-native';
+import { CarRouteHero } from '../../components/CarRouteHero';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { selectProductExperience } from '../../product/selectors';
 import { useProduct } from '../../product/ProductContext';
@@ -158,10 +162,18 @@ export function ReviewScreen() {
 
       {segment === 'needs' ? (
         pending.length === 0 ? (
-          <EmptyState
-            title="You’re caught up"
-            body="We’ll let you know when something needs a quick look. Nothing uncertain enters a report until you decide."
-          />
+          <>
+            <EmptyState
+              title="You’re caught up"
+              body="We’ll let you know when something needs a quick look. Nothing uncertain enters a report until you decide."
+            />
+            <CarRouteHero />
+            <SoftPanel>
+              <Text style={text.body}>
+                Review is for uncertain drives only. Add known work drives from Home anytime.
+              </Text>
+            </SoftPanel>
+          </>
         ) : (
           pending.map((item) => (
             <ReviewCard

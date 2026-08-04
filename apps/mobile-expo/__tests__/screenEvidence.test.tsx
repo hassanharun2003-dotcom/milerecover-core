@@ -25,11 +25,15 @@ describe('Screen render evidence', () => {
       expect(copy.length).toBeGreaterThan(20);
     }
     expect(manifest['onboarding-welcome']).toMatch(/Keep your work miles from disappearing|Get started/i);
+    expect(manifest['onboarding-account']).toMatch(/Sign in|Skip for now|Google/i);
+    expect(manifest['onboarding-permissions_education']).toMatch(/How location helps|Allow location/i);
+    expect(manifest['onboarding-preferred_name']).toMatch(/What should we call you/i);
     expect(manifest['onboarding-primary_goal']).toMatch(/What do you use work mileage for/i);
     expect(manifest['onboarding-pain_points']).toMatch(/What causes the most trouble/i);
+    expect(manifest['onboarding-vehicle_setup']).toMatch(/Add a vehicle|Skip for now/i);
+    expect(manifest['onboarding-protection_education']).toMatch(/Background protection|You’re in control/i);
     expect(manifest['onboarding-ready']).toMatch(/Go to Home|You’re ready|Set up automatic protection/i);
     expect(manifest['onboarding-driving_pattern']).toBeUndefined();
-    expect(manifest['onboarding-protection_education']).toBeUndefined();
 
     for (const goal of ['employee_reimbursement', 'gig_delivery', 'self_employed_business', 'mixed'] as const) {
       const { copy } = await renderOnboarding('ready', { primaryGoal: goal });

@@ -346,13 +346,19 @@ export function ProductProvider({
       resetOnboarding: (options = {}) =>
         persist((prev) => {
           const onboarding = createEmptyOnboardingState();
+          const clearVehicles = options.keepVehicles !== true;
           return {
             ...mirrorOnboarding(prev, onboarding),
             onboardingSkippedOptional: false,
             protectionSetupState: 'not_started',
             pendingPostOnboardingRoute: null,
-            vehicles: options.keepVehicles === false ? [] : prev.vehicles,
-            workLocations: prev.workLocations,
+            vehicles: clearVehicles ? [] : prev.vehicles,
+            workLocations: [],
+            trackingEnabled: false,
+            finishSetupDismissedAt: null,
+            celebratedFirstDriveAt: null,
+            celebratedFirstReportAt: null,
+            celebratedFirstRecoveryAt: null,
           };
         }),
       setDemoModeEnabled: (enabled) =>

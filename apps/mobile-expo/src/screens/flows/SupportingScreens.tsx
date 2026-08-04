@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Keyboard, Text, View } from 'react-native';
+import { Alert, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -160,6 +161,24 @@ export function ManualTripScreen() {
   const [vehicleId, setVehicleId] = useState<string | null>(
     existing?.vehicleId ?? product.vehicles[0]?.id ?? null,
   );
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  useEffect(() => {
+    if (existing) return;
+    void AsyncStorage.multiGet([
+      '@milerecover/last-manual-purpose',
+      '@milerecover/last-manual-vehicle',
+    ]).then((entries) => {
+      const lastPurpose = entries[0]?.[1];
+      const lastVehicle = entries[1]?.[1];
+      if (lastPurpose && !purpose) setPurpose(lastPurpose);
+      if (lastVehicle && product.vehicles.some((v) => v.id === lastVehicle)) {
+        setVehicleId(lastVehicle);
+      }
+    });
+    // Intentionally once on mount for new drives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [evidenceMethod, setEvidenceMethod] = useState<TripEvidenceMethod | null>(
     existing?.evidenceMethod ?? 'user_estimate',
@@ -324,6 +343,12 @@ export function ManualTripScreen() {
       setDistanceError('Enter the miles too. We never invent distance from start and end.');
       return;
     }
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    if (driveDate.getTime() > todayEnd.getTime()) {
+      setError('Choose today or an earlier date.');
+      return;
+    }
     const startAt = composeDateTime(driveDate, startTime, 9, 0);
     const endAt = composeDateTime(driveDate, endTime, 9, 30);
     const input = {
@@ -360,14 +385,19 @@ export function ManualTripScreen() {
       createdAt: existing?.createdAt ?? trip.createdAt,
       updatedAt: Date.now(),
     });
+    void AsyncStorage.multiSet([
+      ['@milerecover/last-manual-purpose', purpose.trim()],
+      ['@milerecover/last-manual-vehicle', vehicleId ?? ''],
+    ]);
     logEvent(ANALYTICS_EVENTS.manualTripSaved, {
       classification,
       hasTime: addTime,
       hasVehicle: Boolean(vehicleId),
       hasPlaces: Boolean(startLabel.trim() || endLabel.trim()),
     });
+    setSavedFlash(true);
     allowLeaveRef.current = true;
-    navigation.goBack();
+    setTimeout(() => navigation.goBack(), 280);
   };
 
   const confirmDelete = () => {
@@ -442,17 +472,40 @@ export function ManualTripScreen() {
       </ChipRow>
       <EvidenceRow label="Selected" value={formatDateLocal(driveDate.getTime())} />
       {showDatePicker ? (
-        <DateTimePicker
-          value={driveDate}
-          mode="date"
-          maximumDate={new Date()}
-          onChange={(_, selected) => {
-            if (!selected) return;
-            const today = new Date();
-            today.setHours(23, 59, 59, 999);
-            setDriveDate(selected.getTime() > today.getTime() ? new Date() : selected);
-          }}
-        />
+        <View>
+          {Platform.OS === 'ios' ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginBottom: spacing.xs,
+              }}
+            >
+              <TertiaryButton label="Cancel" onPress={() => setShowDatePicker(false)} />
+              <TertiaryButton label="Done" onPress={() => setShowDatePicker(false)} />
+            </View>
+          ) : null}
+          <DateTimePicker
+            value={driveDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            maximumDate={new Date()}
+            onChange={(event, selected) => {
+              // Android Cancel/OK both fire onChange — always dismiss so Cancel never freezes.
+              if (Platform.OS === 'android') {
+                setShowDatePicker(false);
+              }
+              const type = (event as { type?: string } | undefined)?.type;
+              if (type === 'dismissed' || !selected) {
+                if (Platform.OS === 'ios') setShowDatePicker(false);
+                return;
+              }
+              const today = new Date();
+              today.setHours(23, 59, 59, 999);
+              setDriveDate(selected.getTime() > today.getTime() ? new Date() : selected);
+            }}
+          />
+        </View>
       ) : null}
 
       <Text style={[text.caption, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>3 · Distance</Text>
@@ -475,8 +528,12 @@ export function ManualTripScreen() {
         placeholder="0.0"
         keyboardType="decimal-pad"
         compact
+        autoFocus={!existing}
       />
       {distanceError ? <FormError message={distanceError} /> : null}
+      {savedFlash ? (
+        <StatusCard variant="success" title="Saved" body="Your drive is on this device." emphasis="subtle" />
+      ) : null}
       {routeMode === 'places' ? (
         <>
           <Text style={[text.caption, { marginBottom: spacing.sm }]}>
@@ -1232,8 +1289,8 @@ export function ExportReportScreen() {
       return;
     }
     if (!capabilities.canUseStandardPdf) {
-      setMessage('PDF reports come with Plus. CSV stays free.');
-      setPhase('failed');
+      setMessage('PDF reports come with Plus. Preview and CSV stay free.');
+      setPhase('idle');
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
@@ -1269,16 +1326,28 @@ export function ExportReportScreen() {
     <ScrollScreen>
       <StatusCard
         variant={phase === 'failed' ? 'danger' : phase === 'success' ? 'success' : 'info'}
-        title={phase === 'failed' ? 'Could not export' : phase === 'success' ? 'Export handled' : 'Share confirmed work drives'}
-        body={message ?? `${period.label} · ${report.tripCount} work drive(s). CSV is free. PDF is Plus.`}
+        title={
+          phase === 'failed'
+            ? 'Could not export'
+            : phase === 'success'
+              ? 'Ready to share'
+              : 'Share confirmed work drives'
+        }
+        body={
+          message ??
+          `${period.label} · ${report.tripCount} work drive(s). Preview and CSV are always free. PDF reports come with Plus.`
+        }
         emphasis={phase === 'idle' ? 'subtle' : 'hero'}
       />
-      <PrimaryButton label="Share CSV" onPress={() => void exportCsv()} />
+      <PrimaryButton label="Share CSV · Free" onPress={() => void exportCsv()} />
       <SecondaryButton
-        label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF with Plus'}
+        label={capabilities.canUseStandardPdf ? 'Share PDF' : 'PDF report · Plus'}
         onPress={() => void exportPdf()}
       />
-      <SecondaryButton label="Preview report" onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })} />
+      <SecondaryButton
+        label="Preview report · Free"
+        onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
+      />
     </ScrollScreen>
   );
 }
@@ -1304,7 +1373,10 @@ export function ReportPreviewScreen() {
         emphasis="hero"
       />
       <SoftPanel>
-        <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>{report.title}</Text>
+        <Text style={[text.title, { marginBottom: spacing.xs }]}>{report.title}</Text>
+        <Text style={[text.caption, { marginBottom: spacing.md }]}>
+          On-device preview · not tax or legal advice
+        </Text>
         <EvidenceRow label="Period" value={report.period.label} />
         <EvidenceRow label="Driver" value={report.userName ?? 'Add a name in Profile'} />
         <EvidenceRow label="Work drives" value={String(report.tripCount)} />
@@ -1324,11 +1396,21 @@ export function ReportPreviewScreen() {
           />
         ) : (
           report.lineItems.map((item) => (
-            <EvidenceRow
+            <View
               key={item.id}
-              label={`${item.dateLabel} · ${item.purpose}`}
-              value={formatReportRouteSummary(item.distanceMiles, item.startLabel, item.endLabel)}
-            />
+              style={{
+                marginBottom: spacing.md,
+                paddingBottom: spacing.sm,
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: 'rgba(31, 77, 54, 0.12)',
+              }}
+            >
+              <Text style={[text.caption, { letterSpacing: 0.3 }]}>{item.dateLabel}</Text>
+              <Text style={[text.subtitle, { marginTop: 4 }]}>{item.purpose}</Text>
+              <Text style={[text.body, { marginTop: 4 }]}>
+                {formatReportRouteSummary(item.distanceMiles, item.startLabel, item.endLabel)}
+              </Text>
+            </View>
           ))
         )}
       </ListSection>
@@ -1546,7 +1628,7 @@ export function HelpSupportScreen() {
       <PrimaryButton
         label="Restart onboarding"
         onPress={() => {
-          resetOnboarding();
+          resetOnboarding({ keepVehicles: false });
           restartOnboarding();
         }}
         accessibilityLabel="Restart onboarding while preserving trips"

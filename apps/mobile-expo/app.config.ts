@@ -2,7 +2,7 @@
  * Dynamic Expo config — APP_VARIANT selects dev-client vs standalone preview/production.
  * Set via EAS build profile env (development | preview | production).
  *
- * Physical UX fix: version/runtime 0.1.5 — versioned onboarding, compact manual trip, Plans annual fix.
+ * 0.1.6 — full first-launch onboarding, Google/Apple auth modules, RevenueCat billing port.
  * Keep this file free of TypeScript type annotations — Expo evaluates it as JS on CI.
  * Standalone preview/production exclude expo-dev-client via eas-build-pre-install.
  */
@@ -18,7 +18,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.1.5',
+  version: '0.1.6',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -30,6 +30,7 @@ const config = {
   ios: {
     bundleIdentifier: 'com.milerecover.app',
     supportsTablet: true,
+    usesAppleSignIn: true,
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'MileRecover uses your location while you use the app to help protect work drives when automatic capture is available.',
@@ -56,6 +57,8 @@ const config = {
     ...(IS_DEV_CLIENT ? ['expo-dev-client'] : []),
     '@react-native-community/datetimepicker',
     'expo-sharing',
+    'expo-web-browser',
+    'expo-apple-authentication',
     [
       'expo-notifications',
       {
@@ -71,6 +74,12 @@ const config = {
           'Allow MileRecover to use your location while you use the app to protect work drives.',
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
+      },
+    ],
+    [
+      '@react-native-google-signin/google-signin',
+      {
+        iosUrlScheme: process.env.GOOGLE_IOS_URL_SCHEME ?? 'com.googleusercontent.apps.placeholder',
       },
     ],
   ],
@@ -90,6 +99,13 @@ const config = {
     appVariant: APP_VARIANT,
     /** Mirrored for diagnostics — applied on EAS via eas-build-pre-install. */
     devClientAutolinkingExclude: DEV_CLIENT_AUTOLINKING_EXCLUDE,
+    googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
+    googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
+    googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
+    revenueCatAppleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY ?? '',
+    revenueCatGoogleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY ?? '',
+    /** Production flips this when store products + RevenueCat keys are live. */
+    enableStorePurchases: process.env.EXPO_PUBLIC_ENABLE_STORE_PURCHASES === '1',
   },
 };
 

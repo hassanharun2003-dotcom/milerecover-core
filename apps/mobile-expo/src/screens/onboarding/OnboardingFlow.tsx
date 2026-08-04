@@ -10,6 +10,7 @@ import {
 } from '../../product/types';
 import { nextActionForGoal } from '../../product/copy';
 import {
+  FormField,
   OnboardingScreen,
   PrimaryButton,
   ProgressIndicator,
@@ -25,26 +26,24 @@ import { useProduct } from '../../product/ProductContext';
 import { CarRouteHero } from '../../components/CarRouteHero';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import {
+  AUTH_EMAIL_PENDING_MESSAGE,
   AUTH_UNAVAILABLE_MESSAGE,
   getAuthPort,
-  isAuthConfigured,
-  shouldShowAccountPreviewCopy,
   type AuthProviderId,
 } from '../../services/auth';
+import { requestNotificationPermission } from '../../services/notifications';
 
-function remapLegacyStep(step: ProductOnboardingStep): ProductOnboardingStep {
-  if (ONBOARDING_STEP_ORDER.includes(step)) return step;
-  if (step === 'welcome' || step === 'primary_goal' || step === 'pain_points' || step === 'ready') {
-    return step;
-  }
-  if (['preferred_name', 'vehicle_setup', 'familiar_places', 'driving_pattern', 'protection_education'].includes(step)) {
-    return 'ready';
-  }
-  if (step === 'permissions_education') return 'ready';
+function inOrder(step: ProductOnboardingStep): boolean {
+  return ONBOARDING_STEP_ORDER.includes(step);
+}
+
+function remapStep(step: ProductOnboardingStep): ProductOnboardingStep {
+  if (inOrder(step)) return step;
+  if (step === 'driving_pattern' || step === 'familiar_places') return 'preferred_name';
   return 'welcome';
 }
 
-function readyBenefits(goal: typeof PRIMARY_GOAL_OPTIONS[number]['id'] | null, pains: PainPoint[]): string[] {
+function readyBenefits(goal: (typeof PRIMARY_GOAL_OPTIONS)[number]['id'] | null, pains: PainPoint[]): string[] {
   const benefits: string[] = [];
   if (pains.includes('older_mileage')) {
     benefits.push('Bring older miles back together when you’re ready.');
@@ -65,7 +64,12 @@ function readyBenefits(goal: typeof PRIMARY_GOAL_OPTIONS[number]['id'] | null, p
 }
 
 export function OnboardingFlow() {
-  const { finishOnboarding } = useApp();
+  const {
+    finishOnboarding,
+    requestLocationPermission,
+    requestBackgroundPermission,
+    permissions,
+  } = useApp();
   const {
     product,
     advanceOnboarding,
@@ -73,21 +77,30 @@ export function OnboardingFlow() {
     setOnboardingStep,
     setPrimaryGoal,
     setSelectedPainPoints,
+    setPreferredName,
+    skipPreferredName,
+    skipVehicleSetup,
+    upsertVehicle,
+    setProtectionSetupState,
+    patchOnboarding,
     completeProductOnboarding,
   } = useProduct();
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
-  const [finishing, setFinishing] = useState(false);
 
-  const step = remapLegacyStep(product.onboardingStep);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
+  const [vehicleNickname, setVehicleNickname] = useState('');
+  const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
+
+  const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
   const next = nextActionForGoal(product.primaryGoal);
   const selectedPainPoints = product.selectedPainPoints.filter((p) => p !== 'battery_worry') as PainPoint[];
-  const authReady = isAuthConfigured();
+  const authPort = getAuthPort();
 
   useEffect(() => {
-    if (product.onboardingStep !== step) {
-      setOnboardingStep(step);
-    }
+    if (product.onboardingStep !== step) setOnboardingStep(step);
   }, [product.onboardingStep, setOnboardingStep, step]);
 
   useEffect(() => {
@@ -122,17 +135,42 @@ export function OnboardingFlow() {
     setSelectedPainPoints(nextPainPoints);
   };
 
+  const acknowledgeAccountAndContinue = () => {
+    patchOnboarding({
+      accountStepAcknowledged: true,
+      completedSteps: Array.from(new Set([...product.onboarding.completedSteps, 'account'])),
+    });
+    advanceOnboarding();
+  };
+
   const tryAuth = async (provider: AuthProviderId) => {
-    const result = await getAuthPort().signIn(provider);
-    if (result.ok) {
-      setAuthNotice(`Signed in as ${result.email ?? result.displayName ?? 'your account'}.`);
-      return;
+    if (authBusy) return;
+    setAuthBusy(true);
+    setAuthNotice(null);
+    try {
+      if (provider === 'email' && !authPort.isProviderAvailable('email')) {
+        setAuthNotice(AUTH_EMAIL_PENDING_MESSAGE);
+        return;
+      }
+      if (provider === 'google' && !authPort.isProviderAvailable('google')) {
+        setAuthNotice(AUTH_UNAVAILABLE_MESSAGE);
+        return;
+      }
+      const result = await authPort.signIn(provider);
+      if (result.ok) {
+        if (result.displayName) setPreferredName(result.displayName);
+        setAuthNotice(`Signed in${result.email ? ` as ${result.email}` : ''}.`);
+        acknowledgeAccountAndContinue();
+        return;
+      }
+      if (result.reason === 'cancelled') {
+        setAuthNotice(null);
+        return;
+      }
+      setAuthNotice(result.message);
+    } finally {
+      setAuthBusy(false);
     }
-    if (result.reason === 'cancelled') {
-      setAuthNotice(null);
-      return;
-    }
-    setAuthNotice(result.message);
   };
 
   return (
@@ -172,63 +210,142 @@ export function OnboardingFlow() {
                 logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'bring_existing' });
                 setPrimaryGoal('mixed');
                 setSelectedPainPoints(['older_mileage']);
-                setOnboardingStep('ready');
+                setOnboardingStep('account');
               }}
             />
           </View>
+        </View>
+      ) : null}
 
-          <SoftPanel>
-            <Text style={[text.caption, { marginBottom: spacing.sm }]}>ACCOUNT · OPTIONAL</Text>
-            <Text style={[text.body, { marginBottom: spacing.sm }]}>
-              MileRecover works fully without an account. Sign-in is optional and never required to save miles.
-            </Text>
-            {authReady ? (
-              <>
-                <SecondaryButton label="Continue with Google" onPress={() => void tryAuth('google')} />
-                {Platform.OS === 'ios' ? (
-                  <SecondaryButton label="Continue with Apple" onPress={() => void tryAuth('apple')} />
-                ) : null}
-                <SecondaryButton label="Continue with email" onPress={() => void tryAuth('email')} />
-              </>
-            ) : (
-              <>
-                {shouldShowAccountPreviewCopy() ? (
-                  <Text style={[text.caption, { marginBottom: spacing.sm }]}>{AUTH_UNAVAILABLE_MESSAGE}</Text>
-                ) : null}
-                <SecondaryButton
-                  label="Continue with Google"
-                  disabled
-                  onPress={() => setAuthNotice(AUTH_UNAVAILABLE_MESSAGE)}
-                />
-                {Platform.OS === 'ios' ? (
-                  <SecondaryButton
-                    label="Continue with Apple"
-                    disabled
-                    onPress={() => setAuthNotice(AUTH_UNAVAILABLE_MESSAGE)}
-                  />
-                ) : null}
-                <SecondaryButton
-                  label="Continue with email"
-                  disabled
-                  onPress={() => setAuthNotice(AUTH_UNAVAILABLE_MESSAGE)}
-                />
-              </>
-            )}
-            <TertiaryButton
-              label="Skip for now"
-              onPress={() => {
-                setAuthNotice(null);
-                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'skip_account' });
-                advanceOnboarding();
-              }}
-              accessibilityLabel="Skip account and continue onboarding"
+      {step === 'account' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Sign in (optional)
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            MileRecover works fully without an account. Sign in only if you want an easier way to restore
+            preferences later. Miles are not uploaded unless you later choose cloud sync.
+          </Text>
+          <SecondaryButton
+            label="Continue with Google"
+            onPress={() => void tryAuth('google')}
+            disabled={authBusy}
+          />
+          {Platform.OS === 'ios' ? (
+            <SecondaryButton
+              label="Continue with Apple"
+              onPress={() => void tryAuth('apple')}
+              disabled={authBusy}
             />
-            {authNotice ? (
-              <Text style={[text.caption, { marginTop: spacing.sm }]} accessibilityRole="text">
-                {authNotice}
-              </Text>
-            ) : null}
+          ) : null}
+          <SecondaryButton
+            label="Continue with email"
+            onPress={() => void tryAuth('email')}
+            disabled={authBusy}
+          />
+          <PrimaryButton
+            label="Skip for now"
+            onPress={() => {
+              setAuthNotice(null);
+              acknowledgeAccountAndContinue();
+            }}
+            accessibilityLabel="Skip account and continue setup"
+          />
+          {authNotice ? (
+            <Text style={[text.caption, { marginTop: spacing.sm }]} accessibilityRole="text">
+              {authNotice}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {step === 'permissions_education' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            How location helps
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Location is used only to help protect work drives when you turn watching on. We explain before
+            we ask. You can skip and still add drives manually.
+          </Text>
+          <SoftPanel>
+            <Text style={text.body}>
+              While using the app: {permissions.location === 'granted' ? 'Allowed' : 'Not allowed yet'}
+            </Text>
+            <Text style={[text.body, { marginTop: spacing.xs }]}>
+              Notifications: optional reminders — never required.
+            </Text>
           </SoftPanel>
+          <PrimaryButton
+            label="Allow location while using the app"
+            onPress={() => {
+              void requestLocationPermission().then((snap) => {
+                setPermissionNotice(
+                  snap.location === 'granted'
+                    ? 'Location allowed for this app.'
+                    : 'Location stays off. Manual drives still work.',
+                );
+              });
+            }}
+          />
+          <SecondaryButton
+            label="Allow notifications (optional)"
+            onPress={() => {
+              void requestNotificationPermission().then((state) => {
+                setPermissionNotice(
+                  state === 'granted' ? 'Notifications allowed.' : 'Notifications stay off — that’s fine.',
+                );
+              });
+            }}
+          />
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              patchOnboarding({
+                permissionsEducationAcknowledged: true,
+                completedSteps: Array.from(
+                  new Set([...product.onboarding.completedSteps, 'permissions_education']),
+                ),
+              });
+              advanceOnboarding();
+            }}
+          />
+          {permissionNotice ? (
+            <Text style={[text.caption, { marginTop: spacing.sm }]}>{permissionNotice}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {step === 'preferred_name' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            What should we call you?
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Optional. Used in greetings and reports on this device.
+          </Text>
+          <FormField
+            label="Preferred name"
+            value={nameDraft}
+            onChangeText={setNameDraft}
+            placeholder="Your name"
+            autoCapitalize="words"
+          />
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              if (nameDraft.trim()) setPreferredName(nameDraft.trim());
+              else skipPreferredName();
+              advanceOnboarding();
+            }}
+          />
+          <TertiaryButton
+            label="Skip"
+            onPress={() => {
+              skipPreferredName();
+              advanceOnboarding();
+            }}
+          />
         </View>
       ) : null}
 
@@ -273,6 +390,83 @@ export function OnboardingFlow() {
             label="Continue"
             onPress={advanceOnboarding}
             disabled={selectedPainPoints.length === 0}
+          />
+        </View>
+      ) : null}
+
+      {step === 'vehicle_setup' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Add a vehicle
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Optional nickname is enough. You can add full details later.
+          </Text>
+          <FormField
+            label="Vehicle nickname"
+            value={vehicleNickname}
+            onChangeText={setVehicleNickname}
+            placeholder="e.g. Work car"
+            autoCapitalize="words"
+          />
+          <PrimaryButton
+            label="Save vehicle"
+            onPress={() => {
+              const nickname = vehicleNickname.trim() || 'My vehicle';
+              upsertVehicle({
+                id: `vehicle-${Date.now()}`,
+                nickname,
+                make: '',
+                model: '',
+                year: '',
+              });
+              advanceOnboarding();
+            }}
+          />
+          <TertiaryButton
+            label="Skip for now"
+            onPress={() => {
+              skipVehicleSetup();
+              advanceOnboarding();
+            }}
+          />
+        </View>
+      ) : null}
+
+      {step === 'protection_education' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Background protection
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Automatic watching can use background location with Plus when you’re ready. Nothing starts
+            until you turn it on. Manual logging always works on Free.
+          </Text>
+          <StatusCard
+            variant="info"
+            title="You’re in control"
+            body="We’ll ask for background location only when you choose to finish watching setup."
+            emphasis="subtle"
+          />
+          <SecondaryButton
+            label="Allow background location now"
+            onPress={() => {
+              void requestBackgroundPermission();
+            }}
+            disabled={permissions.location !== 'granted'}
+          />
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              setProtectionSetupState('educated');
+              patchOnboarding({
+                protectionEducationAcknowledged: true,
+                completedSteps: Array.from(
+                  new Set([...product.onboarding.completedSteps, 'protection_education']),
+                ),
+              });
+              advanceOnboarding();
+            }}
           />
         </View>
       ) : null}

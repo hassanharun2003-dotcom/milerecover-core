@@ -225,11 +225,19 @@ export function createInitialProductUiState(): ProductUiState {
   };
 }
 
-/** Essential first-run path — four screens. Optional setup happens after Home. */
+/**
+ * Full first-launch path (v6).
+ * Account / permissions / vehicle may be skipped; goal + pains + Finish are required.
+ */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'welcome',
+  'account',
+  'permissions_education',
+  'preferred_name',
   'primary_goal',
   'pain_points',
+  'vehicle_setup',
+  'protection_education',
   'ready',
 ];
 

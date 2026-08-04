@@ -538,7 +538,7 @@ export function ListRow({
         {showChevron && !busy ? <Text style={[text.caption, styles.listRowChevron]}>›</Text> : null}
       </View>
       {displayValue ? (
-        <Text style={[text.caption, styles.listRowValueStacked]} numberOfLines={3}>
+        <Text style={[text.caption, styles.listRowValueStacked]} numberOfLines={4}>
           {displayValue}
         </Text>
       ) : null}
@@ -728,6 +728,7 @@ export function FormField({
   keyboardType,
   compact,
   autoCapitalize,
+  autoFocus,
 }: {
   label: string;
   value: string;
@@ -736,6 +737,7 @@ export function FormField({
   keyboardType?: 'default' | 'decimal-pad' | 'numeric' | 'email-address';
   compact?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  autoFocus?: boolean;
 }) {
   return (
     <View style={{ marginBottom: compact ? spacing.sm : spacing.md }}>
@@ -746,6 +748,7 @@ export function FormField({
             accessibilityLabel={label}
             value={value}
             placeholder={placeholder}
+            autoFocus={autoFocus}
             onChangeText={onChangeText}
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}

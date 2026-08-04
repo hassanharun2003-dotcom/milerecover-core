@@ -128,9 +128,8 @@ export class StoreUnavailablePurchasePort implements PurchasePort {
 const storeUnavailablePurchasePort = new StoreUnavailablePurchasePort();
 
 /**
- * Production builds must inject a real PurchasePort that talks to Play Billing /
- * StoreKit (or RevenueCat) and verifies receipts server-side. Until then, never
- * grant paid entitlement from the client alone.
+ * Production builds use RevenueCat when API keys + enableStorePurchases are set.
+ * Until then, never grant paid entitlement from the client alone.
  */
 let injectedPort: PurchasePort | null = null;
 
@@ -139,7 +138,19 @@ export function setPurchasePortForTests(port: PurchasePort | null): void {
 }
 
 export function getPurchasePort(): PurchasePort {
-  return injectedPort ?? storeUnavailablePurchasePort;
+  if (injectedPort) return injectedPort;
+  try {
+    // Lazy require avoids circular init and keeps tests free of native Purchases.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { isRevenueCatConfigured, RevenueCatPurchasePort } = require('./revenueCatPurchases') as {
+      isRevenueCatConfigured: () => boolean;
+      RevenueCatPurchasePort: new () => PurchasePort;
+    };
+    if (isRevenueCatConfigured()) return new RevenueCatPurchasePort();
+  } catch {
+    // Fall through to unavailable.
+  }
+  return storeUnavailablePurchasePort;
 }
 
 export function resolvePlusProductId(period: PurchasePeriod): string {
