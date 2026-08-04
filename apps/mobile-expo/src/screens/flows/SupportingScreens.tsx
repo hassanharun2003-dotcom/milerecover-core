@@ -24,6 +24,8 @@ import {
   type TripRecord,
 } from '@milerecover/domain';
 import {
+  Chip,
+  ChipRow,
   DestructiveButton,
   EvidenceRow,
   FixedHeaderScrollScreen,
@@ -68,6 +70,7 @@ import {
 } from '../../services/purchases';
 import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
 import { useApp } from '../../store/AppContext';
+import { useAppUpdates } from '../../updates/UpdateProvider';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -137,6 +140,7 @@ export function ManualTripScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ManualTrip'>>();
   const { state, upsertTrip, deleteTrip } = useApp();
   const { product } = useProduct();
+  const { setUpdatePromptBlocked } = useAppUpdates();
   const existing = route.params?.tripId
     ? state.trips.find((trip) => trip.id === route.params?.tripId)
     : null;
@@ -153,7 +157,9 @@ export function ManualTripScreen() {
   const [purpose, setPurpose] = useState(existing?.purpose ?? '');
   const [startLabel, setStartLabel] = useState(existing?.startLabel ?? '');
   const [endLabel, setEndLabel] = useState(existing?.endLabel ?? '');
-  const [vehicleId, setVehicleId] = useState<string | null>(existing?.vehicleId ?? null);
+  const [vehicleId, setVehicleId] = useState<string | null>(
+    existing?.vehicleId ?? product.vehicles[0]?.id ?? null,
+  );
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [evidenceMethod, setEvidenceMethod] = useState<TripEvidenceMethod | null>(
     existing?.evidenceMethod ?? 'user_estimate',
@@ -273,6 +279,11 @@ export function ManualTripScreen() {
         classification != null,
     );
   }, [classification, distance, endLabel, existing, notes, purpose, startLabel]);
+
+  useEffect(() => {
+    setUpdatePromptBlocked(true);
+    return () => setUpdatePromptBlocked(false);
+  }, [setUpdatePromptBlocked]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (event) => {
@@ -398,21 +409,19 @@ export function ManualTripScreen() {
       </Text>
 
       <Text style={[text.caption, { marginBottom: spacing.xs }]}>1 · Work or personal</Text>
-      <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs }}>
-        <View style={{ flex: 1 }}>
-          <SecondaryButton label={classification === 'work' ? 'Work ✓' : 'Work'} onPress={() => setClassification('work')} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SecondaryButton
-            label={classification === 'personal' ? 'Personal ✓' : 'Personal'}
-            onPress={() => setClassification('personal')}
-          />
-        </View>
-      </View>
-      <TertiaryButton
-        label={classification === 'later' ? 'Decide later ✓' : 'Decide later'}
-        onPress={() => setClassification('later')}
-      />
+      <ChipRow>
+        <Chip label="Work" selected={classification === 'work'} onPress={() => setClassification('work')} />
+        <Chip
+          label="Personal"
+          selected={classification === 'personal'}
+          onPress={() => setClassification('personal')}
+        />
+        <Chip
+          label="Decide later"
+          selected={classification === 'later'}
+          onPress={() => setClassification('later')}
+        />
+      </ChipRow>
       {classification === 'later' ? (
         <Text style={[text.caption, { marginBottom: spacing.sm }]}>
           Goes to Review and stays out of reports until you confirm.
@@ -422,18 +431,26 @@ export function ManualTripScreen() {
       )}
 
       <Text style={[text.caption, { marginBottom: spacing.xs }]}>2 · Date</Text>
-      <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
-        <SecondaryButton label="Today" onPress={() => applyDateOffset(0)} />
-        <SecondaryButton label="Yesterday" onPress={() => applyDateOffset(1)} />
-        <SecondaryButton label="Choose date" onPress={() => setShowDatePicker((value) => !value)} />
-      </View>
+      <ChipRow>
+        <Chip label="Today" selected={false} onPress={() => applyDateOffset(0)} />
+        <Chip label="Yesterday" selected={false} onPress={() => applyDateOffset(1)} />
+        <Chip
+          label="Choose date"
+          selected={showDatePicker}
+          onPress={() => setShowDatePicker((value) => !value)}
+        />
+      </ChipRow>
       <EvidenceRow label="Selected" value={formatDateLocal(driveDate.getTime())} />
       {showDatePicker ? (
         <DateTimePicker
           value={driveDate}
           mode="date"
+          maximumDate={new Date()}
           onChange={(_, selected) => {
-            if (selected) setDriveDate(selected);
+            if (!selected) return;
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            setDriveDate(selected.getTime() > today.getTime() ? new Date() : selected);
           }}
         />
       ) : null}
@@ -451,8 +468,9 @@ export function ManualTripScreen() {
         label="Miles (mi)"
         value={distance}
         onChangeText={(value) => {
-          setDistance(value);
-          if (distanceError) setDistanceError(validateDistanceField(value));
+          const normalized = value.replace(',', '.');
+          setDistance(normalized);
+          if (distanceError) setDistanceError(validateDistanceField(normalized));
         }}
         placeholder="0.0"
         keyboardType="decimal-pad"
@@ -461,44 +479,61 @@ export function ManualTripScreen() {
       {distanceError ? <FormError message={distanceError} /> : null}
       {routeMode === 'places' ? (
         <>
+          <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+            Start and end add context only. We never invent a route or distance.
+          </Text>
           <FormField
-            label="Start"
+            label="Start (optional)"
             value={startLabel}
             onChangeText={setStartLabel}
             placeholder="Where you started"
             compact
           />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+          <ChipRow>
             {placeChips.map((chip) => (
-              <SecondaryButton key={`start-${chip}`} label={chip} onPress={() => setStartLabel(chip)} />
+              <Chip
+                key={`start-${chip}`}
+                label={chip}
+                selected={startLabel === chip}
+                onPress={() => setStartLabel(chip)}
+                accessibilityLabel={`Start at ${chip}`}
+              />
             ))}
-          </View>
+          </ChipRow>
           <FormField
-            label="End"
+            label="End (optional)"
             value={endLabel}
             onChangeText={setEndLabel}
             placeholder="Where you finished"
             compact
           />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+          <ChipRow>
             {placeChips.map((chip) => (
-              <SecondaryButton key={`end-${chip}`} label={chip} onPress={() => setEndLabel(chip)} />
+              <Chip
+                key={`end-${chip}`}
+                label={chip}
+                selected={endLabel === chip}
+                onPress={() => setEndLabel(chip)}
+                accessibilityLabel={`End at ${chip}`}
+              />
             ))}
-          </View>
-          <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-            Start and end help explain the drive. Miles still come from you — we never invent a route.
-          </Text>
+          </ChipRow>
         </>
       ) : null}
 
       {classification === 'work' || classification === 'later' ? (
         <>
           <Text style={[text.caption, { marginBottom: spacing.xs }]}>4 · Purpose</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+          <ChipRow>
             {purposeChips.map((chip) => (
-              <SecondaryButton key={chip} label={chip} onPress={() => setPurpose(chip)} />
+              <Chip
+                key={chip}
+                label={chip}
+                selected={purpose === chip}
+                onPress={() => setPurpose(chip)}
+              />
             ))}
-          </View>
+          </ChipRow>
           {purpose && purpose !== 'Other' ? <EvidenceRow label="Purpose" value={purpose} /> : null}
           {purpose === 'Other' || customPurpose ? (
             <FormField
@@ -1087,14 +1122,15 @@ export function PrivacyScreen() {
       <StatusCard
         variant="info"
         title="Privacy and data"
-        body="MileRecover is local-first. Trips, setup answers, vehicles, and places are saved on this device first. Location history is not sold or used for ads."
+        body="MileRecover is local-first. Trips, setup answers, vehicles, and places are saved on this device. Account sync and cloud backup are not enabled in this build. Signing in later will never upload private mileage without an explicit future consent."
         emphasis="hero"
       />
-      <ListSection title="What is stored">
+      <ListSection title="What is stored on this device">
         <EvidenceRow label="Trips" value="Manual, imported, recovered, and automatic records on device" />
         <EvidenceRow label="Places" value="Labels and addresses you enter" />
         <EvidenceRow label="Vehicles" value="Optional vehicle details you save" />
-        <EvidenceRow label="Analytics" value="Private fields such as notes and coordinates are filtered out" />
+        <EvidenceRow label="Analytics" value="Event names only in preview logs; notes and coordinates are filtered out" />
+        <EvidenceRow label="Account" value="Not required. No cloud sync in this build." />
       </ListSection>
       <ListSection title="Notifications">
         <SelectionCard

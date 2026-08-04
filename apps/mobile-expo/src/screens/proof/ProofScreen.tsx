@@ -75,6 +75,7 @@ export function ProofScreen() {
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [upsell, setUpsell] = useState<string | null>(null);
   const [csvBusy, setCsvBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
@@ -102,6 +103,7 @@ export function ProofScreen() {
     setPeriodKind(kind);
     setMessage(null);
     setError(null);
+    setUpsell(null);
     const next = resolveReportPeriod(kind);
     setReportingPeriod({
       id: kind,
@@ -114,6 +116,7 @@ export function ProofScreen() {
   const shareCsv = async () => {
     setMessage(null);
     setError(null);
+    setUpsell(null);
     if (isShareInFlight() || csvBusy) {
       setMessage(SHARE_COPY.busy);
       return;
@@ -156,12 +159,13 @@ export function ProofScreen() {
   const sharePdf = async () => {
     setMessage(null);
     setError(null);
+    setUpsell(null);
     if (isShareInFlight() || pdfBusy) {
       setMessage(SHARE_COPY.busy);
       return;
     }
     if (!capabilities.canUseStandardPdf) {
-      setError('PDF reports come with Plus. CSV stays free.');
+      setUpsell('PDF reports come with Plus. CSV and preview stay free on your plan.');
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
@@ -216,6 +220,7 @@ export function ProofScreen() {
             onPreview={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
           />
           {message ? <StatusCard variant="success" title="Export" body={message} emphasis="subtle" /> : null}
+          {upsell ? <StatusCard variant="info" title="Plus feature" body={upsell} emphasis="subtle" /> : null}
           {error ? <FormError message={error} /> : null}
           <ListSection title="Totals">
             <ListRow label="Confirmed work drives" value={String(report.tripCount)} showChevron={false} />

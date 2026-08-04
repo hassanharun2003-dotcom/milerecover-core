@@ -207,6 +207,15 @@ export function ProfileScreen() {
               ))
             : null}
           <ListRow
+            label="Simulate first launch"
+            value="Clears setup + local data"
+            onPress={() => {
+              void resetProductData();
+              resetLocalData();
+              restartOnboarding();
+            }}
+          />
+          <ListRow
             label="Clear all local test data"
             onPress={() => {
               void resetProductData();

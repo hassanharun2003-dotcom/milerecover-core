@@ -10,13 +10,13 @@ export function reportTitleForGoal(goal: MileageGoal | null | undefined): string
     case 'employee_reimbursement':
       return 'Mileage reimbursement report';
     case 'gig_delivery':
-      return 'Work mileage record';
+      return 'Driving earnings report';
     case 'self_employed_business':
       return 'Business mileage report';
     case 'mixed':
-      return 'Work mileage report';
+      return 'Mileage report';
     default:
-      return 'Work mileage report';
+      return 'Mileage report';
   }
 }
 

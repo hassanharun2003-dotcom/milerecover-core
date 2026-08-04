@@ -7,14 +7,17 @@ import {
   ErrorBanner,
   PrimaryButton,
   SafeFillScreen,
+  SecondaryButton,
   text,
 } from '../design-system';
+import type { LaunchKind } from '../startup/launchState';
 
 interface StartupGateProps {
   phase: AppStartupPhase;
   loadError: string | null;
   onRetry: () => void;
   onConfirmReset: () => void;
+  launchKind?: LaunchKind;
   children: React.ReactNode;
 }
 
@@ -27,9 +30,9 @@ function messageForPhase(phase: AppStartupPhase, loadError: string | null): stri
     case 'migration-failed':
       return loadError ?? 'This app version cannot read your saved data yet.';
     case 'corrupt-recovered':
-      return 'Some saved data could not be read. You can continue with a safe empty state.';
+      return 'Some saved data could not be read. Your readable miles stay available when you continue.';
     case 'safe-reset-required':
-      return 'Saved data appears damaged. Reset local data to continue safely.';
+      return 'Saved data appears damaged. You can try again, or reset local setup if needed. Mileage is never erased automatically.';
     default:
       return '';
   }
@@ -53,10 +56,10 @@ export function StartupGate({
   }
 
   const message = messageForPhase(phase, loadError);
-  const showRetry = phase === 'unavailable' || phase === 'migration-failed';
+  const showRetry = phase === 'unavailable' || phase === 'migration-failed' || phase === 'safe-reset-required';
   const showReset = phase === 'safe-reset-required';
   const showContinue = phase === 'corrupt-recovered';
-  const isErrorPhase = showRetry || showReset;
+  const isErrorPhase = phase === 'unavailable' || phase === 'migration-failed';
 
   return (
     <SafeFillScreen>
@@ -65,7 +68,7 @@ export function StartupGate({
           <ActivityIndicator size="large" color={colors.forest[600]} accessibilityLabel="Loading" />
         ) : null}
         <Text style={text.title} accessibilityRole="header">
-          {phase === 'restoring' ? 'Loading' : 'Storage notice'}
+          {phase === 'restoring' ? 'MileRecover' : 'Couldn’t finish loading'}
         </Text>
         {isErrorPhase ? (
           <ErrorBanner title="Storage notice" body={message} />
@@ -73,20 +76,23 @@ export function StartupGate({
           <Text style={[text.body, styles.body]}>{message}</Text>
         )}
         {showRetry ? (
-          <PrimaryButton label="Retry" onPress={onRetry} accessibilityLabel="Retry loading saved data" />
+          <PrimaryButton label="Try again" onPress={onRetry} accessibilityLabel="Try loading saved data again" />
         ) : null}
         {showContinue ? (
-          <PrimaryButton
-            label="Continue with safe empty state"
-            onPress={() => setCorruptAcknowledged(true)}
-            accessibilityLabel="Continue after storage recovery"
-          />
+          <>
+            <PrimaryButton
+              label="Continue with recovered data"
+              onPress={() => setCorruptAcknowledged(true)}
+              accessibilityLabel="Continue with recovered data"
+            />
+            <SecondaryButton label="Try again" onPress={onRetry} accessibilityLabel="Try loading again" />
+          </>
         ) : null}
         {showReset ? (
           <DestructiveButton
-            label="Reset local data"
+            label="Reset local setup"
             onPress={onConfirmReset}
-            accessibilityLabel="Reset local data after confirmation"
+            accessibilityLabel="Reset local setup after confirmation"
           />
         ) : null}
       </View>

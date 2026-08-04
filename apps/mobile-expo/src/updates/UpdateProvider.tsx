@@ -7,11 +7,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
-import { spacing } from '@milerecover/config';
-import { SecondaryButton, StatusCard } from '../design-system';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, radii, spacing } from '@milerecover/config';
+import { SecondaryButton, StatusCard, text as textStyles } from '../design-system';
 import { isStandaloneBuild } from '../constants/buildInfo';
+import { isShareInFlight } from '../services/fileShare';
 import { applyPendingUpdate, checkAndDownloadUpdate, updatesEnabled } from './appUpdates';
 
 interface UpdateContextValue {
@@ -19,13 +21,22 @@ interface UpdateContextValue {
   lastCheckError: string | null;
   checkForUpdates: () => Promise<boolean>;
   applyUpdate: () => Promise<void>;
+  dismissUpdatePrompt: () => void;
   updatesActive: boolean;
+  /** Suppress prompt while a critical sheet/form is open. */
+  setUpdatePromptBlocked: (blocked: boolean) => void;
 }
 
 const UpdateContext = createContext<UpdateContextValue | null>(null);
 
+/** Approximate tab bar height used to sit the banner above navigation. */
+const TAB_BAR_BASE = 56;
+
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
   const [updateReady, setUpdateReady] = useState(false);
+  const [dismissedThisSession, setDismissedThisSession] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const [lastCheckError, setLastCheckError] = useState<string | null>(null);
   const checkedOnLaunch = useRef(false);
   const variant = Constants.expoConfig?.extra?.appVariant as string | undefined;
@@ -46,34 +57,85 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   }, [standalone, runCheck]);
 
   const applyUpdate = useCallback(async () => {
+    if (isShareInFlight() || blocked) return;
     await applyPendingUpdate();
+  }, [blocked]);
+
+  const dismissUpdatePrompt = useCallback(() => {
+    setDismissedThisSession(true);
+    setUpdateReady(false);
   }, []);
 
   const value = useMemo<UpdateContextValue>(
     () => ({
-      updateReady,
+      updateReady: updateReady && !dismissedThisSession,
       lastCheckError,
       checkForUpdates: runCheck,
       applyUpdate,
+      dismissUpdatePrompt,
       updatesActive: standalone && updatesEnabled(),
+      setUpdatePromptBlocked: setBlocked,
     }),
-    [updateReady, lastCheckError, runCheck, applyUpdate, standalone],
+    [
+      updateReady,
+      dismissedThisSession,
+      lastCheckError,
+      runCheck,
+      applyUpdate,
+      dismissUpdatePrompt,
+      standalone,
+    ],
   );
+
+  const showBanner =
+    updateReady && !dismissedThisSession && !blocked && !isShareInFlight();
 
   return (
     <UpdateContext.Provider value={value}>
-      {children}
-      {updateReady ? (
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.md, zIndex: 10 }}>
-          <StatusCard
-            variant="info"
-            title="Update ready"
-            body="A MileRecover update is ready. Restart to apply."
-            actionLabel="Restart now"
-            onAction={() => void applyUpdate()}
-          />
-          <View style={{ marginTop: spacing.sm }}>
-            <SecondaryButton label="Later" onPress={() => setUpdateReady(false)} accessibilityLabel="Apply update later" />
+      <View style={styles.flex}>{children}</View>
+      {showBanner ? (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.bannerHost,
+            {
+              paddingBottom: Math.max(insets.bottom, spacing.sm) + TAB_BAR_BASE + spacing.sm,
+              paddingLeft: Math.max(insets.left, spacing.md),
+              paddingRight: Math.max(insets.right, spacing.md),
+            },
+          ]}
+          accessibilityViewIsModal={false}
+        >
+          <View
+            style={styles.banner}
+            accessibilityRole="summary"
+            accessibilityLabel="Update ready. Restart now or later."
+          >
+            <StatusCard
+              variant="info"
+              title="Update ready"
+              body="A MileRecover update is downloaded. Restart when you’re ready."
+              emphasis="subtle"
+            />
+            <View style={styles.bannerActions}>
+              <View style={{ flex: 1 }}>
+                <SecondaryButton
+                  label="Later"
+                  onPress={dismissUpdatePrompt}
+                  accessibilityLabel="Dismiss update prompt until next launch"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <SecondaryButton
+                  label="Restart now"
+                  onPress={() => void applyUpdate()}
+                  accessibilityLabel="Restart now to apply the update"
+                />
+              </View>
+            </View>
+            <Text style={[textStyles.caption, styles.caption]}>
+              Won’t cover your tabs. Unsaved forms are not interrupted while you keep editing.
+            </Text>
           </View>
         </View>
       ) : null}
@@ -86,3 +148,30 @@ export function useAppUpdates(): UpdateContextValue {
   if (!ctx) throw new Error('useAppUpdates must be used within UpdateProvider');
   return ctx;
 }
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  bannerHost: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
+  },
+  banner: {
+    backgroundColor: colors.background.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing.sm,
+    gap: spacing.xs,
+  },
+  bannerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  caption: {
+    marginTop: spacing.xs,
+  },
+});

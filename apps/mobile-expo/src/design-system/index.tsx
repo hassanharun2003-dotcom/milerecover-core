@@ -163,19 +163,71 @@ export function PrimaryButton({ label, onPress, disabled, loading, accessibility
   );
 }
 
-export function SecondaryButton({ label, onPress, disabled, accessibilityLabel }: {
-  label: string; onPress: () => void; disabled?: boolean; accessibilityLabel?: string;
+export function SecondaryButton({ label, onPress, disabled, accessibilityLabel, compact }: {
+  label: string; onPress: () => void; disabled?: boolean; accessibilityLabel?: string; compact?: boolean;
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.secondaryBtn, disabled && styles.btnDisabled, pressed && !disabled && styles.btnPressed]}
+      style={({ pressed }) => [
+        styles.secondaryBtn,
+        compact && styles.secondaryBtnCompact,
+        disabled && styles.btnDisabled,
+        pressed && !disabled && styles.btnPressed,
+      ]}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
     >
-      <Text style={styles.secondaryBtnText}>{label}</Text>
+      <Text style={[styles.secondaryBtnText, disabled && styles.secondaryBtnTextDisabled]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
+  );
+}
+
+/** Compact selectable chip — never word-breaks labels across tiny flex columns. */
+export function Chip({
+  label,
+  selected,
+  onPress,
+  accessibilityLabel,
+}: {
+  label: string;
+  selected?: boolean;
+  onPress: () => void;
+  accessibilityLabel?: string;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.chip,
+        selected && styles.chipSelected,
+        pressed && styles.btnPressed,
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: Boolean(selected) }}
+      accessibilityLabel={accessibilityLabel ?? label}
+    >
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+export function ChipRow({ children }: { children: React.ReactNode }) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.chipRow}
+      style={styles.chipRowScroll}
+    >
+      {children}
+    </ScrollView>
   );
 }
 
@@ -476,9 +528,27 @@ export function ListRow({
   const displayValue = busy ? (value && /preparing/i.test(value) ? value : 'Preparing…') : value;
   const blocked = Boolean(disabled || busy);
   const a11yLabel = displayValue ? `${label}, ${displayValue}` : label;
-  const content = (
+  const longValue = Boolean(displayValue && displayValue.length > 22);
+  const content = longValue ? (
+    <View style={styles.listRowStacked}>
+      <View style={styles.listRowStackedTop}>
+        <Text style={[text.body, styles.listRowLabelGrow]} numberOfLines={2}>
+          {label}
+        </Text>
+        {showChevron && !busy ? <Text style={[text.caption, styles.listRowChevron]}>›</Text> : null}
+      </View>
+      {displayValue ? (
+        <Text style={[text.caption, styles.listRowValueStacked]} numberOfLines={3}>
+          {displayValue}
+        </Text>
+      ) : null}
+    </View>
+  ) : (
     <>
-      <Text style={[text.body, styles.listRowLabel]} numberOfLines={2}>
+      <Text
+        style={[text.body, displayValue ? styles.listRowLabel : styles.listRowLabelGrow]}
+        numberOfLines={2}
+      >
         {label}
       </Text>
       <View style={styles.listRowRight}>
@@ -862,9 +932,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
-    flex: 1,
+    alignSelf: 'stretch',
   },
-  secondaryBtnText: { color: colors.forest[700], fontWeight: '600' },
+  secondaryBtnCompact: {
+    alignSelf: 'auto',
+    minHeight: 40,
+    paddingHorizontal: spacing.smMd,
+  },
+  secondaryBtnText: { color: colors.forest[700], fontWeight: '600', fontSize: typography.size.body },
+  secondaryBtnTextDisabled: { color: colors.neutral[500] },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.forest[600],
+    borderRadius: radii.md,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background.card,
+    marginRight: spacing.xs,
+  },
+  chipSelected: {
+    backgroundColor: colors.forest[100],
+    borderColor: colors.forest[700],
+    borderWidth: 2,
+  },
+  chipText: {
+    color: colors.forest[700],
+    fontWeight: '600',
+    fontSize: typography.size.body,
+    flexShrink: 0,
+  },
+  chipTextSelected: {
+    color: colors.forest[900],
+    fontWeight: '700',
+  },
+  chipRowScroll: {
+    marginBottom: spacing.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: spacing.md,
+    gap: spacing.xs,
+  },
   tertiaryBtn: { minHeight: touchTarget.minHeight, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
   tertiaryBtnText: { color: colors.forest[600], fontWeight: '600' },
   destructiveBtn: {
@@ -913,7 +1025,7 @@ const styles = StyleSheet.create({
   },
   undoSnackbarAction: { minHeight: touchTarget.minHeight, justifyContent: 'center', paddingHorizontal: spacing.xs },
   undoSnackbarActionText: { color: colors.forest[100], fontWeight: '700' },
-  btnDisabled: { opacity: 0.5 },
+  btnDisabled: { opacity: 0.62 },
   btnPressed: { opacity: 0.88 },
   cardPressed: { opacity: 0.96 },
   statusCard: { borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.md, borderWidth: 1 },
@@ -965,6 +1077,12 @@ const styles = StyleSheet.create({
     paddingRight: spacing.xs,
     paddingTop: 2,
   },
+  listRowLabelGrow: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: spacing.xs,
+    paddingTop: 2,
+  },
   listRowRight: {
     flex: 1,
     flexDirection: 'row',
@@ -977,6 +1095,21 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     flexGrow: 1,
     textAlign: 'right',
+    minWidth: 0,
+  },
+  listRowStacked: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
+  listRowStackedTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  listRowValueStacked: {
+    textAlign: 'left',
     minWidth: 0,
   },
   listRowChevron: {

@@ -79,11 +79,14 @@ function normalizeOnboarding(raw: Partial<VersionedOnboardingState> | undefined,
     lastUpdatedAt: now,
   };
 
-  // Legacy boolean-only or older version stamps → invalidate completion, keep answers.
+  // Legacy boolean-only, older version stamps, or corrupt completion stamps
+  // (completedAt set without required answers) → invalidate completion, keep answers.
+  const stamped = next.completedAt != null || next.completedOnboardingVersion != null;
   if (
     isOnboardingVersionStale(next) ||
     (next.completedAt != null && next.completedOnboardingVersion == null) ||
-    (next.completedAt != null && next.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION)
+    (next.completedAt != null && next.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION) ||
+    (stamped && !isOnboardingMinimumComplete(next))
   ) {
     next = invalidateStaleOnboardingCompletion(next, now);
   }

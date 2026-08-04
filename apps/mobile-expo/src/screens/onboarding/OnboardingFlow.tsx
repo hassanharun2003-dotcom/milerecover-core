@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BackHandler, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { BackHandler, Platform, Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
   ONBOARDING_STEP_ORDER,
@@ -24,6 +24,13 @@ import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 import { CarRouteHero } from '../../components/CarRouteHero';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
+import {
+  AUTH_UNAVAILABLE_MESSAGE,
+  getAuthPort,
+  isAuthConfigured,
+  shouldShowAccountPreviewCopy,
+  type AuthProviderId,
+} from '../../services/auth';
 
 function remapLegacyStep(step: ProductOnboardingStep): ProductOnboardingStep {
   if (ONBOARDING_STEP_ORDER.includes(step)) return step;
@@ -68,11 +75,14 @@ export function OnboardingFlow() {
     setSelectedPainPoints,
     completeProductOnboarding,
   } = useProduct();
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
 
   const step = remapLegacyStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
   const next = nextActionForGoal(product.primaryGoal);
   const selectedPainPoints = product.selectedPainPoints.filter((p) => p !== 'battery_worry') as PainPoint[];
+  const authReady = isAuthConfigured();
 
   useEffect(() => {
     if (product.onboardingStep !== step) {
@@ -94,6 +104,8 @@ export function OnboardingFlow() {
   }, [backOnboarding, stepIndex]);
 
   const finish = (deepLink: boolean) => {
+    if (finishing) return;
+    setFinishing(true);
     completeProductOnboarding(deepLink ? 'ProtectionAlert' : null);
     logEvent(ANALYTICS_EVENTS.onboardingCompleted, {
       goal: product.primaryGoal ?? 'unset',
@@ -108,6 +120,19 @@ export function OnboardingFlow() {
       ? selectedPainPoints.filter((item) => item !== painPoint)
       : [...selectedPainPoints, painPoint];
     setSelectedPainPoints(nextPainPoints);
+  };
+
+  const tryAuth = async (provider: AuthProviderId) => {
+    const result = await getAuthPort().signIn(provider);
+    if (result.ok) {
+      setAuthNotice(`Signed in as ${result.email ?? result.displayName ?? 'your account'}.`);
+      return;
+    }
+    if (result.reason === 'cancelled') {
+      setAuthNotice(null);
+      return;
+    }
+    setAuthNotice(result.message);
   };
 
   return (
@@ -130,7 +155,7 @@ export function OnboardingFlow() {
             Keep your work miles from disappearing.
           </Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            Capture, recover, review, and prove work mileage — without inventing anything.
+            Capture, recover, review, and prove work mileage without inventing anything.
           </Text>
           <CarRouteHero />
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
@@ -151,6 +176,59 @@ export function OnboardingFlow() {
               }}
             />
           </View>
+
+          <SoftPanel>
+            <Text style={[text.caption, { marginBottom: spacing.sm }]}>ACCOUNT · OPTIONAL</Text>
+            <Text style={[text.body, { marginBottom: spacing.sm }]}>
+              MileRecover works fully without an account. Sign-in is optional and never required to save miles.
+            </Text>
+            {authReady ? (
+              <>
+                <SecondaryButton label="Continue with Google" onPress={() => void tryAuth('google')} />
+                {Platform.OS === 'ios' ? (
+                  <SecondaryButton label="Continue with Apple" onPress={() => void tryAuth('apple')} />
+                ) : null}
+                <SecondaryButton label="Continue with email" onPress={() => void tryAuth('email')} />
+              </>
+            ) : (
+              <>
+                {shouldShowAccountPreviewCopy() ? (
+                  <Text style={[text.caption, { marginBottom: spacing.sm }]}>{AUTH_UNAVAILABLE_MESSAGE}</Text>
+                ) : null}
+                <SecondaryButton
+                  label="Continue with Google"
+                  disabled
+                  onPress={() => setAuthNotice(AUTH_UNAVAILABLE_MESSAGE)}
+                />
+                {Platform.OS === 'ios' ? (
+                  <SecondaryButton
+                    label="Continue with Apple"
+                    disabled
+                    onPress={() => setAuthNotice(AUTH_UNAVAILABLE_MESSAGE)}
+                  />
+                ) : null}
+                <SecondaryButton
+                  label="Continue with email"
+                  disabled
+                  onPress={() => setAuthNotice(AUTH_UNAVAILABLE_MESSAGE)}
+                />
+              </>
+            )}
+            <TertiaryButton
+              label="Skip for now"
+              onPress={() => {
+                setAuthNotice(null);
+                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'skip_account' });
+                advanceOnboarding();
+              }}
+              accessibilityLabel="Skip account and continue onboarding"
+            />
+            {authNotice ? (
+              <Text style={[text.caption, { marginTop: spacing.sm }]} accessibilityRole="text">
+                {authNotice}
+              </Text>
+            ) : null}
+          </SoftPanel>
         </View>
       ) : null}
 
@@ -215,12 +293,14 @@ export function OnboardingFlow() {
           <PrimaryButton
             label="Go to Home"
             onPress={() => finish(false)}
+            loading={finishing}
             accessibilityLabel="Finish onboarding and go to Home"
           />
           <View style={{ marginTop: spacing.sm }}>
             <SecondaryButton
               label="Set up automatic protection"
               onPress={() => finish(true)}
+              disabled={finishing}
               accessibilityLabel="Set up automatic protection"
             />
           </View>

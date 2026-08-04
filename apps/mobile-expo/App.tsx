@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors, spacing } from '@milerecover/config';
-import { capabilitiesForEntitlement, isOnboardingMinimumComplete } from '@milerecover/domain';
+import { capabilitiesForEntitlement } from '@milerecover/domain';
 import { AppProvider, useApp } from './src/store/AppContext';
 import { ProductProvider, useProduct } from './src/product/ProductContext';
 import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
@@ -14,20 +14,23 @@ import { ManualTripMigration } from './src/components/ManualTripMigration';
 import { UpdateProvider } from './src/updates/UpdateProvider';
 import { SafeFillScreen, text } from './src/design-system';
 import { createTrackingController } from './src/services/trackingEngine';
+import { resolveLaunchState } from './src/startup/launchState';
 
-function ProductHydrationGate({ children }: { children: React.ReactNode }) {
-  const { hydrated } = useProduct();
-  if (!hydrated) {
-    return (
-      <SafeFillScreen>
-        <View style={{ flex: 1, justifyContent: 'center', padding: spacing.md, gap: spacing.md }}>
-          <ActivityIndicator size="large" color={colors.forest[600]} accessibilityLabel="Loading" />
-          <Text style={text.body}>Restoring product setup...</Text>
-        </View>
-      </SafeFillScreen>
-    );
-  }
-  return <>{children}</>;
+function BootSplash({ label }: { label: string }) {
+  return (
+    <SafeFillScreen>
+      <View
+        style={{ flex: 1, justifyContent: 'center', padding: spacing.md, gap: spacing.md }}
+        accessibilityLabel="App startup status"
+      >
+        <ActivityIndicator size="large" color={colors.forest[600]} accessibilityLabel="Loading" />
+        <Text style={text.title} accessibilityRole="header">
+          MileRecover
+        </Text>
+        <Text style={text.body}>{label}</Text>
+      </View>
+    </SafeFillScreen>
+  );
 }
 
 function TrackingBootstrap({ children }: { children: React.ReactNode }) {
@@ -60,14 +63,26 @@ function TrackingBootstrap({ children }: { children: React.ReactNode }) {
 
 function AppRoot() {
   const { state, retryRestore, resetLocalData, finishOnboarding } = useApp();
-  const { product } = useProduct();
-  const setupComplete = isOnboardingMinimumComplete(product.onboarding);
+  const { product, hydrated: productHydrated } = useProduct();
+
+  const appHydrated = state.startupPhase !== 'restoring';
+  const launch = resolveLaunchState({
+    appHydrated,
+    productHydrated,
+    startupPhase: state.startupPhase,
+    onboarding: product.onboarding,
+    tripCount: state.trips.length,
+  });
 
   useEffect(() => {
-    if (setupComplete && !state.onboardingComplete) {
+    if (launch.kind === 'returningUser' && !state.onboardingComplete) {
       finishOnboarding();
     }
-  }, [finishOnboarding, setupComplete, state.onboardingComplete]);
+  }, [finishOnboarding, launch.kind, state.onboardingComplete]);
+
+  if (launch.kind === 'booting') {
+    return <BootSplash label="Checking your MileRecover setup…" />;
+  }
 
   return (
     <StartupGate
@@ -75,20 +90,21 @@ function AppRoot() {
       loadError={state.loadError}
       onRetry={retryRestore}
       onConfirmReset={resetLocalData}
+      launchKind={launch.kind}
     >
       <StatusBar style="dark" />
       <ManualTripMigration />
-      <ProductHydrationGate>
-        <TrackingBootstrap>
-          {!setupComplete ? (
-            <OnboardingFlow />
-          ) : (
-            <NavigationContainer>
-              <RootNavigator />
-            </NavigationContainer>
-          )}
-        </TrackingBootstrap>
-      </ProductHydrationGate>
+      <TrackingBootstrap>
+        {launch.showOnboarding ? (
+          <OnboardingFlow />
+        ) : launch.allowHome ? (
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        ) : (
+          <BootSplash label="Preparing MileRecover…" />
+        )}
+      </TrackingBootstrap>
     </StartupGate>
   );
 }
