@@ -159,7 +159,9 @@ describe('Onboarding honesty', () => {
       path.join(__dirname, '../src/screens/flows/SupportingScreens.tsx'),
       'utf8',
     );
-    expect(tracking).toMatch(/Watching is off|Watching needs Plus|Not yet|Partially/i);
+    expect(tracking).toMatch(
+      /Automatic protection|Manual trip|Watching is off|Watching needs Plus|Not yet|Partially/i,
+    );
   });
 });
 

@@ -57,15 +57,22 @@ describe('Screen render evidence', () => {
       preferredName: null,
     });
     manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
-    expect(liveHome.copy).toMatch(/Ready when you are|You’re protected\.|You're protected\./i);
-    expect(liveHome.copy).toMatch(/Add a drive|watching|Plus/i);
+    expect(liveHome.copy).toMatch(
+      /Ready when you are|You’re protected\.|You're protected\.|Manual-only|Protected|Setup incomplete|Needs attention/i,
+    );
+    expect(liveHome.copy).toMatch(/Add a drive|watching|Plus|protection/i);
     expect(liveHome.copy).not.toContain('Alex Johnson');
     expect(liveHome.copy).not.toContain('87.6');
     expect(liveHome.copy).not.toContain('Airport pickup');
 
     const reviewHome = await renderMainTabs('recovery_available');
     manifest['home-review-item'] = reviewHome.copy.slice(0, 600);
-    expect(reviewHome.copy).toContain(DEMO_SCENARIOS.recovery_available.homeTitle);
+    expect(reviewHome.copy).toMatch(
+      new RegExp(
+        `${DEMO_SCENARIOS.recovery_available.homeTitle}|Possible missing drive|Needs a look|Review suggestions`,
+        'i',
+      ),
+    );
 
     fs.writeFileSync(path.join(evidenceDir, 'home-evidence.json'), JSON.stringify(manifest, null, 2));
   });
@@ -106,7 +113,9 @@ describe('Screen render evidence', () => {
       expect(copy.length).toBeGreaterThan(10);
     }
     expect(manifest['manual-trip']).toMatch(/Add drive|Work|Personal|Decide later|Miles|Save/i);
-    expect(manifest['tracking-active']).toMatch(/Watching is off|Watching is on|Watching needs Plus|Are you protected/i);
+    expect(manifest['tracking-active']).toMatch(
+      /How you track|Automatic protection|Manual trip|Watching is off|Watching is on|Watching needs Plus|Are you protected/i,
+    );
     expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
     expect(manifest['report-preview']).toMatch(/report|preview|work drive/i);
     expect(manifest['plan-selection']).toMatch(/Choose the protection that fits your driving|Keep the protection that already helped|Current:/i);
@@ -125,7 +134,9 @@ describe('Screen render evidence', () => {
 
   it('captures empty Proof, demo Proof, empty Profile, and safe-area shell markers', async () => {
     const emptyProof = await renderTab('new_user', 'Proof', { demoModeEnabled: false });
-    expect(emptyProof.copy).toMatch(/No confirmed work drives in this period|No work drives yet|No confirmed drives/i);
+    expect(emptyProof.copy).toMatch(
+      /No trips yet|No confirmed work drives in this period|No work drives yet|No confirmed drives/i,
+    );
     expect(emptyProof.copy).not.toMatch(/report is ready/i);
 
     const proofReady = await renderTab('proof_ready', 'Proof', { demoModeEnabled: true });

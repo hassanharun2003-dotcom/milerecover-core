@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
   localeProfileFromCountry,

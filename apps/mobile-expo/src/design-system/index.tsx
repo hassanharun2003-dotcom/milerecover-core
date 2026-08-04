@@ -779,6 +779,7 @@ export function FormField({
   compact,
   autoCapitalize,
   autoFocus,
+  accessibilityLabel,
 }: {
   label: string;
   value: string;
@@ -788,6 +789,7 @@ export function FormField({
   compact?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoFocus?: boolean;
+  accessibilityLabel?: string;
 }) {
   return (
     <View style={{ marginBottom: compact ? spacing.sm : spacing.md }}>
@@ -795,7 +797,7 @@ export function FormField({
       <View style={[styles.formField, compact ? styles.formFieldCompact : null]}>
         {onChangeText ? (
           <TextInput
-            accessibilityLabel={label}
+            accessibilityLabel={accessibilityLabel ?? label}
             value={value}
             placeholder={placeholder}
             autoFocus={autoFocus}
