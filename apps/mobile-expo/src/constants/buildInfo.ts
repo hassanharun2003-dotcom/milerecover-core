@@ -5,7 +5,8 @@ export const APP_BUILD_LABEL = '0.1.6-mvp.4';
  * Temporary Home-screen OTA verification string.
  * Leave empty for clean APK/OTA baselines. Set only while proving a preview-channel update.
  */
-export const PREVIEW_CHANNEL_MARKER = '';
+export const PREVIEW_CHANNEL_MARKER =
+  'OTA VERIFIED — BUILD 0.1.6 — 2026-08-04T19:40:00Z';
 
 /** App store / runtime version — bumped for native auth/billing modules. */
 export const APP_VERSION = '0.1.6';
