@@ -69,4 +69,45 @@ describe('Authoritative onboarding versioning', () => {
     expect(product.vehicles).toEqual([]);
     expect(app.trips).toEqual([]);
   });
+
+  it('interrupted onboarding keeps answers and stays incomplete', () => {
+    const interrupted = {
+      ...createEmptyOnboardingState(),
+      currentStep: 'pain_points' as const,
+      primaryGoal: 'employee_reimbursement' as const,
+      selectedPainPoints: [] as const,
+      completedAt: null,
+      completedOnboardingVersion: null,
+    };
+    expect(isOnboardingMinimumComplete(interrupted)).toBe(false);
+    expect(interrupted.primaryGoal).toBe('employee_reimbursement');
+    expect(interrupted.currentStep).toBe('pain_points');
+  });
+
+  it('OTA-compatible completion stays Home-ready after version match', () => {
+    const completed = {
+      ...createEmptyOnboardingState(),
+      primaryGoal: 'self_employed_business' as const,
+      selectedPainPoints: ['need_cleaner_reports' as const],
+      nextActionSelected: 'add_first_drive' as const,
+      completedAt: 99,
+      completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
+    };
+    expect(isOnboardingVersionStale(completed)).toBe(false);
+    expect(isOnboardingMinimumComplete(completed)).toBe(true);
+    // Invalidate helper is only for stale installs — do not call it on current completions.
+  });
+
+  it('restarting onboarding clears completion but keeps domain trips untouched by this helper', () => {
+    const app = createInitialAppState();
+    expect(app.trips).toEqual([]);
+    const restarted = {
+      ...createEmptyOnboardingState(),
+      currentStep: 'welcome' as const,
+      completedAt: null,
+      completedOnboardingVersion: null,
+    };
+    expect(isOnboardingMinimumComplete(restarted)).toBe(false);
+    expect(restarted.currentStep).toBe('welcome');
+  });
 });

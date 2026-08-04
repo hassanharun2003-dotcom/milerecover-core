@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -29,7 +29,12 @@ import type { RootStackParamList, RootTabParamList } from '../../navigation/type
 import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
 import { voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
-import { writeTextFile, shareFile } from '../../services/fileShare';
+import {
+  isShareInFlight,
+  SHARE_COPY,
+  subscribeShareInFlight,
+  writeAndShareTextFile,
+} from '../../services/fileShare';
 import { generateAndSharePdf } from '../../services/pdfReport';
 import { useApp } from '../../store/AppContext';
 
@@ -70,6 +75,12 @@ export function ProofScreen() {
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+
+  useEffect(() => subscribeShareInFlight(setShareBusy), []);
+
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const period = periodFromState(state.reportingPeriod);
   const tripsForProof = product.demoModeEnabled
@@ -82,8 +93,9 @@ export function ProofScreen() {
         period,
         userName: product.preferredName,
         mileageUseType: voiceForDrivingType(product.drivingType).reportNoun,
+        primaryGoal: product.primaryGoal,
       }),
-    [period, product.drivingType, product.preferredName, tripsForProof],
+    [period, product.drivingType, product.preferredName, product.primaryGoal, tripsForProof],
   );
 
   const choosePeriod = (kind: ReportPeriodKind) => {
@@ -102,48 +114,77 @@ export function ProofScreen() {
   const shareCsv = async () => {
     setMessage(null);
     setError(null);
+    if (isShareInFlight() || csvBusy) {
+      setMessage(SHARE_COPY.busy);
+      return;
+    }
     if (report.tripCount === 0) {
       setError('No confirmed work drives in this period to export.');
       return;
     }
+    setCsvBusy(true);
     try {
       const csv = buildMileageCsv(tripsForProof, {
         periodStart: period.startAt,
         periodEnd: period.endAt,
         vehicleNicknameById: vehicleLookup(product.vehicles),
       });
-      const uri = await writeTextFile(csvFilename(period.label), csv);
-      const result = await shareFile(uri, 'text/csv', 'Share MileRecover CSV');
-      if (!result.ok && result.reason !== 'cancelled') throw new Error(result.message);
+      const result = await writeAndShareTextFile({
+        filename: csvFilename(period.label),
+        contents: csv,
+        mimeType: 'text/csv',
+        dialogTitle: 'Share MileRecover CSV',
+      });
       if (result.ok) {
         markFirstExport();
         markFirstReportPreview();
+        setMessage(SHARE_COPY.csvReady);
+      } else if (result.reason === 'cancelled') {
+        setMessage(null);
+      } else {
+        setMessage(result.reason === 'busy' ? SHARE_COPY.busy : null);
+        if (result.reason !== 'busy') setError(result.message);
+        else setMessage(result.message);
       }
-      setMessage(result.ok ? 'CSV ready to share.' : result.message);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not share CSV.');
+    } catch {
+      setError(SHARE_COPY.failed);
+    } finally {
+      setCsvBusy(false);
     }
   };
 
   const sharePdf = async () => {
     setMessage(null);
     setError(null);
+    if (isShareInFlight() || pdfBusy) {
+      setMessage(SHARE_COPY.busy);
+      return;
+    }
     if (!capabilities.canUseStandardPdf) {
       setError('PDF reports come with Plus. CSV stays free.');
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
-    const result = await generateAndSharePdf(report);
-    if (result.ok || result.reason === 'cancelled') {
+    setPdfBusy(true);
+    try {
+      const result = await generateAndSharePdf(report);
       if (result.ok) {
         markFirstExport();
         markFirstReportPreview();
+        setMessage(SHARE_COPY.pdfReady);
+      } else if (result.reason === 'cancelled') {
+        setMessage(null);
+      } else if (result.reason === 'busy') {
+        setMessage(SHARE_COPY.busy);
+      } else {
+        setError(result.message);
       }
-      setMessage(result.ok ? 'PDF ready to share.' : result.message);
-    } else {
-      setError(result.message);
+    } finally {
+      setPdfBusy(false);
     }
   };
+
+  const exportBusy = csvBusy || shareBusy;
 
   return (
     <TabScreen>
@@ -171,8 +212,8 @@ export function ProofScreen() {
             tripCount={report.tripCount}
             totalMiles={report.totalMiles.toFixed(1)}
             unresolved={String(report.unresolvedCount)}
-            title="Your mileage report is ready"
-            onPreview={() => navigation.navigate('ReportPreview', { format: 'reimbursement' })}
+            title={report.title}
+            onPreview={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
           />
           {message ? <StatusCard variant="success" title="Export" body={message} emphasis="subtle" /> : null}
           {error ? <FormError message={error} /> : null}
@@ -188,8 +229,16 @@ export function ProofScreen() {
             <ListRow
               label={capabilities.canUseStandardPdf ? 'Share PDF' : 'Create PDF report · Plus'}
               onPress={() => void sharePdf()}
+              busy={pdfBusy || (shareBusy && !csvBusy)}
+              disabled={exportBusy && !pdfBusy}
             />
-            <ListRow label="Share CSV" onPress={() => void shareCsv()} />
+            <ListRow
+              label="Share CSV"
+              value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
+              onPress={() => void shareCsv()}
+              busy={csvBusy || (shareBusy && !pdfBusy)}
+              disabled={pdfBusy}
+            />
           </ListSection>
           <View style={{ marginTop: spacing.md }}>
             <SecondaryButton label="Add another drive" onPress={() => navigation.navigate('ManualTrip')} />

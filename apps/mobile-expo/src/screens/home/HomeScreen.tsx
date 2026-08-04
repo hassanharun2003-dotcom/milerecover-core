@@ -183,13 +183,18 @@ export function HomeScreen() {
     scenario.homeState !== 'protection_limited' &&
     scenario.primaryActionRoute !== 'Review';
 
+  // At most one milestone; never repeat the hero’s “report is ready” message.
+  const reportHeroAlreadyShown = /report is ready/i.test(scenario.homeTitle);
   const celebration =
     firstWeek && liveMode
       ? product.celebratedFirstDriveAt == null && confirmedCount > 0
         ? ('drive' as const)
         : product.celebratedFirstRecoveryAt == null && recoveredCount > 0
           ? ('recovery' as const)
-          : product.celebratedFirstReportAt == null && scenario.proofReady && product.firstReportPreviewAt != null
+          : !reportHeroAlreadyShown &&
+              product.celebratedFirstReportAt == null &&
+              scenario.proofReady &&
+              product.firstReportPreviewAt != null
             ? ('report' as const)
             : null
       : null;

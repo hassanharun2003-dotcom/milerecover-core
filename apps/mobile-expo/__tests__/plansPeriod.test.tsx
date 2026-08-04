@@ -18,7 +18,7 @@ describe('Plans monthly/annual rendering', () => {
     expect(copy).toMatch(/Pro/i);
     expect(copy).toMatch(/Stay on Free|Free/i);
     expect(copy).toMatch(/90-Day Rescue|One-time catch-up/i);
-    expect(copy).toMatch(/Protect future work drives|Keep the protection|Create reports ready to share/i);
+    expect(copy).toMatch(/Choose the protection that fits your driving|Keep the protection that already helped/i);
     expect(copy).toMatch(/Automatic coverage for future drives/i);
     expect(copy).toMatch(/Everything in Plus/i);
   });

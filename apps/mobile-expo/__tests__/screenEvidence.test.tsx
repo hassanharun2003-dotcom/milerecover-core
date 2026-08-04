@@ -104,7 +104,7 @@ describe('Screen render evidence', () => {
     expect(manifest['tracking-active']).toMatch(/Watching is off|Watching is on|Watching needs Plus|Are you protected/i);
     expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
     expect(manifest['report-preview']).toMatch(/report|preview|work drive/i);
-    expect(manifest['plan-selection']).toMatch(/Protect future work drives|Keep the protection|Create reports ready to share|Current:/i);
+    expect(manifest['plan-selection']).toMatch(/Choose the protection that fits your driving|Keep the protection that already helped|Current:/i);
     expect(manifest['plan-selection']).toMatch(/Plus|Pro|90-Day Rescue/i);
     expect(manifest['edit-setup']).toMatch(/Update your answers|Adjust setup|Primary goal/i);
     expect(manifest['privacy']).toMatch(/Privacy and data|local-first|Local-first/i);

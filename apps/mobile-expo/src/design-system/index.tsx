@@ -350,9 +350,13 @@ export function SummaryCard({ items }: { items: { label: string; value: string }
 
 export function EvidenceRow({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.evidenceRow}>
-      <Text style={text.caption}>{label}</Text>
-      <Text style={text.body}>{value}</Text>
+    <View style={styles.evidenceRow} accessibilityLabel={`${label}, ${value}`}>
+      <Text style={[text.caption, styles.evidenceLabel]} numberOfLines={2}>
+        {label}
+      </Text>
+      <Text style={[text.body, styles.evidenceValue]} numberOfLines={3}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -459,29 +463,53 @@ export function ListRow({
   value,
   onPress,
   showChevron = !!onPress,
+  disabled,
+  busy,
 }: {
   label: string;
   value?: string;
   onPress?: () => void;
   showChevron?: boolean;
+  disabled?: boolean;
+  busy?: boolean;
 }) {
+  const displayValue = busy ? (value && /preparing/i.test(value) ? value : 'Preparing…') : value;
+  const blocked = Boolean(disabled || busy);
+  const a11yLabel = displayValue ? `${label}, ${displayValue}` : label;
   const content = (
     <>
-      <Text style={text.body}>{label}</Text>
+      <Text style={[text.body, styles.listRowLabel]} numberOfLines={2}>
+        {label}
+      </Text>
       <View style={styles.listRowRight}>
-        {value ? <Text style={text.caption}>{value}</Text> : null}
-        {showChevron ? <Text style={text.caption}> ›</Text> : null}
+        {displayValue ? (
+          <Text style={[text.caption, styles.listRowValue]} numberOfLines={2}>
+            {displayValue}
+          </Text>
+        ) : null}
+        {showChevron && !busy ? <Text style={[text.caption, styles.listRowChevron]}>›</Text> : null}
       </View>
     </>
   );
   if (onPress) {
     return (
-      <Pressable style={styles.listRow} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      <Pressable
+        style={[styles.listRow, blocked && styles.listRowDisabled]}
+        onPress={onPress}
+        disabled={blocked}
+        accessibilityRole="button"
+        accessibilityLabel={a11yLabel}
+        accessibilityState={{ disabled: blocked, busy: Boolean(busy) }}
+      >
         {content}
       </Pressable>
     );
   }
-  return <View style={styles.listRow}>{content}</View>;
+  return (
+    <View style={styles.listRow} accessibilityLabel={a11yLabel}>
+      {content}
+    </View>
+  );
 }
 
 export function SelectionCard({ title, body, selected, onPress }: {
@@ -511,6 +539,8 @@ export function PlanCard({
   tagline,
   current,
   savingsLabel,
+  purchaseDisabled,
+  priceNote,
 }: {
   name: string;
   price: string;
@@ -521,6 +551,8 @@ export function PlanCard({
   tagline?: string;
   current?: boolean;
   savingsLabel?: string;
+  purchaseDisabled?: boolean;
+  priceNote?: string;
 }) {
   return (
     <View style={[cardBase, styles.planCard, highlighted && styles.planHighlighted]}>
@@ -536,6 +568,7 @@ export function PlanCard({
         {price}
         <Text style={text.caption}> / {period}</Text>
       </Text>
+      {priceNote ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{priceNote}</Text> : null}
       {savingsLabel ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{savingsLabel}</Text> : null}
       {features.slice(0, 3).map((f) => (
         <Text key={f} style={[text.body, { marginTop: spacing.xs }]} numberOfLines={2}>
@@ -544,9 +577,9 @@ export function PlanCard({
       ))}
       <View style={{ marginTop: spacing.md }}>
         <PrimaryButton
-          label={current ? 'Current plan' : highlighted ? `Choose ${name}` : `Choose ${name}`}
+          label={current ? 'Current plan' : purchaseDisabled ? 'Purchases unavailable' : `Choose ${name}`}
           onPress={onSelect}
-          disabled={current}
+          disabled={current || purchaseDisabled}
         />
       </View>
     </View>
@@ -902,7 +935,13 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { fontSize: typography.size.title, fontWeight: '700', color: colors.forest[700], marginTop: spacing.xs },
-  evidenceRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs },
+  evidenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
   timelineRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.forest[500], marginTop: 6 },
   reviewActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' },
@@ -911,13 +950,53 @@ const styles = StyleSheet.create({
   listRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     minHeight: touchTarget.minHeight,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border.default,
     paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
-  listRowRight: { flexDirection: 'row', alignItems: 'center' },
+  listRowDisabled: { opacity: 0.55 },
+  listRowLabel: {
+    flexShrink: 0,
+    minWidth: '34%',
+    maxWidth: '46%',
+    paddingRight: spacing.xs,
+    paddingTop: 2,
+  },
+  listRowRight: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    minWidth: 0,
+    gap: spacing.xs,
+  },
+  listRowValue: {
+    flexShrink: 1,
+    flexGrow: 1,
+    textAlign: 'right',
+    minWidth: 0,
+  },
+  listRowChevron: {
+    flexShrink: 0,
+    width: 14,
+    textAlign: 'center',
+    fontSize: typography.size.bodyLarge,
+    color: colors.text.secondary,
+  },
+  evidenceLabel: {
+    flexShrink: 0,
+    minWidth: '34%',
+    maxWidth: '46%',
+    paddingRight: spacing.xs,
+  },
+  evidenceValue: {
+    flex: 1,
+    textAlign: 'right',
+    minWidth: 0,
+  },
   selectionCard: { marginBottom: spacing.sm },
   selectionCardSelected: { borderColor: colors.forest[600], backgroundColor: colors.forest[100] },
   planCard: { marginBottom: spacing.md, padding: spacing.md },

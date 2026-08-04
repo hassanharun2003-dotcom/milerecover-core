@@ -59,8 +59,8 @@ export interface PurchasePort {
   refreshEntitlement(): Promise<EntitlementSnapshot>;
 }
 
-const STORE_UNAVAILABLE_MESSAGE =
-  'Billing is not configured for this build. Your plan stays Free until a real store purchase is available.';
+export const STORE_UNAVAILABLE_MESSAGE =
+  'Purchases aren’t available in this preview build. Your Free plan remains active.';
 
 function productKindForPlus(period: PurchasePeriod): StoreProductKind {
   return period === 'annual' ? 'plus_annual' : 'plus_monthly';
@@ -108,7 +108,7 @@ export class StoreUnavailablePurchasePort implements PurchasePort {
     return {
       ok: false,
       reason: 'store_unavailable',
-      message: 'Restore requires a configured store connection. No purchases were found or verified.',
+      message: STORE_UNAVAILABLE_MESSAGE,
     };
   }
 

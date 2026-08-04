@@ -165,6 +165,7 @@ describe('Report mapping', () => {
       period,
       userName: 'Sam',
       mileageUseType: 'employee',
+      primaryGoal: 'employee_reimbursement',
     });
     expect(data.tripCount).toBe(2);
     expect(data.totalMiles).toBe(15);
@@ -172,6 +173,8 @@ describe('Report mapping', () => {
     expect(data.recoveredMiles).toBe(5);
     expect(data.unresolvedCount).toBe(1);
     expect(data.lineItems).toHaveLength(2);
+    expect(data.title).toBe('Mileage reimbursement report');
+    expect(data.lineItems[0].startLabel).toBe('');
     expect(data.disclaimer).toMatch(/not tax/i);
   });
 });

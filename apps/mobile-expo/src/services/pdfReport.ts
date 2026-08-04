@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
-import type { MileageReportData } from '@milerecover/domain';
-import { shareFile, type ShareResult } from './fileShare';
+import { displayPlaceOrRouteMissing, type MileageReportData } from '@milerecover/domain';
+import { SHARE_COPY, shareFile, type ShareResult } from './fileShare';
 
 function escapeHtml(value: string): string {
   return value
@@ -12,18 +12,22 @@ function escapeHtml(value: string): string {
 
 export function buildReportHtml(report: MileageReportData): string {
   const rows = report.lineItems
-    .map(
-      (item) => `
+    .map((item) => {
+      const start = displayPlaceOrRouteMissing(item.startLabel);
+      const end = displayPlaceOrRouteMissing(item.endLabel);
+      const startCell = !item.startLabel?.trim() && !item.endLabel?.trim() ? '—' : escapeHtml(start);
+      const endCell = !item.startLabel?.trim() && !item.endLabel?.trim() ? 'Route not added' : escapeHtml(end);
+      return `
       <tr>
         <td>${escapeHtml(item.dateLabel)}</td>
         <td>${escapeHtml(item.purpose)}</td>
-        <td>${escapeHtml(item.startLabel)}</td>
-        <td>${escapeHtml(item.endLabel)}</td>
+        <td>${startCell}</td>
+        <td>${endCell}</td>
         <td style="text-align:right">${item.distanceMiles.toFixed(1)}</td>
         <td>${escapeHtml(item.source)}</td>
         <td>${escapeHtml(item.evidence)}</td>
-      </tr>`,
-    )
+      </tr>`;
+    })
     .join('');
 
   return `<!DOCTYPE html>
@@ -83,11 +87,11 @@ export async function generateAndSharePdf(report: MileageReportData): Promise<Sh
     const html = buildReportHtml(report);
     const file = await Print.printToFileAsync({ html, base64: false });
     return shareFile(file.uri, 'application/pdf', 'Share MileRecover PDF');
-  } catch (error) {
+  } catch {
     return {
       ok: false,
       reason: 'failed',
-      message: error instanceof Error ? error.message : 'Could not generate PDF.',
+      message: SHARE_COPY.failed,
     };
   }
 }

@@ -62,12 +62,18 @@ export function ProfileScreen() {
   const coverageBody = watchingFullyOn
     ? 'Protected — watching is on.'
     : !capabilities.canUseAutomaticCapture
-      ? 'Manual logging is ready. Automatic watching requires Plus.'
+      ? 'Automatic drive protection is available with Plus.'
       : product.trackingEnabled || permissions.location === 'granted'
         ? 'One more step can finish watching setup.'
         : automaticCaptureAvailable
-          ? 'Manual logging is ready. Turn on watching when you want automatic coverage.'
-          : 'Manual logging is ready. Automatic watching isn’t available on this device yet.';
+          ? 'Turn on watching when you want automatic coverage.'
+          : 'Automatic watching isn’t available on this device yet.';
+
+  const coverageTitle = watchingFullyOn
+    ? 'Protected'
+    : !capabilities.canUseAutomaticCapture
+      ? 'Manual logging is ready'
+      : 'Manual logging is ready';
 
   const coverageAction = !capabilities.canUseAutomaticCapture
     ? { label: 'See Plus plans', route: 'PlanSelection' as const }
@@ -144,7 +150,7 @@ export function ProfileScreen() {
 
       <SoftPanel>
         <Text style={[text.caption, { marginBottom: spacing.xs }]}>COVERAGE</Text>
-        <Text style={text.subtitle}>{watchingFullyOn ? 'Protected' : 'Manual logging ready'}</Text>
+        <Text style={text.subtitle}>{coverageTitle}</Text>
         <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{coverageBody}</Text>
         <PrimaryButton
           label={coverageAction.label}

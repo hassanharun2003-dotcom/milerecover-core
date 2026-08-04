@@ -160,9 +160,7 @@ export function ReviewScreen() {
         pending.length === 0 ? (
           <EmptyState
             title="You’re caught up"
-            body="We’ll be here when something needs a quick look. Nothing uncertain enters a report until you decide."
-            actionLabel="Add a drive"
-            onAction={() => navigation.navigate('ManualTrip')}
+            body="We’ll let you know when something needs a quick look. Nothing uncertain enters a report until you decide."
           />
         ) : (
           pending.map((item) => (
@@ -189,7 +187,7 @@ export function ReviewScreen() {
       ) : reviewed.length === 0 ? (
         <EmptyState
           title="Nothing reviewed yet"
-          body="Choices you make show up here so you can undo if you change your mind."
+          body="Choices you make appear here, where you can undo them if needed."
         />
       ) : (
         reviewed.map((entry) => (

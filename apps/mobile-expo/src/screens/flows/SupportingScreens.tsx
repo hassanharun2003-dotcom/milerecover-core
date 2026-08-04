@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Keyboard, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -12,7 +12,9 @@ import {
   createManualTripRecord,
   csvFilename,
   formatDateLocal,
+  formatReportRouteSummary,
   formatTimeLocal,
+  MAX_TRIP_DISTANCE_MILES,
   reportHasExportableTrips,
   shouldOfferTrial,
   validateManualTripInput,
@@ -45,7 +47,12 @@ import type { RootStackParamList } from '../../navigation/types';
 import { nextActionForGoal, voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
 import type { ReviewDecision, VehicleDraft, WorkLocationDraft } from '../../product/types';
-import { writeTextFile, shareFile } from '../../services/fileShare';
+import {
+  isShareInFlight,
+  SHARE_COPY,
+  writeAndShareTextFile,
+  shareFile,
+} from '../../services/fileShare';
 import { generateAndSharePdf } from '../../services/pdfReport';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import {
@@ -53,7 +60,12 @@ import {
   clearLocalPrivacyCaches,
   writeUserDataExportFile,
 } from '../../services/dataPrivacy';
-import { getPurchasePort, trialRenewalCopy, type PurchasePeriod } from '../../services/purchases';
+import {
+  getPurchasePort,
+  STORE_UNAVAILABLE_MESSAGE,
+  trialRenewalCopy,
+  type PurchasePeriod,
+} from '../../services/purchases';
 import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
 import { useApp } from '../../store/AppContext';
 
@@ -109,12 +121,14 @@ function reportData(
   period: ReportPeriod,
   userName: string | null,
   drivingType: ReturnType<typeof voiceForDrivingType> | null,
+  primaryGoal: Parameters<typeof buildMileageReportData>[0]['primaryGoal'] = null,
 ): MileageReportData {
   return buildMileageReportData({
     trips,
     period,
     userName,
     mileageUseType: drivingType?.reportNoun ?? null,
+    primaryGoal,
   });
 }
 
@@ -157,6 +171,9 @@ export function ManualTripScreen() {
   );
   const [showDetails, setShowDetails] = useState(Boolean(existing?.vehicleId || existing?.notes));
   const [error, setError] = useState<string | null>(null);
+  const [distanceError, setDistanceError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const allowLeaveRef = useRef(false);
 
   const purposeChips = (() => {
     switch (product.primaryGoal) {
@@ -200,26 +217,100 @@ export function ManualTripScreen() {
       ? 'Save personal drive'
       : classification === 'later'
         ? 'Save for review'
-        : 'Save work drive';
+        : classification === 'work'
+          ? 'Save work drive'
+          : 'Save drive';
+
+  const parsedMiles = useMemo(() => {
+    const trimmed = distance.trim();
+    if (!trimmed) return null;
+    const miles = Number.parseFloat(trimmed);
+    return Number.isFinite(miles) ? miles : NaN;
+  }, [distance]);
+
+  const validateDistanceField = useCallback((raw: string): string | null => {
+    const trimmed = raw.trim();
+    if (!trimmed) return 'Enter the miles for this drive.';
+    const miles = Number.parseFloat(trimmed);
+    if (!Number.isFinite(miles) || Number.isNaN(miles)) return 'Enter a valid number of miles.';
+    if (miles <= 0) return 'Distance must be greater than zero.';
+    if (miles > MAX_TRIP_DISTANCE_MILES) {
+      return `Distance must be ${MAX_TRIP_DISTANCE_MILES} miles or less.`;
+    }
+    return null;
+  }, []);
+
+  const canSave = useMemo(() => {
+    if (!classification || saving) return false;
+    if (validateDistanceField(distance) != null) return false;
+    if (classification === 'work' && (purpose === 'Other' || !purpose.trim())) return false;
+    if (
+      routeMode === 'places' &&
+      (startLabel.trim() || endLabel.trim()) &&
+      validateDistanceField(distance) != null
+    ) {
+      return false;
+    }
+    return true;
+  }, [classification, distance, endLabel, purpose, routeMode, saving, startLabel, validateDistanceField]);
+
+  const isDirty = useMemo(() => {
+    if (existing) {
+      return (
+        distance.trim() !== String(existing.distanceMiles) ||
+        purpose.trim() !== (existing.purpose ?? '') ||
+        startLabel.trim() !== (existing.startLabel ?? '') ||
+        endLabel.trim() !== (existing.endLabel ?? '') ||
+        notes.trim() !== (existing.notes ?? '')
+      );
+    }
+    return Boolean(
+      distance.trim() ||
+        purpose.trim() ||
+        startLabel.trim() ||
+        endLabel.trim() ||
+        notes.trim() ||
+        classification != null,
+    );
+  }, [classification, distance, endLabel, existing, notes, purpose, startLabel]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (allowLeaveRef.current || !isDirty || saving) return;
+      event.preventDefault();
+      Alert.alert('Discard this drive?', 'You have unsaved details. Leave without saving?', [
+        { text: 'Keep editing', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            allowLeaveRef.current = true;
+            navigation.dispatch(event.data.action);
+          },
+        },
+      ]);
+    });
+    return unsubscribe;
+  }, [isDirty, navigation, saving]);
 
   const save = () => {
+    Keyboard.dismiss();
+    if (saving) return;
+    setError(null);
+    const fieldError = validateDistanceField(distance);
+    setDistanceError(fieldError);
     if (!classification) {
       setError('Choose Work, Personal, or Decide later.');
       return;
     }
     if (classification === 'work' && (purpose === 'Other' || !purpose.trim())) {
-      if (purpose === 'Other' || !purpose.trim()) {
-        setError(purpose === 'Other' ? 'Enter a short custom purpose.' : 'Choose a purpose for this work drive.');
-        return;
-      }
-    }
-    const miles = Number.parseFloat(distance);
-    if (routeMode === 'places' && !(startLabel.trim() || endLabel.trim()) && !(Number.isFinite(miles) && miles > 0)) {
-      setError('Enter miles, or start and end plus miles. We never invent a route.');
+      setError(purpose === 'Other' ? 'Enter a short custom purpose.' : 'Choose a purpose for this work drive.');
       return;
     }
+    if (fieldError) return;
+    const miles = parsedMiles ?? Number.parseFloat(distance.trim());
     if (routeMode === 'places' && (startLabel.trim() || endLabel.trim()) && !(Number.isFinite(miles) && miles > 0)) {
-      setError('Enter the miles too. We never invent distance from start and end.');
+      setDistanceError('Enter the miles too. We never invent distance from start and end.');
       return;
     }
     const startAt = composeDateTime(driveDate, startTime, 9, 0);
@@ -229,19 +320,22 @@ export function ManualTripScreen() {
       startAt,
       endAt,
       distanceMiles: miles,
-      purpose: classification === 'work' ? purpose : purpose || 'Personal',
-      startLabel,
-      endLabel,
+      purpose: classification === 'work' ? purpose.trim() : purpose.trim() || 'Personal',
+      startLabel: startLabel.trim(),
+      endLabel: endLabel.trim(),
       vehicleId,
-      notes,
+      notes: notes.trim(),
       evidenceMethod: evidenceMethod ?? 'user_estimate',
       confirmAsWork: classification === 'work',
     };
     const errors = validateManualTripInput(input);
     if (errors.length > 0) {
-      setError(errors.map((item) => item.message).join(' '));
+      const distanceMsg = errors.find((item) => item.field === 'distanceMiles');
+      if (distanceMsg) setDistanceError(distanceMsg.message);
+      setError(errors.filter((item) => item.field !== 'distanceMiles').map((item) => item.message).join(' ') || null);
       return;
     }
+    setSaving(true);
     const created = createManualTripRecord(input);
     const trip =
       classification === 'personal'
@@ -259,19 +353,21 @@ export function ManualTripScreen() {
       classification,
       hasTime: addTime,
       hasVehicle: Boolean(vehicleId),
-      hasPlaces: Boolean(startLabel || endLabel),
+      hasPlaces: Boolean(startLabel.trim() || endLabel.trim()),
     });
+    allowLeaveRef.current = true;
     navigation.goBack();
   };
 
   const confirmDelete = () => {
     if (!existing) return;
-    Alert.alert('Delete this trip?', 'This removes the trip from your local record.', [
+    Alert.alert('Delete this drive?', 'This removes the drive from your local record.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
+          allowLeaveRef.current = true;
           deleteTrip(existing.id);
           navigation.goBack();
         },
@@ -284,7 +380,12 @@ export function ManualTripScreen() {
       footer={
         <View>
           {error ? <FormError message={error} /> : null}
-          <PrimaryButton label={existing ? 'Save changes' : saveLabel} onPress={save} />
+          <PrimaryButton
+            label={existing ? 'Save changes' : saveLabel}
+            onPress={save}
+            disabled={!canSave}
+            loading={saving}
+          />
           {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
         </View>
       }
@@ -349,11 +450,15 @@ export function ManualTripScreen() {
       <FormField
         label="Miles (mi)"
         value={distance}
-        onChangeText={setDistance}
+        onChangeText={(value) => {
+          setDistance(value);
+          if (distanceError) setDistanceError(validateDistanceField(value));
+        }}
         placeholder="0.0"
         keyboardType="decimal-pad"
         compact
       />
+      {distanceError ? <FormError message={distanceError} /> : null}
       {routeMode === 'places' ? (
         <>
           <FormField
@@ -490,8 +595,8 @@ export function TripDetailsScreen() {
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title="Review this trip"
-        body="Confirm only what you know. Personal and rejected trips stay out of reports."
+        title="Review this drive"
+        body="Confirm only what you know. Personal and rejected drives stay out of reports."
         emphasis="subtle"
       />
       <ListSection title="Trip">
@@ -507,7 +612,7 @@ export function TripDetailsScreen() {
       <PrimaryButton label="Work" onPress={() => classify('work')} accessibilityLabel="Classify as work" />
       <SecondaryButton label="Personal" onPress={() => classify('personal')} />
       <DestructiveButton label="Wasn't a drive" onPress={() => classify('not_drive')} />
-      <SecondaryButton label="Edit trip" onPress={() => navigation.navigate('ManualTrip', { tripId: trip.id })} />
+      <SecondaryButton label="Edit drive" onPress={() => navigation.navigate('ManualTrip', { tripId: trip.id })} />
     </ScrollScreen>
   );
 }
@@ -931,6 +1036,10 @@ export function PrivacyScreen() {
   const prefs = product.notificationPreferences;
 
   const exportAll = async () => {
+    if (isShareInFlight()) {
+      setMessage(SHARE_COPY.busy);
+      return;
+    }
     try {
       const bundle = await buildUserDataExport({
         trips: state.trips,
@@ -940,9 +1049,13 @@ export function PrivacyScreen() {
       });
       const uri = await writeUserDataExportFile(bundle);
       const result = await shareFile(uri, 'application/json', 'Export MileRecover data');
-      setMessage(result.ok || result.reason === 'cancelled' ? 'Export prepared.' : result.message);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not export data.');
+      if (result.ok || result.reason === 'cancelled') {
+        setMessage(result.ok ? 'Export prepared.' : null);
+      } else {
+        setMessage(result.message);
+      }
+    } catch {
+      setMessage(SHARE_COPY.failed);
     }
   };
 
@@ -1026,10 +1139,21 @@ export function ExportReportScreen() {
   const [phase, setPhase] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const period = periodFromState(state.reportingPeriod);
-  const report = reportData(state.trips, period, product.preferredName, voiceForDrivingType(product.drivingType));
+  const report = reportData(
+    state.trips,
+    period,
+    product.preferredName,
+    voiceForDrivingType(product.drivingType),
+    product.primaryGoal,
+  );
   const canExport = reportHasExportableTrips(state.trips, period);
 
   const exportCsv = async () => {
+    if (isShareInFlight() || phase === 'processing') {
+      setMessage(SHARE_COPY.busy);
+      setPhase('success');
+      return;
+    }
     if (!canExport) {
       setMessage('No confirmed work drives in this reporting period.');
       setPhase('failed');
@@ -1042,19 +1166,35 @@ export function ExportReportScreen() {
         periodEnd: period.endAt,
         vehicleNicknameById: vehicleLookup(product.vehicles),
       });
-      const uri = await writeTextFile(csvFilename(period.label), csv);
-      const result = await shareFile(uri, 'text/csv', 'Share MileRecover CSV');
-      if (!result.ok && result.reason !== 'cancelled') throw new Error(result.message);
-      if (result.ok) markFirstExport();
-      setMessage(result.ok ? 'CSV ready to share.' : result.message);
-      setPhase('success');
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not export CSV.');
+      const result = await writeAndShareTextFile({
+        filename: csvFilename(period.label),
+        contents: csv,
+        mimeType: 'text/csv',
+        dialogTitle: 'Share MileRecover CSV',
+      });
+      if (result.ok) {
+        markFirstExport();
+        setMessage(SHARE_COPY.csvReady);
+        setPhase('success');
+      } else if (result.reason === 'cancelled') {
+        setMessage(null);
+        setPhase('idle');
+      } else {
+        setMessage(result.message);
+        setPhase(result.reason === 'busy' ? 'success' : 'failed');
+      }
+    } catch {
+      setMessage(SHARE_COPY.failed);
       setPhase('failed');
     }
   };
 
   const exportPdf = async () => {
+    if (isShareInFlight() || phase === 'processing') {
+      setMessage(SHARE_COPY.busy);
+      setPhase('success');
+      return;
+    }
     if (!capabilities.canUseStandardPdf) {
       setMessage('PDF reports come with Plus. CSV stays free.');
       setPhase('failed');
@@ -1068,20 +1208,23 @@ export function ExportReportScreen() {
     }
     setPhase('processing');
     const result = await generateAndSharePdf(report);
-    if (result.ok || result.reason === 'cancelled') {
-      if (result.ok) markFirstExport();
-      setMessage(result.ok ? 'PDF ready to share.' : result.message);
+    if (result.ok) {
+      markFirstExport();
+      setMessage(SHARE_COPY.pdfReady);
       setPhase('success');
+    } else if (result.reason === 'cancelled') {
+      setMessage(null);
+      setPhase('idle');
     } else {
       setMessage(result.message);
-      setPhase('failed');
+      setPhase(result.reason === 'busy' ? 'success' : 'failed');
     }
   };
 
   if (phase === 'processing') {
     return (
       <ScrollScreen>
-        <LoadingState message="Preparing your file..." />
+        <LoadingState message={SHARE_COPY.preparingCsv} />
       </ScrollScreen>
     );
   }
@@ -1105,19 +1248,23 @@ export function ExportReportScreen() {
 }
 
 export function ReportPreviewScreen() {
-  const route = useRoute<RouteProp<RootStackParamList, 'ReportPreview'>>();
   const { state } = useApp();
   const { product } = useProduct();
   const period = periodFromState(state.reportingPeriod);
-  const report = reportData(state.trips, period, product.preferredName, voiceForDrivingType(product.drivingType));
-  const formatLabel = route.params.format.toUpperCase();
+  const report = reportData(
+    state.trips,
+    period,
+    product.preferredName,
+    voiceForDrivingType(product.drivingType),
+    product.primaryGoal,
+  );
 
   return (
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title="Report preview of real data"
-        body={`${formatLabel} preview for ${period.label}. For your records — not tax or legal advice.`}
+        title={report.title}
+        body={`${period.label}. For your records — not tax or legal advice.`}
         emphasis="hero"
       />
       <SoftPanel>
@@ -1125,7 +1272,7 @@ export function ReportPreviewScreen() {
         <EvidenceRow label="Period" value={report.period.label} />
         <EvidenceRow label="Driver" value={report.userName ?? 'Add a name in Profile'} />
         <EvidenceRow label="Work drives" value={String(report.tripCount)} />
-        <EvidenceRow label="Total miles" value={report.totalMiles.toFixed(1)} />
+        <EvidenceRow label="Total miles" value={`${report.totalMiles.toFixed(1)} mi`} />
         <EvidenceRow
           label="Open items left out"
           value={report.unresolvedCount === 0 ? '0 · all reviewed' : String(report.unresolvedCount)}
@@ -1143,8 +1290,8 @@ export function ReportPreviewScreen() {
           report.lineItems.map((item) => (
             <EvidenceRow
               key={item.id}
-              label={`${item.dateLabel} - ${item.purpose}`}
-              value={`${item.distanceMiles.toFixed(1)} mi - ${item.startLabel} to ${item.endLabel}`}
+              label={`${item.dateLabel} · ${item.purpose}`}
+              value={formatReportRouteSummary(item.distanceMiles, item.startLabel, item.endLabel)}
             />
           ))
         )}
@@ -1155,11 +1302,12 @@ export function ReportPreviewScreen() {
 
 export function PlanSelectionScreen() {
   const navigation = useNavigation<Nav>();
-  const route = useRoute<RouteProp<RootStackParamList, 'PlanSelection'>>();
   const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedRescue, setSelectedRescue] = useState<string | null>(null);
+  const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [billingAvailable, setBillingAvailable] = useState(false);
   const period: PurchasePeriod = annual ? 'annual' : 'monthly';
   const purchasePort = getPurchasePort();
   const entitlement = product.entitlement;
@@ -1174,24 +1322,47 @@ export function PlanSelectionScreen() {
     product.firstRecoveredDriveAt != null ||
     product.firstConfirmedWorkDriveAt != null ||
     product.firstExportAt != null;
-  const heading =
-    route.params?.source === 'upgrade' && !hasHelped
-      ? 'Create reports ready to share.'
-      : hasHelped
-        ? 'Keep the protection that already helped.'
-        : 'Protect future work drives.';
+  const heading = hasHelped
+    ? 'Keep the protection that already helped.'
+    : 'Choose the protection that fits your driving.';
+
+  useEffect(() => {
+    let mounted = true;
+    void purchasePort.getProducts().then((products) => {
+      if (mounted) setBillingAvailable(products.length > 0);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [purchasePort]);
 
   const handleResult = async (action: () => Promise<Awaited<ReturnType<typeof purchasePort.purchasePlus>>>) => {
-    const result = await action();
-    if (result.ok) {
-      setEntitlement(result.entitlement);
-      setNotice('You’re all set — Plus is active.');
+    if (purchaseBusy) return;
+    if (!billingAvailable) {
+      setNotice(STORE_UNAVAILABLE_MESSAGE);
       return;
     }
-    if (result.reason === 'store_unavailable') {
-      logEvent(ANALYTICS_EVENTS.purchaseUnavailable, { surface: 'plans' });
+    setPurchaseBusy(true);
+    try {
+      const result = await action();
+      if (result.ok) {
+        setEntitlement(result.entitlement);
+        setNotice('You’re all set — Plus is active.');
+        return;
+      }
+      if (result.reason === 'store_unavailable') {
+        logEvent(ANALYTICS_EVENTS.purchaseUnavailable, { surface: 'plans' });
+        setNotice(STORE_UNAVAILABLE_MESSAGE);
+        return;
+      }
+      if (result.reason === 'cancelled') {
+        setNotice(null);
+        return;
+      }
+      setNotice(result.message);
+    } finally {
+      setPurchaseBusy(false);
     }
-    setNotice(result.message);
   };
 
   return (
@@ -1201,8 +1372,10 @@ export function PlanSelectionScreen() {
         <View>
           <Text style={text.subtitle}>{heading}</Text>
           <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}. Purchases
-            confirm in Google Play or the App Store. Preview prices shown until the store is connected.
+            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}.{' '}
+            {billingAvailable
+              ? 'Prices come from Google Play or the App Store.'
+              : STORE_UNAVAILABLE_MESSAGE}
           </Text>
           <SegmentedControl
             value={annual ? 'annual' : 'monthly'}
@@ -1216,6 +1389,11 @@ export function PlanSelectionScreen() {
       }
     >
       {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
+      {!billingAvailable ? (
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+          Preview pricing shown below — not a live store offer.
+        </Text>
+      ) : null}
       <PlanCard
         name={plusFixture.name}
         tagline={plusFixture.tagline}
@@ -1225,13 +1403,17 @@ export function PlanSelectionScreen() {
         highlighted
         current={entitlement.planId === 'plus'}
         savingsLabel={annual ? plusFixture.annualSavingsLabel : undefined}
+        purchaseDisabled={!billingAvailable || purchaseBusy}
+        priceNote={!billingAvailable ? 'Preview price' : undefined}
         onSelect={() =>
           void handleResult(() =>
-            trialEligible ? purchasePort.purchasePlusTrial(period) : purchasePort.purchasePlus(period),
+            trialEligible && billingAvailable
+              ? purchasePort.purchasePlusTrial(period)
+              : purchasePort.purchasePlus(period),
           )
         }
       />
-      {trialEligible ? (
+      {trialEligible && billingAvailable ? (
         <Text style={[text.caption, { marginBottom: spacing.md }]}>
           Eligible for a 7-day Plus trial after store confirmation.{' '}
           {trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
@@ -1246,6 +1428,8 @@ export function PlanSelectionScreen() {
         highlighted={false}
         current={entitlement.planId === 'pro'}
         savingsLabel={annual ? proFixture.annualSavingsLabel : undefined}
+        purchaseDisabled={!billingAvailable || purchaseBusy}
+        priceNote={!billingAvailable ? 'Preview price' : undefined}
         onSelect={() => void handleResult(() => purchasePort.purchasePro(period))}
       />
       <SelectionCard
@@ -1259,15 +1443,19 @@ export function PlanSelectionScreen() {
       />
       <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>One-time catch-up</Text>
       <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-        Not a subscription. Monthly/Annual does not change these options.
+        Not a subscription. These one-time rescue products stay available in Monthly and Annual views.
       </Text>
       {RESCUE_OPTIONS.map((option) => (
         <SelectionCard
           key={option.id}
           title={`${option.name} · ${option.price}`}
-          body={option.description}
+          body={`${option.description} Not a subscription.`}
           selected={selectedRescue === option.id}
           onPress={() => {
+            if (!billingAvailable || purchaseBusy) {
+              setNotice(STORE_UNAVAILABLE_MESSAGE);
+              return;
+            }
             setSelectedRescue(option.id);
             void handleResult(() => purchasePort.purchaseRescue(option.id));
           }}
@@ -1275,6 +1463,7 @@ export function PlanSelectionScreen() {
       ))}
       <SecondaryButton
         label="Restore purchases"
+        disabled={!billingAvailable || purchaseBusy}
         onPress={() => void handleResult(() => purchasePort.restore())}
       />
       <StatusCard
