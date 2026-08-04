@@ -89,7 +89,22 @@ Includes: full first-launch path (account + permissions education + personalizat
 
 ### Remaining production infrastructure
 
-- Google OAuth client IDs in EAS secrets
-- RevenueCat public SDK keys + `EXPO_PUBLIC_ENABLE_STORE_PURCHASES=1` for production
+- Google OAuth client IDs in EAS secrets (Android signing SHA-1: `8d787ac84f222e6b02f05899bcbf9776abadf13c`)
+- RevenueCat public SDK keys (production auto-enables when key present)
 - Auth session verifier backend (`AUTH_BACKEND_CONNECTED`)
 - Store product catalog + Play/App Store approval
+
+## Final ship blockers (0.1.6-mvp.2)
+
+Build label: `0.1.6-mvp.2` · Preview marker: `final ship blockers`  
+Commit: `c184874ec8940c748ae45d97b17d1881eb3efca5`
+
+Includes: welcome car-on-road animation + “Protect every work mile.”, native Google picker path, permanent date Cancel/Back dismiss, RevenueCat production auto-enable + preview notice only.
+
+### OTA (runtime 0.1.6 — installs on 0.1.6 APK)
+
+- Update group: `6b34fa86-9399-42db-96cb-1ad207f248e7`
+- Android update ID: `019fcbd6-9c6d-74aa-99a7-be77a75bccc4`
+- iOS update ID: `019fcbd6-9c6d-7818-b02a-af81c0c40690`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/6b34fa86-9399-42db-96cb-1ad207f248e7
+- Baseline APK: https://expo.dev/accounts/milerecover/projects/milerecover/builds/755f85c7-2b63-4949-bdfd-19ccd382859e
