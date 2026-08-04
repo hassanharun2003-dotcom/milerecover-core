@@ -13,8 +13,8 @@
     "deps:validate": "npx expo install --check",
     "config:validate": "expo config --type public",
     "export:validate": "expo export --platform android --output-dir .expo-export-check",
-    "update:preview": "APP_VARIANT=preview eas update --channel preview --environment preview --non-interactive",
-    "update:production": "APP_VARIANT=production eas update --channel production --environment production --non-interactive",
+    "update:preview": "APP_VARIANT=preview npx --yes eas-cli@latest update --channel preview --environment preview --message \"preview OTA (APP_VARIANT=preview)\" --non-interactive",
+    "update:production": "APP_VARIANT=production npx --yes eas-cli@latest update --channel production --environment production --message \"production OTA (APP_VARIANT=production)\" --non-interactive",
     "prebuild:android": "expo prebuild --platform android --no-install",
     "prebuild:ios": "expo prebuild --platform ios --no-install",
     "eas-build-pre-install": "node ./scripts/sync-dev-client-autolinking.cjs"
