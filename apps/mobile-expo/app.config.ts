@@ -67,6 +67,14 @@ const config = {
   },
   plugins: [
     ...(IS_DEV_CLIENT ? ['expo-dev-client'] : []),
+    [
+      'expo-build-properties',
+      {
+        android: {
+          minSdkVersion: 24,
+        },
+      },
+    ],
     '@react-native-community/datetimepicker',
     'expo-sharing',
     'expo-web-browser',
