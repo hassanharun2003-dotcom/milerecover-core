@@ -1,4 +1,10 @@
 export type OnboardingStepId =
+  /** Ultimate UX v8 — four customer-facing stages */
+  | 'your_work'
+  | 'protect_drives'
+  | 'personalize'
+  | 'ready'
+  /** Legacy step ids — remapped by mobile onboarding */
   | 'welcome'
   | 'account'
   | 'country'
@@ -9,8 +15,7 @@ export type OnboardingStepId =
   | 'vehicle_setup'
   | 'familiar_places'
   | 'protection_education'
-  | 'permissions_education'
-  | 'ready';
+  | 'permissions_education';
 
 export type MileageGoal =
   | 'employee_reimbursement'
@@ -42,9 +47,9 @@ export type NextActionId =
 
 /**
  * Bump when essential onboarding screens/questions change and stale installs must re-enter.
- * v7: country/units step after account; full first-launch path retained.
+ * v8: four-stage onboarding (Your work → Protect → Personalize → Ready).
  */
-export const CURRENT_ONBOARDING_VERSION = 7;
+export const CURRENT_ONBOARDING_VERSION = 8;
 
 export interface VersionedOnboardingState {
   schemaVersion: 4;
@@ -73,7 +78,7 @@ export interface VersionedOnboardingState {
 export function createEmptyOnboardingState(now = Date.now()): VersionedOnboardingState {
   return {
     schemaVersion: 4,
-    currentStep: 'welcome',
+    currentStep: 'your_work',
     completedSteps: [],
     primaryGoal: null,
     selectedPainPoints: [],
@@ -109,12 +114,11 @@ export function inferDrivingPatternFromGoal(goal: MileageGoal | null): DrivingPa
 
 /**
  * Home is unlocked only after the user finishes the current onboarding version.
- * Account/permissions/vehicle may be skipped, but goal + pain + final stamp are required.
+ * v8: goal + personalized next action + completion stamp. Pain points / vehicle optional.
  */
 export function isOnboardingMinimumComplete(state: VersionedOnboardingState): boolean {
   return (
     state.primaryGoal != null &&
-    state.selectedPainPoints.length > 0 &&
     state.nextActionSelected != null &&
     state.completedAt != null &&
     state.completedOnboardingVersion === CURRENT_ONBOARDING_VERSION
@@ -156,21 +160,18 @@ export function invalidateStaleOnboardingCompletion(
     nextActionSelected: null,
     lastUpdatedAt: now,
   };
-  next.currentStep = nextIncompleteEssentialStep(next) ?? 'welcome';
+  next.currentStep = nextIncompleteEssentialStep(next) ?? 'your_work';
   return next;
 }
 
 /** Resume helper — place user on the first unfinished required answer or finish step. */
 export function nextIncompleteEssentialStep(state: VersionedOnboardingState): OnboardingStepId | null {
-  if (state.currentStep === 'welcome' && state.completedSteps.length === 0 && state.primaryGoal == null) {
-    return 'welcome';
-  }
   if (state.primaryGoal == null) {
-    return state.completedSteps.includes('welcome') || state.currentStep !== 'welcome'
-      ? 'primary_goal'
-      : 'welcome';
+    return 'your_work';
   }
-  if (state.selectedPainPoints.length === 0) return 'pain_points';
+  if (!state.protectionEducationAcknowledged && !state.permissionsEducationAcknowledged) {
+    return 'protect_drives';
+  }
   if (state.nextActionSelected == null || state.completedAt == null) return 'ready';
   if (state.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION) return 'ready';
   return null;

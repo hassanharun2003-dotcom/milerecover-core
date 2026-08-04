@@ -9,21 +9,15 @@ import { createInitialProductUiState, ONBOARDING_STEP_ORDER } from '../src/produ
 import { createInitialAppState } from '../src/store/types';
 
 describe('Authoritative onboarding versioning', () => {
-  it('uses the full first-launch path', () => {
-    expect(ONBOARDING_STEP_ORDER[0]).toBe('welcome');
-    expect(ONBOARDING_STEP_ORDER).toContain('account');
-    expect(ONBOARDING_STEP_ORDER).toContain('country');
-    expect(ONBOARDING_STEP_ORDER).toContain('permissions_education');
-    expect(ONBOARDING_STEP_ORDER).toContain('vehicle_setup');
-    expect(ONBOARDING_STEP_ORDER).toContain('protection_education');
-    expect(ONBOARDING_STEP_ORDER[ONBOARDING_STEP_ORDER.length - 1]).toBe('ready');
-    expect(CURRENT_ONBOARDING_VERSION).toBe(7);
+  it('uses the four-stage first-launch path', () => {
+    expect(ONBOARDING_STEP_ORDER).toEqual(['your_work', 'protect_drives', 'personalize', 'ready']);
+    expect(CURRENT_ONBOARDING_VERSION).toBe(8);
   });
 
-  it('clean install is incomplete and starts at welcome', () => {
+  it('clean install is incomplete and starts at your_work', () => {
     const state = createInitialProductUiState();
     expect(isOnboardingMinimumComplete(state.onboarding)).toBe(false);
-    expect(state.onboarding.currentStep).toBe('welcome');
+    expect(state.onboarding.currentStep).toBe('your_work');
     expect(state.onboarding.completedOnboardingVersion).toBeNull();
   });
 

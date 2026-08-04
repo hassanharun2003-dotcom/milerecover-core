@@ -117,7 +117,7 @@ describe('International localization foundation', () => {
   });
 
   it('uses country-appropriate report wording without compliance claims', () => {
-    expect(reportTitleForTone('us_tax_record', 'This month')).toMatch(/Tax record summary/);
+    expect(reportTitleForTone('us_tax_record', 'This month')).toMatch(/Work mileage report/);
     expect(reportTitleForTone('reimbursement_record', 'This month')).toMatch(/reimbursement/i);
     expect(reportTitleForTone('generic_mileage_record', 'This month')).toMatch(/Mileage record/);
     expect(reportDisclaimerForTone('us_tax_record')).not.toMatch(/IRS-approved|guaranteed/i);

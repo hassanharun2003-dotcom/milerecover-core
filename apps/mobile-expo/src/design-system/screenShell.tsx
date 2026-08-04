@@ -107,7 +107,7 @@ export function StackScrollScreen({ children, style, contentStyle, footer }: She
 /**
  * Full-bleed onboarding — all edges respected.
  */
-export function OnboardingScreen({ children, style, contentStyle }: ShellProps) {
+export function OnboardingScreen({ children, style, contentStyle, footer }: ShellProps) {
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -115,7 +115,7 @@ export function OnboardingScreen({ children, style, contentStyle }: ShellProps) 
         styles.flex,
         {
           paddingTop: insets.top + spacing.sm,
-          paddingBottom: Math.max(insets.bottom, spacing.md),
+          paddingBottom: footer ? spacing.sm : Math.max(insets.bottom, spacing.md),
           paddingLeft: Math.max(insets.left, GUTTER),
           paddingRight: Math.max(insets.right, GUTTER),
           backgroundColor: colors.background.canvas,
@@ -131,6 +131,11 @@ export function OnboardingScreen({ children, style, contentStyle }: ShellProps) 
       >
         {children}
       </ScrollView>
+      {footer ? (
+        <View style={{ paddingBottom: Math.max(insets.bottom, spacing.sm), paddingTop: spacing.sm }}>
+          {footer}
+        </View>
+      ) : null}
     </View>
   );
 }

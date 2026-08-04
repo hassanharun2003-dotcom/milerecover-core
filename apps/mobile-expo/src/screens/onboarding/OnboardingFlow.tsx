@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BackHandler, Platform, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
   localeProfileFromCountry,
@@ -7,13 +7,14 @@ import {
   type CountryCode,
   type CurrencyCode,
   type DistanceUnit,
+  type NextActionId,
 } from '@milerecover/domain';
 import {
   COUNTRY_OPTIONS,
+  DRIVING_PATTERN_OPTIONS,
   ONBOARDING_STEP_ORDER,
-  PAIN_POINT_OPTIONS,
   PRIMARY_GOAL_OPTIONS,
-  type PainPoint,
+  type PostOnboardingRoute,
   type ProductOnboardingStep,
 } from '../../product/types';
 import { nextActionForGoal } from '../../product/copy';
@@ -25,13 +26,11 @@ import {
   SecondaryButton,
   SelectionCard,
   SoftPanel,
-  StatusCard,
   TertiaryButton,
   text,
 } from '../../design-system';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
-import { CarRouteHero } from '../../components/CarRouteHero';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import {
   AUTH_EMAIL_PENDING_MESSAGE,
@@ -39,7 +38,6 @@ import {
   getAuthPort,
   type AuthProviderId,
 } from '../../services/auth';
-import { requestNotificationPermission } from '../../services/notifications';
 
 function inOrder(step: ProductOnboardingStep): boolean {
   return ONBOARDING_STEP_ORDER.includes(step);
@@ -47,47 +45,34 @@ function inOrder(step: ProductOnboardingStep): boolean {
 
 function remapStep(step: ProductOnboardingStep): ProductOnboardingStep {
   if (inOrder(step)) return step;
-  if (step === 'driving_pattern' || step === 'familiar_places') return 'preferred_name';
-  return 'welcome';
-}
-
-function readyBenefits(goal: (typeof PRIMARY_GOAL_OPTIONS)[number]['id'] | null, pains: PainPoint[]): string[] {
-  const benefits: string[] = [];
-  if (pains.includes('older_mileage')) {
-    benefits.push('Bring older miles back together when you’re ready.');
-  } else {
-    benefits.push('Save work drives in a few taps.');
+  if (
+    step === 'welcome' ||
+    step === 'account' ||
+    step === 'country' ||
+    step === 'preferred_name' ||
+    step === 'primary_goal' ||
+    step === 'pain_points'
+  ) {
+    return 'your_work';
   }
-  if (pains.includes('forget_to_track') || pains.includes('tracker_misses') || goal === 'gig_delivery') {
-    benefits.push('Turn on watching later if you want automatic coverage.');
-  } else {
-    benefits.push('Review anything uncertain before it enters a report.');
+  if (step === 'permissions_education' || step === 'protection_education') return 'protect_drives';
+  if (step === 'vehicle_setup' || step === 'driving_pattern' || step === 'familiar_places') {
+    return 'personalize';
   }
-  if (pains.includes('need_cleaner_reports') || goal === 'employee_reimbursement') {
-    benefits.push('Share cleaner records when work asks.');
-  } else {
-    benefits.push('Your saved miles stay on this device.');
-  }
-  return benefits.slice(0, 3);
+  return 'your_work';
 }
 
 export function OnboardingFlow() {
-  const {
-    finishOnboarding,
-    requestLocationPermission,
-    requestBackgroundPermission,
-    permissions,
-  } = useApp();
+  const { finishOnboarding, requestLocationPermission, permissions } = useApp();
   const {
     product,
     advanceOnboarding,
     backOnboarding,
     setOnboardingStep,
     setPrimaryGoal,
-    setSelectedPainPoints,
     setPreferredName,
+    setDrivingType,
     setLocaleProfile,
-    skipPreferredName,
     skipVehicleSetup,
     upsertVehicle,
     setProtectionSetupState,
@@ -100,27 +85,27 @@ export function OnboardingFlow() {
   const [finishing, setFinishing] = useState(false);
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
   const [vehicleNickname, setVehicleNickname] = useState('');
-  const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
+  const [placeLabel, setPlaceLabel] = useState('');
   const recommendedCountry = recommendCountryFromLocale(
     typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined,
   );
   const [countryDraft, setCountryDraft] = useState<CountryCode>(
     product.localeProfile.countryCode || recommendedCountry,
   );
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countryQuery, setCountryQuery] = useState('');
   const [otherUnit, setOtherUnit] = useState<DistanceUnit>('mi');
   const [otherCurrency, setOtherCurrency] = useState<CurrencyCode>('OTHER');
-  const [otherRate, setOtherRate] = useState('');
+  const authPort = getAuthPort();
+
   const filteredCountries = useMemo(() => {
-    const recommended = COUNTRY_OPTIONS.filter((opt) => opt.id !== 'OTHER');
-    const other = COUNTRY_OPTIONS.filter((opt) => opt.id === 'OTHER');
     const ordered = [
-      ...recommended.sort((a, b) => {
+      ...COUNTRY_OPTIONS.filter((opt) => opt.id !== 'OTHER').sort((a, b) => {
         if (a.id === recommendedCountry) return -1;
         if (b.id === recommendedCountry) return 1;
         return 0;
       }),
-      ...other,
+      ...COUNTRY_OPTIONS.filter((opt) => opt.id === 'OTHER'),
     ];
     const q = countryQuery.trim().toLowerCase();
     if (!q) return ordered;
@@ -130,507 +115,337 @@ export function OnboardingFlow() {
   const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
   const next = nextActionForGoal(product.primaryGoal);
-  const selectedPainPoints = product.selectedPainPoints.filter((p) => p !== 'battery_worry') as PainPoint[];
-  const authPort = getAuthPort();
 
   useEffect(() => {
     if (product.onboardingStep !== step) setOnboardingStep(step);
   }, [product.onboardingStep, setOnboardingStep, step]);
 
   useEffect(() => {
+    logEvent(ANALYTICS_EVENTS.onboardingStarted, {});
+  }, []);
+
+  useEffect(() => {
     logEvent(ANALYTICS_EVENTS.onboardingStepViewed, { step });
   }, [step]);
 
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (stepIndex <= 0) return false;
-      backOnboarding();
-      return true;
+  const saveCountry = (code: CountryCode) => {
+    setCountryDraft(code);
+    const profile = localeProfileFromCountry(code, {
+      distanceUnit: code === 'OTHER' ? otherUnit : undefined,
+      currencyCode: code === 'OTHER' ? otherCurrency : undefined,
     });
-    return () => sub.remove();
-  }, [backOnboarding, stepIndex]);
-
-  const finish = (deepLink: boolean) => {
-    if (finishing) return;
-    setFinishing(true);
-    completeProductOnboarding(deepLink ? 'ProtectionAlert' : null);
-    logEvent(ANALYTICS_EVENTS.onboardingCompleted, {
-      goal: product.primaryGoal ?? 'unset',
-      painCount: selectedPainPoints.length,
-      nextAction: deepLink ? 'start_protection' : next.id,
-    });
-    finishOnboarding();
-  };
-
-  const togglePainPoint = (painPoint: PainPoint) => {
-    const nextPainPoints = selectedPainPoints.includes(painPoint)
-      ? selectedPainPoints.filter((item) => item !== painPoint)
-      : [...selectedPainPoints, painPoint];
-    setSelectedPainPoints(nextPainPoints);
-  };
-
-  const acknowledgeAccountAndContinue = () => {
-    patchOnboarding({
-      accountStepAcknowledged: true,
-      completedSteps: Array.from(new Set([...product.onboarding.completedSteps, 'account'])),
-    });
-    advanceOnboarding();
+    setLocaleProfile({ ...profile, activeRateNeedsReview: false });
+    logEvent(ANALYTICS_EVENTS.countrySelected, { country: code });
   };
 
   const tryAuth = async (provider: AuthProviderId) => {
-    if (authBusy) return;
     setAuthBusy(true);
     setAuthNotice(null);
     try {
-      if (provider === 'email' && !authPort.isProviderAvailable('email')) {
-        setAuthNotice(AUTH_EMAIL_PENDING_MESSAGE);
-        return;
-      }
-      if (provider === 'google' && !authPort.isProviderAvailable('google')) {
-        setAuthNotice(AUTH_UNAVAILABLE_MESSAGE);
-        return;
-      }
       const result = await authPort.signIn(provider);
-      if (result.ok) {
-        if (result.displayName) setPreferredName(result.displayName);
-        setAuthNotice(`Signed in${result.email ? ` as ${result.email}` : ''}.`);
-        acknowledgeAccountAndContinue();
+      if (!result.ok) {
+        setAuthNotice(
+          result.reason === 'not_configured' || provider === 'email'
+            ? provider === 'email'
+              ? AUTH_EMAIL_PENDING_MESSAGE
+              : AUTH_UNAVAILABLE_MESSAGE
+            : result.message || AUTH_UNAVAILABLE_MESSAGE,
+        );
         return;
       }
-      if (result.reason === 'cancelled') {
-        setAuthNotice(null);
-        return;
-      }
-      setAuthNotice(result.message);
+      patchOnboarding({ accountStepAcknowledged: true });
     } finally {
       setAuthBusy(false);
     }
   };
 
-  return (
-    <OnboardingScreen>
-      <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
-      {stepIndex > 0 ? (
-        <TertiaryButton
-          label="Back"
-          onPress={backOnboarding}
-          accessibilityLabel="Go back to previous onboarding step"
-        />
-      ) : null}
+  const finish = (route: PostOnboardingRoute) => {
+    if (finishing) return;
+    setFinishing(true);
+    const action: NextActionId =
+      route === 'ProtectionAlert'
+        ? 'start_protection'
+        : route === 'BringExistingMileage'
+          ? 'import_mileage'
+          : route === 'MissingTripRecovery'
+            ? 'begin_rescue'
+            : 'add_first_drive';
+    completeProductOnboarding(route);
+    patchOnboarding({ nextActionSelected: action });
+    logEvent(ANALYTICS_EVENTS.onboardingCompleted, { next: action });
+    finishOnboarding();
+  };
 
-      {step === 'welcome' ? (
-        <View>
-          <Text style={[text.headline, { marginBottom: spacing.xs }]} accessibilityRole="header">
-            MileRecover
-          </Text>
-          <CarRouteHero />
-          <Text style={[text.title, { marginTop: spacing.sm, marginBottom: spacing.sm }]}>
-            Protect every work mile.
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Capture, recover, review, and prove work mileage — without inventing anything.
-          </Text>
-          <View style={{ gap: spacing.sm }}>
+  const protectionReady =
+    permissions.location === 'granted' && permissions.backgroundLocation === 'granted';
+
+  return (
+    <OnboardingScreen
+      footer={
+        step === 'your_work' ? (
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              if (!product.primaryGoal) return;
+              setPreferredName(nameDraft.trim() || null);
+              saveCountry(countryDraft);
+              advanceOnboarding();
+            }}
+            disabled={!product.primaryGoal}
+            accessibilityLabel="Continue to drive protection setup"
+          />
+        ) : step === 'protect_drives' ? (
+          <View>
             <PrimaryButton
-              label="Get started"
+              label="Set up drive protection"
               onPress={() => {
-                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'protect' });
+                logEvent(ANALYTICS_EVENTS.protectionSetupStarted, {});
+                setProtectionSetupState('educated');
+                if (permissions.location !== 'granted') {
+                  void requestLocationPermission();
+                }
                 advanceOnboarding();
               }}
+              accessibilityLabel="Set up drive protection"
             />
-            <SecondaryButton
-              label="Bring existing mileage"
+            <TertiaryButton
+              label="Skip for now — use manual tracking"
               onPress={() => {
-                logEvent(ANALYTICS_EVENTS.onboardingStarted, { intent: 'bring_existing' });
-                setPrimaryGoal('mixed');
-                setSelectedPainPoints(['older_mileage']);
-                setOnboardingStep('account');
+                setProtectionSetupState('not_started');
+                advanceOnboarding();
               }}
             />
           </View>
-        </View>
-      ) : null}
-
-      {step === 'account' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Sign in
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Use Google to continue. Apple and email are available when configured. You can also skip —
-            miles stay on this device.
-          </Text>
-          <PrimaryButton
-            label={authBusy ? 'Opening Google…' : 'Continue with Google'}
-            onPress={() => void tryAuth('google')}
-            disabled={authBusy}
-            loading={authBusy}
-            accessibilityLabel="Continue with Google account picker"
-          />
-          {Platform.OS === 'ios' ? (
-            <SecondaryButton
-              label="Continue with Apple"
-              onPress={() => void tryAuth('apple')}
-              disabled={authBusy}
-            />
-          ) : null}
-          <SecondaryButton
-            label="Continue with email"
-            onPress={() => void tryAuth('email')}
-            disabled={authBusy}
-          />
-          <TertiaryButton
-            label="Skip for now"
-            onPress={() => {
-              setAuthNotice(null);
-              acknowledgeAccountAndContinue();
-            }}
-            accessibilityLabel="Skip account and continue setup"
-          />
-          {authNotice ? (
-            <StatusCard
-              variant="info"
-              title="Sign-in"
-              body={authNotice}
-              emphasis="subtle"
-            />
-          ) : null}
-        </View>
-      ) : null}
-
-      {step === 'country' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Where do you drive for work?
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Recommended countries first. We’ll use local units and currency. You can change this later in Profile.
-            This is not tax advice.
-          </Text>
-          <SoftPanel>
-            <Text style={text.caption}>Current selection</Text>
-            <Text style={[text.subtitle, { marginTop: spacing.xs }]}>
-              {COUNTRY_OPTIONS.find((opt) => opt.id === countryDraft)?.label ?? 'Other country'}
-            </Text>
-          </SoftPanel>
-          <FormField
-            label="Search countries"
-            value={countryQuery}
-            onChangeText={setCountryQuery}
-            placeholder="Search United States, Canada…"
-            accessibilityLabel="Search countries"
-          />
-          {filteredCountries.map((opt) => (
-            <SelectionCard
-              key={opt.id}
-              title={opt.label}
-              body={
-                opt.id === recommendedCountry
-                  ? 'Suggested from your device'
-                  : opt.id === 'OTHER'
-                    ? 'Custom units — no local tax rules claimed'
-                    : undefined
-              }
-              selected={countryDraft === opt.id}
-              onPress={() => setCountryDraft(opt.id)}
-            />
-          ))}
-          {countryDraft === 'OTHER' ? (
-            <SoftPanel>
-              <Text style={[text.body, { marginBottom: spacing.sm }]}>
-                Choose units and a custom reimbursement rate (optional).
-              </Text>
-              <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-                <SelectionCard
-                  title="Miles"
-                  selected={otherUnit === 'mi'}
-                  onPress={() => setOtherUnit('mi')}
-                />
-                <SelectionCard
-                  title="Kilometers"
-                  selected={otherUnit === 'km'}
-                  onPress={() => setOtherUnit('km')}
-                />
-              </View>
-              <FormField
-                label="Currency code (optional)"
-                value={otherCurrency === 'OTHER' ? '' : otherCurrency}
-                onChangeText={(value) => {
-                  const next = value.trim().toUpperCase();
-                  if (!next) setOtherCurrency('OTHER');
-                  else if (['USD', 'CAD', 'GBP', 'AUD', 'EUR'].includes(next)) {
-                    setOtherCurrency(next as CurrencyCode);
-                  }
-                }}
-                placeholder="e.g. EUR"
-                autoCapitalize="characters"
-              />
-              <FormField
-                label={`Rate (cents per ${otherUnit === 'km' ? 'mile stored' : 'mile'})`}
-                value={otherRate}
-                onChangeText={setOtherRate}
-                placeholder="e.g. 45"
-                keyboardType="decimal-pad"
-              />
-            </SoftPanel>
-          ) : null}
-          <PrimaryButton
-            label="Continue"
-            onPress={() => {
-              const cents = Number.parseFloat(otherRate);
-              const profile = localeProfileFromCountry(countryDraft, {
-                distanceUnit: countryDraft === 'OTHER' ? otherUnit : undefined,
-                currencyCode: countryDraft === 'OTHER' ? otherCurrency : undefined,
-                centsPerMile:
-                  countryDraft === 'OTHER' && Number.isFinite(cents) && cents > 0 ? cents : undefined,
-              });
-              setLocaleProfile(profile);
-              advanceOnboarding();
-            }}
-            accessibilityLabel="Save country and continue"
-          />
-        </View>
-      ) : null}
-
-      {step === 'permissions_education' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            How location helps
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Location is used only to help protect work drives when you turn watching on. We explain before
-            we ask. You can skip and still add drives manually.
-          </Text>
-          <SoftPanel>
-            <Text style={text.body}>
-              While using the app: {permissions.location === 'granted' ? 'Allowed' : 'Not allowed yet'}
-            </Text>
-            <Text style={[text.body, { marginTop: spacing.xs }]}>
-              Notifications: optional reminders — never required.
-            </Text>
-          </SoftPanel>
-          <PrimaryButton
-            label="Allow location while using the app"
-            onPress={() => {
-              void requestLocationPermission().then((snap) => {
-                setPermissionNotice(
-                  snap.location === 'granted'
-                    ? 'Location allowed for this app.'
-                    : 'Location stays off. Manual drives still work.',
-                );
-              });
-            }}
-          />
-          <SecondaryButton
-            label="Allow notifications (optional)"
-            onPress={() => {
-              void requestNotificationPermission().then((state) => {
-                setPermissionNotice(
-                  state === 'granted' ? 'Notifications allowed.' : 'Notifications stay off — that’s fine.',
-                );
-              });
-            }}
-          />
-          <PrimaryButton
-            label="Continue"
-            onPress={() => {
-              patchOnboarding({
-                permissionsEducationAcknowledged: true,
-                completedSteps: Array.from(
-                  new Set([...product.onboarding.completedSteps, 'permissions_education']),
-                ),
-              });
-              advanceOnboarding();
-            }}
-          />
-          {permissionNotice ? (
-            <Text style={[text.caption, { marginTop: spacing.sm }]}>{permissionNotice}</Text>
-          ) : null}
-        </View>
-      ) : null}
-
-      {step === 'preferred_name' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            What should we call you?
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Optional. Used in greetings and reports on this device.
-          </Text>
-          <FormField
-            label="Preferred name"
-            value={nameDraft}
-            onChangeText={setNameDraft}
-            placeholder="Your name"
-            autoCapitalize="words"
-          />
-          <PrimaryButton
-            label="Continue"
-            onPress={() => {
-              if (nameDraft.trim()) setPreferredName(nameDraft.trim());
-              else skipPreferredName();
-              advanceOnboarding();
-            }}
-          />
-          <TertiaryButton
-            label="Skip"
-            onPress={() => {
-              skipPreferredName();
-              advanceOnboarding();
-            }}
-          />
-        </View>
-      ) : null}
-
-      {step === 'primary_goal' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>
-            What do you use work mileage for?
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Tap one. You can change this later in Profile.
-          </Text>
-          {PRIMARY_GOAL_OPTIONS.map((opt) => (
-            <SelectionCard
-              key={opt.id}
-              title={opt.label}
-              body={opt.body}
-              selected={product.primaryGoal === opt.id}
+        ) : step === 'personalize' ? (
+          <View>
+            <PrimaryButton
+              label="Continue"
               onPress={() => {
-                setPrimaryGoal(opt.id);
+                if (vehicleNickname.trim()) {
+                  upsertVehicle({
+                    id: `vehicle-${Date.now()}`,
+                    nickname: vehicleNickname.trim(),
+                    year: '',
+                    make: '',
+                    model: '',
+                    plate: '',
+                    isPrimary: true,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                  });
+                } else {
+                  skipVehicleSetup();
+                }
                 advanceOnboarding();
               }}
             />
-          ))}
-        </View>
-      ) : null}
-
-      {step === 'pain_points' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>What causes the most trouble?</Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Tap anything that sounds familiar. One is enough.
-          </Text>
-          {PAIN_POINT_OPTIONS.map((opt) => (
-            <SelectionCard
-              key={opt.id}
-              title={opt.label}
-              selected={selectedPainPoints.includes(opt.id)}
-              onPress={() => togglePainPoint(opt.id)}
+            <TertiaryButton
+              label="Skip personalization"
+              onPress={() => {
+                skipVehicleSetup();
+                advanceOnboarding();
+              }}
             />
-          ))}
-          <PrimaryButton
-            label="Continue"
-            onPress={advanceOnboarding}
-            disabled={selectedPainPoints.length === 0}
-          />
-        </View>
+          </View>
+        ) : null
+      }
+    >
+      <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+      {stepIndex > 0 ? (
+        <TertiaryButton label="Back" onPress={() => backOnboarding()} accessibilityLabel="Go back" />
       ) : null}
 
-      {step === 'vehicle_setup' ? (
+      {step === 'your_work' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Add a vehicle
+            Your work
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Optional nickname is enough. You can add full details later.
+            Tell us how you drive for work so reports use the right wording, units, and mileage value.
           </Text>
           <FormField
-            label="Vehicle nickname"
+            label="Preferred name (optional)"
+            value={nameDraft}
+            onChangeText={setNameDraft}
+            placeholder="First name"
+          />
+          <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Primary goal</Text>
+          {PRIMARY_GOAL_OPTIONS.map((option) => (
+            <SelectionCard
+              key={option.id}
+              title={option.label}
+              body={option.body}
+              selected={product.primaryGoal === option.id}
+              onPress={() => {
+                setPrimaryGoal(option.id);
+                logEvent(ANALYTICS_EVENTS.goalSelected, { goal: option.id });
+              }}
+            />
+          ))}
+          <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>Country</Text>
+          <SoftPanel>
+            <Text style={text.caption}>Suggested from your device</Text>
+            <Text style={[text.subtitle, { marginTop: spacing.xs }]}>
+              {COUNTRY_OPTIONS.find((opt) => opt.id === countryDraft)?.label ?? 'Other country'}
+            </Text>
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>
+              Country affects units, mileage value, and report wording — not App Store subscription prices.
+            </Text>
+            <TertiaryButton
+              label={showCountryPicker ? 'Hide country list' : 'Change country'}
+              onPress={() => setShowCountryPicker((value) => !value)}
+            />
+          </SoftPanel>
+          {showCountryPicker ? (
+            <>
+              <FormField
+                label="Search countries"
+                value={countryQuery}
+                onChangeText={setCountryQuery}
+                placeholder="United States, Canada…"
+              />
+              {filteredCountries.map((opt) => (
+                <SelectionCard
+                  key={opt.id}
+                  title={opt.label}
+                  body={opt.id === recommendedCountry ? 'Suggested' : undefined}
+                  selected={countryDraft === opt.id}
+                  onPress={() => saveCountry(opt.id)}
+                />
+              ))}
+              {countryDraft === 'OTHER' ? (
+                <SoftPanel>
+                  <SelectionCard title="Miles" selected={otherUnit === 'mi'} onPress={() => setOtherUnit('mi')} />
+                  <SelectionCard title="Kilometers" selected={otherUnit === 'km'} onPress={() => setOtherUnit('km')} />
+                  <FormField
+                    label="Currency code"
+                    value={otherCurrency === 'OTHER' ? '' : otherCurrency}
+                    onChangeText={(value) => {
+                      const nextCode = value.trim().toUpperCase();
+                      if (!nextCode) setOtherCurrency('OTHER');
+                      else if (['USD', 'CAD', 'GBP', 'AUD', 'EUR'].includes(nextCode)) {
+                        setOtherCurrency(nextCode as CurrencyCode);
+                      }
+                    }}
+                    placeholder="e.g. EUR"
+                    autoCapitalize="characters"
+                  />
+                </SoftPanel>
+              ) : null}
+            </>
+          ) : null}
+          <Text style={[text.caption, { marginTop: spacing.md }]}>
+            Optional sign-in keeps a backup later. You can continue locally.
+          </Text>
+          {authPort.isProviderAvailable('google') || authPort.isProviderAvailable('apple') ? (
+            <View style={{ marginTop: spacing.sm }}>
+              {authPort.isProviderAvailable('google') ? (
+                <SecondaryButton
+                  label={authBusy ? 'Signing in…' : 'Continue with Google'}
+                  onPress={() => void tryAuth('google')}
+                  disabled={authBusy}
+                />
+              ) : null}
+              {Platform.OS === 'ios' && authPort.isProviderAvailable('apple') ? (
+                <SecondaryButton label="Continue with Apple" onPress={() => void tryAuth('apple')} disabled={authBusy} />
+              ) : null}
+            </View>
+          ) : (
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>
+              Sign-in isn’t available in this build — continuing locally.
+            </Text>
+          )}
+          {authNotice ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{authNotice}</Text> : null}
+        </View>
+      ) : null}
+
+      {step === 'protect_drives' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Protect your drives
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Automatic protection helps you rely less on memory. Manual tracking always works.
+          </Text>
+          <SoftPanel>
+            <Text style={text.body}>1. Starts only after you enable it</Text>
+            <Text style={[text.body, { marginTop: spacing.sm }]}>2. Uncertain drives require your review</Text>
+            <Text style={[text.body, { marginTop: spacing.sm }]}>3. You can pause protection anytime</Text>
+          </SoftPanel>
+          {protectionReady ? (
+            <Text style={[text.caption, { marginTop: spacing.md }]}>
+              Location access looks ready. You’ll confirm watching on the next screens.
+            </Text>
+          ) : (
+            <Text style={[text.caption, { marginTop: spacing.md }]}>
+              We’ll ask for location only when you choose Set up drive protection.
+            </Text>
+          )}
+        </View>
+      ) : null}
+
+      {step === 'personalize' ? (
+        <View>
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Personalize
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Optional details that make reports clearer. Skip anything.
+          </Text>
+          <FormField
+            label="Vehicle nickname (optional)"
             value={vehicleNickname}
             onChangeText={setVehicleNickname}
             placeholder="e.g. Work car"
-            autoCapitalize="words"
           />
-          <PrimaryButton
-            label="Save vehicle"
-            onPress={() => {
-              const nickname = vehicleNickname.trim() || 'My vehicle';
-              upsertVehicle({
-                id: `vehicle-${Date.now()}`,
-                nickname,
-                make: '',
-                model: '',
-                year: '',
-              });
-              advanceOnboarding();
-            }}
-          />
-          <TertiaryButton
-            label="Skip for now"
-            onPress={() => {
-              skipVehicleSetup();
-              advanceOnboarding();
-            }}
-          />
-        </View>
-      ) : null}
-
-      {step === 'protection_education' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            How tracking works
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Automatic watching can protect drives in the background with Plus when you’re ready. Nothing
-            starts until you turn it on. Manual logging always works on Free.
-          </Text>
-          <StatusCard
-            variant="info"
-            title="You’re in control"
-            body="We’ll ask for background location only when you choose to finish watching setup."
-            emphasis="subtle"
-          />
-          <SecondaryButton
-            label="Allow background location now"
-            onPress={() => {
-              void requestBackgroundPermission();
-            }}
-            disabled={permissions.location !== 'granted'}
-          />
-          <PrimaryButton
-            label="Continue"
-            onPress={() => {
-              setProtectionSetupState('educated');
-              patchOnboarding({
-                protectionEducationAcknowledged: true,
-                completedSteps: Array.from(
-                  new Set([...product.onboarding.completedSteps, 'protection_education']),
-                ),
-              });
-              advanceOnboarding();
-            }}
+          <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Driving pattern</Text>
+          {DRIVING_PATTERN_OPTIONS.map((option) => (
+            <SelectionCard
+              key={option.id}
+              title={option.label}
+              selected={product.drivingType === option.id}
+              onPress={() => setDrivingType(option.id)}
+            />
+          ))}
+          <FormField
+            label="Familiar place (optional)"
+            value={placeLabel}
+            onChangeText={setPlaceLabel}
+            placeholder="e.g. Office"
           />
         </View>
       ) : null}
 
       {step === 'ready' ? (
         <View>
-          <StatusCard
-            variant="success"
-            title="You’re ready"
-            body="Home will show what to do next. Optional setup can wait."
-            emphasis="hero"
-          />
-          {readyBenefits(product.primaryGoal, selectedPainPoints).map((line) => (
-            <SoftPanel key={line}>
-              <Text style={text.body}>{line}</Text>
-            </SoftPanel>
-          ))}
+          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            You’re ready
+          </Text>
+          <SoftPanel>
+            <Text style={text.body}>
+              Goal: {PRIMARY_GOAL_OPTIONS.find((o) => o.id === product.primaryGoal)?.label ?? 'Not set'}
+            </Text>
+            <Text style={[text.body, { marginTop: spacing.xs }]}>
+              Country: {product.localeProfile.countryDisplayName} ·{' '}
+              {product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles'}
+            </Text>
+            <Text style={[text.body, { marginTop: spacing.xs }]}>
+              Protection:{' '}
+              {product.protectionSetupState === 'educated' || product.protectionSetupState === 'configured'
+                ? 'Setup started'
+                : 'Manual tracking'}
+            </Text>
+          </SoftPanel>
+          <Text style={[text.body, { marginTop: spacing.md, marginBottom: spacing.md }]}>
+            {next.body}
+          </Text>
           <PrimaryButton
-            label="Go to Home"
-            onPress={() => finish(false)}
-            loading={finishing}
-            accessibilityLabel="Finish onboarding and go to Home"
+            label={next.cta}
+            onPress={() => finish(next.route)}
+            accessibilityLabel={next.cta}
           />
-          <View style={{ marginTop: spacing.sm }}>
-            <SecondaryButton
-              label="Set up automatic protection"
-              onPress={() => finish(true)}
-              disabled={finishing}
-              accessibilityLabel="Set up automatic protection"
-            />
-          </View>
+          <SecondaryButton label="Add a first drive" onPress={() => finish('ManualTrip')} />
+          <TertiaryButton label="Import mileage later" onPress={() => finish(null)} />
         </View>
       ) : null}
     </OnboardingScreen>

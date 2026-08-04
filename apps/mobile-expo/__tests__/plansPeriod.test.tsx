@@ -14,12 +14,12 @@ describe('Plans monthly/annual rendering', () => {
 
   it('renders Plus and Pro on Plans screen', async () => {
     const { copy } = await renderStackScreen('PlanSelection', { source: 'profile' });
+    expect(copy).toMatch(/Protect every work drive/i);
     expect(copy).toMatch(/Plus/i);
     expect(copy).toMatch(/Pro/i);
-    expect(copy).toMatch(/Stay on Free|Free/i);
-    expect(copy).toMatch(/90-Day Rescue|One-time catch-up/i);
-    expect(copy).toMatch(/Choose the protection that fits your driving|Keep the protection that already helped/i);
-    expect(copy).toMatch(/Automatic coverage for future drives/i);
-    expect(copy).toMatch(/Everything in Plus/i);
+    expect(copy).toMatch(/Continue with Free|Free/i);
+    expect(copy).toMatch(/recover older mileage|Rescue/i);
+    expect(copy).not.toMatch(/RevenueCat/i);
+    expect(copy).toMatch(/Automatic|missed|PDF|tracking health/i);
   });
 });

@@ -232,19 +232,13 @@ export function createInitialProductUiState(): ProductUiState {
 }
 
 /**
- * Full first-launch path (v7).
- * Account / country / permissions / vehicle may be skipped; goal + pains + Finish are required.
+ * Ultimate UX v8 — four meaningful onboarding stages.
+ * Auth is inline/skippable; permissions live inside Protect.
  */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
-  'welcome',
-  'account',
-  'country',
-  'permissions_education',
-  'preferred_name',
-  'primary_goal',
-  'pain_points',
-  'vehicle_setup',
-  'protection_education',
+  'your_work',
+  'protect_drives',
+  'personalize',
   'ready',
 ];
 

@@ -18,16 +18,17 @@ import {
 } from '../src';
 
 describe('Onboarding completeness', () => {
-  it('requires goal, pain points, next action, and current version stamp', () => {
+  it('requires goal, next action, and current version stamp (pain points optional in v8)', () => {
     const empty = createEmptyOnboardingState();
     expect(isOnboardingMinimumComplete(empty)).toBe(false);
-    expect(nextIncompleteStep(empty)).toBe('welcome');
+    expect(nextIncompleteStep(empty)).toBe('your_work');
     const complete = {
       ...empty,
       primaryGoal: 'employee_reimbursement' as const,
       selectedPainPoints: ['forget_to_track' as const],
       drivingPattern: 'regular_locations' as const,
       protectionEducationAcknowledged: true,
+      permissionsEducationAcknowledged: true,
       nextActionSelected: 'add_first_drive' as const,
       completedAt: 1,
       completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
@@ -41,6 +42,8 @@ describe('Onboarding completeness', () => {
       ...createEmptyOnboardingState(),
       primaryGoal: 'gig_delivery' as const,
       selectedPainPoints: ['tracker_misses' as const],
+      protectionEducationAcknowledged: true,
+      permissionsEducationAcknowledged: true,
       nextActionSelected: 'start_protection' as const,
       completedAt: 99,
       completedOnboardingVersion: CURRENT_ONBOARDING_VERSION - 1,

@@ -119,13 +119,13 @@ export function resolveProtectionStatus(input: ProtectionStatusInput): Protectio
     return {
       status: 'manual_only',
       title: TITLES.manual_only,
-      detail: 'Automatic watching is available with Plus. Manual drives always work.',
+      detail: 'Manual tracking is active. Set up automatic protection when you’re ready.',
       lastCheckLabel,
       automaticDependable: false,
       primaryIssue: {
-        what: 'Automatic watching needs Plus',
-        why: 'You can still add work drives manually and keep Free forever.',
-        actionLabel: 'See plans',
+        what: 'Manual tracking is active',
+        why: 'Automatic protection is available with Plus. Manual drives always work on Free.',
+        actionLabel: 'Set up protection',
         action: 'see_plans',
       },
       repairSteps,

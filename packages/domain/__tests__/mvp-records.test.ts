@@ -173,7 +173,7 @@ describe('Report mapping', () => {
     expect(data.recoveredMiles).toBe(5);
     expect(data.unresolvedCount).toBe(1);
     expect(data.lineItems).toHaveLength(2);
-    expect(data.title).toBe('Mileage reimbursement report');
+    expect(data.title).toBe('Mileage reimbursement report · 2026 year to date');
     expect(data.lineItems[0].startLabel).toBe('');
     expect(data.disclaimer).toMatch(/not tax/i);
   });

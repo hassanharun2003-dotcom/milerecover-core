@@ -1749,7 +1749,7 @@ export function PrivacyScreen() {
       <StatusCard
         variant="info"
         title="Privacy and data"
-        body="MileRecover is local-first. Trips, setup answers, vehicles, and places are saved on this device. Account sync and cloud backup are not enabled in this build. Signing in later will never upload private mileage without an explicit future consent."
+        body="MileRecover records miles you capture, import, or confirm. Trips and setup stay local-first on this device. Cloud backup is not enabled in this build."
         emphasis="hero"
       />
       <ListSection title="What is stored on this device">
@@ -2109,12 +2109,7 @@ export function PlanSelectionScreen() {
       }
     >
       {!billingAvailable && isPreviewBillingBuild() ? (
-        <StatusCard
-          variant="info"
-          title="Preview notice"
-          body={PREVIEW_BILLING_NOTICE}
-          emphasis="subtle"
-        />
+        <StatusCard variant="info" title="Preview" body={PREVIEW_BILLING_NOTICE} emphasis="subtle" />
       ) : null}
       {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
 
@@ -2127,7 +2122,7 @@ export function PlanSelectionScreen() {
         highlighted
         current={entitlement.planId === 'plus'}
         savingsLabel={annual ? plusFixture.annualSavingsLabel : undefined}
-        purchaseDisabled={!billingAvailable || purchaseBusy}
+        purchaseDisabled={purchaseBusy}
         selectLabel={plusCta}
         onSelect={() =>
           void handlePurchase('plus', () =>
@@ -2147,7 +2142,7 @@ export function PlanSelectionScreen() {
         highlighted={false}
         current={entitlement.planId === 'pro'}
         savingsLabel={annual ? proFixture.annualSavingsLabel : undefined}
-        purchaseDisabled={!billingAvailable || purchaseBusy}
+        purchaseDisabled={purchaseBusy}
         selectLabel={proCta}
         onSelect={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
       />
@@ -2284,9 +2279,21 @@ export function HelpSupportScreen() {
       <StatusCard
         variant="info"
         title="Help and support"
-        body="MileRecover keeps records local first, asks before classifying uncertain drives, and excludes unresolved trips from reports."
+        body="MileRecover records miles you capture, import, or confirm."
         emphasis="subtle"
       />
+      <ListSection title="Send feedback">
+        <TertiaryButton
+          label="Share feedback"
+          onPress={() =>
+            Alert.alert(
+              'Thanks',
+              'Feedback stays on this device for now. Email support when you’re ready to send more detail.',
+            )
+          }
+          accessibilityLabel="Share product feedback"
+        />
+      </ListSection>
       <ListSection title="Common questions">
         <View style={{ gap: spacing.sm }}>
           <Text style={text.subtitle}>Will MileRecover invent miles?</Text>

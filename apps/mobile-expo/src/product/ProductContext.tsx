@@ -307,16 +307,27 @@ export function ProductProvider({
         ),
       setLocaleProfile: (localeProfile) =>
         persist((prev) => {
-          const currentRate = rateForTimestamp(localeProfile.rates, Date.now());
+          const needsReview =
+            localeProfile.activeRateNeedsReview === true ||
+            prev.localeProfile.countryCode !== localeProfile.countryCode ||
+            prev.localeProfile.distanceUnit !== localeProfile.distanceUnit ||
+            prev.localeProfile.currencyCode !== localeProfile.currencyCode;
+          const nextProfile = {
+            ...localeProfile,
+            activeRateNeedsReview: needsReview ? true : localeProfile.activeRateNeedsReview,
+          };
+          const currentRate = rateForTimestamp(nextProfile.rates, Date.now());
           return patchOnboardingState(
             {
               ...prev,
-              localeProfile,
-              reimbursementCentsPerMile: currentRate?.centsPerMile ?? prev.reimbursementCentsPerMile,
+              localeProfile: nextProfile,
+              reimbursementCentsPerMile: needsReview
+                ? prev.reimbursementCentsPerMile
+                : currentRate?.centsPerMile ?? prev.reimbursementCentsPerMile,
             },
             {
               countryStepAcknowledged: true,
-              completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'country']),
+              completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'country', 'your_work']),
             },
           );
         }),

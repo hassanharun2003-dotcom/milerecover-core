@@ -18,13 +18,13 @@ export function reportTitleForGoal(goal: MileageGoal | null | undefined): string
     case 'employee_reimbursement':
       return 'Mileage reimbursement report';
     case 'gig_delivery':
-      return 'Driving earnings report';
+      return 'Work mileage summary';
     case 'self_employed_business':
-      return 'Business mileage report';
+      return 'Business mileage record';
     case 'mixed':
-      return 'Mileage report';
+      return 'Work mileage report';
     default:
-      return 'Mileage report';
+      return 'Work mileage report';
   }
 }
 
@@ -160,8 +160,8 @@ export function buildMileageReportData(input: {
   const locale = input.localeProfile ?? null;
   const title =
     input.reportTitle?.trim() ||
+    `${reportTitleForGoal(input.primaryGoal)} · ${input.period.label}` ||
     (locale ? reportTitleForTone(locale.reportTone, input.period.label) : null) ||
-    reportTitleForGoal(input.primaryGoal) ||
     'Work mileage report';
 
   const disclaimer =

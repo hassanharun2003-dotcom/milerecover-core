@@ -33,6 +33,18 @@ export interface TripRecord {
   tollsCents?: number | null;
   /** Optional local receipt attachment URI (no OCR / bank linking). */
   receiptUri?: string | null;
+  /**
+   * Snapshot of rate/locale at save time — historical reports must not silently
+   * recalculate when the user later changes country, unit, or active rate.
+   */
+  rateSnapshot?: {
+    centsPerMile: number | null;
+    currencyCode: string;
+    distanceUnit: 'mi' | 'km';
+    countryCode: string;
+    effectiveAt: number;
+    label?: string | null;
+  } | null;
   createdAt?: number;
   updatedAt?: number;
 }

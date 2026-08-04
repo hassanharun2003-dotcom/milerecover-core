@@ -14,7 +14,6 @@ import {
   resolveProtectionStatus,
 } from '@milerecover/domain';
 import {
-  Badge,
   OfflineBanner,
   PrimaryButton,
   SecondaryButton,
@@ -26,38 +25,82 @@ import {
   TertiaryButton,
   text,
 } from '../../design-system';
-import type { ActivityEventKind } from '../../fixtures/scenarios';
-import Constants from 'expo-constants';
-import * as Updates from 'expo-updates';
-import { PREVIEW_CHANNEL_MARKER, isStandaloneBuild } from '../../constants/buildInfo';
-import { greetingForName } from '../../product/copy';
+import { greetingForName, tripSourceLabel } from '../../product/copy';
 import { selectProductExperience } from '../../product/selectors';
 import { earnedTrialMoment, isWithinFirstWeek } from '../../product/trialValue';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 import { TrialOfferCard } from '../../components/TrialOfferCard';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 
 type HomeNav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Home'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-function protectionVariant(
-  status: ReturnType<typeof resolveProtectionStatus>['status'],
-): 'success' | 'warning' | 'danger' | 'info' {
-  switch (status) {
+type CompactStatus = 'protected' | 'setup_incomplete' | 'needs_attention' | 'paused' | 'manual_mode';
+
+function compactProtection(input: {
+  status: ReturnType<typeof resolveProtectionStatus>['status'];
+  primaryIssue: ReturnType<typeof resolveProtectionStatus>['primaryIssue'];
+}): { kind: CompactStatus; sentence: string; actionLabel: string; action: 'protection' | 'plans' | 'none' } {
+  switch (input.status) {
+    case 'protected':
+      return {
+        kind: 'protected',
+        sentence: 'Drive protection is on.',
+        actionLabel: 'View protection',
+        action: 'protection',
+      };
+    case 'setup_incomplete':
+      return {
+        kind: 'setup_incomplete',
+        sentence: 'Finish a short setup to protect drives automatically.',
+        actionLabel: 'Finish setup',
+        action: 'protection',
+      };
+    case 'tracking_paused':
+      return {
+        kind: 'paused',
+        sentence: 'Drive protection is paused.',
+        actionLabel: 'Turn on protection',
+        action: 'protection',
+      };
+    case 'manual_only':
+      return {
+        kind: 'manual_mode',
+        sentence: 'Manual tracking is active. Set up automatic protection when you’re ready.',
+        actionLabel: 'Set up protection',
+        action: 'plans',
+      };
+    case 'needs_attention':
+    default:
+      return {
+        kind: 'needs_attention',
+        sentence:
+          input.primaryIssue?.what === 'Battery restrictions may stop MileRecover'
+            ? 'Battery settings may prevent some drives from being captured.'
+            : input.primaryIssue?.what === 'Background location is off'
+              ? 'Background location is off — some drives may be missed.'
+              : input.primaryIssue?.what ?? 'Protection needs a quick fix.',
+        actionLabel: 'Fix protection',
+        action: 'protection',
+      };
+  }
+}
+
+function statusVariant(kind: CompactStatus): 'success' | 'warning' | 'danger' | 'info' {
+  switch (kind) {
     case 'protected':
       return 'success';
-    case 'manual_only':
-    case 'tracking_paused':
+    case 'manual_mode':
+    case 'paused':
       return 'info';
     case 'setup_incomplete':
       return 'warning';
     case 'needs_attention':
       return 'danger';
-    default:
-      return 'warning';
   }
 }
 
@@ -67,12 +110,6 @@ function activityTimeLabel(timestamp: number): string {
   if (hoursAgo < 24) return `${hoursAgo}h ago`;
   const daysAgo = Math.round(hoursAgo / 24);
   return daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
-}
-
-function activityBadge(kind: ActivityEventKind): string | null {
-  if (kind === 'gap_found') return 'Needs a look';
-  if (kind === 'history_imported') return 'Imported';
-  return null;
 }
 
 export function HomeScreen() {
@@ -88,7 +125,6 @@ export function HomeScreen() {
     markCelebratedFirstDrive,
     markCelebratedFirstReport,
     markCelebratedFirstRecovery,
-    dismissFinishSetup,
   } = useProduct();
   const recoveryRefreshed = useRef(false);
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
@@ -97,11 +133,6 @@ export function HomeScreen() {
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const setupIncomplete =
     product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
-  const watchingOn =
-    product.trackingEnabled &&
-    capabilities.canUseAutomaticCapture &&
-    permissions.location === 'granted' &&
-    permissions.backgroundLocation === 'granted';
   const protection = resolveProtectionStatus({
     permissions,
     trackingEnabled: product.trackingEnabled,
@@ -113,67 +144,65 @@ export function HomeScreen() {
     setupIncomplete,
     offline: scenario.homeState === 'offline',
   });
+  const compact = compactProtection(protection);
 
   const confirmedCount = experience.confirmedTrips.length;
   const recoveredCount = experience.confirmedTrips.filter((trip) => trip.source === 'recovered').length;
   const locale = product.localeProfile;
   const currentRate = rateForTimestamp(locale.rates, Date.now());
+  const rateUsable = currentRate != null && !locale.activeRateNeedsReview;
   const protectedMiles = scenario.weekSummary.milesProtected;
   const estimatedProtected =
-    currentRate != null ? estimatedValueCents(protectedMiles, currentRate.centsPerMile) : null;
+    rateUsable && currentRate != null
+      ? estimatedValueCents(protectedMiles, currentRate.centsPerMile)
+      : null;
   const recoveredMiles = scenario.weekSummary.recoveredMiles;
-  const estimatedRecovered =
-    currentRate != null ? estimatedValueCents(recoveredMiles, currentRate.centsPerMile) : null;
+  const pendingReviewCount = experience.activeReviewItems.length;
   const trialMoment = earnedTrialMoment(product, confirmedCount);
   const firstWeek =
     isWithinFirstWeek(product.onboarding.completedAt) ||
     isWithinFirstWeek(product.firstConfirmedWorkDriveAt);
 
-  const missingMileCount = useMemo(
-    () => experience.activeReviewItems.filter((item) => item.kind === 'possible_missing_trip').length,
-    [experience.activeReviewItems],
-  );
-  const pendingReviewCount = experience.activeReviewItems.length;
-
-  const nextAction = useMemo(() => {
-    if (protection.primaryIssue?.action === 'see_plans') {
+  const nextBest = useMemo(() => {
+    if (pendingReviewCount > 0) {
       return {
-        label: protection.primaryIssue.actionLabel,
-        run: () => navigation.navigate('PlanSelection', { source: 'upgrade' }),
+        label: pendingReviewCount === 1 ? 'Review 1 drive' : `Review ${pendingReviewCount} drives`,
+        run: () => navigation.navigate('Review'),
       };
     }
-    if (
-      protection.primaryIssue?.action === 'finish_setup' ||
-      protection.primaryIssue?.action === 'enable_watching' ||
-      protection.primaryIssue?.action === 'open_location_settings' ||
-      protection.primaryIssue?.action === 'open_battery_settings'
-    ) {
+    if (compact.kind === 'needs_attention' || compact.kind === 'paused' || compact.kind === 'setup_incomplete') {
       return {
-        label: protection.primaryIssue.actionLabel,
+        label: compact.actionLabel,
+        run: () => {
+          if (compact.kind === 'needs_attention') {
+            logEvent(ANALYTICS_EVENTS.protectionDegradedViewed, {});
+          }
+          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
+          else navigation.navigate('ProtectionAlert');
+        },
+      };
+    }
+    if (locale.activeRateNeedsReview) {
+      return {
+        label: 'Review mileage rate',
+        run: () => navigation.navigate('EditSetup'),
+      };
+    }
+    if (setupIncomplete && capabilities.canUseAutomaticCapture) {
+      return {
+        label: 'Finish protection setup',
         run: () => navigation.navigate('ProtectionAlert'),
       };
     }
-    if (missingMileCount > 0) {
+    if (experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip')) {
       return {
-        label:
-          missingMileCount === 1
-            ? 'Check possible missing drive'
-            : `Check ${missingMileCount} possible missing drives`,
+        label: 'Check for missed drives',
         run: () => navigation.navigate('Review'),
       };
     }
-    if (pendingReviewCount > 0 || protection.primaryIssue?.action === 'review_trips') {
+    if (scenario.proofReady && confirmedCount > 0) {
       return {
-        label:
-          pendingReviewCount === 1
-            ? 'Review 1 trip'
-            : `Review ${pendingReviewCount} trips`,
-        run: () => navigation.navigate('Review'),
-      };
-    }
-    if (scenario.proofReady) {
-      return {
-        label: 'Open Proof',
+        label: 'Preview report',
         run: () => navigation.navigate('Proof'),
       };
     }
@@ -182,11 +211,17 @@ export function HomeScreen() {
       run: () => navigation.navigate('ManualTrip'),
     };
   }, [
-    missingMileCount,
+    capabilities.canUseAutomaticCapture,
+    compact.action,
+    compact.actionLabel,
+    compact.kind,
+    confirmedCount,
+    experience.activeReviewItems,
+    locale.activeRateNeedsReview,
     navigation,
     pendingReviewCount,
-    protection.primaryIssue,
     scenario.proofReady,
+    setupIncomplete,
   ]);
 
   useEffect(() => {
@@ -253,69 +288,27 @@ export function HomeScreen() {
     scenario.proofReady,
   ]);
 
-  const showWeekSummary =
-    !liveMode ||
-    scenario.weekSummary.milesProtected > 0 ||
-    scenario.weekSummary.recoveredMiles > 0 ||
-    scenario.weekSummary.milesReadyForProof > 0;
-
   const showTrial =
     liveMode &&
     trialMoment != null &&
-    protection.status === 'protected' &&
-    pendingReviewCount === 0;
+    compact.kind === 'protected' &&
+    pendingReviewCount === 0 &&
+    confirmedCount >= 3;
 
-  const reportHeroAlreadyShown = /report is ready/i.test(scenario.homeTitle);
   const celebration =
     firstWeek && liveMode
       ? product.celebratedFirstDriveAt == null && confirmedCount > 0
         ? ('drive' as const)
         : product.celebratedFirstRecoveryAt == null && recoveredCount > 0
           ? ('recovery' as const)
-          : !reportHeroAlreadyShown &&
-              product.celebratedFirstReportAt == null &&
+          : product.celebratedFirstReportAt == null &&
               scenario.proofReady &&
               product.firstReportPreviewAt != null
             ? ('report' as const)
             : null
       : null;
 
-  const setupTasks = [
-    product.vehicles.length === 0 ? { label: 'Add a vehicle', route: 'VehicleSetup' as const } : null,
-    product.workLocations.length === 0
-      ? { label: 'Add a workplace', route: 'WorkLocationSetup' as const }
-      : null,
-    !watchingOn && capabilities.canUseAutomaticCapture
-      ? { label: 'Turn on protection', route: 'ProtectionAlert' as const }
-      : !capabilities.canUseAutomaticCapture
-        ? { label: 'See Plus for automatic protection', route: 'PlanSelection' as const }
-        : null,
-  ].filter(Boolean) as Array<{
-    label: string;
-    route: 'VehicleSetup' | 'WorkLocationSetup' | 'ProtectionAlert' | 'PlanSelection';
-  }>;
-
-  const showFinishSetup =
-    liveMode &&
-    product.finishSetupDismissedAt == null &&
-    setupTasks.length > 0 &&
-    confirmedCount === 0 &&
-    protection.status !== 'needs_attention';
-
-  const appVariant =
-    (Constants.expoConfig?.extra?.appVariant as string | undefined) ?? 'development';
-  const showOtaMarker =
-    Boolean(PREVIEW_CHANNEL_MARKER) &&
-    (isStandaloneBuild(appVariant) ||
-      Updates.channel === 'preview' ||
-      Updates.channel === 'production');
-
-  const protectionActionLabel =
-    protection.primaryIssue &&
-    protection.primaryIssue.action !== 'none' &&
-    protection.primaryIssue.action !== 'review_trips'
-      ? protection.primaryIssue.actionLabel
-      : undefined;
+  const recent = scenario.activity.slice(0, 3);
 
   return (
     <TabScreen>
@@ -323,106 +316,88 @@ export function HomeScreen() {
         {greeting ?? 'Welcome back.'}
       </Text>
 
-      {showOtaMarker ? (
-        <Text
-          style={[text.caption, { marginBottom: spacing.sm, color: '#1F4D36' }]}
-          accessibilityRole="text"
-          accessibilityLabel={PREVIEW_CHANNEL_MARKER}
-        >
-          {PREVIEW_CHANNEL_MARKER}
-        </Text>
-      ) : null}
-
       {scenario.homeState === 'offline' ? (
         <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
       ) : null}
 
-      {/* 1. Am I protected? */}
       <StatusCard
-        variant={protectionVariant(protection.status)}
-        title={protection.title}
-        body={[
-          protection.primaryIssue?.what,
-          protection.primaryIssue?.why ?? protection.detail,
-          protection.lastCheckLabel,
-          protection.automaticDependable
-            ? 'Automatic tracking looks dependable.'
-            : 'Automatic tracking is not dependable yet — manual drives still work.',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        actionLabel={protectionActionLabel}
-        onAction={
-          protectionActionLabel
-            ? () => {
-                if (protection.primaryIssue?.action === 'see_plans') {
-                  navigation.navigate('PlanSelection', { source: 'upgrade' });
-                } else {
-                  navigation.navigate('ProtectionAlert');
-                }
-              }
-            : undefined
+        variant={statusVariant(compact.kind)}
+        title={
+          compact.kind === 'protected'
+            ? 'Protected'
+            : compact.kind === 'setup_incomplete'
+              ? 'Setup incomplete'
+              : compact.kind === 'paused'
+                ? 'Paused'
+                : compact.kind === 'manual_mode'
+                  ? 'Manual mode'
+                  : 'Needs attention'
         }
-        emphasis="hero"
+        body={compact.sentence}
+        actionLabel={compact.actionLabel}
+        onAction={() => {
+          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
+          else if (compact.action === 'protection') navigation.navigate('ProtectionAlert');
+        }}
+        emphasis="subtle"
       />
 
-      {/* 2–3. Missing miles + review */}
-      {missingMileCount > 0 ? (
-        <StatusCard
-          variant="warning"
-          title={
-            missingMileCount === 1
-              ? 'Possible missing drive'
-              : `${missingMileCount} possible missing drives`
-          }
-          body="MileRecover found quiet stretches that may hide work miles. Nothing is saved until you confirm."
-          actionLabel="Review suggestions"
-          onAction={() => navigation.navigate('Review')}
-          emphasis="subtle"
-        />
-      ) : null}
+      <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>This period</Text>
+      <SummaryCard
+        items={[
+          {
+            label: locale.distanceUnit === 'km' ? 'Work distance' : 'Work miles',
+            value: formatDistance(protectedMiles, locale.distanceUnit, locale.localeTag, 1).replace(
+              ` ${locale.distanceUnit}`,
+              '',
+            ),
+          },
+          {
+            label: 'Estimated value',
+            value:
+              estimatedProtected != null
+                ? formatCurrencyCents(estimatedProtected, locale.currencyCode, locale.localeTag)
+                : locale.activeRateNeedsReview
+                  ? 'Review rate'
+                  : '—',
+          },
+          {
+            label: 'Recovered',
+            value: formatDistance(recoveredMiles, locale.distanceUnit, locale.localeTag, 1).replace(
+              ` ${locale.distanceUnit}`,
+              '',
+            ),
+          },
+          {
+            label: 'Needs review',
+            value: String(pendingReviewCount),
+          },
+        ]}
+      />
 
-      {pendingReviewCount > 0 && missingMileCount === 0 ? (
-        <StatusCard
-          variant="warning"
-          title={
-            pendingReviewCount === 1
-              ? '1 trip waiting for review'
-              : `${pendingReviewCount} trips waiting for review`
-          }
-          body="Decide Work, Personal, Not sure, or Edit. No hidden gestures."
-          actionLabel="Open Review"
-          onAction={() => navigation.navigate('Review')}
-          emphasis="subtle"
-        />
-      ) : null}
+      <SoftPanel>
+        <Text style={text.subtitle}>Next</Text>
+        <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+          One clear step to keep your miles protected and ready.
+        </Text>
+        <PrimaryButton label={nextBest.label} onPress={nextBest.run} accessibilityLabel={nextBest.label} />
+      </SoftPanel>
 
       {celebration === 'drive' ? (
         <SoftPanel>
           <Text style={text.subtitle}>First work drive saved</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            {watchingOn
-              ? 'You’re protected — automatic protection is on.'
-              : 'Your first work drive is safely recorded.'}
-          </Text>
           <TertiaryButton label="Got it" onPress={markCelebratedFirstDrive} />
         </SoftPanel>
       ) : null}
       {celebration === 'recovery' ? (
         <SoftPanel>
-          <Text style={text.subtitle}>First recovery</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            We found mileage worth keeping — after you confirmed it.
-          </Text>
+          <Text style={text.subtitle}>First recovery confirmed</Text>
           <TertiaryButton label="Got it" onPress={markCelebratedFirstRecovery} />
         </SoftPanel>
       ) : null}
       {celebration === 'report' ? (
         <SoftPanel>
           <Text style={text.subtitle}>First report ready</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            When work asks, you’re ready.
-          </Text>
           <TertiaryButton label="Got it" onPress={markCelebratedFirstReport} />
         </SoftPanel>
       ) : null}
@@ -434,118 +409,46 @@ export function HomeScreen() {
         />
       ) : null}
 
-      {showFinishSetup ? (
-        <SoftPanel>
-          <Text style={text.subtitle}>Finish setup</Text>
-          <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Optional · {3 - setupTasks.length} of 3 done
-          </Text>
-          {setupTasks.slice(0, 3).map((task) => (
-            <View key={task.label} style={{ marginBottom: spacing.xs }}>
-              <SecondaryButton
-                label={task.label}
-                onPress={() => {
-                  if (task.route === 'PlanSelection') {
-                    navigation.navigate('PlanSelection', { source: 'upgrade' });
-                  } else {
-                    navigation.navigate(task.route);
-                  }
-                }}
-              />
-            </View>
-          ))}
-          <TertiaryButton label="Not now" onPress={dismissFinishSetup} />
-        </SoftPanel>
-      ) : null}
-
-      {/* 4. How much value protected this period */}
-      {showWeekSummary ? (
-        <>
-          <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
-            This period
-          </Text>
-          <SummaryCard
-            items={[
-              {
-                label: locale.distanceUnit === 'km' ? 'Distance kept' : 'Miles kept',
-                value: formatDistance(protectedMiles, locale.distanceUnit, locale.localeTag, 1).replace(
-                  ` ${locale.distanceUnit}`,
-                  '',
-                ),
-              },
-              {
-                label: 'Estimated value',
-                value:
-                  estimatedProtected != null
-                    ? formatCurrencyCents(estimatedProtected, locale.currencyCode, locale.localeTag)
-                    : '—',
-              },
-              {
-                label: 'Recovered',
-                value: formatDistance(recoveredMiles, locale.distanceUnit, locale.localeTag, 1).replace(
-                  ` ${locale.distanceUnit}`,
-                  '',
-                ),
-              },
-            ]}
-          />
-          {estimatedRecovered != null && recoveredMiles > 0 ? (
-            <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-              Estimated value recovered{' '}
-              {formatCurrencyCents(estimatedRecovered, locale.currencyCode, locale.localeTag)}
-            </Text>
-          ) : null}
-        </>
-      ) : null}
-
-      {liveMode && confirmedCount === 0 && protection.status === 'protected' ? (
-        <SoftPanel>
-          <Text style={text.subtitle}>You’re protected</Text>
-          <Text style={[text.body, { marginTop: spacing.xs }]}>
-            Your drives will appear here after you travel. Nothing is invented.
-          </Text>
-        </SoftPanel>
-      ) : null}
-
-      {/* 5. What should I do next? */}
-      <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>
-        <PrimaryButton
-          label={nextAction.label}
-          onPress={nextAction.run}
-          accessibilityLabel={nextAction.label}
-        />
+      <View
+        style={{
+          marginTop: spacing.sm,
+          marginBottom: spacing.xs,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Text style={text.subtitle}>Recent</Text>
+        {scenario.activity.length > 3 ? (
+          <TertiaryButton label="View all" onPress={() => navigation.navigate('Review')} />
+        ) : null}
       </View>
-
-      <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>Recent</Text>
-      {scenario.activity.length === 0 ? (
+      {recent.length === 0 ? (
         <SoftPanel>
-          <Text style={text.subtitle}>Nothing here yet</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Add a work drive when you know the miles, or finish protection setup for automatic coverage.
-          </Text>
-          <SecondaryButton label="Add your first drive" onPress={() => navigation.navigate('ManualTrip')} />
+          <Text style={text.body}>No drives yet. Add one when you know the miles.</Text>
         </SoftPanel>
       ) : (
-        scenario.activity.slice(0, 5).map((event) => (
-          <View key={event.id} style={{ marginBottom: spacing.sm }}>
-            <TimelineRow
-              title={event.title}
-              subtitle={event.subtitle}
-              timeLabel={activityTimeLabel(event.timestamp)}
-              onPress={
-                liveMode ? () => navigation.navigate('TripDetails', { tripId: event.id }) : undefined
-              }
-            />
-            {activityBadge(event.kind) ? (
-              <View style={{ marginLeft: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.sm }}>
-                <Badge
-                  label={activityBadge(event.kind)!}
-                  variant={event.kind === 'gap_found' ? 'warning' : 'info'}
-                />
-              </View>
-            ) : null}
-          </View>
-        ))
+        recent.map((event) => {
+          const trip = state.trips.find((item) => item.id === event.id);
+          const stateLabel =
+            trip?.classification === 'business'
+              ? 'Work'
+              : trip?.classification === 'personal'
+                ? 'Personal'
+                : 'Pending';
+          return (
+            <View key={event.id} style={{ marginBottom: spacing.sm }}>
+              <TimelineRow
+                title={event.title}
+                subtitle={`${tripSourceLabel(trip?.source ?? 'manual')} · ${stateLabel}`}
+                timeLabel={activityTimeLabel(event.timestamp)}
+                onPress={
+                  liveMode ? () => navigation.navigate('TripDetails', { tripId: event.id }) : undefined
+                }
+              />
+            </View>
+          );
+        })
       )}
 
       <View style={{ marginTop: spacing.sm }}>

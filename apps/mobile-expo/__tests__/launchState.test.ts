@@ -17,7 +17,7 @@ describe('Deterministic launch state machine', () => {
     expect(result.showOnboarding).toBe(false);
   });
 
-  it('opens Welcome on true first launch / empty storage', () => {
+  it('opens onboarding on true first launch / empty storage', () => {
     const result = resolveLaunchState({
       appHydrated: true,
       productHydrated: true,

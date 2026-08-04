@@ -93,7 +93,8 @@ export function resolveLaunchState(input: LaunchInputs): LaunchResolution {
   const started =
     input.onboarding.primaryGoal != null ||
     input.onboarding.selectedPainPoints.length > 0 ||
-    input.onboarding.currentStep !== 'welcome' ||
+    (input.onboarding.currentStep !== 'welcome' &&
+      input.onboarding.currentStep !== 'your_work') ||
     input.onboarding.completedSteps.length > 0;
 
   // Trips alone never imply onboarding is done.

@@ -39,19 +39,8 @@ describe('Locked product experience', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('PlanSelection');
   });
 
-  it('defines the full first-launch onboarding path', () => {
-    expect(ONBOARDING_STEP_ORDER).toEqual([
-      'welcome',
-      'account',
-      'country',
-      'permissions_education',
-      'preferred_name',
-      'primary_goal',
-      'pain_points',
-      'vehicle_setup',
-      'protection_education',
-      'ready',
-    ]);
+  it('defines the four-stage first-launch onboarding path', () => {
+    expect(ONBOARDING_STEP_ORDER).toEqual(['your_work', 'protect_drives', 'personalize', 'ready']);
   });
 
   it('centralizes subscription fixtures with design prices', () => {
@@ -149,12 +138,11 @@ describe('Onboarding honesty', () => {
       path.join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(onboarding).toMatch(/How location helps/);
-    expect(onboarding).toMatch(/Allow location while using the app/);
+    expect(onboarding).toMatch(/Protect your drives/);
+    expect(onboarding).toMatch(/Set up drive protection/);
     expect(onboarding).toMatch(/Skip for now/);
     expect(onboarding).not.toMatch(/status=\"ready\"/);
-    expect(ONBOARDING_STEP_ORDER).toContain('permissions_education');
-    expect(ONBOARDING_STEP_ORDER).toContain('account');
+    expect(ONBOARDING_STEP_ORDER).toEqual(['your_work', 'protect_drives', 'personalize', 'ready']);
     const tracking = fs.readFileSync(
       path.join(__dirname, '../src/screens/flows/SupportingScreens.tsx'),
       'utf8',

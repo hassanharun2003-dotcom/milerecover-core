@@ -11,11 +11,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing } from '@milerecover/config';
-import { SecondaryButton, StatusCard, text as textStyles } from '../design-system';
+import { SecondaryButton, StatusCard } from '../design-system';
 import { isStandaloneBuild } from '../constants/buildInfo';
 import { isShareInFlight } from '../services/fileShare';
 import * as Updates from 'expo-updates';
 import { applyPendingUpdate, checkAndDownloadUpdate, updatesEnabled } from './appUpdates';
+import { ANALYTICS_EVENTS, logEvent } from '../services/analytics';
 
 interface UpdateContextValue {
   updateReady: boolean;
@@ -65,6 +66,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
 
   const applyUpdate = useCallback(async () => {
     if (isShareInFlight() || blocked) return;
+    logEvent(ANALYTICS_EVENTS.updateApplied, {});
     await applyPendingUpdate();
   }, [blocked]);
 
@@ -120,8 +122,8 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
           >
             <StatusCard
               variant="info"
-              title="Update ready"
-              body="A MileRecover update is downloaded. Restart when you’re ready."
+              title="A new version is ready"
+              body="Restart when you’re ready to apply it."
               emphasis="subtle"
             />
             <View style={styles.bannerActions}>
@@ -129,20 +131,17 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
                 <SecondaryButton
                   label="Later"
                   onPress={dismissUpdatePrompt}
-                  accessibilityLabel="Dismiss update prompt until next launch"
+                  accessibilityLabel="Dismiss update until later this session"
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <SecondaryButton
-                  label="Restart now"
+                  label="Restart"
                   onPress={() => void applyUpdate()}
-                  accessibilityLabel="Restart now to apply the update"
+                  accessibilityLabel="Restart to apply the update"
                 />
               </View>
             </View>
-            <Text style={[textStyles.caption, styles.caption]}>
-              Won’t cover your tabs. Unsaved forms are not interrupted while you keep editing.
-            </Text>
           </View>
         </View>
       ) : null}

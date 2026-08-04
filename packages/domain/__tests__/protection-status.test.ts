@@ -45,7 +45,7 @@ describe('Protection status model', () => {
   it('reports Manual-only when automatic capture is unavailable', () => {
     const view = resolveProtectionStatus(base({ canUseAutomaticCapture: false }));
     expect(view.status).toBe('manual_only');
-    expect(view.detail).toMatch(/Manual/);
+    expect(view.detail).toMatch(/Manual tracking is active/i);
     expect(view.primaryIssue?.action).toBe('see_plans');
   });
 
@@ -103,7 +103,7 @@ describe('Protection status model', () => {
       base({ canUseAutomaticCapture: false, trackingEnabled: false }),
     );
     expect(view.status).toBe('manual_only');
-    expect(view.detail).toMatch(/Manual drives always work/i);
+    expect(view.detail).toMatch(/Manual tracking is active/i);
   });
 
   it('does not claim protected merely because permission was requested', () => {

@@ -245,7 +245,7 @@ export function ReviewScreen() {
         pending.length === 0 ? (
           <>
             <EmptyState
-              title="You're caught up"
+              title="You’re caught up"
               body="All confirmed work drives are ready for Proof."
             />
             <SecondaryButton

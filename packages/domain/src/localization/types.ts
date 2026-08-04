@@ -36,6 +36,11 @@ export interface LocaleProfile {
   /** Report wording mode. */
   reportTone: 'us_tax_record' | 'reimbursement_record' | 'generic_mileage_record';
   rates: MileageRatePeriod[];
+  /**
+   * When true, country/unit changed and the active rate needs user review.
+   * Historical trip snapshots stay untouched.
+   */
+  activeRateNeedsReview?: boolean;
 }
 
 export interface CountryPreset {
@@ -280,12 +285,63 @@ export function reportTitleForTone(
 ): string {
   switch (tone) {
     case 'us_tax_record':
-      return `Tax record summary · ${periodLabel}`;
+      return `Work mileage report · ${periodLabel}`;
     case 'reimbursement_record':
       return `Mileage reimbursement record · ${periodLabel}`;
     default:
       return `Mileage record · ${periodLabel}`;
   }
+}
+
+/** True when an existing rate is not suitable after a country/unit change. */
+export function rateNeedsReviewAfterLocaleChange(
+  previous: Pick<LocaleProfile, 'countryCode' | 'distanceUnit' | 'currencyCode' | 'rates'>,
+  next: Pick<LocaleProfile, 'countryCode' | 'distanceUnit' | 'currencyCode'>,
+): boolean {
+  if (previous.countryCode !== next.countryCode) return true;
+  if (previous.distanceUnit !== next.distanceUnit) return true;
+  if (previous.currencyCode !== next.currencyCode) return true;
+  return false;
+}
+
+/**
+ * Customer-facing rate label. Never show “¢/mi stored” as the active Canadian km rate.
+ * Internal storage remains cents-per-mile.
+ */
+export function formatActiveRateLabel(
+  profile: Pick<LocaleProfile, 'distanceUnit' | 'currencyCode' | 'rates' | 'activeRateNeedsReview' | 'localeTag'>,
+  at = Date.now(),
+): string {
+  if (profile.activeRateNeedsReview) return 'Review mileage rate';
+  const rate = rateForTimestamp(profile.rates, at);
+  if (!rate || !(rate.centsPerMile > 0)) return 'Not set';
+  if (profile.distanceUnit === 'km') {
+    const centsPerKm = Math.round(rate.centsPerMile / KM_PER_MILE);
+    return `${centsPerKm}¢/km · ${rate.currencyCode}`;
+  }
+  return `${rate.centsPerMile}¢/mi · ${rate.currencyCode}`;
+}
+
+export function createTripRateSnapshot(
+  profile: LocaleProfile,
+  at = Date.now(),
+): {
+  centsPerMile: number | null;
+  currencyCode: string;
+  distanceUnit: DistanceUnit;
+  countryCode: string;
+  effectiveAt: number;
+  label: string | null;
+} {
+  const rate = rateForTimestamp(profile.rates, at);
+  return {
+    centsPerMile: rate?.centsPerMile ?? null,
+    currencyCode: profile.currencyCode,
+    distanceUnit: profile.distanceUnit,
+    countryCode: profile.countryCode,
+    effectiveAt: at,
+    label: rate?.label ?? null,
+  };
 }
 
 export function reportDisclaimerForTone(tone: LocaleProfile['reportTone']): string {
