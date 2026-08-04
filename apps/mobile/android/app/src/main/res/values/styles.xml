@@ -1,0 +1,10 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@color/mile_recover_canvas</item>
+        <item name="android:statusBarColor">@color/mile_recover_forest</item>
+    </style>
+
+</resources>
