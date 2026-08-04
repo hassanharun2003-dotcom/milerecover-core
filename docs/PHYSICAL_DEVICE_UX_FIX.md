@@ -70,3 +70,26 @@ Includes: deterministic launch state machine (no Home flash on fresh install), o
 - Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/13c6534c-90c3-4fe0-ab46-26e10d1fdb5c
 
 No new native APK required for this JS/OTA pass.
+
+## Final MVP blockers (0.1.6-mvp.1)
+
+Build label: `0.1.6-mvp.1` · Preview marker: `blocker fixes mvp`  
+Runtime / app version: `0.1.6`  
+Onboarding version: `CURRENT_ONBOARDING_VERSION = 6`  
+Commit: `2df45e6a1b8e9ae08780a6fff75591e362c556e0`
+
+Includes: full first-launch path (account + permissions education + personalization + vehicle + background protection), ProductionAuthPort (Google/Apple, no fake sessions), RevenueCat PurchasePort behind keys/flag, date-picker Cancel dismiss, Add Drive / Home / Review / Proof / Profile polish.
+
+### Delivery
+
+- **New APK required** — native modules (Google Sign-In, Apple Auth, RevenueCat). Cannot OTA onto 0.1.5.
+- EAS preview Android build: `755f85c7-2b63-4949-bdfd-19ccd382859e`
+- Build URL: https://expo.dev/accounts/milerecover/projects/milerecover/builds/755f85c7-2b63-4949-bdfd-19ccd382859e
+- `versionCode` 10 (queued / in progress at submit)
+
+### Remaining production infrastructure
+
+- Google OAuth client IDs in EAS secrets
+- RevenueCat public SDK keys + `EXPO_PUBLIC_ENABLE_STORE_PURCHASES=1` for production
+- Auth session verifier backend (`AUTH_BACKEND_CONNECTED`)
+- Store product catalog + Play/App Store approval
