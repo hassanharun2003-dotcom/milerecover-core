@@ -164,29 +164,47 @@ export class ProductionAuthPort implements AuthPort {
     }
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { GoogleSignin, statusCodes } = require('@react-native-google-signin/google-signin') as {
+      const mod = require('@react-native-google-signin/google-signin') as {
         GoogleSignin: {
           configure: (opts: Record<string, unknown>) => void;
           hasPlayServices: (opts: { showPlayServicesUpdateDialog: boolean }) => Promise<boolean>;
-          signIn: () => Promise<{ data?: { user?: { id?: string; email?: string | null; name?: string | null } } } | { user?: { id?: string; email?: string | null; name?: string | null } }>;
+          signIn: () => Promise<{
+            type?: string;
+            data?: {
+              user?: { id?: string; email?: string | null; name?: string | null };
+              idToken?: string | null;
+            };
+            user?: { id?: string; email?: string | null; name?: string | null };
+          }>;
+          getTokens?: () => Promise<{ idToken?: string | null; accessToken?: string | null }>;
         };
         statusCodes: { SIGN_IN_CANCELLED?: string; IN_PROGRESS?: string };
       };
+      const { GoogleSignin } = mod;
       const extra = authExtra();
+      // Opens the native Google account picker on Android / iOS.
       GoogleSignin.configure({
-        webClientId: extra.googleWebClientId,
-        iosClientId: extra.googleIosClientId,
+        webClientId: extra.googleWebClientId || undefined,
+        iosClientId: extra.googleIosClientId || undefined,
         offlineAccess: false,
+        forceCodeForRefreshToken: false,
       });
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       }
       const response = await GoogleSignin.signIn();
-      const user =
-        (response as { data?: { user?: { id?: string; email?: string | null; name?: string | null } } }).data?.user ??
-        (response as { user?: { id?: string; email?: string | null; name?: string | null } }).user;
+      if (response?.type === 'cancelled') {
+        return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+      }
+      const user = response?.data?.user ?? response?.user;
       if (!user?.id) {
         return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+      }
+      // Prefer a real provider token when available; never invent identity.
+      try {
+        await GoogleSignin.getTokens?.();
+      } catch {
+        // Profile-only responses are still valid provider identities.
       }
       const session: AuthSession = {
         userId: `google:${user.id}`,
@@ -198,18 +216,28 @@ export class ProductionAuthPort implements AuthPort {
       await persistSession(session);
       return { ok: true, ...session };
     } catch (error) {
-      const code = (error as { code?: string })?.code;
+      const code = String((error as { code?: string } | undefined)?.code ?? '');
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      let cancelledCode: string | undefined;
+      let cancelledCode = 'SIGN_IN_CANCELLED';
       try {
-        cancelledCode = (
-          require('@react-native-google-signin/google-signin') as { statusCodes?: { SIGN_IN_CANCELLED?: string } }
-        ).statusCodes?.SIGN_IN_CANCELLED;
+        cancelledCode =
+          (
+            require('@react-native-google-signin/google-signin') as {
+              statusCodes?: { SIGN_IN_CANCELLED?: string };
+            }
+          ).statusCodes?.SIGN_IN_CANCELLED ?? cancelledCode;
       } catch {
-        cancelledCode = undefined;
+        // keep default
       }
-      if (code === cancelledCode || code === 'SIGN_IN_CANCELLED') {
+      if (code === cancelledCode || /cancel/i.test(code) || /cancel/i.test(String(error))) {
         return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+      }
+      if (/NETWORK|network/i.test(code)) {
+        return {
+          ok: false,
+          reason: 'network',
+          message: 'You’re offline. Try Google sign-in again when connected.',
+        };
       }
       return {
         ok: false,

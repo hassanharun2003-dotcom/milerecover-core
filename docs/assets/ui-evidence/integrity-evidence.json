@@ -1,5 +1,5 @@
 {
-  "1-onboarding-welcome": "MileRecover Keep your work miles from disappearing. Capture, recover, review, and prove work mileage without inventing anything. ✓ Work drive 12.4 mi Get started Bring existing mileage",
+  "1-onboarding-welcome": "MileRecover ✓ Work drive 12.4 mi Protect every work mile. Capture, recover, review, and prove work mileage — without inventing anything. Get started Bring existing mileage",
   "2-onboarding-goals": {
     "employee_reimbursement": "Back You’re ready Home will show what to do next. Optional setup can wait. Save work drives in a few taps. Review anything uncertain before it enters a report. ",
     "gig_delivery": "Back You’re ready Home will show what to do next. Optional setup can wait. Save work drives in a few taps. Turn on watching later if you want automatic coverage",
@@ -11,7 +11,7 @@
   "5-empty-proof": "Week Month Prev. month YTD No confirmed work drives in this period Only drives you confirm as work appear in reports. Add a drive This period 2026 year to date. Pending and personal drives stay out until you decide. ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ ",
   "6-demo-proof": "Week Month Prev. month YTD Mileage report 2026 year to date 3 drives 58.0 miles — none open Preview report TOTALS Confirmed work drives 3 Total miles 58.0 mi Manual miles 0.0 mi Imported miles 0.0 mi Recovered miles 0.0 mi EXPORT What’s fre",
   "7-empty-profile": "Your profile Add a preferred name anytime. You’re on Free Upgrade anytime when watching or PDF reports would help. Manage plan PROFILE Preferred name Not set › Primary goal Not set › What gets in the way Not set › Driving pattern Not set › ",
-  "8-plans-monthly": "Choose the protection that fits your driving. Current: Free . Purchases aren’t available in this preview build. Your Free plan remains active. Monthly Annual Preview pricing shown below — not a live store offer. Recommended Plus Never lose ",
+  "8-plans-monthly": "Choose the protection that fits your driving. Current: Free . Preview build — live checkout is disabled here. Production builds use Google Play / App Store via RevenueCat when keys are configured. Monthly Annual Preview notice Preview build",
   "9-plans-annual": "Fixed header toggle switches monthly/annual without sticky overlap",
   "10-safe-area": "insets.top TabScreen + insets.bottom tab bar + FixedHeaderScrollScreen + Ionicons"
 }

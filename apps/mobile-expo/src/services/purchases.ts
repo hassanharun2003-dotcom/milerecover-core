@@ -62,6 +62,9 @@ export interface PurchasePort {
 export const STORE_UNAVAILABLE_MESSAGE =
   'Purchases aren’t available in this preview build. Your Free plan remains active.';
 
+export const PREVIEW_BILLING_NOTICE =
+  'Preview build — live checkout is disabled here. Production builds use Google Play / App Store via RevenueCat when keys are configured.';
+
 function productKindForPlus(period: PurchasePeriod): StoreProductKind {
   return period === 'annual' ? 'plus_annual' : 'plus_monthly';
 }

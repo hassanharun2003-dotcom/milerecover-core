@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import { Alert, BackHandler, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -65,10 +65,12 @@ import {
 } from '../../services/dataPrivacy';
 import {
   getPurchasePort,
+  PREVIEW_BILLING_NOTICE,
   STORE_UNAVAILABLE_MESSAGE,
   trialRenewalCopy,
   type PurchasePeriod,
 } from '../../services/purchases';
+import { isPreviewBillingBuild } from '../../services/revenueCatPurchases';
 import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
 import { useApp } from '../../store/AppContext';
 import { useAppUpdates } from '../../updates/UpdateProvider';
@@ -152,6 +154,7 @@ export function ManualTripScreen() {
   const [startTime, setStartTime] = useState(initialStart);
   const [endTime, setEndTime] = useState(initialEnd);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerSnapshotRef = useRef<Date | null>(null);
   const [addTime, setAddTime] = useState(Boolean(existing));
   const [routeMode, setRouteMode] = useState<'distance' | 'places'>('distance');
   const [distance, setDistance] = useState(existing ? existing.distanceMiles.toString() : '');
@@ -219,11 +222,33 @@ export function ManualTripScreen() {
     'Work',
   ].filter((label, index, all) => label && all.indexOf(label) === index);
 
+  const closeDatePicker = useCallback((revert = false) => {
+    if (revert && datePickerSnapshotRef.current) {
+      setDriveDate(datePickerSnapshotRef.current);
+    }
+    datePickerSnapshotRef.current = null;
+    setShowDatePicker(false);
+  }, []);
+
+  const openDatePicker = useCallback(() => {
+    datePickerSnapshotRef.current = new Date(driveDate.getTime());
+    setShowDatePicker(true);
+  }, [driveDate]);
+
+  useEffect(() => {
+    if (!showDatePicker) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      closeDatePicker(true);
+      return true;
+    });
+    return () => sub.remove();
+  }, [closeDatePicker, showDatePicker]);
+
   const applyDateOffset = (daysBack: number) => {
     const next = new Date();
     next.setDate(next.getDate() - daysBack);
     setDriveDate(next);
-    setShowDatePicker(false);
+    closeDatePicker(false);
   };
 
   const composeDateTime = (day: Date, time: Date, fallbackHour: number, fallbackMinute: number): number => {
@@ -467,7 +492,10 @@ export function ManualTripScreen() {
         <Chip
           label="Choose date"
           selected={showDatePicker}
-          onPress={() => setShowDatePicker((value) => !value)}
+          onPress={() => {
+            if (showDatePicker) closeDatePicker(true);
+            else openDatePicker();
+          }}
         />
       </ChipRow>
       <EvidenceRow label="Selected" value={formatDateLocal(driveDate.getTime())} />
@@ -481,8 +509,8 @@ export function ManualTripScreen() {
                 marginBottom: spacing.xs,
               }}
             >
-              <TertiaryButton label="Cancel" onPress={() => setShowDatePicker(false)} />
-              <TertiaryButton label="Done" onPress={() => setShowDatePicker(false)} />
+              <TertiaryButton label="Cancel" onPress={() => closeDatePicker(true)} />
+              <TertiaryButton label="OK" onPress={() => closeDatePicker(false)} />
             </View>
           ) : null}
           <DateTimePicker
@@ -491,13 +519,21 @@ export function ManualTripScreen() {
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             maximumDate={new Date()}
             onChange={(event, selected) => {
-              // Android Cancel/OK both fire onChange — always dismiss so Cancel never freezes.
-              if (Platform.OS === 'android') {
-                setShowDatePicker(false);
-              }
               const type = (event as { type?: string } | undefined)?.type;
+              // Android: Cancel/outside/back → dismissed; OK → set. Always clear visibility.
+              if (Platform.OS === 'android') {
+                if (type === 'dismissed' || !selected) {
+                  closeDatePicker(true);
+                  return;
+                }
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+                setDriveDate(selected.getTime() > today.getTime() ? new Date() : selected);
+                closeDatePicker(false);
+                return;
+              }
               if (type === 'dismissed' || !selected) {
-                if (Platform.OS === 'ios') setShowDatePicker(false);
+                closeDatePicker(true);
                 return;
               }
               const today = new Date();
@@ -1493,7 +1529,9 @@ export function PlanSelectionScreen() {
             Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}.{' '}
             {billingAvailable
               ? 'Prices come from Google Play or the App Store.'
-              : STORE_UNAVAILABLE_MESSAGE}
+              : isPreviewBillingBuild()
+                ? PREVIEW_BILLING_NOTICE
+                : STORE_UNAVAILABLE_MESSAGE}
           </Text>
           <SegmentedControl
             value={annual ? 'annual' : 'monthly'}
@@ -1507,10 +1545,13 @@ export function PlanSelectionScreen() {
       }
     >
       {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
-      {!billingAvailable ? (
-        <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-          Preview pricing shown below — not a live store offer.
-        </Text>
+      {!billingAvailable && isPreviewBillingBuild() ? (
+        <StatusCard
+          variant="info"
+          title="Preview notice"
+          body={PREVIEW_BILLING_NOTICE}
+          emphasis="subtle"
+        />
       ) : null}
       <PlanCard
         name={plusFixture.name}

@@ -32,19 +32,42 @@ type RcExtra = {
   enableStorePurchases?: boolean;
 };
 
-function rcKeys(): { apple?: string; google?: string; enabled: boolean } {
+function appVariant(): string {
+  return (
+    process.env.APP_VARIANT ||
+    (Constants.expoConfig?.extra as { appVariant?: string } | undefined)?.appVariant ||
+    'development'
+  );
+}
+
+function rcKeys(): { apple?: string; google?: string; forceEnable: boolean; variant: string } {
   const extra = (Constants.expoConfig?.extra ?? {}) as RcExtra;
   return {
     apple: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY ?? extra.revenueCatAppleApiKey,
     google: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY ?? extra.revenueCatGoogleApiKey,
-    enabled: Boolean(extra.enableStorePurchases) || process.env.EXPO_PUBLIC_ENABLE_STORE_PURCHASES === '1',
+    forceEnable: Boolean(extra.enableStorePurchases) || process.env.EXPO_PUBLIC_ENABLE_STORE_PURCHASES === '1',
+    variant: appVariant(),
   };
 }
 
+/**
+ * Production: platform SDK key alone enables live purchases.
+ * Preview/dev: require explicit enableStorePurchases (or EXPO_PUBLIC_ENABLE_STORE_PURCHASES=1)
+ * so internal APKs stay purchase-safe until products are ready.
+ */
 export function isRevenueCatConfigured(): boolean {
   const keys = rcKeys();
-  if (!keys.enabled) return false;
-  return Platform.OS === 'ios' ? Boolean(keys.apple) : Boolean(keys.google);
+  const platformKey = Platform.OS === 'ios' ? keys.apple : keys.google;
+  if (!platformKey) return false;
+  if (keys.variant === 'production') return true;
+  return keys.forceEnable;
+}
+
+export function isPreviewBillingBuild(): boolean {
+  const keys = rcKeys();
+  const platformKey = Platform.OS === 'ios' ? keys.apple : keys.google;
+  if (keys.variant === 'production') return false;
+  return !keys.forceEnable || !platformKey;
 }
 
 function mapEntitlement(info: {

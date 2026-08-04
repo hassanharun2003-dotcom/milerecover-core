@@ -186,17 +186,17 @@ export function OnboardingFlow() {
 
       {step === 'welcome' ? (
         <View>
-          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+          <Text style={[text.headline, { marginBottom: spacing.xs }]} accessibilityRole="header">
             MileRecover
           </Text>
-          <Text style={[text.title, { marginBottom: spacing.sm }]}>
-            Keep your work miles from disappearing.
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            Capture, recover, review, and prove work mileage without inventing anything.
-          </Text>
           <CarRouteHero />
-          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+          <Text style={[text.title, { marginTop: spacing.sm, marginBottom: spacing.sm }]}>
+            Protect every work mile.
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Capture, recover, review, and prove work mileage — without inventing anything.
+          </Text>
+          <View style={{ gap: spacing.sm }}>
             <PrimaryButton
               label="Get started"
               onPress={() => {
@@ -220,16 +220,18 @@ export function OnboardingFlow() {
       {step === 'account' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Sign in (optional)
+            Sign in
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            MileRecover works fully without an account. Sign in only if you want an easier way to restore
-            preferences later. Miles are not uploaded unless you later choose cloud sync.
+            Use Google to continue. Apple and email are available when configured. You can also skip —
+            miles stay on this device.
           </Text>
-          <SecondaryButton
-            label="Continue with Google"
+          <PrimaryButton
+            label={authBusy ? 'Opening Google…' : 'Continue with Google'}
             onPress={() => void tryAuth('google')}
             disabled={authBusy}
+            loading={authBusy}
+            accessibilityLabel="Continue with Google account picker"
           />
           {Platform.OS === 'ios' ? (
             <SecondaryButton
@@ -243,7 +245,7 @@ export function OnboardingFlow() {
             onPress={() => void tryAuth('email')}
             disabled={authBusy}
           />
-          <PrimaryButton
+          <TertiaryButton
             label="Skip for now"
             onPress={() => {
               setAuthNotice(null);
@@ -252,9 +254,12 @@ export function OnboardingFlow() {
             accessibilityLabel="Skip account and continue setup"
           />
           {authNotice ? (
-            <Text style={[text.caption, { marginTop: spacing.sm }]} accessibilityRole="text">
-              {authNotice}
-            </Text>
+            <StatusCard
+              variant="info"
+              title="Sign-in"
+              body={authNotice}
+              emphasis="subtle"
+            />
           ) : null}
         </View>
       ) : null}
@@ -436,11 +441,11 @@ export function OnboardingFlow() {
       {step === 'protection_education' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Background protection
+            How tracking works
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Automatic watching can use background location with Plus when you’re ready. Nothing starts
-            until you turn it on. Manual logging always works on Free.
+            Automatic watching can protect drives in the background with Plus when you’re ready. Nothing
+            starts until you turn it on. Manual logging always works on Free.
           </Text>
           <StatusCard
             variant="info"

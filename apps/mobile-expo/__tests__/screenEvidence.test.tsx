@@ -24,14 +24,14 @@ describe('Screen render evidence', () => {
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-welcome']).toMatch(/Keep your work miles from disappearing|Get started/i);
+    expect(manifest['onboarding-welcome']).toMatch(/Protect every work mile|Get started|MileRecover/i);
     expect(manifest['onboarding-account']).toMatch(/Sign in|Skip for now|Google/i);
     expect(manifest['onboarding-permissions_education']).toMatch(/How location helps|Allow location/i);
     expect(manifest['onboarding-preferred_name']).toMatch(/What should we call you/i);
     expect(manifest['onboarding-primary_goal']).toMatch(/What do you use work mileage for/i);
     expect(manifest['onboarding-pain_points']).toMatch(/What causes the most trouble/i);
     expect(manifest['onboarding-vehicle_setup']).toMatch(/Add a vehicle|Skip for now/i);
-    expect(manifest['onboarding-protection_education']).toMatch(/Background protection|You’re in control/i);
+    expect(manifest['onboarding-protection_education']).toMatch(/How tracking works|You’re in control/i);
     expect(manifest['onboarding-ready']).toMatch(/Go to Home|You’re ready|Set up automatic protection/i);
     expect(manifest['onboarding-driving_pattern']).toBeUndefined();
 
@@ -153,7 +153,7 @@ describe('Screen render evidence', () => {
     expect(profile.copy).toMatch(/Coverage|Manual logging|About/i);
 
     const insetWelcome = await renderOnboardingWithInsets('welcome', { top: 28, bottom: 20 });
-    expect(insetWelcome.copy).toMatch(/Keep your work miles from disappearing|MileRecover/i);
+    expect(insetWelcome.copy).toMatch(/Protect every work mile|MileRecover|Get started/i);
     const shellSource = fs.readFileSync(
       path.join(__dirname, '../src/design-system/screenShell.tsx'),
       'utf8',
