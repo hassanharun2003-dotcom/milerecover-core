@@ -2,9 +2,9 @@ import { APP_BUILD_LABEL, PREVIEW_CHANNEL_MARKER, isStandaloneBuild } from '../s
 import { updatesEnabled } from '../src/updates/appUpdates';
 
 describe('Preview update workflow constants', () => {
-  it('exposes build label and preview marker', () => {
+  it('exposes build label and optional preview marker', () => {
     expect(APP_BUILD_LABEL).toMatch(/mvp|preview/);
-    expect(PREVIEW_CHANNEL_MARKER.length).toBeGreaterThan(0);
+    expect(typeof PREVIEW_CHANNEL_MARKER).toBe('string');
   });
 
   it('treats preview and production as standalone OTA builds', () => {

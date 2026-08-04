@@ -257,9 +257,10 @@ export function HomeScreen() {
   const appVariant =
     (Constants.expoConfig?.extra?.appVariant as string | undefined) ?? 'development';
   const showOtaMarker =
-    isStandaloneBuild(appVariant) ||
-    Updates.channel === 'preview' ||
-    Updates.channel === 'production';
+    Boolean(PREVIEW_CHANNEL_MARKER) &&
+    (isStandaloneBuild(appVariant) ||
+      Updates.channel === 'preview' ||
+      Updates.channel === 'production');
 
   return (
     <TabScreen>

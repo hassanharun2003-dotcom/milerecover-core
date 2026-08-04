@@ -18,6 +18,12 @@ const APP_VARIANT = process.env.APP_VARIANT ?? 'development';
 const IS_DEV_CLIENT = APP_VARIANT === 'development';
 const DEV_CLIENT_AUTOLINKING_EXCLUDE =
   APP_VARIANT === 'development' ? [] : ['expo-dev-client'];
+/** Embedded in Profile → About. EAS Build sets EAS_BUILD_GIT_COMMIT_HASH. */
+const GIT_COMMIT_HASH =
+  process.env.EAS_BUILD_GIT_COMMIT_HASH ??
+  process.env.EXPO_PUBLIC_GIT_COMMIT_HASH ??
+  process.env.GITHUB_SHA ??
+  'unknown';
 
 const config = {
   name: 'MileRecover',
@@ -108,6 +114,7 @@ const config = {
       projectId: EAS_PROJECT_ID,
     },
     appVariant: APP_VARIANT,
+    gitCommitHash: GIT_COMMIT_HASH,
     /** Mirrored for diagnostics — applied on EAS via eas-build-pre-install. */
     devClientAutolinkingExclude: DEV_CLIENT_AUTOLINKING_EXCLUDE,
     googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
