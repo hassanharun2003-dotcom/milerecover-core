@@ -53,3 +53,20 @@ Includes: polished onboarding hero illustration, CSV single-flight sharing, shar
 - EAS build: `a88d81ce-7850-4d64-ab9e-0ab66cef0840`
 - Build URL: https://expo.dev/accounts/milerecover/projects/milerecover/builds/a88d81ce-7850-4d64-ab9e-0ab66cef0840
 - Status at submit: queued / in progress (no prerelease APK attached until finished)
+
+## MVP freeze polish (0.1.5-mvp.3)
+
+Build label: `0.1.5-mvp.3` · Preview marker: `mvp freeze polish`  
+Commit: `f2ab518790e58d69785850d7dbdcd769ded62b0c`  
+UI freeze: `docs/UI_FREEZE.md`
+
+Includes: deterministic launch state machine (no Home flash on fresh install), optional auth foundation (feature-flagged), purpose ChipRow, update prompt above tab bar, Proof PDF upsell (non-error), report title personalization, Profile stacked long values.
+
+### OTA (runtime 0.1.5 — installs on existing 0.1.5 APK)
+
+- Update group: `13c6534c-90c3-4fe0-ab46-26e10d1fdb5c`
+- Android update ID: `019fcb37-ee29-72cf-961a-4e9c3bf2db94`
+- iOS update ID: `019fcb37-ee29-7ee1-a7d6-5c7f3a847045`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/13c6534c-90c3-4fe0-ab46-26e10d1fdb5c
+
+No new native APK required for this JS/OTA pass.
