@@ -27,6 +27,9 @@ import {
   text,
 } from '../../design-system';
 import type { ActivityEventKind } from '../../fixtures/scenarios';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
+import { PREVIEW_CHANNEL_MARKER, isStandaloneBuild } from '../../constants/buildInfo';
 import { greetingForName } from '../../product/copy';
 import { selectProductExperience } from '../../product/selectors';
 import { earnedTrialMoment, isWithinFirstWeek } from '../../product/trialValue';
@@ -251,6 +254,13 @@ export function HomeScreen() {
     setupTasks.length > 0 &&
     confirmedCount === 0;
 
+  const appVariant =
+    (Constants.expoConfig?.extra?.appVariant as string | undefined) ?? 'development';
+  const showOtaMarker =
+    isStandaloneBuild(appVariant) ||
+    Updates.channel === 'preview' ||
+    Updates.channel === 'production';
+
   return (
     <TabScreen>
       <Text
@@ -259,6 +269,16 @@ export function HomeScreen() {
       >
         {greeting ?? 'Welcome back.'}
       </Text>
+
+      {showOtaMarker ? (
+        <Text
+          style={[text.caption, { marginBottom: spacing.sm, color: '#1F4D36' }]}
+          accessibilityRole="text"
+          accessibilityLabel={PREVIEW_CHANNEL_MARKER}
+        >
+          {PREVIEW_CHANNEL_MARKER}
+        </Text>
+      ) : null}
 
       {scenario.homeState === 'offline' ? (
         <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />

@@ -14,6 +14,7 @@ import { colors, radii, spacing } from '@milerecover/config';
 import { SecondaryButton, StatusCard, text as textStyles } from '../design-system';
 import { isStandaloneBuild } from '../constants/buildInfo';
 import { isShareInFlight } from '../services/fileShare';
+import * as Updates from 'expo-updates';
 import { applyPendingUpdate, checkAndDownloadUpdate, updatesEnabled } from './appUpdates';
 
 interface UpdateContextValue {
@@ -41,7 +42,11 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [lastCheckError, setLastCheckError] = useState<string | null>(null);
   const checkedOnLaunch = useRef(false);
   const variant = Constants.expoConfig?.extra?.appVariant as string | undefined;
-  const standalone = isStandaloneBuild(variant);
+  // Native channel is authoritative. A mis-published OTA can embed appVariant=development
+  // while the APK still listens on preview/production — treat those as standalone.
+  const channel = Updates.channel ?? null;
+  const standalone =
+    isStandaloneBuild(variant) || channel === 'preview' || channel === 'production';
 
   const runCheck = useCallback(async () => {
     const result = await checkAndDownloadUpdate();

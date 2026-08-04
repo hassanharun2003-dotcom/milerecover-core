@@ -56,6 +56,15 @@ describe('Production MVP build configuration', () => {
     expect(appConfigSource).toContain('enabled: !IS_DEV_CLIENT');
   });
 
+  it('forces APP_VARIANT when publishing OTA so preview updates stay standalone', () => {
+    const pkg = readJson('package.json') as {
+      scripts?: { 'update:preview'?: string; 'update:production'?: string };
+    };
+    expect(pkg.scripts?.['update:preview']).toContain('APP_VARIANT=preview');
+    expect(pkg.scripts?.['update:preview']).toContain('--channel preview');
+    expect(pkg.scripts?.['update:production']).toContain('APP_VARIANT=production');
+  });
+
   it('excludes expo-dev-client from autolinking for standalone variants', () => {
     expect(getDevClientAutolinkingExclude('preview')).toEqual(['expo-dev-client']);
     expect(getDevClientAutolinkingExclude('production')).toEqual(['expo-dev-client']);

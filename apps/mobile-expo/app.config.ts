@@ -8,6 +8,12 @@
  */
 
 const EAS_PROJECT_ID = 'c61d0a3c-ba3d-40e1-9764-5118fa2429f3';
+/**
+ * APP_VARIANT must be set for both EAS *builds* (eas.json env) and EAS *updates*
+ * (`APP_VARIANT=preview npm run update:preview`). Defaulting to `development`
+ * during `eas update` embeds updates.enabled=false and appVariant=development
+ * into the OTA, which breaks standalone UpdateProvider detection on devices.
+ */
 const APP_VARIANT = process.env.APP_VARIANT ?? 'development';
 const IS_DEV_CLIENT = APP_VARIANT === 'development';
 const DEV_CLIENT_AUTOLINKING_EXCLUDE =
@@ -88,8 +94,13 @@ const config = {
   },
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+    // Standalone preview/production binaries and their OTAs must keep updates on.
+    // Dev-client builds set APP_VARIANT=development and disable OTA intentionally.
+    // Channel headers are embedded by the EAS build profile (eas.json → expo-channel-name).
     enabled: !IS_DEV_CLIENT,
     checkAutomatically: 'ON_LOAD',
+    // 0 = paint cached JS immediately; native still downloads in background.
+    // A second cold start (or Restart now) is required to launch a newly fetched update.
     fallbackToCacheTimeout: 0,
   },
   extra: {
