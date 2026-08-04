@@ -1,8 +1,8 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.1.6-mvp.2';
+export const APP_BUILD_LABEL = '0.1.6-mvp.3';
 
 /** Shipped via OTA to prove preview channel connectivity. Cursor bumps this for test updates. */
-export const PREVIEW_CHANNEL_MARKER = 'final ship blockers';
+export const PREVIEW_CHANNEL_MARKER = 'onboarding update unblocked';
 
 /** App store / runtime version — bumped for native auth/billing modules. */
 export const APP_VERSION = '0.1.6';

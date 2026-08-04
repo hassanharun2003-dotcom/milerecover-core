@@ -11,7 +11,7 @@ import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { StartupGate } from './src/components/StartupGate';
 import { ManualTripMigration } from './src/components/ManualTripMigration';
-import { UpdateProvider } from './src/updates/UpdateProvider';
+import { UpdateProvider, useAppUpdates } from './src/updates/UpdateProvider';
 import { SafeFillScreen, text } from './src/design-system';
 import { createTrackingController } from './src/services/trackingEngine';
 import { resolveLaunchState } from './src/startup/launchState';
@@ -64,6 +64,7 @@ function TrackingBootstrap({ children }: { children: React.ReactNode }) {
 function AppRoot() {
   const { state, retryRestore, resetLocalData, finishOnboarding } = useApp();
   const { product, hydrated: productHydrated } = useProduct();
+  const { setUpdatePromptBlocked } = useAppUpdates();
 
   const appHydrated = state.startupPhase !== 'restoring';
   const launch = resolveLaunchState({
@@ -79,6 +80,11 @@ function AppRoot() {
       finishOnboarding();
     }
   }, [finishOnboarding, launch.kind, state.onboardingComplete]);
+
+  // Only allow OTA prompts once Home is unlocked — never over Welcome/onboarding.
+  useEffect(() => {
+    setUpdatePromptBlocked(!launch.allowHome);
+  }, [launch.allowHome, setUpdatePromptBlocked]);
 
   if (launch.kind === 'booting') {
     return <BootSplash label="Checking your MileRecover setup…" />;

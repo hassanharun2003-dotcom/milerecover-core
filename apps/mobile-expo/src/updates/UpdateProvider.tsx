@@ -36,7 +36,8 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   const [updateReady, setUpdateReady] = useState(false);
   const [dismissedThisSession, setDismissedThisSession] = useState(false);
-  const [blocked, setBlocked] = useState(false);
+  /** Start blocked so OTA never covers boot/onboarding before AppRoot decides. */
+  const [blocked, setBlocked] = useState(true);
   const [lastCheckError, setLastCheckError] = useState<string | null>(null);
   const checkedOnLaunch = useRef(false);
   const variant = Constants.expoConfig?.extra?.appVariant as string | undefined;
@@ -51,10 +52,11 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!standalone || !updatesEnabled() || checkedOnLaunch.current) return;
+    // Defer launch check until the prompt is unblocked (after onboarding / boot).
+    if (!standalone || !updatesEnabled() || checkedOnLaunch.current || blocked) return;
     checkedOnLaunch.current = true;
     void runCheck();
-  }, [standalone, runCheck]);
+  }, [standalone, runCheck, blocked]);
 
   const applyUpdate = useCallback(async () => {
     if (isShareInFlight() || blocked) return;
