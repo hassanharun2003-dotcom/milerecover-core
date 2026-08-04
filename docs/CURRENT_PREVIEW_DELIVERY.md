@@ -1,7 +1,7 @@
 # Current preview delivery (deferred verification)
 
 **Branch:** `cursor/physical-device-ux-fix-29cb`  
-**Latest product commit:** see `git log -1` on this branch (10× product upgrade is JS/domain; no new APK required unless native config changes).  
+**Latest product commit:** `7c8ad4d` (10× product upgrade is JS/domain; no new APK required).  
 **APK baseline commit (embedded in published APK):** `11253c6d075f81feb155ca6183551cfcfc262a3a`
 
 ## Direct APK download (phone-friendly)
