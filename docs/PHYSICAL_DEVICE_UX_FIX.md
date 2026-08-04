@@ -33,3 +33,23 @@ See PR description / final agent response.
 - GitHub release: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.1.5
 - Direct APK: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.5/MileRecover-0.1.5-mvp.apk
 - SHA-256: `2f1a3c5f574627d71f5cbb814ce79e5d465fdae6042add633856af54cbecd46a`
+
+## Final polish pass (0.1.5-mvp.2)
+
+Build label: `0.1.5-mvp.2` · Preview marker: `final polish preview`  
+Commit: `2e41dfed9cad1ae644e8fd6eeb9711a81eed45d0`
+
+Includes: polished onboarding hero illustration, CSV single-flight sharing, shared ListRow collision fix, Home milestone de-dupe, Manual drive usability, Plans billing clarity, goal-based report titles / route-not-added copy, Review empty-state polish, Profile Free coverage card.
+
+### OTA (runtime 0.1.5 — installs on existing 0.1.5 APK)
+
+- Update group: `d1a9ce1e-68ef-4e46-8577-5ba1189fcd49`
+- Android update ID: `019fcae4-b28a-7263-81e6-682f2967b4a6`
+- iOS update ID: `019fcae4-b28a-71b7-b991-dacffd5a0704`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/d1a9ce1e-68ef-4e46-8577-5ba1189fcd49
+
+### APK (queued once — do not poll)
+
+- EAS build: `a88d81ce-7850-4d64-ab9e-0ab66cef0840`
+- Build URL: https://expo.dev/accounts/milerecover/projects/milerecover/builds/a88d81ce-7850-4d64-ab9e-0ab66cef0840
+- Status at submit: queued / in progress (no prerelease APK attached until finished)
