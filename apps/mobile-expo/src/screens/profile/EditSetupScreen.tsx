@@ -2,8 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
+  formatActiveRateLabel,
   localeProfileFromCountry,
   rateForTimestamp,
+  rateNeedsReviewAfterLocaleChange,
   type CountryCode,
   type CurrencyCode,
   type DistanceUnit,
@@ -15,6 +17,7 @@ import {
   SoftPanel,
   StackScrollScreen,
   StatusCard,
+  TertiaryButton,
   text,
 } from '../../design-system';
 import { useProduct } from '../../product/ProductContext';
@@ -53,6 +56,8 @@ export function EditSetupScreen() {
     currentRate?.centsPerMile != null ? String(currentRate.centsPerMile) : '',
   );
   const [savedLocale, setSavedLocale] = useState(false);
+  const activeRateLabel = formatActiveRateLabel(product.localeProfile);
+  const needsRateReview = product.localeProfile.activeRateNeedsReview === true;
 
   const togglePain = (pain: PainPoint) => {
     const next = product.selectedPainPoints.includes(pain)
@@ -61,23 +66,17 @@ export function EditSetupScreen() {
     setSelectedPainPoints(next);
   };
 
-  const saveLocale = () => {
-    const cents = Number.parseFloat(rateDraft);
+  const applyLocaleProfile = (
+    base: ReturnType<typeof localeProfileFromCountry>,
+    options: { centsPerMile?: number; activeRateNeedsReview?: boolean },
+  ) => {
     const now = Date.now();
-    const base = localeProfileFromCountry(country, {
-      distanceUnit: country === 'OTHER' ? unit : undefined,
-      currencyCode: country === 'OTHER' ? currency : undefined,
-      centsPerMile: Number.isFinite(cents) && cents > 0 ? cents : undefined,
-      now,
-    });
-    // Close previous open-ended rates so historical estimates stay stable.
     const priorRates = product.localeProfile.rates.map((rate) =>
-      rate.effectiveTo == null && rate.effectiveFrom < now
-        ? { ...rate, effectiveTo: now }
-        : rate,
+      rate.effectiveTo == null && rate.effectiveFrom < now ? { ...rate, effectiveTo: now } : rate,
     );
+    const cents = options.centsPerMile;
     const nextRates =
-      Number.isFinite(cents) && cents > 0
+      cents != null && Number.isFinite(cents) && cents > 0
         ? [
             ...priorRates.filter((rate) => rate.id !== base.rates[0]?.id),
             ...(base.rates[0]
@@ -94,12 +93,78 @@ export function EditSetupScreen() {
         : priorRates.length
           ? priorRates
           : base.rates;
+
     setLocaleProfile({
       ...base,
       distanceUnit: country === 'OTHER' ? unit : base.distanceUnit,
       currencyCode: country === 'OTHER' ? currency : base.currencyCode,
       rates: nextRates,
+      activeRateNeedsReview: options.activeRateNeedsReview ?? false,
     });
+    setSavedLocale(true);
+  };
+
+  const saveLocale = () => {
+    const cents = Number.parseFloat(rateDraft);
+    const now = Date.now();
+    const base = localeProfileFromCountry(country, {
+      distanceUnit: country === 'OTHER' ? unit : undefined,
+      currencyCode: country === 'OTHER' ? currency : undefined,
+      centsPerMile: Number.isFinite(cents) && cents > 0 ? cents : undefined,
+      now,
+    });
+    const localeChanged = rateNeedsReviewAfterLocaleChange(product.localeProfile, {
+      countryCode: base.countryCode,
+      distanceUnit: country === 'OTHER' ? unit : base.distanceUnit,
+      currencyCode: country === 'OTHER' ? currency : base.currencyCode,
+    });
+    applyLocaleProfile(base, {
+      centsPerMile: Number.isFinite(cents) && cents > 0 ? cents : undefined,
+      activeRateNeedsReview: localeChanged ? true : false,
+    });
+  };
+
+  const useRecommendedRate = () => {
+    const recommended = localeProfileFromCountry(country, {
+      distanceUnit: country === 'OTHER' ? unit : undefined,
+      currencyCode: country === 'OTHER' ? currency : undefined,
+    });
+    const cents = recommended.rates[0]?.centsPerMile;
+    if (cents != null) setRateDraft(String(cents));
+    applyLocaleProfile(recommended, {
+      centsPerMile: cents,
+      activeRateNeedsReview: false,
+    });
+  };
+
+  const saveCustomRate = () => {
+    const cents = Number.parseFloat(rateDraft);
+    if (!Number.isFinite(cents) || cents <= 0) return;
+    const base = localeProfileFromCountry(country, {
+      distanceUnit: country === 'OTHER' ? unit : undefined,
+      currencyCode: country === 'OTHER' ? currency : undefined,
+    });
+    applyLocaleProfile(base, { centsPerMile: cents, activeRateNeedsReview: false });
+  };
+
+  const clearValueEstimate = () => {
+    const now = Date.now();
+    const base = localeProfileFromCountry(country, {
+      distanceUnit: country === 'OTHER' ? unit : undefined,
+      currencyCode: country === 'OTHER' ? currency : undefined,
+      now,
+    });
+    const closedRates = product.localeProfile.rates.map((rate) =>
+      rate.effectiveTo == null && rate.effectiveFrom < now ? { ...rate, effectiveTo: now } : rate,
+    );
+    setLocaleProfile({
+      ...base,
+      distanceUnit: country === 'OTHER' ? unit : base.distanceUnit,
+      currencyCode: country === 'OTHER' ? currency : base.currencyCode,
+      rates: closedRates,
+      activeRateNeedsReview: false,
+    });
+    setRateDraft('');
     setSavedLocale(true);
   };
 
@@ -108,7 +173,7 @@ export function EditSetupScreen() {
       <StatusCard
         variant="info"
         title="Update your answers"
-        body="This only changes how MileRecover talks to you — your drives stay. Changing today’s rate does not rewrite older accepted values."
+        body="This only changes how MileRecover talks to you — your drives stay. Changing today's rate does not rewrite older accepted values."
         emphasis="subtle"
       />
 
@@ -125,10 +190,25 @@ export function EditSetupScreen() {
       <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>
         Country and units
       </Text>
-      <Text style={[text.body, { marginBottom: spacing.sm }]}>
-        Recommended launch countries first. Other country uses your custom units and rate — no country-specific
-        compliance claims.
-      </Text>
+      <SoftPanel>
+        <Text style={text.caption}>Active mileage rate</Text>
+        <Text style={[text.subtitle, { marginTop: spacing.xs }]}>{activeRateLabel}</Text>
+      </SoftPanel>
+      {needsRateReview ? (
+        <StatusCard
+          variant="warning"
+          title="Review mileage rate"
+          body="Your country or units changed. Choose how to handle value estimates going forward."
+          emphasis="subtle"
+        />
+      ) : null}
+      {needsRateReview ? (
+        <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+          <PrimaryButton label="Use recommended rate" onPress={useRecommendedRate} />
+          <PrimaryButton label="Save custom rate below" onPress={saveCustomRate} />
+          <TertiaryButton label="Clear value estimate" onPress={clearValueEstimate} />
+        </View>
+      ) : null}
       <SoftPanel>
         <Text style={text.caption}>Current selection</Text>
         <Text style={[text.subtitle, { marginTop: spacing.xs }]}>{currentCountryLabel}</Text>
@@ -153,6 +233,9 @@ export function EditSetupScreen() {
               const preset = localeProfileFromCountry(option.id);
               setUnit(preset.distanceUnit);
               setCurrency(preset.currencyCode);
+              if (preset.rates[0]?.centsPerMile != null) {
+                setRateDraft(String(preset.rates[0].centsPerMile));
+              }
             }
           }}
         />
@@ -179,7 +262,7 @@ export function EditSetupScreen() {
       <FormField
         label={
           unit === 'km'
-            ? 'Reimbursement rate (cents per mile stored)'
+            ? 'Custom rate (stored as cents per mile internally)'
             : 'Reimbursement rate (cents per mile)'
         }
         value={rateDraft}

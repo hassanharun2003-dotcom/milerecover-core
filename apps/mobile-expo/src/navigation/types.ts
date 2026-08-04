@@ -18,6 +18,8 @@ export const SUPPORTING_STACK_ROUTES = [
   'Privacy',
   'HelpSupport',
   'About',
+  'Diagnostics',
+  'RescueProducts',
 ] as const;
 
 export type SupportingStackRoute = (typeof SUPPORTING_STACK_ROUTES)[number];
@@ -60,4 +62,6 @@ export type RootStackParamList = {
   Privacy: undefined;
   HelpSupport: undefined;
   About: undefined;
+  Diagnostics: undefined;
+  RescueProducts: undefined;
 };

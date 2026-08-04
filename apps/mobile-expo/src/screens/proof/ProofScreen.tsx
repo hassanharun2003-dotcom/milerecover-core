@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -12,28 +12,28 @@ import {
   csvFilename,
   formatCurrencyCents,
   formatDistance,
-  proofPeriodReadinessLabel,
   proofReadinessForTrip,
-  proofReadinessLabel,
-  resolveProofPeriodReadiness,
+  rateForTimestamp,
+  reportTitleForGoal,
   resolveReportPeriod,
   type ReportPeriod,
   type ReportPeriodKind,
+  type TripRecord,
 } from '@milerecover/domain';
 import {
   EmptyState,
   FormError,
   ListRow,
   ListSection,
-  ProofHeroCard,
+  PrimaryButton,
   SecondaryButton,
   SegmentedControl,
-  StatusCard,
+  SoftPanel,
   TabScreen,
+  text,
 } from '../../design-system';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
-import { voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
 import {
   isShareInFlight,
@@ -42,6 +42,7 @@ import {
   writeAndShareTextFile,
 } from '../../services/fileShare';
 import { generateAndSharePdf } from '../../services/pdfReport';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import { useApp } from '../../store/AppContext';
 
 type Nav = CompositeNavigationProp<
@@ -70,6 +71,81 @@ function vehicleLookup(vehicles: { id: string; nickname: string; make: string; m
   }, {});
 }
 
+type ProofCheckId = 'purpose' | 'route' | 'vehicle' | 'rate' | 'unresolved';
+
+interface ProofCheck {
+  id: ProofCheckId;
+  label: string;
+  pass: boolean;
+  detail: string;
+}
+
+function buildProofChecks(input: {
+  confirmedWorkTrips: TripRecord[];
+  vehiclesExist: boolean;
+  valueRequested: boolean;
+  rateOk: boolean;
+  unresolvedCount: number;
+}): ProofCheck[] {
+  const missingPurpose = input.confirmedWorkTrips.filter((trip) => !trip.purpose?.trim());
+  const missingRoute = input.confirmedWorkTrips.filter(
+    (trip) => !trip.startLabel?.trim() && !trip.endLabel?.trim(),
+  );
+  const missingVehicle = input.vehiclesExist
+    ? input.confirmedWorkTrips.filter((trip) => !trip.vehicleId)
+    : [];
+
+  return [
+    {
+      id: 'purpose',
+      label: 'Purpose on every drive',
+      pass: missingPurpose.length === 0,
+      detail:
+        missingPurpose.length === 0
+          ? 'Each work drive has a purpose.'
+          : `${missingPurpose.length} drive${missingPurpose.length === 1 ? '' : 's'} need a purpose.`,
+    },
+    {
+      id: 'route',
+      label: 'Route or place labels',
+      pass: missingRoute.length === 0,
+      detail:
+        missingRoute.length === 0
+          ? 'Start or end labels are recorded.'
+          : `${missingRoute.length} drive${missingRoute.length === 1 ? '' : 's'} need route labels.`,
+    },
+    {
+      id: 'vehicle',
+      label: 'Vehicle assigned',
+      pass: !input.vehiclesExist || missingVehicle.length === 0,
+      detail: !input.vehiclesExist
+        ? 'No vehicles saved — optional.'
+        : missingVehicle.length === 0
+          ? 'Each drive is linked to a vehicle.'
+          : `${missingVehicle.length} drive${missingVehicle.length === 1 ? '' : 's'} need a vehicle.`,
+    },
+    {
+      id: 'rate',
+      label: 'Mileage rate',
+      pass: !input.valueRequested || input.rateOk,
+      detail: !input.valueRequested
+        ? 'Value estimate not required for your goal.'
+        : input.rateOk
+          ? 'Rate is set for this period.'
+          : 'Review or set your mileage rate.',
+    },
+    {
+      id: 'unresolved',
+      label: 'Uncertain drives resolved',
+      pass: input.unresolvedCount === 0,
+      detail:
+        input.unresolvedCount === 0
+          ? 'Nothing waiting in Review.'
+          : `${input.unresolvedCount} uncertain drive${input.unresolvedCount === 1 ? '' : 's'} still in Review.`,
+    },
+  ];
+}
+
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
   const { state, setReportingPeriod } = useApp();
@@ -79,9 +155,9 @@ export function ProofScreen() {
       ? (state.reportingPeriod.id as ReportPeriodKind)
       : 'ytd',
   );
+  const [showReadiness, setShowReadiness] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [upsell, setUpsell] = useState<string | null>(null);
   const [csvBusy, setCsvBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
@@ -100,69 +176,108 @@ export function ProofScreen() {
         trips: tripsForProof,
         period,
         userName: product.preferredName,
-        mileageUseType: voiceForDrivingType(product.drivingType).reportNoun,
+        mileageUseType: null,
         primaryGoal: product.primaryGoal,
         localeProfile: locale,
       }),
-    [locale, period, product.drivingType, product.preferredName, product.primaryGoal, tripsForProof],
+    [locale, period, product.preferredName, product.primaryGoal, tripsForProof],
   );
-  const readinessCounts = useMemo(() => {
-    const confirmed = tripsForProof.filter(
-      (trip) => trip.status === 'confirmed' && trip.classification === 'business',
-    );
-    let ready = 0;
-    let needsAttention = 0;
-    for (const trip of confirmed) {
+
+  const confirmedWorkTrips = useMemo(
+    () => tripsForProof.filter((trip) => trip.status === 'confirmed' && trip.classification === 'business'),
+    [tripsForProof],
+  );
+
+  const needsAttention = useMemo(() => {
+    let count = 0;
+    for (const trip of confirmedWorkTrips) {
       const status = proofReadinessForTrip(trip);
-      if (status === 'ready' || status === 'recovered' || status === 'imported' || status === 'user_corrected') {
-        ready += 1;
-      } else {
-        needsAttention += 1;
+      if (status !== 'ready' && status !== 'recovered' && status !== 'imported' && status !== 'user_corrected') {
+        count += 1;
       }
     }
-    return { ready, needsAttention, total: confirmed.length };
-  }, [tripsForProof]);
-  const periodReadiness = resolveProofPeriodReadiness({
-    confirmedWorkTripCount: readinessCounts.total,
-    unresolvedReviewCount: report.unresolvedCount,
-    missingDetailsCount: readinessCounts.needsAttention,
-  });
-  const periodReadinessVariant =
-    periodReadiness === 'ready_to_submit'
-      ? ('success' as const)
-      : periodReadiness === 'no_trips_yet'
-        ? ('neutral' as const)
-        : ('warning' as const);
-  const disclaimer =
-    product.primaryGoal === 'self_employed_business'
-      ? 'Tax-ready records for your books — MileRecover does not file taxes or guarantee eligibility.'
-      : product.primaryGoal === 'employee_reimbursement'
-        ? 'Reimbursement-ready report for work. Your employer sets the final rules.'
-        : locale.countryCode === 'OTHER'
-          ? 'Rates and rules vary by country. Confirm local requirements before submitting.'
-          : 'Use this as a clear mileage record. Confirm local rules before submitting.';
-  const primaryVehicle =
-    product.vehicles.find((vehicle) => vehicle.isPrimary) ?? product.vehicles[0] ?? null;
-  const vehicleLabel = primaryVehicle
-    ? primaryVehicle.nickname || [primaryVehicle.make, primaryVehicle.model].filter(Boolean).join(' ')
-    : 'Not set';
-  const evidenceSources = useMemo(() => {
-    const sources = new Set<string>();
-    for (const trip of tripsForProof) {
-      if (trip.status !== 'confirmed' || trip.classification !== 'business') continue;
-      if (trip.source === 'auto_detected') sources.add('Automatic protection');
-      if (trip.source === 'manual') sources.add('Manual entry');
-      if (trip.source === 'recovered') sources.add('Recovered');
-      if (trip.source === 'imported') sources.add('Imported');
+    return count;
+  }, [confirmedWorkTrips]);
+
+  const currentRate = rateForTimestamp(locale.rates, Date.now());
+  const valueRequested = product.primaryGoal != null;
+  const rateOk = Boolean(currentRate?.centsPerMile && currentRate.centsPerMile > 0 && !locale.activeRateNeedsReview);
+
+  const checks = useMemo(
+    () =>
+      buildProofChecks({
+        confirmedWorkTrips,
+        vehiclesExist: product.vehicles.length > 0,
+        valueRequested,
+        rateOk,
+        unresolvedCount: report.unresolvedCount,
+      }),
+    [confirmedWorkTrips, product.vehicles.length, rateOk, report.unresolvedCount, valueRequested],
+  );
+
+  const checksComplete = checks.filter((check) => check.pass).length;
+  const exportReady = checksComplete >= 4 && report.tripCount > 0;
+
+  const fixTarget = useMemo(() => {
+    const failing = checks.find((check) => !check.pass);
+    if (!failing) return null;
+
+    switch (failing.id) {
+      case 'purpose': {
+        const trip = confirmedWorkTrips.find((item) => !item.purpose?.trim());
+        if (!trip) return null;
+        return {
+          label: 'Fix 1 issue',
+          detail: 'Add purpose to a work drive',
+          onPress: () => navigation.navigate('TripDetails', { tripId: trip.id }),
+        };
+      }
+      case 'route': {
+        const trip = confirmedWorkTrips.find((item) => !item.startLabel?.trim() && !item.endLabel?.trim());
+        if (!trip) return null;
+        return {
+          label: 'Fix 1 issue',
+          detail: 'Add route labels to a work drive',
+          onPress: () => navigation.navigate('TripDetails', { tripId: trip.id }),
+        };
+      }
+      case 'vehicle': {
+        const trip = confirmedWorkTrips.find((item) => !item.vehicleId);
+        if (trip) {
+          return {
+            label: 'Fix 1 issue',
+            detail: 'Assign a vehicle to a work drive',
+            onPress: () => navigation.navigate('TripDetails', { tripId: trip.id }),
+          };
+        }
+        return {
+          label: 'Fix 1 issue',
+          detail: 'Set up a vehicle',
+          onPress: () => navigation.navigate('VehicleSetup'),
+        };
+      }
+      case 'rate':
+        return {
+          label: 'Fix 1 issue',
+          detail: 'Review your mileage rate',
+          onPress: () => navigation.navigate('EditSetup'),
+        };
+      case 'unresolved':
+        return {
+          label: 'Fix 1 issue',
+          detail: 'Resolve uncertain drives in Review',
+          onPress: () => navigation.navigate('Review'),
+        };
+      default:
+        return null;
     }
-    return Array.from(sources);
-  }, [tripsForProof]);
+  }, [checks, confirmedWorkTrips, navigation]);
 
   const choosePeriod = (kind: ReportPeriodKind) => {
     setPeriodKind(kind);
     setMessage(null);
     setError(null);
-    setUpsell(null);
+    setShowReadiness(false);
     const next = resolveReportPeriod(kind);
     setReportingPeriod({
       id: kind,
@@ -172,10 +287,15 @@ export function ProofScreen() {
     });
   };
 
+  const openPreview = () => {
+    logEvent(ANALYTICS_EVENTS.reportPreviewed, { format: 'pdf' });
+    markFirstReportPreview();
+    navigation.navigate('ReportPreview', { format: 'pdf' });
+  };
+
   const shareCsv = async () => {
     setMessage(null);
     setError(null);
-    setUpsell(null);
     if (isShareInFlight() || csvBusy) {
       setMessage(SHARE_COPY.busy);
       return;
@@ -200,6 +320,7 @@ export function ProofScreen() {
       if (result.ok) {
         markFirstExport();
         markFirstReportPreview();
+        logEvent(ANALYTICS_EVENTS.reportExportedCsv, {});
         setMessage(SHARE_COPY.csvReady);
       } else if (result.reason === 'cancelled') {
         setMessage(null);
@@ -218,13 +339,11 @@ export function ProofScreen() {
   const sharePdf = async () => {
     setMessage(null);
     setError(null);
-    setUpsell(null);
     if (isShareInFlight() || pdfBusy) {
       setMessage(SHARE_COPY.busy);
       return;
     }
     if (!capabilities.canUseStandardPdf) {
-      setUpsell('PDF reports come with Plus. CSV and preview stay free on your plan.');
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
@@ -234,6 +353,7 @@ export function ProofScreen() {
       if (result.ok) {
         markFirstExport();
         markFirstReportPreview();
+        logEvent(ANALYTICS_EVENTS.reportExportedPdf, {});
         setMessage(SHARE_COPY.pdfReady);
       } else if (result.reason === 'cancelled') {
         setMessage(null);
@@ -248,50 +368,27 @@ export function ProofScreen() {
   };
 
   const exportBusy = csvBusy || shareBusy;
+  const adaptiveTitle = reportTitleForGoal(product.primaryGoal);
 
   return (
     <TabScreen>
+      <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+        {adaptiveTitle}
+      </Text>
+
       <SegmentedControl options={PERIOD_OPTIONS} value={periodKind} onChange={choosePeriod} />
 
-      <StatusCard
-        variant={periodReadinessVariant}
-        title={proofPeriodReadinessLabel(periodReadiness)}
-        body={disclaimer}
-        emphasis="hero"
-      />
-
       {report.tripCount === 0 ? (
-        <>
-          <EmptyState
-            title="No trips yet"
-            body="Only drives you confirm as work appear in reports."
-            actionLabel="Add a drive"
-            onAction={() => navigation.navigate('ManualTrip')}
-          />
-          <StatusCard
-            variant="neutral"
-            title="This period"
-            body={`${period.label}. Pending and personal drives stay out until you decide.`}
-            emphasis="subtle"
-          />
-        </>
+        <EmptyState
+          title="No trips yet"
+          body="Only drives you confirm as work appear in reports."
+          actionLabel="Add a drive"
+          onAction={() => navigation.navigate('ManualTrip')}
+        />
       ) : (
         <>
-          <ProofHeroCard
-            periodLabel={period.label}
-            tripCount={report.tripCount}
-            totalMiles={formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag).replace(
-              ` ${locale.distanceUnit}`,
-              '',
-            )}
-            unresolved={String(report.unresolvedCount)}
-            title={report.title}
-            onPreview={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
-          />
-          {message ? <StatusCard variant="success" title="Export" body={message} emphasis="subtle" /> : null}
-          {upsell ? <StatusCard variant="info" title="Plus feature" body={upsell} emphasis="subtle" /> : null}
-          {error ? <FormError message={error} /> : null}
-          <ListSection title="Proof summary">
+          <SoftPanel>
+            <Text style={text.subtitle}>{period.label}</Text>
             <ListRow
               label="Work distance"
               value={formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag)}
@@ -306,82 +403,65 @@ export function ProofScreen() {
               }
               showChevron={false}
             />
+            <ListRow label="Work drives" value={String(report.tripCount)} showChevron={false} />
             <ListRow
-              label="Reviewed vs unresolved"
-              value={`${readinessCounts.ready} ready · ${report.unresolvedCount} unresolved`}
+              label="Needs attention"
+              value={needsAttention > 0 ? String(needsAttention) : 'None'}
               showChevron={false}
             />
-            <ListRow label="Date range" value={period.label} showChevron={false} />
-            <ListRow label="Vehicle" value={vehicleLabel} showChevron={false} />
-            <ListRow
-              label="Rate and currency"
-              value={`${locale.currencyCode}${
-                report.estimatedValueCents != null ? '' : ' · set rate in Profile'
-              }`}
-              showChevron={false}
+            <PrimaryButton
+              label={showReadiness ? 'Hide readiness' : 'Create report'}
+              onPress={() => setShowReadiness((open) => !open)}
+              accessibilityLabel={showReadiness ? 'Hide readiness checklist' : 'Create report and show readiness'}
             />
-            <ListRow
-              label="Evidence sources"
-              value={evidenceSources.length > 0 ? evidenceSources.join(' · ') : 'None yet'}
-              showChevron={false}
-            />
-            <ListRow
-              label="Recovered"
-              value={formatDistance(report.recoveredMiles, locale.distanceUnit, locale.localeTag)}
-              showChevron={false}
-            />
-            <ListRow
-              label="Imported"
-              value={formatDistance(report.importedMiles, locale.distanceUnit, locale.localeTag)}
-              showChevron={false}
-            />
-          </ListSection>
-          <ListSection title="Trip readiness">
-            {tripsForProof
-              .filter((trip) => trip.status === 'confirmed' && trip.classification === 'business')
-              .slice(0, 8)
-              .map((trip) => (
+          </SoftPanel>
+
+          {showReadiness ? (
+            <ListSection title="Readiness">
+              <Text style={[text.body, { marginBottom: spacing.sm }]}>
+                {checksComplete} of 5 checks complete
+              </Text>
+              {checks.map((check) => (
                 <ListRow
-                  key={trip.id}
-                  label={trip.purpose?.trim() || 'Work drive'}
-                  value={proofReadinessLabel(proofReadinessForTrip(trip))}
-                  onPress={() => navigation.navigate('TripDetails', { tripId: trip.id })}
+                  key={check.id}
+                  label={check.label}
+                  value={check.pass ? 'Complete' : 'Needs fix'}
+                  showChevron={false}
                 />
               ))}
-          </ListSection>
-          <ListSection title="Export and share">
-            <StatusCard
-              variant="neutral"
-              title="What’s free"
-              body="Preview report and CSV are free. PDF reports are available with Plus."
-              emphasis="subtle"
-            />
-            <ListRow
-              label="Prepare report · Preview"
-              onPress={() => navigation.navigate('ReportPreview', { format: 'pdf' })}
-            />
-            <ListRow
-              label={
-                periodReadiness === 'needs_review' || periodReadiness === 'missing_details'
-                  ? 'Fix before submit'
-                  : 'Review trips'
-              }
-              onPress={() => navigation.navigate('Review')}
-            />
-            <ListRow
-              label={capabilities.canUseStandardPdf ? 'Share PDF' : 'Create PDF report · Plus'}
-              onPress={() => void sharePdf()}
-              busy={pdfBusy || (shareBusy && !csvBusy)}
-              disabled={exportBusy && !pdfBusy}
-            />
-            <ListRow
-              label="Share records · CSV"
-              value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
-              onPress={() => void shareCsv()}
-              busy={csvBusy || (shareBusy && !pdfBusy)}
-              disabled={pdfBusy}
-            />
-          </ListSection>
+              {fixTarget ? (
+                <View style={{ marginTop: spacing.sm }}>
+                  <Text style={[text.caption, { marginBottom: spacing.xs }]}>{fixTarget.detail}</Text>
+                  <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
+                </View>
+              ) : (
+                <Text style={[text.body, { marginTop: spacing.sm }]}>Ready to preview and export.</Text>
+              )}
+            </ListSection>
+          ) : null}
+
+          {exportReady || (showReadiness && checksComplete === 5) ? (
+            <ListSection title="Export">
+              {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
+              {error ? <FormError message={error} /> : null}
+              <ListRow label="Preview report" onPress={openPreview} />
+              <ListRow
+                label={capabilities.canUseStandardPdf ? 'Share PDF' : 'Share PDF · Plus'}
+                onPress={() => void sharePdf()}
+                busy={pdfBusy || (shareBusy && !csvBusy)}
+                disabled={exportBusy && !pdfBusy}
+              />
+              <ListRow
+                label="Share CSV"
+                value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
+                onPress={() => void shareCsv()}
+                busy={csvBusy || (shareBusy && !pdfBusy)}
+                disabled={pdfBusy}
+              />
+              <ListRow label="Share" onPress={() => navigation.navigate('ExportReport')} />
+            </ListSection>
+          ) : null}
+
           <View style={{ marginTop: spacing.md }}>
             <SecondaryButton label="Add another drive" onPress={() => navigation.navigate('ManualTrip')} />
           </View>

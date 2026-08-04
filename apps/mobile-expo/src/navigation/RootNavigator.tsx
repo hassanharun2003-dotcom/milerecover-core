@@ -5,6 +5,7 @@ import { RootTabs } from './RootTabs';
 import { BringExistingMileageScreen } from '../screens/import/BringExistingMileageScreen';
 import { ImportExceptionReviewScreen, ImportPreviewScreen } from '../screens/import/ImportPreviewScreen';
 import { AboutScreen } from '../screens/about/AboutScreen';
+import { DiagnosticsScreen } from '../screens/about/DiagnosticsScreen';
 import {
   ComingLaterScreen,
   ExportReportScreen,
@@ -15,6 +16,7 @@ import {
   PrivacyScreen,
   ProtectionAlertScreen,
   ReportPreviewScreen,
+  RescueProductsScreen,
   TrackingActiveScreen,
   TripDetailsScreen,
   VehicleSetupScreen,
@@ -57,6 +59,8 @@ export function RootNavigator() {
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
       <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: 'Help' }} />
       <Stack.Screen name="About" component={AboutScreen} options={{ title: 'About' }} />
+      <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: 'Diagnostics' }} />
+      <Stack.Screen name="RescueProducts" component={RescueProductsScreen} options={{ title: 'Rescue' }} />
     </Stack.Navigator>
   );
 }

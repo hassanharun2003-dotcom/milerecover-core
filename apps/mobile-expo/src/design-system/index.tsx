@@ -661,6 +661,7 @@ export function PlanCard({
   savingsLabel,
   purchaseDisabled,
   priceNote,
+  selectLabel,
 }: {
   name: string;
   price: string;
@@ -673,6 +674,7 @@ export function PlanCard({
   savingsLabel?: string;
   purchaseDisabled?: boolean;
   priceNote?: string;
+  selectLabel?: string;
 }) {
   return (
     <View style={[cardBase, styles.planCard, highlighted && styles.planHighlighted]}>
@@ -697,7 +699,13 @@ export function PlanCard({
       ))}
       <View style={{ marginTop: spacing.md }}>
         <PrimaryButton
-          label={current ? 'Current plan' : purchaseDisabled ? 'Purchases unavailable' : `Choose ${name}`}
+          label={
+            current
+              ? 'Current plan'
+              : purchaseDisabled
+                ? 'Purchases unavailable'
+                : selectLabel ?? `Choose ${name}`
+          }
           onPress={onSelect}
           disabled={current || purchaseDisabled}
         />

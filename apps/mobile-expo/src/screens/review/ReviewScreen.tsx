@@ -18,6 +18,7 @@ import {
   PrimaryButton,
   ReviewCard,
   ReviewedItemCard,
+  SecondaryButton,
   SegmentedControl,
   SoftPanel,
   TabScreen,
@@ -26,11 +27,11 @@ import {
   UndoSnackbar,
 } from '../../design-system';
 import { Alert, Text } from 'react-native';
-import { CarRouteHero } from '../../components/CarRouteHero';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { selectProductExperience } from '../../product/selectors';
 import { useProduct } from '../../product/ProductContext';
 import type { ReviewDecision, ReviewHistoryEntry } from '../../product/types';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import { useApp } from '../../store/AppContext';
 
 type ReviewNav = CompositeNavigationProp<
@@ -56,7 +57,7 @@ function decisionLabel(decision: string | null | undefined): string {
 function provenanceForItem(kind: string): string {
   if (kind === 'possible_missing_trip') return 'Possible missing drive';
   if (kind === 'low_confidence_trip') return 'Not sure about this one';
-  if (kind === 'conflicted_trip') return 'Details don’t match';
+  if (kind === 'conflicted_trip') return "Details don't match";
   return 'Needs a quick decision';
 }
 
@@ -93,6 +94,7 @@ export function ReviewScreen() {
     rejectRecovery,
     restoreTrip,
     upsertRecovery,
+    refreshRecoverySuggestions,
   } = useApp();
   const { product, pushReviewHistory, markReviewHistoryUndone, markFirstMissingTripSeen } = useProduct();
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
@@ -102,12 +104,6 @@ export function ReviewScreen() {
   const pending = experience.activeReviewItems;
   const reviewed = product.reviewHistoryEntries.filter((entry) => !entry.undoneAt);
   const locale = product.localeProfile;
-
-  const workMilesReady = useMemo(() => {
-    return experience.confirmedTrips
-      .filter((trip) => trip.classification === 'business' && trip.status === 'confirmed')
-      .reduce((sum, trip) => sum + trip.distanceMiles, 0);
-  }, [experience.confirmedTrips]);
 
   useEffect(() => {
     if (pending.some((item) => item.kind === 'possible_missing_trip') && product.firstMissingTripSeenAt == null) {
@@ -147,12 +143,22 @@ export function ReviewScreen() {
     showUndo(entry);
   };
 
+  const openRecovery = (reviewId: string) => {
+    logEvent(ANALYTICS_EVENTS.recoveryStarted, { source: 'review' });
+    navigation.navigate('MissingTripRecovery', { reviewId });
+  };
+
   const decide = (item: ReviewItem, decision: Exclude<ReviewDecision, null>) => {
+    logEvent(ANALYTICS_EVENTS.uncertainDriveReviewed, {
+      decision,
+      kind: item.kind,
+    });
+
     if (item.kind === 'possible_missing_trip') {
       const candidate = state.recoveryCandidates.find((recovery) => recovery.id === item.recoveryCandidateId);
       if (!candidate) return;
       if (decision === 'work') {
-        navigation.navigate('MissingTripRecovery', { reviewId: item.id });
+        openRecovery(item.id);
         return;
       }
       if (decision === 'not_sure') {
@@ -191,10 +197,9 @@ export function ReviewScreen() {
     return `Estimated value ${formatCurrencyCents(cents, locale.currencyCode, locale.localeTag)}`;
   };
 
-  const caughtUpBody =
-    workMilesReady > 0
-      ? `${formatDistance(workMilesReady, locale.distanceUnit, locale.localeTag)} of work travel are ready for Proof.`
-      : 'We’ll let you know when something needs a quick look. Nothing uncertain enters Proof until you decide.';
+  const checkMissedDrives = () => {
+    refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
+  };
 
   const safeBulkWorkItems = pending.filter((item) => {
     if (item.kind === 'possible_missing_trip') return false;
@@ -239,13 +244,15 @@ export function ReviewScreen() {
       {segment === 'needs' ? (
         pending.length === 0 ? (
           <>
-            <EmptyState title="All caught up" body={caughtUpBody} />
-            <CarRouteHero />
-            <SoftPanel>
-              <Text style={text.body}>
-                Review is for uncertain drives only. Add known work drives from Home anytime. No swipe-only actions.
-              </Text>
-            </SoftPanel>
+            <EmptyState
+              title="You're caught up"
+              body="All confirmed work drives are ready for Proof."
+            />
+            <SecondaryButton
+              label="Add a known work drive"
+              onPress={() => navigation.navigate('ManualTrip')}
+            />
+            <TertiaryButton label="Check for missed drives" onPress={checkMissedDrives} />
           </>
         ) : (
           <>
@@ -305,7 +312,7 @@ export function ReviewScreen() {
                 vehicle={vehicleLabel}
                 onPress={() => {
                   if (item.kind === 'possible_missing_trip') {
-                    navigation.navigate('MissingTripRecovery', { reviewId: item.id });
+                    openRecovery(item.id);
                   } else {
                     navigation.navigate('TripDetails', { tripId: item.tripId });
                   }
@@ -314,7 +321,7 @@ export function ReviewScreen() {
                 onPersonal={() => decide(item, 'personal')}
                 onEdit={() => {
                   if (item.kind === 'possible_missing_trip') {
-                    navigation.navigate('MissingTripRecovery', { reviewId: item.id });
+                    openRecovery(item.id);
                   } else {
                     navigation.navigate('TripDetails', { tripId: item.tripId });
                   }

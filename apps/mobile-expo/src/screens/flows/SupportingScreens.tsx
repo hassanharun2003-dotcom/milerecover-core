@@ -11,6 +11,7 @@ import {
   buildMileageReportData,
   capabilitiesForEntitlement,
   createManualTripRecord,
+  createTripRateSnapshot,
   csvFilename,
   displayToMiles,
   estimatedValueCents,
@@ -19,6 +20,7 @@ import {
   formatDistance,
   formatReportRouteSummary,
   formatTimeLocal,
+  isConfirmedWorkTrip,
   MAX_TRIP_DISTANCE_MILES,
   milesToDisplay,
   rateForTimestamp,
@@ -75,7 +77,6 @@ import {
   getPurchasePort,
   PREVIEW_BILLING_NOTICE,
   STORE_UNAVAILABLE_MESSAGE,
-  trialRenewalCopy,
   type PurchasePeriod,
 } from '../../services/purchases';
 import { isPreviewBillingBuild } from '../../services/revenueCatPurchases';
@@ -442,6 +443,7 @@ export function ManualTripScreen() {
     upsertTrip({
       ...trip,
       source: existing?.source ?? trip.source,
+      rateSnapshot: createTripRateSnapshot(product.localeProfile, startAt),
       parkingCents,
       tollsCents,
       receiptUri: existing?.receiptUri ?? null,
@@ -1508,20 +1510,62 @@ export function VehicleSetupScreen() {
   );
 }
 
+const PLACE_RULE_PREFIX = '[rule:';
+type PlaceRule = 'usually_personal' | 'usually_work' | 'always_ask';
+
+function encodePlaceNotes(rule: PlaceRule, details: string): string {
+  const trimmed = details.trim();
+  return trimmed ? `${PLACE_RULE_PREFIX}${rule}] ${trimmed}` : `${PLACE_RULE_PREFIX}${rule}]`;
+}
+
+function decodePlaceNotes(notes: string): { rule: PlaceRule; details: string } {
+  const match = notes.match(/^\[rule:(usually_personal|usually_work|always_ask)\]\s?(.*)$/s);
+  if (!match) return { rule: 'always_ask', details: notes };
+  return { rule: match[1] as PlaceRule, details: match[2] ?? '' };
+}
+
+function placeRuleLabel(rule: PlaceRule): string {
+  switch (rule) {
+    case 'usually_personal':
+      return 'Usually personal';
+    case 'usually_work':
+      return 'Usually work';
+    default:
+      return 'Always ask';
+  }
+}
+
 export function WorkLocationSetupScreen() {
   const navigation = useNavigation<Nav>();
   const { product, upsertWorkLocation } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const [kind, setKind] = useState<WorkLocationDraft['kind']>('workplace');
-  const [label, setLabel] = useState('');
-  const [address, setAddress] = useState('');
-  const [notes, setNotes] = useState('');
+  const [searchLabel, setSearchLabel] = useState('');
+  const [privateLabel, setPrivateLabel] = useState('');
+  const [placeRule, setPlaceRule] = useState<PlaceRule>('always_ask');
+  const [details, setDetails] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
   const [saved, setSaved] = useState(false);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
+  const defaultLabelForKind = (value: WorkLocationDraft['kind']): string => {
+    switch (value) {
+      case 'home':
+        return 'Home';
+      case 'client':
+        return 'Client';
+      case 'other':
+        return 'Other place';
+      default:
+        return 'Work';
+    }
+  };
+
   const save = () => {
-    const hasValue = label.trim() || address.trim() || notes.trim();
-    if (!hasValue) return;
+    const label = privateLabel.trim() || searchLabel.trim() || defaultLabelForKind(kind);
+    const address = searchLabel.trim();
+    const notes = encodePlaceNotes(placeRule, details);
+    if (!label && !address && !details.trim()) return;
     if (product.workLocations.length >= capabilities.maxWorkplaces) {
       setLimitMessage(`Free includes up to ${capabilities.maxWorkplaces} familiar places. Choose Plus for more.`);
       navigation.navigate('PlanSelection', { source: 'upgrade' });
@@ -1529,46 +1573,103 @@ export function WorkLocationSetupScreen() {
     }
     upsertWorkLocation({
       id: localId('work-place'),
-      label: label.trim() || (kind === 'home' ? 'Home' : kind === 'client' ? 'Client' : 'Work place'),
-      address: address.trim(),
-      notes: notes.trim(),
+      label,
+      address,
+      notes,
       kind,
     });
     setSaved(true);
     setLimitMessage(null);
-    setLabel('');
-    setAddress('');
-    setNotes('');
+    setSearchLabel('');
+    setPrivateLabel('');
+    setDetails('');
+    setPlaceRule('always_ask');
+    setShowDetails(false);
   };
 
   return (
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title="Places you visit often make review faster"
-        body="Familiar places help classify and recover drives. Nothing is saved until you tap Save. Approximate labels are fine."
+        title="Familiar places speed up review"
+        body="Add labels for places you visit often. Nothing is saved until you tap Save."
         emphasis="subtle"
       />
       {limitMessage ? <StatusCard variant="warning" title="Place limit" body={limitMessage} emphasis="subtle" /> : null}
-      <SegmentedControl
-        value={kind}
-        onChange={setKind}
-        options={[
-          { label: 'Home', value: 'home' },
-          { label: 'Work', value: 'workplace' },
-          { label: 'Client', value: 'client' },
-        ]}
+
+      <FormField
+        label="Search or label"
+        value={searchLabel}
+        onChangeText={setSearchLabel}
+        placeholder="Office, client site, neighborhood…"
       />
-      <FormField label="Private label" value={label} onChangeText={setLabel} placeholder="Office" />
-      <FormField label="Address or area" value={address} onChangeText={setAddress} placeholder="Street, city, or neighborhood" />
-      <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional context" />
-      <PrimaryButton label="Save place" onPress={save} disabled={!label.trim() && !address.trim() && !notes.trim()} />
+
+      <ChipRow>
+        <Chip label="Home" selected={kind === 'home'} onPress={() => setKind('home')} />
+        <Chip label="Work" selected={kind === 'workplace'} onPress={() => setKind('workplace')} />
+        <Chip label="Client" selected={kind === 'client'} onPress={() => setKind('client')} />
+        <Chip label="Other" selected={kind === 'other'} onPress={() => setKind('other')} />
+      </ChipRow>
+
+      <FormField
+        label="Private label (optional)"
+        value={privateLabel}
+        onChangeText={setPrivateLabel}
+        placeholder={defaultLabelForKind(kind)}
+      />
+
+      <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>Place rule</Text>
+      <SelectionCard
+        title="Usually personal"
+        body="Personal by default — you can still mark work drives."
+        selected={placeRule === 'usually_personal'}
+        onPress={() => setPlaceRule('usually_personal')}
+      />
+      <SelectionCard
+        title="Usually work"
+        body="Work by default when this place appears."
+        selected={placeRule === 'usually_work'}
+        onPress={() => setPlaceRule('usually_work')}
+      />
+      <SelectionCard
+        title="Always ask"
+        body="MileRecover asks before classifying drives here."
+        selected={placeRule === 'always_ask'}
+        onPress={() => setPlaceRule('always_ask')}
+      />
+
+      <TertiaryButton
+        label={showDetails ? 'Hide details' : 'Add details'}
+        onPress={() => setShowDetails((open) => !open)}
+      />
+      {showDetails ? (
+        <FormField
+          label="Notes"
+          value={details}
+          onChangeText={setDetails}
+          placeholder="Optional context — parking, gate code, etc."
+        />
+      ) : null}
+
+      <PrimaryButton
+        label="Save place"
+        onPress={save}
+        disabled={!searchLabel.trim() && !privateLabel.trim() && !details.trim()}
+      />
       {saved ? <StatusCard variant="success" title="Saved" body="Place stored locally on this device." emphasis="subtle" /> : null}
+
       {product.workLocations.length > 0 ? (
         <ListSection title="Saved places">
-          {product.workLocations.map((loc) => (
-            <EvidenceRow key={loc.id} label={`${loc.label} (${loc.kind})`} value={loc.address || loc.notes || 'No address'} />
-          ))}
+          {product.workLocations.map((loc) => {
+            const decoded = decodePlaceNotes(loc.notes ?? '');
+            return (
+              <EvidenceRow
+                key={loc.id}
+                label={loc.label}
+                value={`${placeRuleLabel(decoded.rule)}${loc.address ? ` · ${loc.address}` : ''}`}
+              />
+            );
+          })}
         </ListSection>
       ) : null}
     </ScrollScreen>
@@ -1889,12 +1990,27 @@ export function ReportPreviewScreen() {
   );
 }
 
+function paywallSubtitle(goal: import('../../product/types').ProductUiState['primaryGoal']): string {
+  switch (goal) {
+    case 'employee_reimbursement':
+      return 'Turn confirmed work miles into reimbursement-ready records.';
+    case 'gig_delivery':
+      return 'Keep every delivery mile organized for earnings.';
+    case 'self_employed_business':
+      return 'Business mileage protection that stands up to review.';
+    case 'mixed':
+      return 'One place to protect and prove all your work driving.';
+    default:
+      return 'Automatic protection and share-ready reports when you need them.';
+  }
+}
+
 export function PlanSelectionScreen() {
   const navigation = useNavigation<Nav>();
+  const { state } = useApp();
   const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [selectedRescue, setSelectedRescue] = useState<string | null>(null);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [billingAvailable, setBillingAvailable] = useState(false);
   const period: PurchasePeriod = annual ? 'annual' : 'monthly';
@@ -1906,14 +2022,16 @@ export function PlanSelectionScreen() {
   });
   const plusFixture = PLAN_FIXTURES.find((plan) => plan.id === 'plus')!;
   const proFixture = PLAN_FIXTURES.find((plan) => plan.id === 'pro')!;
-  const freeFixture = PLAN_FIXTURES.find((plan) => plan.id === 'free')!;
-  const hasHelped =
-    product.firstRecoveredDriveAt != null ||
-    product.firstConfirmedWorkDriveAt != null ||
-    product.firstExportAt != null;
-  const heading = hasHelped
-    ? 'Keep the protection that already helped.'
-    : 'Choose the protection that fits your driving.';
+  const locale = product.localeProfile;
+  const confirmedWorkMiles = state.trips.filter(isConfirmedWorkTrip).reduce((sum, trip) => sum + trip.distanceMiles, 0);
+  const valueProof =
+    confirmedWorkMiles > 0
+      ? `You've confirmed ${formatDistance(confirmedWorkMiles, locale.distanceUnit, locale.localeTag)} of work driving on this device.`
+      : null;
+
+  useEffect(() => {
+    logEvent(ANALYTICS_EVENTS.paywallViewed, { source: 'plan_selection' });
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1925,18 +2043,24 @@ export function PlanSelectionScreen() {
     };
   }, [purchasePort]);
 
-  const handleResult = async (action: () => Promise<Awaited<ReturnType<typeof purchasePort.purchasePlus>>>) => {
+  const handlePurchase = async (
+    plan: 'plus' | 'pro',
+    action: () => Promise<Awaited<ReturnType<typeof purchasePort.purchasePlus>>>,
+  ) => {
     if (purchaseBusy) return;
+    logEvent(ANALYTICS_EVENTS.planSelected, { plan, period });
     if (!billingAvailable) {
       setNotice(STORE_UNAVAILABLE_MESSAGE);
       return;
     }
+    logEvent(ANALYTICS_EVENTS.purchaseStarted, { plan, period });
     setPurchaseBusy(true);
     try {
       const result = await action();
       if (result.ok) {
+        logEvent(ANALYTICS_EVENTS.purchaseCompleted, { plan, period });
         setEntitlement(result.entitlement);
-        setNotice('You’re all set — Plus is active.');
+        setNotice(`You're all set — ${plan === 'pro' ? 'Pro' : 'Plus'} is active.`);
         return;
       }
       if (result.reason === 'store_unavailable') {
@@ -1948,38 +2072,42 @@ export function PlanSelectionScreen() {
         setNotice(null);
         return;
       }
+      logEvent(ANALYTICS_EVENTS.purchaseFailed, { plan, period, reason: result.reason });
       setNotice(result.message);
     } finally {
       setPurchaseBusy(false);
     }
   };
 
+  const plusCta = trialEligible && billingAvailable ? 'Start Plus trial' : 'Continue with Plus';
+  const proCta = 'Continue with Pro';
+
   return (
     <FixedHeaderScrollScreen
       scrollKey={annual ? 'annual' : 'monthly'}
       header={
         <View>
-          <Text style={text.subtitle}>{heading}</Text>
-          <Text style={[text.caption, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Current: {entitlement.planId === 'free' ? 'Free' : entitlement.planId.toUpperCase()}.{' '}
-            {billingAvailable
-              ? 'Prices come from Google Play or the App Store.'
-              : isPreviewBillingBuild()
-                ? PREVIEW_BILLING_NOTICE
-                : STORE_UNAVAILABLE_MESSAGE}
+          <Text style={text.title}>Protect every work drive</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            {paywallSubtitle(product.primaryGoal)}
           </Text>
+          {valueProof ? (
+            <Text style={[text.caption, { marginBottom: spacing.sm }]}>{valueProof}</Text>
+          ) : null}
           <SegmentedControl
             value={annual ? 'annual' : 'monthly'}
             onChange={(value) => setAnnual(value === 'annual')}
             options={[
               { label: 'Monthly', value: 'monthly' },
-              { label: 'Annual', value: 'annual' },
+              {
+                label: annual && plusFixture.annualSavingsLabel ? `Annual · ${plusFixture.annualSavingsLabel}` : 'Annual',
+                value: 'annual',
+              },
             ]}
           />
         </View>
       }
     >
-      {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
       {!billingAvailable && isPreviewBillingBuild() ? (
         <StatusCard
           variant="info"
@@ -1988,9 +2116,11 @@ export function PlanSelectionScreen() {
           emphasis="subtle"
         />
       ) : null}
+      {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
+
       <PlanCard
         name={plusFixture.name}
-        tagline={plusFixture.tagline}
+        tagline="Best for most drivers"
         price={annual ? plusFixture.annualPrice : plusFixture.monthlyPrice}
         period={annual ? 'year' : 'month'}
         features={plusFixture.features}
@@ -1998,21 +2128,16 @@ export function PlanSelectionScreen() {
         current={entitlement.planId === 'plus'}
         savingsLabel={annual ? plusFixture.annualSavingsLabel : undefined}
         purchaseDisabled={!billingAvailable || purchaseBusy}
-        priceNote={!billingAvailable ? 'Preview price' : undefined}
+        selectLabel={plusCta}
         onSelect={() =>
-          void handleResult(() =>
+          void handlePurchase('plus', () =>
             trialEligible && billingAvailable
               ? purchasePort.purchasePlusTrial(period)
               : purchasePort.purchasePlus(period),
           )
         }
       />
-      {trialEligible && billingAvailable ? (
-        <Text style={[text.caption, { marginBottom: spacing.md }]}>
-          Eligible for a 7-day Plus trial after store confirmation.{' '}
-          {trialRenewalCopy(entitlement.monthlyPriceLocalized, entitlement.trialEndsAt)}
-        </Text>
-      ) : null}
+
       <PlanCard
         name={proFixture.name}
         tagline={proFixture.tagline}
@@ -2023,52 +2148,129 @@ export function PlanSelectionScreen() {
         current={entitlement.planId === 'pro'}
         savingsLabel={annual ? proFixture.annualSavingsLabel : undefined}
         purchaseDisabled={!billingAvailable || purchaseBusy}
-        priceNote={!billingAvailable ? 'Preview price' : undefined}
-        onSelect={() => void handleResult(() => purchasePort.purchasePro(period))}
+        selectLabel={proCta}
+        onSelect={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
       />
+
       <SelectionCard
-        title={`Stay on Free · ${freeFixture.monthlyPrice}`}
-        body={`${freeFixture.tagline}. Your saved miles always stay available.`}
+        title="Continue with Free"
+        body="Manual logging, review, and CSV export stay available."
         selected={entitlement.planId === 'free'}
         onPress={() => {
+          logEvent(ANALYTICS_EVENTS.planSelected, { plan: 'free', period: 'none' });
           setSelectedPlan('free');
-          setNotice('You’re on Free. Your existing records stay available.');
+          setNotice("You're on Free. Your existing records stay available.");
         }}
       />
-      <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>One-time catch-up</Text>
-      <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-        Not a subscription. These one-time rescue products stay available in Monthly and Annual views.
-      </Text>
-      {RESCUE_OPTIONS.map((option) => (
-        <SelectionCard
-          key={option.id}
-          title={`${option.name} · ${option.price}`}
-          body={`${option.description} Not a subscription.`}
-          selected={selectedRescue === option.id}
+
+      <TertiaryButton
+        label="Need to recover older mileage instead?"
+        onPress={() => navigation.navigate('RescueProducts')}
+      />
+
+      <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+        <TertiaryButton
+          label="Restore purchases"
           onPress={() => {
             if (!billingAvailable || purchaseBusy) {
               setNotice(STORE_UNAVAILABLE_MESSAGE);
               return;
             }
-            setSelectedRescue(option.id);
-            void handleResult(() => purchasePort.purchaseRescue(option.id));
+            void handlePurchase('plus', () => purchasePort.restore());
           }}
         />
-      ))}
-      <SecondaryButton
-        label="Restore purchases"
-        disabled={!billingAvailable || purchaseBusy}
-        onPress={() => void handleResult(() => purchasePort.restore())}
-      />
-      <StatusCard
-        variant="neutral"
-        title="Renewal"
-        body="Subscriptions renew unless you cancel in Google Play or App Store settings. An in-app button alone never starts a trial."
-        emphasis="subtle"
-      />
-      <SecondaryButton label="Terms of Use" onPress={() => navigation.navigate('About')} />
-      <SecondaryButton label="Privacy Policy" onPress={() => navigation.navigate('Privacy')} />
+        <Text style={text.caption}>
+          Subscriptions renew unless cancelled in Google Play or App Store settings.{' '}
+          <Text style={text.caption} onPress={() => navigation.navigate('Privacy')}>
+            Terms
+          </Text>
+          {' · '}
+          <Text style={text.caption} onPress={() => navigation.navigate('Privacy')}>
+            Privacy
+          </Text>
+        </Text>
+      </View>
     </FixedHeaderScrollScreen>
+  );
+}
+
+export function RescueProductsScreen() {
+  const { product, setEntitlement } = useProduct();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [billingAvailable, setBillingAvailable] = useState(false);
+  const purchasePort = getPurchasePort();
+
+  useEffect(() => {
+    logEvent(ANALYTICS_EVENTS.rescueViewed, {});
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void purchasePort.getProducts().then((products) => {
+      if (mounted) setBillingAvailable(products.length > 0);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [purchasePort]);
+
+  const purchaseRescue = async (rescueId: string) => {
+    if (purchaseBusy) return;
+    if (!billingAvailable) {
+      setNotice(STORE_UNAVAILABLE_MESSAGE);
+      return;
+    }
+    logEvent(ANALYTICS_EVENTS.purchaseStarted, { plan: rescueId, period: 'one_time' });
+    setPurchaseBusy(true);
+    try {
+      const result = await purchasePort.purchaseRescue(rescueId);
+      if (result.ok) {
+        logEvent(ANALYTICS_EVENTS.purchaseCompleted, { plan: rescueId, period: 'one_time' });
+        setEntitlement(result.entitlement);
+        setNotice('Rescue purchase complete. Check Review for recovered drives.');
+        return;
+      }
+      if (result.reason === 'store_unavailable') {
+        setNotice(STORE_UNAVAILABLE_MESSAGE);
+        return;
+      }
+      if (result.reason === 'cancelled') {
+        setNotice(null);
+        return;
+      }
+      logEvent(ANALYTICS_EVENTS.purchaseFailed, { plan: rescueId, reason: result.reason });
+      setNotice(result.message);
+    } finally {
+      setPurchaseBusy(false);
+    }
+  };
+
+  return (
+    <ScrollScreen>
+      <SectionHeader title="One-time rescue" />
+      <Text style={[text.body, { marginBottom: spacing.md }]}>
+        Catch up on older mileage without a subscription. Purchases are processed through your app store.
+      </Text>
+      {!billingAvailable && isPreviewBillingBuild() ? (
+        <StatusCard variant="info" title="Preview notice" body={PREVIEW_BILLING_NOTICE} emphasis="subtle" />
+      ) : null}
+      {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
+      {RESCUE_OPTIONS.map((option) => (
+        <SelectionCard
+          key={option.id}
+          title={`${option.name} · ${option.price}`}
+          body={`${option.description} Not a subscription.`}
+          selected={false}
+          onPress={() => void purchaseRescue(option.id)}
+        />
+      ))}
+      {product.entitlement.planId !== 'free' ? (
+        <Text style={[text.caption, { marginTop: spacing.sm }]}>
+          Your {product.entitlement.planId.toUpperCase()} plan handles ongoing protection. Rescue is for historical catch-up only.
+        </Text>
+      ) : null}
+    </ScrollScreen>
   );
 }
 
