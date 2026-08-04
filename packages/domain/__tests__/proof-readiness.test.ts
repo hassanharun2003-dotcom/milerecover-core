@@ -1,4 +1,9 @@
-import { proofReadinessForTrip, proofReadinessLabel, type TripRecord } from '../src';
+import {
+  proofReadinessForTrip,
+  proofReadinessLabel,
+  resolveProofPeriodReadiness,
+  type TripRecord,
+} from '../src';
 
 function trip(partial: Partial<TripRecord> = {}): TripRecord {
   return {
@@ -37,6 +42,9 @@ describe('Proof readiness', () => {
         trip({ startLabel: null, endLabel: null, distanceMiles: 0, purpose: 'Work' }),
       ),
     ).toBe('incomplete_route');
+    expect(
+      proofReadinessForTrip(trip({ startLabel: null, endLabel: null, purpose: 'Work' })),
+    ).toBe('incomplete_route');
     expect(proofReadinessForTrip(trip({ confidence: 'low' }))).toBe('needs_attention');
   });
 
@@ -44,5 +52,36 @@ describe('Proof readiness', () => {
     expect(proofReadinessForTrip(trip({ status: 'pending', classification: 'unclassified' }))).toBe(
       'needs_attention',
     );
+  });
+
+  it('resolves period readiness labels without inventing trips', () => {
+    expect(
+      resolveProofPeriodReadiness({
+        confirmedWorkTripCount: 0,
+        unresolvedReviewCount: 0,
+        missingDetailsCount: 0,
+      }),
+    ).toBe('no_trips_yet');
+    expect(
+      resolveProofPeriodReadiness({
+        confirmedWorkTripCount: 2,
+        unresolvedReviewCount: 1,
+        missingDetailsCount: 0,
+      }),
+    ).toBe('needs_review');
+    expect(
+      resolveProofPeriodReadiness({
+        confirmedWorkTripCount: 2,
+        unresolvedReviewCount: 0,
+        missingDetailsCount: 1,
+      }),
+    ).toBe('missing_details');
+    expect(
+      resolveProofPeriodReadiness({
+        confirmedWorkTripCount: 2,
+        unresolvedReviewCount: 0,
+        missingDetailsCount: 0,
+      }),
+    ).toBe('ready_to_submit');
   });
 });

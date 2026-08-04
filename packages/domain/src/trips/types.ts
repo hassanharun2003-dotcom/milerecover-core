@@ -27,6 +27,12 @@ export interface TripRecord {
   endLabel?: string | null;
   vehicleId?: string | null;
   evidenceMethod?: TripEvidenceMethod | null;
+  /** Lightweight expense proof — parking amount in minor currency units (cents). */
+  parkingCents?: number | null;
+  /** Lightweight expense proof — tolls amount in minor currency units (cents). */
+  tollsCents?: number | null;
+  /** Optional local receipt attachment URI (no OCR / bank linking). */
+  receiptUri?: string | null;
   createdAt?: number;
   updatedAt?: number;
 }

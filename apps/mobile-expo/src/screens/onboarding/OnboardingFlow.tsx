@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BackHandler, Platform, Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
@@ -107,9 +107,25 @@ export function OnboardingFlow() {
   const [countryDraft, setCountryDraft] = useState<CountryCode>(
     product.localeProfile.countryCode || recommendedCountry,
   );
+  const [countryQuery, setCountryQuery] = useState('');
   const [otherUnit, setOtherUnit] = useState<DistanceUnit>('mi');
   const [otherCurrency, setOtherCurrency] = useState<CurrencyCode>('OTHER');
   const [otherRate, setOtherRate] = useState('');
+  const filteredCountries = useMemo(() => {
+    const recommended = COUNTRY_OPTIONS.filter((opt) => opt.id !== 'OTHER');
+    const other = COUNTRY_OPTIONS.filter((opt) => opt.id === 'OTHER');
+    const ordered = [
+      ...recommended.sort((a, b) => {
+        if (a.id === recommendedCountry) return -1;
+        if (b.id === recommendedCountry) return 1;
+        return 0;
+      }),
+      ...other,
+    ];
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return ordered;
+    return ordered.filter((opt) => opt.label.toLowerCase().includes(q));
+  }, [countryQuery, recommendedCountry]);
 
   const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
@@ -288,13 +304,33 @@ export function OnboardingFlow() {
             Where do you drive for work?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            We’ll use local units and currency. You can change this later in Profile. This is not tax advice.
+            Recommended countries first. We’ll use local units and currency. You can change this later in Profile.
+            This is not tax advice.
           </Text>
-          {COUNTRY_OPTIONS.map((opt) => (
+          <SoftPanel>
+            <Text style={text.caption}>Current selection</Text>
+            <Text style={[text.subtitle, { marginTop: spacing.xs }]}>
+              {COUNTRY_OPTIONS.find((opt) => opt.id === countryDraft)?.label ?? 'Other country'}
+            </Text>
+          </SoftPanel>
+          <FormField
+            label="Search countries"
+            value={countryQuery}
+            onChangeText={setCountryQuery}
+            placeholder="Search United States, Canada…"
+            accessibilityLabel="Search countries"
+          />
+          {filteredCountries.map((opt) => (
             <SelectionCard
               key={opt.id}
               title={opt.label}
-              body={opt.id === recommendedCountry ? 'Suggested from your device' : undefined}
+              body={
+                opt.id === recommendedCountry
+                  ? 'Suggested from your device'
+                  : opt.id === 'OTHER'
+                    ? 'Custom units — no local tax rules claimed'
+                    : undefined
+              }
               selected={countryDraft === opt.id}
               onPress={() => setCountryDraft(opt.id)}
             />

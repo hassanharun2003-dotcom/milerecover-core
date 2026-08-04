@@ -20,6 +20,7 @@ function base(partial: Partial<ProtectionStatusInput> = {}): ProtectionStatusInp
     lastConfirmedCaptureAt: Date.now() - 60_000,
     lastSyncAt: Date.now() - 30_000,
     pendingReviewCount: 0,
+    setupIncomplete: false,
     offline: false,
     now: Date.now(),
     ...partial,
@@ -31,18 +32,27 @@ describe('Protection status model', () => {
     const view = resolveProtectionStatus(base());
     expect(view.status).toBe('protected');
     expect(view.title).toBe('Protected');
+    expect(view.automaticDependable).toBe(true);
+    expect(view.lastCheckLabel).toMatch(/Last successful check/);
   });
 
-  it('reports Off when watching is disabled', () => {
+  it('reports Tracking paused when watching is disabled', () => {
     const view = resolveProtectionStatus(base({ trackingEnabled: false }));
-    expect(view.status).toBe('off');
+    expect(view.status).toBe('tracking_paused');
     expect(view.primaryIssue?.action).toBe('enable_watching');
   });
 
-  it('reports Off / limited when automatic capture is unavailable', () => {
+  it('reports Manual-only when automatic capture is unavailable', () => {
     const view = resolveProtectionStatus(base({ canUseAutomaticCapture: false }));
-    expect(view.status).toBe('off');
+    expect(view.status).toBe('manual_only');
     expect(view.detail).toMatch(/Manual/);
+    expect(view.primaryIssue?.action).toBe('see_plans');
+  });
+
+  it('reports Setup incomplete when protection setup was never finished', () => {
+    const view = resolveProtectionStatus(base({ setupIncomplete: true }));
+    expect(view.status).toBe('setup_incomplete');
+    expect(view.primaryIssue?.action).toBe('finish_setup');
   });
 
   it('surfaces background location as the primary issue', () => {
@@ -53,7 +63,7 @@ describe('Protection status model', () => {
     );
     expect(view.status).toBe('needs_attention');
     expect(view.primaryIssue?.what).toMatch(/Background location/i);
-    expect(view.primaryIssue?.actionLabel).toBe('Open settings');
+    expect(view.automaticDependable).toBe(false);
   });
 
   it('surfaces battery restrictions when location is granted', () => {
@@ -92,7 +102,7 @@ describe('Protection status model', () => {
     const view = resolveProtectionStatus(
       base({ canUseAutomaticCapture: false, trackingEnabled: false }),
     );
-    expect(view.status).toBe('off');
+    expect(view.status).toBe('manual_only');
     expect(view.detail).toMatch(/Manual drives always work/i);
   });
 
@@ -107,6 +117,19 @@ describe('Protection status model', () => {
         },
       }),
     );
+    expect(view.status).toBe('setup_incomplete');
     expect(view.status).not.toBe('protected');
+  });
+
+  it('exposes ordered repair steps for the Protection Center', () => {
+    const view = resolveProtectionStatus(
+      base({
+        permissions: { ...granted, backgroundLocation: 'denied', batteryOptimizationRestricted: true },
+        trackingEnabled: false,
+      }),
+    );
+    expect(view.repairSteps).toContain('enable_background_location');
+    expect(view.repairSteps).toContain('disable_battery_optimization');
+    expect(view.repairSteps).toContain('enable_watching');
   });
 });

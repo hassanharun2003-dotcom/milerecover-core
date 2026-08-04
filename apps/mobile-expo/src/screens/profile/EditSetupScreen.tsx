@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Text } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
   localeProfileFromCountry,
@@ -38,8 +38,16 @@ export function EditSetupScreen() {
   const [name, setName] = useState(product.preferredName ?? '');
   const [savedName, setSavedName] = useState(false);
   const [country, setCountry] = useState<CountryCode>(product.localeProfile.countryCode);
+  const [countryQuery, setCountryQuery] = useState('');
   const [unit, setUnit] = useState<DistanceUnit>(product.localeProfile.distanceUnit);
   const [currency, setCurrency] = useState<CurrencyCode>(product.localeProfile.currencyCode);
+  const filteredCountries = useMemo(() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return COUNTRY_OPTIONS;
+    return COUNTRY_OPTIONS.filter((option) => option.label.toLowerCase().includes(q));
+  }, [countryQuery]);
+  const currentCountryLabel =
+    COUNTRY_OPTIONS.find((option) => option.id === country)?.label ?? 'Other country';
   const currentRate = rateForTimestamp(product.localeProfile.rates, Date.now());
   const [rateDraft, setRateDraft] = useState(
     currentRate?.centsPerMile != null ? String(currentRate.centsPerMile) : '',
@@ -118,12 +126,25 @@ export function EditSetupScreen() {
         Country and units
       </Text>
       <Text style={[text.body, { marginBottom: spacing.sm }]}>
-        Launch markets only. Other country uses your custom units and rate — no country-specific compliance claims.
+        Recommended launch countries first. Other country uses your custom units and rate — no country-specific
+        compliance claims.
       </Text>
-      {COUNTRY_OPTIONS.map((option) => (
+      <SoftPanel>
+        <Text style={text.caption}>Current selection</Text>
+        <Text style={[text.subtitle, { marginTop: spacing.xs }]}>{currentCountryLabel}</Text>
+      </SoftPanel>
+      <FormField
+        label="Search countries"
+        value={countryQuery}
+        onChangeText={setCountryQuery}
+        placeholder="Search United States, Canada…"
+        accessibilityLabel="Search countries"
+      />
+      {filteredCountries.map((option) => (
         <SelectionCard
           key={option.id}
           title={option.label}
+          body={option.id === 'OTHER' ? 'Custom units — no local tax rules claimed' : undefined}
           selected={country === option.id}
           onPress={() => {
             setCountry(option.id);
@@ -156,7 +177,11 @@ export function EditSetupScreen() {
         </SoftPanel>
       ) : null}
       <FormField
-        label="Reimbursement rate (cents per mile)"
+        label={
+          unit === 'km'
+            ? 'Reimbursement rate (cents per mile stored)'
+            : 'Reimbursement rate (cents per mile)'
+        }
         value={rateDraft}
         onChangeText={(value) => {
           setRateDraft(value);

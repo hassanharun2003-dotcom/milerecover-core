@@ -35,7 +35,7 @@ describe('Entitlements UI smoke', () => {
     const free = capabilitiesForEntitlement(createFreeEntitlement());
     expect(free.canUseAutomaticCapture).toBe(false);
     expect(free.canUseStandardPdf).toBe(false);
-    expect(free.canUseGapDetection).toBe(false);
+    expect(free.canUseGapDetection).toBe(true);
     expect(free.canAddVehicle).toBe(true);
     expect(free.maxVehicles).toBe(1);
     expect(free.maxWorkplaces).toBe(2);

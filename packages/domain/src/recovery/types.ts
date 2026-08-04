@@ -10,7 +10,15 @@ export type RecoveryCandidateState =
 export type RecoveryConfidence = 'high' | 'medium' | 'low';
 
 export interface RecoveryEvidenceRef {
-  kind: 'gap' | 'calendar' | 'motion' | 'route_fragment';
+  kind:
+    | 'gap'
+    | 'calendar'
+    | 'motion'
+    | 'route_fragment'
+    | 'import'
+    | 'manual_report'
+    | 'tracking_health'
+    | 'pattern';
   summary: string;
 }
 

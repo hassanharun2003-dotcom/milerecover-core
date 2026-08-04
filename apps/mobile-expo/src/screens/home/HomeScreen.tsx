@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -43,16 +43,21 @@ type HomeNav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-function homeVariant(scenarioState: string): 'success' | 'warning' | 'danger' | 'info' {
-  switch (scenarioState) {
-    case 'recovery_available':
-      return 'warning';
-    case 'protection_limited':
-      return 'danger';
-    case 'offline':
-      return 'info';
-    default:
+function protectionVariant(
+  status: ReturnType<typeof resolveProtectionStatus>['status'],
+): 'success' | 'warning' | 'danger' | 'info' {
+  switch (status) {
+    case 'protected':
       return 'success';
+    case 'manual_only':
+    case 'tracking_paused':
+      return 'info';
+    case 'setup_incomplete':
+      return 'warning';
+    case 'needs_attention':
+      return 'danger';
+    default:
+      return 'warning';
   }
 }
 
@@ -90,6 +95,8 @@ export function HomeScreen() {
   const { scenario, liveMode } = experience;
   const greeting = greetingForName(product.preferredName);
   const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const setupIncomplete =
+    product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
   const watchingOn =
     product.trackingEnabled &&
     capabilities.canUseAutomaticCapture &&
@@ -103,17 +110,10 @@ export function HomeScreen() {
     lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
     lastSyncAt: state.lastSyncAt,
     pendingReviewCount: experience.activeReviewItems.length,
+    setupIncomplete,
     offline: scenario.homeState === 'offline',
   });
 
-  const protectionVariant =
-    protection.status === 'protected'
-      ? ('success' as const)
-      : protection.status === 'off'
-        ? ('info' as const)
-        : protection.status === 'limited'
-          ? ('warning' as const)
-          : ('danger' as const);
   const confirmedCount = experience.confirmedTrips.length;
   const recoveredCount = experience.confirmedTrips.filter((trip) => trip.source === 'recovered').length;
   const locale = product.localeProfile;
@@ -128,6 +128,66 @@ export function HomeScreen() {
   const firstWeek =
     isWithinFirstWeek(product.onboarding.completedAt) ||
     isWithinFirstWeek(product.firstConfirmedWorkDriveAt);
+
+  const missingMileCount = useMemo(
+    () => experience.activeReviewItems.filter((item) => item.kind === 'possible_missing_trip').length,
+    [experience.activeReviewItems],
+  );
+  const pendingReviewCount = experience.activeReviewItems.length;
+
+  const nextAction = useMemo(() => {
+    if (protection.primaryIssue?.action === 'see_plans') {
+      return {
+        label: protection.primaryIssue.actionLabel,
+        run: () => navigation.navigate('PlanSelection', { source: 'upgrade' }),
+      };
+    }
+    if (
+      protection.primaryIssue?.action === 'finish_setup' ||
+      protection.primaryIssue?.action === 'enable_watching' ||
+      protection.primaryIssue?.action === 'open_location_settings' ||
+      protection.primaryIssue?.action === 'open_battery_settings'
+    ) {
+      return {
+        label: protection.primaryIssue.actionLabel,
+        run: () => navigation.navigate('ProtectionAlert'),
+      };
+    }
+    if (missingMileCount > 0) {
+      return {
+        label:
+          missingMileCount === 1
+            ? 'Check possible missing drive'
+            : `Check ${missingMileCount} possible missing drives`,
+        run: () => navigation.navigate('Review'),
+      };
+    }
+    if (pendingReviewCount > 0 || protection.primaryIssue?.action === 'review_trips') {
+      return {
+        label:
+          pendingReviewCount === 1
+            ? 'Review 1 trip'
+            : `Review ${pendingReviewCount} trips`,
+        run: () => navigation.navigate('Review'),
+      };
+    }
+    if (scenario.proofReady) {
+      return {
+        label: 'Open Proof',
+        run: () => navigation.navigate('Proof'),
+      };
+    }
+    return {
+      label: 'Add a drive',
+      run: () => navigation.navigate('ManualTrip'),
+    };
+  }, [
+    missingMileCount,
+    navigation,
+    pendingReviewCount,
+    protection.primaryIssue,
+    scenario.proofReady,
+  ]);
 
   useEffect(() => {
     const route = consumePendingPostOnboardingRoute();
@@ -193,21 +253,6 @@ export function HomeScreen() {
     scenario.proofReady,
   ]);
 
-  const handlePrimary = () => {
-    if (scenario.primaryActionRoute === 'ProtectionAlert') {
-      if (!capabilities.canUseAutomaticCapture) {
-        navigation.navigate('PlanSelection', { source: 'upgrade' });
-        return;
-      }
-      navigation.navigate('ProtectionAlert');
-      return;
-    }
-    if (scenario.primaryActionRoute === 'Review') navigation.navigate('Review');
-    else if (scenario.primaryActionRoute === 'Profile') navigation.navigate('Profile');
-    else if (scenario.primaryActionRoute === 'Proof') navigation.navigate('Proof');
-    else if (scenario.primaryActionRoute === 'ManualTrip') navigation.navigate('ManualTrip');
-  };
-
   const showWeekSummary =
     !liveMode ||
     scenario.weekSummary.milesProtected > 0 ||
@@ -217,10 +262,9 @@ export function HomeScreen() {
   const showTrial =
     liveMode &&
     trialMoment != null &&
-    scenario.homeState !== 'protection_limited' &&
-    scenario.primaryActionRoute !== 'Review';
+    protection.status === 'protected' &&
+    pendingReviewCount === 0;
 
-  // At most one milestone; never repeat the hero’s “report is ready” message.
   const reportHeroAlreadyShown = /report is ready/i.test(scenario.homeTitle);
   const celebration =
     firstWeek && liveMode
@@ -242,17 +286,21 @@ export function HomeScreen() {
       ? { label: 'Add a workplace', route: 'WorkLocationSetup' as const }
       : null,
     !watchingOn && capabilities.canUseAutomaticCapture
-      ? { label: 'Turn on watching', route: 'ProtectionAlert' as const }
+      ? { label: 'Turn on protection', route: 'ProtectionAlert' as const }
       : !capabilities.canUseAutomaticCapture
-        ? { label: 'See Plus for watching', route: 'PlanSelection' as const }
+        ? { label: 'See Plus for automatic protection', route: 'PlanSelection' as const }
         : null,
-  ].filter(Boolean) as Array<{ label: string; route: 'VehicleSetup' | 'WorkLocationSetup' | 'ProtectionAlert' | 'PlanSelection' }>;
+  ].filter(Boolean) as Array<{
+    label: string;
+    route: 'VehicleSetup' | 'WorkLocationSetup' | 'ProtectionAlert' | 'PlanSelection';
+  }>;
 
   const showFinishSetup =
     liveMode &&
     product.finishSetupDismissedAt == null &&
     setupTasks.length > 0 &&
-    confirmedCount === 0;
+    confirmedCount === 0 &&
+    protection.status !== 'needs_attention';
 
   const appVariant =
     (Constants.expoConfig?.extra?.appVariant as string | undefined) ?? 'development';
@@ -262,12 +310,16 @@ export function HomeScreen() {
       Updates.channel === 'preview' ||
       Updates.channel === 'production');
 
+  const protectionActionLabel =
+    protection.primaryIssue &&
+    protection.primaryIssue.action !== 'none' &&
+    protection.primaryIssue.action !== 'review_trips'
+      ? protection.primaryIssue.actionLabel
+      : undefined;
+
   return (
     <TabScreen>
-      <Text
-        style={[text.subtitle, { marginBottom: spacing.xs }]}
-        accessibilityRole="text"
-      >
+      <Text style={[text.subtitle, { marginBottom: spacing.xs }]} accessibilityRole="text">
         {greeting ?? 'Welcome back.'}
       </Text>
 
@@ -285,46 +337,72 @@ export function HomeScreen() {
         <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
       ) : null}
 
+      {/* 1. Am I protected? */}
       <StatusCard
-        variant={protectionVariant}
+        variant={protectionVariant(protection.status)}
         title={protection.title}
-        body={protection.detail}
-        actionLabel={
-          protection.primaryIssue?.action === 'open_location_settings' ||
-          protection.primaryIssue?.action === 'open_battery_settings' ||
-          protection.primaryIssue?.action === 'enable_watching'
-            ? protection.primaryIssue.actionLabel
-            : protection.primaryIssue?.action === 'review_trips'
-              ? protection.primaryIssue.actionLabel
-              : undefined
-        }
+        body={[
+          protection.primaryIssue?.what,
+          protection.primaryIssue?.why ?? protection.detail,
+          protection.lastCheckLabel,
+          protection.automaticDependable
+            ? 'Automatic tracking looks dependable.'
+            : 'Automatic tracking is not dependable yet — manual drives still work.',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        actionLabel={protectionActionLabel}
         onAction={
-          protection.primaryIssue?.action === 'review_trips'
-            ? () => navigation.navigate('Review')
-            : protection.primaryIssue?.action === 'enable_watching' ||
-                protection.primaryIssue?.action === 'open_location_settings' ||
-                protection.primaryIssue?.action === 'open_battery_settings'
-              ? () => navigation.navigate('ProtectionAlert')
-              : undefined
+          protectionActionLabel
+            ? () => {
+                if (protection.primaryIssue?.action === 'see_plans') {
+                  navigation.navigate('PlanSelection', { source: 'upgrade' });
+                } else {
+                  navigation.navigate('ProtectionAlert');
+                }
+              }
+            : undefined
         }
-        emphasis="subtle"
-      />
-
-      <StatusCard
-        variant={homeVariant(scenario.homeState)}
-        title={scenario.homeTitle}
-        body={scenario.homeDetail}
-        actionLabel={scenario.primaryAction ?? undefined}
-        onAction={scenario.primaryAction ? handlePrimary : undefined}
         emphasis="hero"
       />
+
+      {/* 2–3. Missing miles + review */}
+      {missingMileCount > 0 ? (
+        <StatusCard
+          variant="warning"
+          title={
+            missingMileCount === 1
+              ? 'Possible missing drive'
+              : `${missingMileCount} possible missing drives`
+          }
+          body="MileRecover found quiet stretches that may hide work miles. Nothing is saved until you confirm."
+          actionLabel="Review suggestions"
+          onAction={() => navigation.navigate('Review')}
+          emphasis="subtle"
+        />
+      ) : null}
+
+      {pendingReviewCount > 0 && missingMileCount === 0 ? (
+        <StatusCard
+          variant="warning"
+          title={
+            pendingReviewCount === 1
+              ? '1 trip waiting for review'
+              : `${pendingReviewCount} trips waiting for review`
+          }
+          body="Decide Work, Personal, Not sure, or Edit. No hidden gestures."
+          actionLabel="Open Review"
+          onAction={() => navigation.navigate('Review')}
+          emphasis="subtle"
+        />
+      ) : null}
 
       {celebration === 'drive' ? (
         <SoftPanel>
           <Text style={text.subtitle}>First work drive saved</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
             {watchingOn
-              ? 'You’re protected — watching is on.'
+              ? 'You’re protected — automatic protection is on.'
               : 'Your first work drive is safely recorded.'}
           </Text>
           <TertiaryButton label="Got it" onPress={markCelebratedFirstDrive} />
@@ -334,7 +412,7 @@ export function HomeScreen() {
         <SoftPanel>
           <Text style={text.subtitle}>First recovery</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            We found mileage worth keeping.
+            We found mileage worth keeping — after you confirmed it.
           </Text>
           <TertiaryButton label="Got it" onPress={markCelebratedFirstRecovery} />
         </SoftPanel>
@@ -380,6 +458,7 @@ export function HomeScreen() {
         </SoftPanel>
       ) : null}
 
+      {/* 4. How much value protected this period */}
       {showWeekSummary ? (
         <>
           <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
@@ -402,7 +481,7 @@ export function HomeScreen() {
                     : '—',
               },
               {
-                label: 'Miles recovered',
+                label: 'Recovered',
                 value: formatDistance(recoveredMiles, locale.distanceUnit, locale.localeTag, 1).replace(
                   ` ${locale.distanceUnit}`,
                   '',
@@ -423,32 +502,38 @@ export function HomeScreen() {
         <SoftPanel>
           <Text style={text.subtitle}>You’re protected</Text>
           <Text style={[text.body, { marginTop: spacing.xs }]}>
-            Your drives will appear here after you travel.
+            Your drives will appear here after you travel. Nothing is invented.
           </Text>
         </SoftPanel>
       ) : null}
+
+      {/* 5. What should I do next? */}
+      <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>
+        <PrimaryButton
+          label={nextAction.label}
+          onPress={nextAction.run}
+          accessibilityLabel={nextAction.label}
+        />
+      </View>
 
       <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>Recent</Text>
       {scenario.activity.length === 0 ? (
         <SoftPanel>
           <Text style={text.subtitle}>Nothing here yet</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Add a work drive when you know the miles, or turn on watching later for automatic coverage.
-            Nothing is invented.
+            Add a work drive when you know the miles, or finish protection setup for automatic coverage.
           </Text>
           <SecondaryButton label="Add your first drive" onPress={() => navigation.navigate('ManualTrip')} />
         </SoftPanel>
       ) : (
-        scenario.activity.map((event) => (
+        scenario.activity.slice(0, 5).map((event) => (
           <View key={event.id} style={{ marginBottom: spacing.sm }}>
             <TimelineRow
               title={event.title}
               subtitle={event.subtitle}
               timeLabel={activityTimeLabel(event.timestamp)}
               onPress={
-                liveMode
-                  ? () => navigation.navigate('TripDetails', { tripId: event.id })
-                  : undefined
+                liveMode ? () => navigation.navigate('TripDetails', { tripId: event.id }) : undefined
               }
             />
             {activityBadge(event.kind) ? (
@@ -464,7 +549,7 @@ export function HomeScreen() {
       )}
 
       <View style={{ marginTop: spacing.sm }}>
-        <PrimaryButton
+        <SecondaryButton
           label="Add a drive"
           onPress={() => navigation.navigate('ManualTrip')}
           accessibilityLabel="Add a drive from home"

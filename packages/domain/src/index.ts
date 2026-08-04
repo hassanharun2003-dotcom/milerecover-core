@@ -4,6 +4,7 @@ export * from './protection-health/calculate';
 export * from './recovery/types';
 export * from './recovery/transitions';
 export * from './recovery/suggestions';
+export * from './recovery/unifiedScan';
 export * from './review/types';
 export * from './trips/types';
 export * from './proof/summary';

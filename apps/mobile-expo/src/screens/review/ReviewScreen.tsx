@@ -15,6 +15,7 @@ import {
 } from '@milerecover/domain';
 import {
   EmptyState,
+  PrimaryButton,
   ReviewCard,
   ReviewedItemCard,
   SegmentedControl,
@@ -24,7 +25,7 @@ import {
   text,
   UndoSnackbar,
 } from '../../design-system';
-import { Text } from 'react-native';
+import { Alert, Text } from 'react-native';
 import { CarRouteHero } from '../../components/CarRouteHero';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { selectProductExperience } from '../../product/selectors';
@@ -192,10 +193,37 @@ export function ReviewScreen() {
 
   const caughtUpBody =
     workMilesReady > 0
-      ? `${formatDistance(workMilesReady, locale.distanceUnit, locale.localeTag)} of work travel ${
-          locale.distanceUnit === 'km' ? 'are' : 'are'
-        } ready for Proof.`
+      ? `${formatDistance(workMilesReady, locale.distanceUnit, locale.localeTag)} of work travel are ready for Proof.`
       : 'We’ll let you know when something needs a quick look. Nothing uncertain enters Proof until you decide.';
+
+  const safeBulkWorkItems = pending.filter((item) => {
+    if (item.kind === 'possible_missing_trip') return false;
+    const trip = state.trips.find((record) => record.id === item.tripId);
+    if (!trip) return false;
+    if (trip.confidence !== 'high') return false;
+    if (!trip.purpose?.trim()) return false;
+    if (!(trip.distanceMiles > 0)) return false;
+    return item.kind === 'classification_needed';
+  });
+
+  const confirmAllSafe = () => {
+    if (safeBulkWorkItems.length === 0) return;
+    Alert.alert(
+      `Confirm ${safeBulkWorkItems.length} clear work drive${safeBulkWorkItems.length === 1 ? '' : 's'}?`,
+      'Only high-confidence trips with purpose and distance are included. You can undo each one afterward.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm all',
+          onPress: () => {
+            for (const item of safeBulkWorkItems) {
+              decide(item, 'work');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <TabScreen>
@@ -215,12 +243,25 @@ export function ReviewScreen() {
             <CarRouteHero />
             <SoftPanel>
               <Text style={text.body}>
-                Review is for uncertain drives only. Add known work drives from Home anytime.
+                Review is for uncertain drives only. Add known work drives from Home anytime. No swipe-only actions.
               </Text>
             </SoftPanel>
           </>
         ) : (
-          pending.map((item) => {
+          <>
+            {safeBulkWorkItems.length >= 2 ? (
+              <SoftPanel>
+                <Text style={text.body}>
+                  {safeBulkWorkItems.length} clear work drives can be confirmed together. Nothing uncertain is included.
+                </Text>
+                <PrimaryButton
+                  label={`Confirm ${safeBulkWorkItems.length} clear work drives`}
+                  onPress={confirmAllSafe}
+                  accessibilityLabel={`Confirm ${safeBulkWorkItems.length} clear work drives`}
+                />
+              </SoftPanel>
+            ) : null}
+            {pending.map((item) => {
             const tripId = item.kind === 'possible_missing_trip' ? null : item.tripId;
             const trip = tripId ? state.trips.find((record) => record.id === tripId) : undefined;
             const vehicle = trip?.vehicleId
@@ -229,26 +270,38 @@ export function ReviewScreen() {
             const vehicleLabel = vehicle
               ? vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
               : null;
-            const insufficientEvidence =
-              item.kind === 'low_confidence_trip' ||
-              item.kind === 'conflicted_trip' ||
-              item.distanceMiles == null ||
-              trip?.confidence === 'low';
             const at = trip?.startAt ?? Date.now();
+            const whenLabel = trip
+              ? `${new Date(trip.startAt).toLocaleDateString(locale.localeTag, {
+                  month: 'short',
+                  day: 'numeric',
+                })} · ${new Date(trip.startAt).toLocaleTimeString(locale.localeTag, {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}`
+              : item.subtitle;
+            const routeLabel =
+              trip?.startLabel || trip?.endLabel
+                ? `${trip?.startLabel ?? 'Start'} → ${trip?.endLabel ?? 'Destination'}`
+                : item.title;
             return (
               <ReviewCard
                 key={item.id}
-                title={item.title}
-                subtitle={item.subtitle}
+                title={routeLabel}
+                subtitle={whenLabel}
                 distance={
                   item.distanceMiles != null
                     ? formatDistance(item.distanceMiles, locale.distanceUnit, locale.localeTag)
                     : 'Distance needed'
                 }
                 estimatedValue={estimateForMiles(item.distanceMiles, at)}
-                reason={item.reason}
+                reason={item.reason || 'Needs a quick decision before Proof'}
                 provenance={provenanceForItem(item.kind)}
-                evidence={trip ? captureSourceLabel(trip.source) : provenanceForItem(item.kind)}
+                evidence={
+                  trip
+                    ? `${captureSourceLabel(trip.source)}${trip.confidence ? ` · ${trip.confidence} confidence` : ''}`
+                    : provenanceForItem(item.kind)
+                }
                 vehicle={vehicleLabel}
                 onPress={() => {
                   if (item.kind === 'possible_missing_trip') {
@@ -266,11 +319,12 @@ export function ReviewScreen() {
                     navigation.navigate('TripDetails', { tripId: item.tripId });
                   }
                 }}
-                onNotSure={insufficientEvidence ? () => decide(item, 'not_sure') : undefined}
+                onNotSure={() => decide(item, 'not_sure')}
                 onNotDrive={() => decide(item, 'not_drive')}
               />
             );
-          })
+          })}
+          </>
         )
       ) : reviewed.length === 0 ? (
         <EmptyState

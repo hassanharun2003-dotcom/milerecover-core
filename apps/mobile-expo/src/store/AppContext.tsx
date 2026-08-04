@@ -17,7 +17,7 @@ import {
   documentFromAppSlice,
   rejectTrip,
   resolveStartupFromLoad,
-  suggestRecoveryFromTripGaps,
+  runUnifiedRecoveryScan,
   tripFromConfirmedRecovery,
   type PermissionSnapshot,
   type PersistedAppDocument,
@@ -330,9 +330,12 @@ export function AppProvider({ children, repository }: AppProviderProps) {
       },
       refreshRecoverySuggestions: (workPlaces = []) => {
         commit((prev) => {
-          const suggestions = suggestRecoveryFromTripGaps(prev.trips, {
+          const suggestions = runUnifiedRecoveryScan({
+            trips: prev.trips,
             existing: prev.recoveryCandidates,
             workPlaces,
+            lastConfirmedCaptureAt: prev.lastConfirmedCaptureAt,
+            trackingEngineState: prev.trackingEngineState,
           });
           if (suggestions.length === 0) return prev;
           return {

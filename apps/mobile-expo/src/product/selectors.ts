@@ -1,5 +1,6 @@
 import {
   capabilitiesForEntitlement,
+  formatDistance,
   isConfirmedWorkTrip,
   prioritizeReviewItems,
   type PermissionSnapshot,
@@ -111,11 +112,12 @@ function buildLiveScenario(
     proofBlockReason = null;
   }
 
+  const locale = product.localeProfile;
   const activity = confirmed.slice(0, 5).map((t) => ({
     id: t.id,
     kind: 'drive_recorded' as const,
     title: t.purpose ?? 'Saved a drive',
-    subtitle: `${t.distanceMiles.toFixed(1)} mi · ${tripSourceLabel(t.source)}`,
+    subtitle: `${formatDistance(t.distanceMiles, locale.distanceUnit, locale.localeTag)} · ${tripSourceLabel(t.source)}`,
     timestamp: t.endAt ?? t.startAt,
   }));
 

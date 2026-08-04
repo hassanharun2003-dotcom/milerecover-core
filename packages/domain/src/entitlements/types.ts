@@ -86,7 +86,8 @@ export function capabilitiesForEntitlement(entitlement: EntitlementSnapshot): Ca
 
   return {
     canUseAutomaticCapture: paid,
-    canUseGapDetection: paid,
+    /** Basic gap recovery stays free — core MileRecover differentiator. */
+    canUseGapDetection: true,
     canUseStandardPdf: paid,
     canUseAdvancedReports: proLike && (entitlement.storeVerified || entitlement.source === 'demo'),
     canUseAdvancedRecovery: proLike && (entitlement.storeVerified || entitlement.source === 'demo'),

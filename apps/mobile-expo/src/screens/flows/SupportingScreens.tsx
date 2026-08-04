@@ -12,10 +12,16 @@ import {
   capabilitiesForEntitlement,
   createManualTripRecord,
   csvFilename,
+  displayToMiles,
+  estimatedValueCents,
+  formatCurrencyCents,
   formatDateLocal,
+  formatDistance,
   formatReportRouteSummary,
   formatTimeLocal,
   MAX_TRIP_DISTANCE_MILES,
+  milesToDisplay,
+  rateForTimestamp,
   reportHasExportableTrips,
   resolveProtectionStatus,
   shouldOfferTrial,
@@ -39,6 +45,7 @@ import {
   PrimaryButton,
   ScrollScreen,
   SecondaryButton,
+  SectionHeader,
   SelectionCard,
   SegmentedControl,
   SoftPanel,
@@ -147,6 +154,8 @@ export function ManualTripScreen() {
   const { state, upsertTrip, deleteTrip } = useApp();
   const { product } = useProduct();
   const { setUpdatePromptBlocked } = useAppUpdates();
+  const locale = product.localeProfile;
+  const unit = locale.distanceUnit;
   const existing = route.params?.tripId
     ? state.trips.find((trip) => trip.id === route.params?.tripId)
     : null;
@@ -160,12 +169,20 @@ export function ManualTripScreen() {
   const datePickerSnapshotRef = useRef<Date | null>(null);
   const [addTime, setAddTime] = useState(Boolean(existing));
   const [routeMode, setRouteMode] = useState<'distance' | 'places'>('distance');
-  const [distance, setDistance] = useState(existing ? existing.distanceMiles.toString() : '');
+  const [distance, setDistance] = useState(
+    existing ? milesToDisplay(existing.distanceMiles, unit).toFixed(1) : '',
+  );
   const [purpose, setPurpose] = useState(existing?.purpose ?? '');
   const [startLabel, setStartLabel] = useState(existing?.startLabel ?? '');
   const [endLabel, setEndLabel] = useState(existing?.endLabel ?? '');
   const [vehicleId, setVehicleId] = useState<string | null>(
     existing?.vehicleId ?? product.vehicles[0]?.id ?? null,
+  );
+  const [parkingAmount, setParkingAmount] = useState(
+    existing?.parkingCents != null ? (existing.parkingCents / 100).toFixed(2) : '',
+  );
+  const [tollsAmount, setTollsAmount] = useState(
+    existing?.tollsCents != null ? (existing.tollsCents / 100).toFixed(2) : '',
   );
   const [savedFlash, setSavedFlash] = useState(false);
 
@@ -277,21 +294,28 @@ export function ManualTripScreen() {
   const parsedMiles = useMemo(() => {
     const trimmed = distance.trim();
     if (!trimmed) return null;
-    const miles = Number.parseFloat(trimmed);
-    return Number.isFinite(miles) ? miles : NaN;
-  }, [distance]);
+    const entered = Number.parseFloat(trimmed);
+    if (!Number.isFinite(entered)) return NaN;
+    return displayToMiles(entered, unit);
+  }, [distance, unit]);
 
-  const validateDistanceField = useCallback((raw: string): string | null => {
-    const trimmed = raw.trim();
-    if (!trimmed) return 'Enter the miles for this drive.';
-    const miles = Number.parseFloat(trimmed);
-    if (!Number.isFinite(miles) || Number.isNaN(miles)) return 'Enter a valid number of miles.';
-    if (miles <= 0) return 'Distance must be greater than zero.';
-    if (miles > MAX_TRIP_DISTANCE_MILES) {
-      return `Distance must be ${MAX_TRIP_DISTANCE_MILES} miles or less.`;
-    }
-    return null;
-  }, []);
+  const validateDistanceField = useCallback(
+    (raw: string): string | null => {
+      const trimmed = raw.trim();
+      if (!trimmed) return `Enter the ${unit === 'km' ? 'kilometers' : 'miles'} for this drive.`;
+      const entered = Number.parseFloat(trimmed);
+      if (!Number.isFinite(entered) || Number.isNaN(entered)) {
+        return `Enter a valid number of ${unit === 'km' ? 'kilometers' : 'miles'}.`;
+      }
+      const miles = displayToMiles(entered, unit);
+      if (miles <= 0) return 'Distance must be greater than zero.';
+      if (miles > MAX_TRIP_DISTANCE_MILES) {
+        return `Distance must be ${formatDistance(MAX_TRIP_DISTANCE_MILES, unit, locale.localeTag)} or less.`;
+      }
+      return null;
+    },
+    [locale.localeTag, unit],
+  );
 
   const canSave = useMemo(() => {
     if (!classification || saving) return false;
@@ -368,7 +392,7 @@ export function ManualTripScreen() {
     if (fieldError) return;
     const miles = parsedMiles ?? Number.parseFloat(distance.trim());
     if (routeMode === 'places' && (startLabel.trim() || endLabel.trim()) && !(Number.isFinite(miles) && miles > 0)) {
-      setDistanceError('Enter the miles too. We never invent distance from start and end.');
+      setDistanceError('Enter the distance too. We never invent distance from start and end.');
       return;
     }
     const todayEnd = new Date();
@@ -407,9 +431,20 @@ export function ManualTripScreen() {
         : classification === 'later'
           ? { ...created, status: 'pending' as const, classification: 'unclassified' as const, confidence: 'medium' as const }
           : created;
+    const parkingCents = (() => {
+      const dollars = Number.parseFloat(parkingAmount);
+      return Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : null;
+    })();
+    const tollsCents = (() => {
+      const dollars = Number.parseFloat(tollsAmount);
+      return Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : null;
+    })();
     upsertTrip({
       ...trip,
       source: existing?.source ?? trip.source,
+      parkingCents,
+      tollsCents,
+      receiptUri: existing?.receiptUri ?? null,
       createdAt: existing?.createdAt ?? trip.createdAt,
       updatedAt: Date.now(),
     });
@@ -557,7 +592,7 @@ export function ManualTripScreen() {
         ]}
       />
       <FormField
-        label="Miles (mi)"
+        label={unit === 'km' ? 'Distance (km)' : 'Distance (miles)'}
         value={distance}
         onChangeText={(value) => {
           const normalized = value.replace(',', '.');
@@ -568,6 +603,7 @@ export function ManualTripScreen() {
         keyboardType="decimal-pad"
         compact
         autoFocus={!existing}
+        accessibilityLabel={unit === 'km' ? 'Distance in kilometers' : 'Distance in miles'}
       />
       {distanceError ? <FormError message={distanceError} /> : null}
       {savedFlash ? (
@@ -686,6 +722,30 @@ export function ManualTripScreen() {
             </ListSection>
           ) : null}
           <FormField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional" compact />
+          <Text style={[text.caption, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>
+            Expense proof (optional)
+          </Text>
+          <FormField
+            label="Parking"
+            value={parkingAmount}
+            onChangeText={setParkingAmount}
+            placeholder="0.00"
+            keyboardType="decimal-pad"
+            compact
+            accessibilityLabel="Parking amount"
+          />
+          <FormField
+            label="Tolls"
+            value={tollsAmount}
+            onChangeText={setTollsAmount}
+            placeholder="0.00"
+            keyboardType="decimal-pad"
+            compact
+            accessibilityLabel="Tolls amount"
+          />
+          <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+            Receipt photos stay on this device. No bank linking or OCR in this version.
+          </Text>
         </>
       ) : null}
     </ScrollScreen>
@@ -695,9 +755,11 @@ export function ManualTripScreen() {
 export function TripDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'TripDetails'>>();
   const navigation = useNavigation<Nav>();
-  const { state, classifyTrip } = useApp();
-  const { pushReviewHistory } = useProduct();
+  const { state, classifyTrip, deleteTrip } = useApp();
+  const { product, pushReviewHistory } = useProduct();
+  const [showMore, setShowMore] = useState(false);
   const trip = state.trips.find((item) => item.id === route.params.tripId);
+  const locale = product.localeProfile;
 
   if (!trip) {
     return (
@@ -707,9 +769,34 @@ export function TripDetailsScreen() {
     );
   }
 
+  const vehicle = trip.vehicleId
+    ? product.vehicles.find((item) => item.id === trip.vehicleId)
+    : null;
+  const vehicleName = vehicle
+    ? vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
+    : 'Not set';
+  const rate = rateForTimestamp(locale.rates, trip.startAt);
+  const estimate =
+    rate != null ? estimatedValueCents(trip.distanceMiles, rate.centsPerMile) : null;
+  const classificationLabel =
+    trip.classification === 'business'
+      ? 'Work'
+      : trip.classification === 'personal'
+        ? 'Personal'
+        : trip.status === 'rejected'
+          ? 'Not a drive'
+          : 'Needs review';
+  const sourceLabel =
+    trip.source === 'auto_detected'
+      ? 'Automatic protection'
+      : trip.source === 'recovered'
+        ? 'Recovered'
+        : trip.source === 'imported'
+          ? 'Imported'
+          : 'Manual entry';
+
   const classify = (decision: Exclude<ReviewDecision, null>) => {
-    const action = decision === 'work' ? 'work' : decision === 'personal' ? 'personal' : 'not_drive';
-    classifyTrip(trip.id, action);
+    classifyTrip(trip.id, decision);
     pushReviewHistory({
       id: `review-trip-${trip.id}`,
       targetId: trip.id,
@@ -722,28 +809,91 @@ export function TripDetailsScreen() {
     navigation.goBack();
   };
 
+  const confirmDelete = () => {
+    Alert.alert('Delete this drive?', 'This removes the record from this device. You can still add it again later.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deleteTrip(trip.id);
+          navigation.goBack();
+        },
+      },
+    ]);
+  };
+
   return (
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title="Review this drive"
+        title={classificationLabel}
         body="Confirm only what you know. Personal and rejected drives stay out of reports."
         emphasis="subtle"
       />
-      <ListSection title="Trip">
+      <ListSection title="Route">
         <EvidenceRow label="Date" value={formatDateLocal(trip.startAt)} />
-        <EvidenceRow label="Time" value={`${formatTimeLocal(trip.startAt)} - ${formatTimeLocal(trip.endAt)}`} />
-        <EvidenceRow label="Distance" value={`${trip.distanceMiles.toFixed(1)} mi`} />
-        <EvidenceRow label="Purpose" value={trip.purpose ?? 'Not set'} />
+        <EvidenceRow
+          label="Time"
+          value={`${formatTimeLocal(trip.startAt)} – ${formatTimeLocal(trip.endAt)}`}
+        />
         <EvidenceRow label="Start" value={trip.startLabel ?? 'Not set'} />
-        <EvidenceRow label="End" value={trip.endLabel ?? 'Not set'} />
-        <EvidenceRow label="Source" value={trip.source} />
-        <EvidenceRow label="Evidence" value={trip.evidenceMethod ?? 'Not set'} />
+        <EvidenceRow label="Destination" value={trip.endLabel ?? 'Not set'} />
+        <EvidenceRow
+          label="Distance"
+          value={formatDistance(trip.distanceMiles, locale.distanceUnit, locale.localeTag)}
+        />
+        <EvidenceRow label="Vehicle" value={vehicleName} />
+        <EvidenceRow label="Purpose" value={trip.purpose ?? 'Not set'} />
+        <EvidenceRow
+          label="Estimated value"
+          value={
+            estimate != null
+              ? formatCurrencyCents(estimate, locale.currencyCode, locale.localeTag)
+              : 'Set a rate in Profile'
+          }
+        />
       </ListSection>
       <PrimaryButton label="Work" onPress={() => classify('work')} accessibilityLabel="Classify as work" />
-      <SecondaryButton label="Personal" onPress={() => classify('personal')} />
+      <SecondaryButton label="Personal" onPress={() => classify('personal')} accessibilityLabel="Classify as personal" />
+      <SecondaryButton label="Not sure" onPress={() => classify('not_sure')} accessibilityLabel="Mark as not sure" />
       <DestructiveButton label="Wasn't a drive" onPress={() => classify('not_drive')} />
-      <SecondaryButton label="Edit drive" onPress={() => navigation.navigate('ManualTrip', { tripId: trip.id })} />
+      <SecondaryButton
+        label="Edit"
+        onPress={() => navigation.navigate('ManualTrip', { tripId: trip.id })}
+        accessibilityLabel="Edit this drive"
+      />
+      <TertiaryButton
+        label={showMore ? 'Hide details' : 'More details'}
+        onPress={() => setShowMore((value) => !value)}
+        accessibilityLabel={showMore ? 'Hide advanced trip details' : 'Show more trip details'}
+      />
+      {showMore ? (
+        <ListSection title="Evidence and notes">
+          <EvidenceRow label="Source" value={sourceLabel} />
+          <EvidenceRow label="Evidence" value={trip.evidenceMethod ?? 'Not set'} />
+          <EvidenceRow label="Confidence" value={trip.confidence ?? 'Not set'} />
+          <EvidenceRow label="Notes" value={trip.notes?.trim() || 'None'} />
+          <EvidenceRow
+            label="Parking"
+            value={
+              trip.parkingCents != null
+                ? formatCurrencyCents(trip.parkingCents, locale.currencyCode, locale.localeTag)
+                : 'None'
+            }
+          />
+          <EvidenceRow
+            label="Tolls"
+            value={
+              trip.tollsCents != null
+                ? formatCurrencyCents(trip.tollsCents, locale.currencyCode, locale.localeTag)
+                : 'None'
+            }
+          />
+          <EvidenceRow label="Receipt" value={trip.receiptUri ? 'Attached' : 'None'} />
+          <DestructiveButton label="Delete drive" onPress={confirmDelete} accessibilityLabel="Delete this drive" />
+        </ListSection>
+      ) : null}
     </ScrollScreen>
   );
 }
@@ -752,14 +902,20 @@ export function MissingTripRecoveryScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'MissingTripRecovery'>>();
   const navigation = useNavigation<Nav>();
   const { state, confirmRecovery, rejectRecovery } = useApp();
-  const { pushReviewHistory } = useProduct();
+  const { product, pushReviewHistory } = useProduct();
+  const locale = product.localeProfile;
+  const unit = locale.distanceUnit;
   const reviewItem = state.reviewItems.find((item) => item.id === route.params.reviewId);
   const candidateId =
     reviewItem && reviewItem.kind === 'possible_missing_trip'
       ? reviewItem.recoveryCandidateId
       : route.params.reviewId.replace(/^review-recovery-/, '');
   const candidate = state.recoveryCandidates.find((item) => item.id === candidateId);
-  const [distance, setDistance] = useState(candidate?.proposedDistanceMiles?.toString() ?? '');
+  const [distance, setDistance] = useState(
+    candidate?.proposedDistanceMiles != null
+      ? milesToDisplay(candidate.proposedDistanceMiles, unit).toFixed(1)
+      : '',
+  );
   const [purpose, setPurpose] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -784,7 +940,8 @@ export function MissingTripRecoveryScreen() {
   };
 
   const confirm = () => {
-    const miles = Number.parseFloat(distance);
+    const entered = Number.parseFloat(distance);
+    const miles = displayToMiles(entered, unit);
     if (!Number.isFinite(miles) || miles <= 0) {
       setError('Enter the distance before confirming this recovered drive.');
       return;
@@ -804,6 +961,11 @@ export function MissingTripRecoveryScreen() {
     navigation.goBack();
   };
 
+  const unknownBits = [
+    candidate.proposedDistanceMiles == null ? 'Distance is unknown until you enter it.' : null,
+    'Calendar permission is not required for this suggestion.',
+  ].filter(Boolean);
+
   return (
     <ScrollScreen>
       <StatusCard
@@ -812,7 +974,7 @@ export function MissingTripRecoveryScreen() {
         body={candidate.plainLanguageExplanation}
         emphasis="hero"
       />
-      <ListSection title="Why we are asking">
+      <ListSection title="Why we suggested this">
         <EvidenceRow label="Confidence" value={candidate.confidence} />
         <EvidenceRow
           label="Time"
@@ -820,22 +982,39 @@ export function MissingTripRecoveryScreen() {
         />
         <EvidenceRow
           label="Suggested distance"
-          value={candidate.proposedDistanceMiles != null ? `${candidate.proposedDistanceMiles.toFixed(1)} mi` : 'Needs your entry'}
+          value={
+            candidate.proposedDistanceMiles != null
+              ? formatDistance(candidate.proposedDistanceMiles, unit, locale.localeTag)
+              : 'Needs your entry — nothing invented'
+          }
         />
         {candidate.evidence.map((evidence) => (
           <EvidenceRow key={`${evidence.kind}-${evidence.summary}`} label={evidence.kind} value={evidence.summary} />
         ))}
+        {unknownBits.map((bit) => (
+          <EvidenceRow key={bit!} label="Unknown" value={bit!} />
+        ))}
       </ListSection>
-      <FormField label="Distance (miles)" value={distance} onChangeText={setDistance} placeholder="0.0" />
+      <FormField
+        label={unit === 'km' ? 'Distance (km)' : 'Distance (miles)'}
+        value={distance}
+        onChangeText={setDistance}
+        placeholder="0.0"
+        accessibilityLabel={unit === 'km' ? 'Distance in kilometers' : 'Distance in miles'}
+      />
       <FormField label="Purpose" value={purpose} onChangeText={setPurpose} placeholder="Recovered work drive" />
       {error ? <FormError message={error} /> : null}
-      <PrimaryButton label="Confirm work drive" onPress={confirm} />
+      <PrimaryButton label="Confirm work drive" onPress={confirm} accessibilityLabel="Confirm recovered work drive" />
       <SecondaryButton label="Personal, leave out" onPress={() => reject('personal')} />
       <DestructiveButton label="Not a drive" onPress={() => reject('not_drive')} />
     </ScrollScreen>
   );
 }
 
+/**
+ * Protection Center — guided repair (explain → ask → verify → success).
+ * Route name stays ProtectionAlert for navigation compatibility.
+ */
 export function ProtectionAlertScreen() {
   const navigation = useNavigation<Nav>();
   const {
@@ -849,6 +1028,8 @@ export function ProtectionAlertScreen() {
   } = useApp();
   const { product, setProtectionSetupState, setTrackingEnabled } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const setupIncomplete =
+    product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
   const protection = resolveProtectionStatus({
     permissions,
     trackingEnabled: product.trackingEnabled,
@@ -857,6 +1038,7 @@ export function ProtectionAlertScreen() {
     lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
     lastSyncAt: state.lastSyncAt,
     pendingReviewCount: state.reviewItems.length,
+    setupIncomplete,
   });
   const foregroundReady = permissions.location === 'granted';
   const backgroundReady = permissions.backgroundLocation === 'granted';
@@ -864,9 +1046,13 @@ export function ProtectionAlertScreen() {
   const statusVariant =
     protection.status === 'protected'
       ? ('success' as const)
-      : protection.status === 'off'
+      : protection.status === 'manual_only' || protection.status === 'tracking_paused'
         ? ('info' as const)
         : ('warning' as const);
+  const [guideStep, setGuideStep] = useState<
+    'overview' | 'explain_fg' | 'ask_fg' | 'explain_bg' | 'ask_bg' | 'verify' | 'success'
+  >('overview');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
@@ -875,49 +1061,228 @@ export function ProtectionAlertScreen() {
     return () => sub.remove();
   }, [refreshPermissions]);
 
+  useEffect(() => {
+    if (protection.status === 'protected' && guideStep !== 'overview') {
+      setGuideStep('success');
+      if (setupIncomplete) setProtectionSetupState('configured');
+    }
+  }, [guideStep, protection.status, setProtectionSetupState, setupIncomplete]);
+
+  const startGuidedRepair = () => {
+    if (!capabilities.canUseAutomaticCapture) {
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    if (!foregroundReady) setGuideStep('explain_fg');
+    else if (!backgroundReady) setGuideStep('explain_bg');
+    else if (!product.trackingEnabled) {
+      setTrackingEnabled(true);
+      setGuideStep('verify');
+    } else setGuideStep('verify');
+  };
+
+  const runPrimaryIssueAction = () => {
+    if (!issue) return;
+    if (issue.action === 'see_plans') {
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    if (issue.action === 'review_trips') {
+      navigation.navigate('MainTabs', { screen: 'Review' });
+      return;
+    }
+    if (issue.action === 'enable_watching') {
+      if (!capabilities.canUseAutomaticCapture) {
+        navigation.navigate('PlanSelection', { source: 'upgrade' });
+        return;
+      }
+      setTrackingEnabled(true);
+      return;
+    }
+    if (issue.action === 'finish_setup' || issue.action === 'open_location_settings') {
+      startGuidedRepair();
+      return;
+    }
+    if (issue.action === 'open_battery_settings') {
+      void openSystemSettings();
+    }
+  };
+
+  if (guideStep === 'explain_fg' || guideStep === 'ask_fg') {
+    return (
+      <ScrollScreen>
+        <SectionHeader title="How location helps" />
+        <Text style={[text.body, { marginBottom: spacing.md }]}>
+          Location is used only to help protect work drives. We explain before we ask. You can skip and
+          still add drives manually.
+        </Text>
+        <StatusCard
+          variant="info"
+          title="While using the app"
+          body="MileRecover needs location while open so it can notice when a work drive starts."
+          emphasis="hero"
+        />
+        <PrimaryButton
+          label={busy ? 'Asking…' : 'Allow location while using the app'}
+          loading={busy}
+          onPress={() => {
+            setBusy(true);
+            void requestLocationPermission()
+              .then((snap) => {
+                if (snap.location === 'granted') setGuideStep('explain_bg');
+                else setGuideStep('verify');
+              })
+              .finally(() => setBusy(false));
+          }}
+          accessibilityLabel="Allow location while using the app"
+        />
+        <SecondaryButton
+          label="Continue with manual tracking"
+          onPress={() => {
+            setGuideStep('overview');
+            navigation.goBack();
+          }}
+          accessibilityLabel="Continue with manual tracking instead"
+        />
+        <TertiaryButton label="I’ll finish this later" onPress={() => setGuideStep('overview')} />
+      </ScrollScreen>
+    );
+  }
+
+  if (guideStep === 'explain_bg' || guideStep === 'ask_bg') {
+    return (
+      <ScrollScreen>
+        <SectionHeader title="Background protection" />
+        <Text style={[text.body, { marginBottom: spacing.md }]}>
+          Background location lets MileRecover keep protecting drives when the app isn’t open. We’ll open
+          system settings only if your phone requires it.
+        </Text>
+        <StatusCard
+          variant="info"
+          title="You’re in control"
+          body="You can skip this and keep adding drives manually. Automatic protection won’t be dependable until background location is on."
+          emphasis="hero"
+        />
+        <PrimaryButton
+          label={busy ? 'Asking…' : 'Allow background location'}
+          loading={busy}
+          onPress={() => {
+            setBusy(true);
+            void requestBackgroundPermission()
+              .then((snap) => {
+                if (snap.backgroundLocation !== 'granted') void openSystemSettings();
+              })
+              .finally(() => {
+                setBusy(false);
+                setGuideStep('verify');
+              });
+          }}
+          accessibilityLabel="Allow background location"
+        />
+        <SecondaryButton label="Open system settings" onPress={() => void openSystemSettings()} />
+        <TertiaryButton
+          label="Skip for now — manual still works"
+          onPress={() => setGuideStep('overview')}
+          accessibilityLabel="Skip background location for now"
+        />
+      </ScrollScreen>
+    );
+  }
+
+  if (guideStep === 'verify' || guideStep === 'success') {
+    const ok = protection.status === 'protected';
+    return (
+      <ScrollScreen>
+        <StatusCard
+          variant={ok ? 'success' : 'warning'}
+          title={ok ? 'You’re protected' : 'Checking protection…'}
+          body={
+            ok
+              ? 'Automatic protection looks ready. Manual drives always remain available.'
+              : 'We’ll re-check permissions. If something is still off, we’ll show one clear fix.'
+          }
+          emphasis="hero"
+        />
+        <SoftPanel>
+          <EvidenceRow label="While using the app" value={foregroundReady ? 'Allowed' : 'Not allowed'} />
+          <EvidenceRow label="In the background" value={backgroundReady ? 'Allowed' : 'Not allowed'} />
+          <EvidenceRow
+            label="Automatic protection"
+            value={product.trackingEnabled ? 'On' : 'Paused'}
+          />
+          {protection.lastCheckLabel ? (
+            <EvidenceRow label="Last check" value={protection.lastCheckLabel.replace(/^Last successful check:\s*/i, '')} />
+          ) : null}
+        </SoftPanel>
+        <PrimaryButton
+          label="Check again"
+          onPress={() => void refreshPermissions()}
+          accessibilityLabel="Check protection permissions again"
+        />
+        {!foregroundReady ? (
+          <SecondaryButton label="Allow location while using the app" onPress={() => setGuideStep('explain_fg')} />
+        ) : null}
+        {foregroundReady && !backgroundReady ? (
+          <SecondaryButton label="Allow background location" onPress={() => setGuideStep('explain_bg')} />
+        ) : null}
+        {ok ? (
+          <PrimaryButton
+            label="Done"
+            onPress={() => {
+              setProtectionSetupState('configured');
+              if (!product.trackingEnabled && capabilities.canUseAutomaticCapture) {
+                setTrackingEnabled(true);
+              }
+              navigation.goBack();
+            }}
+            accessibilityLabel="Finish protection setup"
+          />
+        ) : (
+          <TertiaryButton label="Continue with manual tracking" onPress={() => navigation.goBack()} />
+        )}
+      </ScrollScreen>
+    );
+  }
+
   return (
     <ScrollScreen>
+      <SectionHeader title="Protection Center" />
       <StatusCard
         variant={statusVariant}
         title={protection.title}
         body={protection.detail}
         emphasis="hero"
       />
+      {protection.lastCheckLabel ? (
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>{protection.lastCheckLabel}</Text>
+      ) : (
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+          No successful automatic check yet — manual drives still work.
+        </Text>
+      )}
+      <SoftPanel>
+        <Text style={text.subtitle}>
+          {protection.automaticDependable
+            ? 'Automatic tracking is dependable'
+            : 'Automatic tracking is not dependable yet'}
+        </Text>
+        <Text style={[text.body, { marginTop: spacing.xs }]}>
+          {protection.automaticDependable
+            ? 'MileRecover can protect work drives in the background when you travel.'
+            : 'You can keep using manual tracking while we fix one thing at a time.'}
+        </Text>
+      </SoftPanel>
       {issue ? (
         <SoftPanel>
           <Text style={text.subtitle}>{issue.what}</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{issue.why}</Text>
-          {issue.action === 'open_location_settings' || issue.action === 'open_battery_settings' ? (
-            <PrimaryButton label={issue.actionLabel} onPress={() => void openSystemSettings()} />
-          ) : null}
-          {issue.action === 'enable_watching' ? (
-            <PrimaryButton
-              label={issue.actionLabel}
-              onPress={() => {
-                if (!capabilities.canUseAutomaticCapture) {
-                  navigation.navigate('PlanSelection', { source: 'upgrade' });
-                  return;
-                }
-                setTrackingEnabled(true);
-              }}
-            />
-          ) : null}
-          {issue.action === 'review_trips' ? (
-            <PrimaryButton
-              label={issue.actionLabel}
-              onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })}
-            />
-          ) : null}
+          <PrimaryButton
+            label={issue.actionLabel}
+            onPress={runPrimaryIssueAction}
+            accessibilityLabel={issue.actionLabel}
+          />
         </SoftPanel>
-      ) : (
-        <SoftPanel>
-          <Text style={text.body}>
-            {automaticCaptureAvailable
-              ? 'Location and watching look ready. Manual drives always remain available.'
-              : 'Auto-tracking isn’t available on this device yet. Manual drives still work.'}
-          </Text>
-        </SoftPanel>
-      )}
+      ) : null}
       <SoftPanel>
         <EvidenceRow label="While using the app" value={foregroundReady ? 'On' : 'Off'} />
         <EvidenceRow label="In the background" value={backgroundReady ? 'On' : 'Off'} />
@@ -925,22 +1290,17 @@ export function ProtectionAlertScreen() {
           label="Battery restrictions"
           value={permissions.batteryOptimizationRestricted ? 'May stop tracking' : 'OK'}
         />
+        <EvidenceRow label="Protection" value={product.trackingEnabled ? 'On' : 'Paused'} />
       </SoftPanel>
-      {!foregroundReady ? (
+      {protection.status !== 'protected' && protection.status !== 'manual_only' ? (
         <PrimaryButton
-          label="Allow location while using the app"
-          onPress={() => void requestLocationPermission()}
+          label="Start guided repair"
+          onPress={startGuidedRepair}
+          accessibilityLabel="Start guided protection repair"
         />
       ) : null}
-      {foregroundReady && !backgroundReady ? (
-        <SecondaryButton
-          label="Allow location in the background"
-          onPress={() => void requestBackgroundPermission()}
-        />
-      ) : null}
-      <SecondaryButton label="Open settings" onPress={() => void openSystemSettings()} />
       <SecondaryButton label="Check again" onPress={() => void refreshPermissions()} />
-      {product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated' ? (
+      {setupIncomplete ? (
         <PrimaryButton
           label="Looks good — continue"
           onPress={() => setProtectionSetupState('configured')}
@@ -960,7 +1320,7 @@ export function ProtectionAlertScreen() {
 
 export function TrackingActiveScreen() {
   const navigation = useNavigation<Nav>();
-  const { permissions, automaticCaptureAvailable } = useApp();
+  const { permissions } = useApp();
   const { product, setTrackingEnabled } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
@@ -974,6 +1334,7 @@ export function TrackingActiveScreen() {
   }, [product.trackingEnabled]);
 
   const canStart = capabilities.canUseAutomaticCapture;
+  const automaticOn = product.trackingEnabled && canStart;
   const start = () => {
     if (!canStart) {
       navigation.navigate('PlanSelection', { source: 'upgrade' });
@@ -991,34 +1352,33 @@ export function TrackingActiveScreen() {
 
   return (
     <ScrollScreen>
-      <StatusCard
-        variant={product.trackingEnabled && canStart ? 'info' : 'warning'}
-        title={
-          product.trackingEnabled && canStart
-            ? 'Watching is on'
-            : canStart
-              ? 'Watching is off'
-              : 'Watching needs Plus'
-        }
+      <SectionHeader title="How you track" />
+      <Text style={[text.body, { marginBottom: spacing.md }]}>
+        Choose one simple mode. Advanced thresholds and Bluetooth options stay out of the way for now.
+      </Text>
+      <SelectionCard
+        title="Automatic protection"
         body={
           canStart
-            ? 'Here’s whether we’re watching, and whether location is allowed.'
-            : 'Automatic watching comes with Plus after a real store trial or purchase. Manual drives stay free.'
+            ? automaticOn
+              ? 'On — MileRecover watches for drives in the background when permissions allow.'
+              : 'Turn on to protect drives automatically. You’ll still review anything uncertain.'
+            : 'Available with Plus after a real store trial or purchase. Manual trips stay free.'
         }
-        emphasis="hero"
+        selected={automaticOn}
+        onPress={start}
       />
-      <ListSection title="Are you protected?">
-        <EvidenceRow
-          label="Status"
-          value={
-            product.trackingEnabled && canStart && permissions.location === 'granted'
-              ? 'Yes'
-              : product.trackingEnabled || permissions.location === 'granted'
-                ? 'Partially'
-                : 'Not yet'
-          }
-        />
-        <EvidenceRow label="Watching" value={product.trackingEnabled && canStart ? 'On' : 'Off'} />
+      <SelectionCard
+        title="Manual trip"
+        body="Add drives yourself anytime. Always available, even when automatic protection is off."
+        selected={!automaticOn}
+        onPress={() => {
+          if (product.trackingEnabled) stop();
+          navigation.navigate('ManualTrip');
+        }}
+      />
+      <ListSection title="Current status">
+        <EvidenceRow label="Automatic protection" value={automaticOn ? 'On' : 'Off'} />
         <EvidenceRow label="While using the app" value={permissions.location === 'granted' ? 'On' : 'Off'} />
         <EvidenceRow label="In the background" value={permissions.backgroundLocation === 'granted' ? 'On' : 'Off'} />
         <EvidenceRow
@@ -1030,25 +1390,29 @@ export function TrackingActiveScreen() {
           }
         />
       </ListSection>
-      {diagnostics?.backgroundLimited && product.trackingEnabled ? (
+      {diagnostics?.backgroundLimited && automaticOn ? (
         <StatusCard
           variant="warning"
-          title="Background watching is limited"
-          body="Some drives may be missed when the app isn’t open. Open Settings if you want fuller coverage."
+          title="Background protection is limited"
+          body="Some drives may be missed when the app isn’t open. Open Protection Center to repair permissions."
           emphasis="subtle"
         />
       ) : null}
-      <PrimaryButton
-        label={product.trackingEnabled ? 'Watching is already on' : 'Start watching'}
-        onPress={start}
-        disabled={product.trackingEnabled && canStart}
-      />
-      <SecondaryButton label="Stop watching" onPress={stop} disabled={!product.trackingEnabled} />
+      {automaticOn ? (
+        <SecondaryButton label="Pause automatic protection" onPress={stop} accessibilityLabel="Pause automatic protection" />
+      ) : (
+        <PrimaryButton
+          label={canStart ? 'Turn on automatic protection' : 'See Plus for automatic protection'}
+          onPress={start}
+          accessibilityLabel={canStart ? 'Turn on automatic protection' : 'See Plus plans'}
+        />
+      )}
+      <SecondaryButton label="Open Protection Center" onPress={() => navigation.navigate('ProtectionAlert')} />
       <SecondaryButton label="Refresh status" onPress={refreshDiagnostics} />
       <StatusCard
         variant="neutral"
-        title="Still available on Free"
-        body="Add drives by hand, import history, review, and share CSV anytime — even when watching is off."
+        title="Manual trips always work"
+        body="Add drives by hand, import history, review, and share CSV anytime — even when automatic protection is off."
         emphasis="subtle"
       />
     </ScrollScreen>

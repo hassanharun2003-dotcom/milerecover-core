@@ -11,6 +11,8 @@ export const CSV_HEADERS = [
   'Vehicle',
   'Source',
   'Evidence',
+  'Parking Cents',
+  'Tolls Cents',
   'Notes',
 ] as const;
 
@@ -55,6 +57,8 @@ export function tripToCsvCells(trip: TripRecord, ctx: CsvTripRowContext = {}): s
     vehicle,
     trip.source,
     trip.evidenceMethod ?? '',
+    trip.parkingCents != null ? String(trip.parkingCents) : '',
+    trip.tollsCents != null ? String(trip.tollsCents) : '',
     trip.notes ?? '',
   ];
 }
