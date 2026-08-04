@@ -103,8 +103,25 @@ Includes: welcome car-on-road animation + “Protect every work mile.”, native
 
 ### OTA (runtime 0.1.6 — installs on 0.1.6 APK)
 
-- Update group: `6b34fa86-9399-42db-96cb-1ad207f248e7`
-- Android update ID: `019fcbd6-9c6d-74aa-99a7-be77a75bccc4`
-- iOS update ID: `019fcbd6-9c6d-7818-b02a-af81c0c40690`
-- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/6b34fa86-9399-42db-96cb-1ad207f248e7
-- Baseline APK: https://expo.dev/accounts/milerecover/projects/milerecover/builds/755f85c7-2b63-4949-bdfd-19ccd382859e
+- Update group (mvp.2): `6b34fa86-9399-42db-96cb-1ad207f248e7`
+- Update group (mvp.3 — OTA never covers onboarding): `8e417248-1958-4fc1-87c6-a5e4ef7bb26d`
+  - Android: `019fcc3f-54d9-7ed4-bfc9-b7a1e9d266b3`
+  - iOS: `019fcc3f-54d9-78aa-ac45-a1e5116374c7`
+- Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/8e417248-1958-4fc1-87c6-a5e4ef7bb26d
+- Baseline APK 0.1.6 vc10: https://expo.dev/accounts/milerecover/projects/milerecover/builds/755f85c7-2b63-4949-bdfd-19ccd382859e
+- New APK queued (embeds mvp.3): https://expo.dev/accounts/milerecover/projects/milerecover/builds/940e5201-b5c2-44f5-9c5d-039e21c81fd0
+
+### Physical Android verification (emulator + OTA)
+
+Evidence under `/opt/cursor/artifacts/screenshots/qa-step*.png` and `FINAL_REPORT.txt`.
+
+| Flow | Result |
+|------|--------|
+| Fresh install → Welcome (not Home) | PASS — `Protect every work mile.` + car hero |
+| Get started → Sign in | PASS |
+| Permissions → personalization → vehicle → tracking → Finish → Home | PASS |
+| Add Drive (numeric keyboard, date chips) | PASS |
+| Google native account picker | BLOCKED — EAS has no Google client IDs yet (honest unavailable / no fake login) |
+| Calendar Cancel | Partial — Choose date uses system picker; Cancel contract unit-tested + Back dismiss |
+| Plans / Restore live purchase | Preview notice only until RevenueCat keys |
+| OTA apply | PASS — mvp.3 copy visible on device after update |
