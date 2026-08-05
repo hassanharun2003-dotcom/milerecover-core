@@ -1,0 +1,78 @@
+{
+  "onboarding-welcome": {
+    "file": "onboarding-welcome-actual.png",
+    "copyPreview": "MileRecover Never lose another work drive. Automatic protection for work mileage, with manual confirmation and private location control. ✓ Protects drives automatically ✓ You confirm before anything counts as work ✓ Creates clear mileage re"
+  },
+  "onboarding-purpose": {
+    "file": "onboarding-purpose-actual.png",
+    "copyPreview": "Back What’s your main reason for tracking mileage? This helps us personalize your experience. Employee Share clear records for reimbursement. Self-employed Track business travel for your records. Delivery/gig Protect shifts, jobs, and deliv"
+  },
+  "onboarding-locale_setup": {
+    "file": "onboarding-locale_setup-actual.png",
+    "copyPreview": "Back Let’s set your region and mileage rate We use this to display distance and estimated value correctly. Country › United States · Suggested Currency USD Distance unit Miles Kilometres Mileage rate (¢ per mile) 70¢ per mile · your chosen "
+  },
+  "onboarding-protect_drives": {
+    "file": "onboarding-protect_drives-actual.png",
+    "copyPreview": "Back Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — uses "
+  },
+  "onboarding-ready": {
+    "file": "onboarding-ready-actual.png",
+    "copyPreview": "Back ✓ You’re all set! You can add drives manually anytime. Turn on protection later from Profile when you’re ready. Purpose · Not set United States · Miles · USD Rate · 70¢/mi · USD Manual tracking selected Go to Home Add my first drive"
+  },
+  "home-live": {
+    "file": "home-live-actual.png",
+    "copyPreview": "Welcome back Plans Automatic protection is off Drive protection is paused. THIS WEEK Distance 0.0 mi Drives 0 Value $0.00 Next up Turn on protection RECENT No drives yet. Add one when you know the miles. Add a drive ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ "
+  },
+  "review-pending": {
+    "file": "review-pending-actual.png",
+    "copyPreview": "Needs you (1) Done (0) Route Client site visit Your phone was quiet for part of this stretch. · 14.2 mi Confidence · Possible drive Estimated value $9.94 We noticed a quiet stretch when you might have been driving. Possible drive. Confirm i"
+  },
+  "proof-ready": {
+    "file": "proof-ready-actual.png",
+    "copyPreview": "Work mileage report Week Month Quarter Year YTD 2026 year to date Needs details Distance 58.0 mi Drives 3 Value Set rate 2 items need attention Needs purpose for drive on Aug 1. · Purpose on every drive — Required · Needs purpose for drive "
+  },
+  "profile": {
+    "file": "profile-actual.png",
+    "copyPreview": "M Your profile Not set · United States ACCOUNT Pr Profile and preferences Not set › Pl Familiar places Add anytime › DRIVING Ve Vehicles Add a vehicle › Ra Rate and units 70¢/mi · USD · Miles › Po Protection Center › Drive protection is off"
+  },
+  "manual-trip": {
+    "file": "manual-trip-actual.png",
+    "copyPreview": "Add drive Save the details you know. We never invent a route. 1 · Work or personal Work Personal Decide later 2 · Date Today Yesterday Choose date Selected 2026-08-05 3 · Distance Enter distance Start & end Distance (miles) More details Opt"
+  },
+  "protection": {
+    "file": "protection-actual.png",
+    "copyPreview": "Protection Center Drive protection is off Turn automatic protection on to capture future drives. Manual drives still work. While using app Needs attention Background Needs attention Battery Allowed Automatic protection Needs attention Last "
+  },
+  "tracking": {
+    "file": "tracking-actual.png",
+    "copyPreview": "Tracking health Diagnostics for automatic capture. Protection status and repair actions are in Protection Center. One or more checks need attention 40 of 40 automatic trips left this month. Open Protection Center to repair anything that nee"
+  },
+  "report-preview": {
+    "file": "report-preview-actual.png",
+    "copyPreview": "Work mileage report · 2026 year to date 2026 year to date. For your records — not tax or legal advice. Work mileage report · 2026 year to date On-device preview · not tax or legal advice Period 2026 year to date Driver Add a name in Profile"
+  },
+  "subscription": {
+    "file": "subscription-actual.png",
+    "copyPreview": "7 days free Try Plus features. Cancel anytime. Monthly Annual — Save 17% Preview Purchases are disabled in this preview. Current plan: Free Free stays usable with manual logging, capped automatic trips, and basic CSV. Free $0 / month • 40 a"
+  },
+  "import": {
+    "file": "import-actual.png",
+    "copyPreview": "Bring your history with you Pick a CSV file. We will analyze the columns, show issues, and import only rows we can read without hiding duplicates. Pick CSV file Mileage exports or spreadsheets saved as CSV Add drives by hand Start fresh ins"
+  },
+  "vehicles": {
+    "file": "vehicles-actual.png",
+    "copyPreview": "Which vehicle carries your work miles? Search make and model, or type your own. One primary vehicle is the default for new drives. Year Search make Acura Audi BMW Chevrolet Dodge Ford GMC Honda Other Search model Nickname (optional) License"
+  },
+  "about": {
+    "file": "about-actual.png",
+    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.3 Build 0.2.3-blueprint-lock.3 Release notes 0.2.3 composition rebuild: Welcome “Never lo"
+  },
+  "terms": {
+    "file": "terms-actual.png",
+    "copyPreview": "Terms of use Simple terms for MileRecover MileRecover helps you track and report mileage you capture, import, or confirm. Estimated values use the rate you choose and are not tax, legal, or reimbursement advice. You stay in control of which"
+  },
+  "manual-trip-start-end": {
+    "file": "manual-trip-start-end-actual.png",
+    "copyPreview": "Add drive\n3 · Distance\nEnter distance\nStart & end\nStart and end add context only. We never invent a route or distance.\nStart (optional)\nEnd (optional)\nSave work drive"
+  }
+}

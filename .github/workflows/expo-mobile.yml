@@ -1,0 +1,60 @@
+name: Expo mobile validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile-expo/**'
+      - 'packages/domain/**'
+      - 'packages/config/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/expo-mobile.yml'
+  push:
+    branches:
+      - milestone/**
+    paths:
+      - 'apps/mobile-expo/**'
+      - 'packages/domain/**'
+      - 'packages/config/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/expo-mobile.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: expo-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  expo-mobile-checks:
+    name: Expo mobile workspace
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile-expo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Root repository checks
+        working-directory: .
+        run: npm run check:all
+      - name: Install workspace dependencies
+        working-directory: .
+        run: npm ci
+      - name: Domain tests
+        working-directory: .
+        run: npm run test:domain
+      - name: Typecheck Expo mobile
+        run: npm run typecheck
+      - name: Expo mobile tests
+        run: npm test
+      - name: Expo config validation
+        run: npm run config:validate
+      - name: Expo dependency validation
+        run: npm run deps:validate
+      - name: Android export validation
+        run: npm run export:validate
