@@ -1,4 +1,4 @@
-# MileRecover 0.2.2 — 15-minute physical QA
+# MileRecover 0.2.3 — 15-minute physical QA
 
 Clear app data before first-launch checks. Install the standalone APK (no DevLauncher).
 
@@ -6,20 +6,19 @@ Clear app data before first-launch checks. Install the standalone APK (no DevLau
 
 | # | Check | Pass? |
 |---|---|---|
-| 1 | Cleared install → Welcome with logo + trust checklist + Get started | ☐ |
-| 2 | Five steps → You’re all set → Go to dashboard → Home | ☐ |
-| 3 | Interrupted onboarding resumes correct step | ☐ |
-| 4 | Completed user update/restart → Home | ☐ |
-| 5 | Review setup keeps trips; Reset app for testing → Welcome | ☐ |
-| 6 | Light theme readable; no dark unreadable surfaces | ☐ |
-| 7 | Protection: waiting for first drive before Protected | ☐ |
-| 8 | Tracking health does not duplicate Protection Center hero status | ☐ |
-| 9 | Real drive / screen off → Review candidate (or honest miss) | ☐ |
-| 10 | Stationary jitter does not create ordinary Review drives | ☐ |
-| 11 | Map shows real points or honest fallback | ☐ |
-| 12 | Plans: 7-day trial wording + post-trial price; Restore; Terms opens Terms | ☐ |
-| 13 | Free CSV works; PDF gates to plan | ☐ |
-| 14 | Android Back from supporting screens | ☐ |
-| 15 | Manual Add drive date/time stable; Start & end + known distance; high distance confirms | ☐ |
-| 16 | Samsung battery / force-close / reboot | ☐ |
-| 17 | About shows version 0.2.2 and build label | ☐ |
+| 1 | Cleared install → Welcome “Never lose another work drive.” + Get started | ☐ |
+| 2 | Purpose shows Employee / Self-employed / Delivery/gig / Something else | ☐ |
+| 3 | Region & rate uses compact country row (not giant country card stack) | ☐ |
+| 4 | Protect → “Turn on drive protection”; Ready → “Go to Home” → Home | ☐ |
+| 5 | Interrupted onboarding resumes earliest unfinished step | ☐ |
+| 6 | Reset app for testing → Welcome; reopen still Welcome | ☐ |
+| 7 | Home shows prominent protection card + Next up + primary Add a drive | ☐ |
+| 8 | Protection waiting until first verified drive (not false Protected) | ☐ |
+| 9 | Review Work is green primary; Personal / Not sure equal; Undo works | ☐ |
+| 10 | Proof amber attention lists named issues; CSV Free; PDF Plus | ☐ |
+| 11 | Profile avatar header + icon rows; every chevron opens a real screen | ☐ |
+| 12 | Plans: 7 days free + post-trial price; Terms ≠ Privacy | ☐ |
+| 13 | Map shows real points or “Route unavailable” (no fake roads) | ☐ |
+| 14 | Manual Add drive Start & end + known distance; pickers stable | ☐ |
+| 15 | Android Back from supporting screens; Samsung battery / force-close | ☐ |
+| 16 | About shows version 0.2.3 and build label | ☐ |

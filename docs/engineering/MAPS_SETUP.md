@@ -1,6 +1,6 @@
 # Maps setup — MileRecover
 
-## Current production behavior (ships in 0.1.8)
+## Current production behavior (ships in 0.2.3)
 
 `RouteMapPreview` (`apps/mobile-expo/src/design-system/index.tsx`) draws **only recorded GPS points** with React Native Views.
 
@@ -8,7 +8,7 @@
 - OTA-safe  
 - Offline-safe  
 - Never invents path segments  
-- Empty / one-point → honest “Route” fallback  
+- Empty / one-point → honest “Route unavailable” fallback  
 - Review: compact preview; Trip details: larger replay  
 
 This is the intentional fallback until native MapView credentials and a native rebuild are available.
