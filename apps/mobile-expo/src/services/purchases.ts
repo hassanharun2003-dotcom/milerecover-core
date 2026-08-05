@@ -166,12 +166,12 @@ export function resolveProProductId(period: PurchasePeriod): string {
 export function trialRenewalCopy(price: string | null, endsAt: number | null): string {
   const amount = price ?? 'the plan price';
   if (!endsAt) {
-    return `Then ${amount}/month starting after the trial, unless cancelled. Automatically renews unless cancelled. Cancel anytime in Google Play or App Store settings.`;
+    return `Then ${amount}/month unless cancelled. Cancel anytime in Google Play or App Store settings.`;
   }
   const date = new Date(endsAt).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
-  return `Then ${amount}/month starting ${date}, unless cancelled. Automatically renews unless cancelled. Cancel anytime in Google Play or App Store settings.`;
+  return `Then ${amount}/month starting ${date}, unless cancelled. Cancel anytime in Google Play or App Store settings.`;
 }

@@ -152,14 +152,15 @@ export function protectionLabel(state: ProtectionSetupState): string {
 export function tripSourceLabel(source: string): string {
   switch (source) {
     case 'manual':
-      return 'Added by you';
+      return 'Added manually';
     case 'recovered':
       return 'Recovered';
     case 'imported':
       return 'Imported';
     case 'automatic':
     case 'auto':
-      return 'Tracked';
+    case 'auto_detected':
+      return 'Automatically captured';
     default:
       return source;
   }

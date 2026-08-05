@@ -5,7 +5,6 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { formatActiveRateLabel } from '@milerecover/domain';
 import { ConfirmDialog, ListRow, ListSection, TabScreen } from '../../design-system';
-import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { useProduct } from '../../product/ProductContext';
 import {
@@ -25,7 +24,7 @@ type ProfileNav = CompositeNavigationProp<
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
   const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable, state } = useApp();
-  const { product, setDemoScenario, setDemoModeEnabled, resetProductData } = useProduct();
+  const { product, resetProductData } = useProduct();
   const [confirmResetVisible, setConfirmResetVisible] = useState(false);
   const [resetting, setResetting] = useState(false);
   const displayName = product.preferredName?.trim() || 'Not set';
@@ -47,6 +46,20 @@ export function ProfileScreen() {
   const allowance = selectAllowance(state, product);
   const rateLabel = formatActiveRateLabel(product.localeProfile);
   const planLabel = selectEntitlementPlanLabel(product.entitlement);
+  const trialDaysLeft =
+    product.entitlement.status === 'trialActive' && product.entitlement.trialEndsAt
+      ? Math.max(0, Math.ceil((product.entitlement.trialEndsAt - Date.now()) / 86400000))
+      : null;
+  const currentPlanValue =
+    trialDaysLeft != null
+      ? `${planLabel} · ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left`
+      : planLabel;
+  const unitLabel = product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles';
+  const rateAndUnits = `${rateLabel} · ${unitLabel} · ${product.localeProfile.currencyCode}`;
+  const automaticAllowance =
+    allowance.limit == null
+      ? `${allowance.used} · Unlimited auto`
+      : `${allowance.used} of ${allowance.limit} auto/mo`;
   const internalPreviewTools = product.showDevTools && allowInternalPreviewTools();
   const resetExperience = async () => {
     if (resetting) return;
@@ -63,10 +76,19 @@ export function ProfileScreen() {
 
   return (
     <TabScreen>
-      <ListSection title="Profile">
-        <ListRow label="Name" value={displayName} onPress={() => navigation.navigate('EditSetup')} />
-        <ListRow label="Goal" value={primaryGoal} onPress={() => navigation.navigate('EditSetup')} />
-        <ListRow label="Driving pattern" value={drivingType} onPress={() => navigation.navigate('EditSetup')} />
+      <ListSection title="Identity">
+        <ListRow label="Name" value={displayName} showChevron={false} />
+        <ListRow label="Purpose" value={primaryGoal} showChevron={false} />
+        <ListRow label="Country" value={product.localeProfile.countryDisplayName} showChevron={false} />
+      </ListSection>
+
+      <ListSection title="Account">
+        <ListRow
+          label="Profile/preferences"
+          value={drivingType}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow label="Purpose" value={primaryGoal} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow
           label="Familiar places"
           value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}
@@ -74,34 +96,16 @@ export function ProfileScreen() {
         />
       </ListSection>
 
-      <ListSection title="Vehicle & mileage">
+      <ListSection title="Driving">
         <ListRow
           label="Vehicles"
           value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add a vehicle'}
           onPress={() => navigation.navigate('VehicleSetup')}
         />
-        <ListRow label="Mileage rate" value={rateLabel} onPress={() => navigation.navigate('EditSetup')} />
+        <ListRow label="Rate and units" value={rateAndUnits} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow
-          label="Country"
-          value={product.localeProfile.countryDisplayName}
-          onPress={() => navigation.navigate('EditSetup')}
-        />
-        <ListRow
-          label="Distance"
-          value={product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles'}
-          onPress={() => navigation.navigate('EditSetup')}
-        />
-        <ListRow
-          label="Currency"
-          value={product.localeProfile.currencyCode}
-          onPress={() => navigation.navigate('EditSetup')}
-        />
-      </ListSection>
-
-      <ListSection title="Tracking & recovery">
-        <ListRow label="Status" value={protection.title} showChevron={false} />
-        <ListRow
-          label="Protection center"
+          label="Protection Center"
+          value={protection.title}
           onPress={() => {
             if (protection.primaryAction.action === 'see_plans') {
               navigation.navigate('PlanSelection', { source: 'upgrade' });
@@ -111,26 +115,21 @@ export function ProfileScreen() {
           }}
         />
         <ListRow
-          label="Tracking mode"
-          value={product.trackingEnabled ? 'Automatic protection' : 'Manual'}
+          label="Tracking"
+          value={product.trackingEnabled ? automaticAllowance : 'Manual'}
           onPress={() => navigation.navigate('TrackingActive')}
         />
-        <ListRow
-          label="Auto trips this month"
-          value={
-            allowance.limit == null
-              ? `${allowance.used} · Unlimited`
-              : `${allowance.used} of ${allowance.limit}`
-          }
-          onPress={() => navigation.navigate('TrackingActive')}
-        />
+      </ListSection>
+
+      <ListSection title="Data">
         <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
+        <ListRow label="Privacy" onPress={() => navigation.navigate('Privacy')} />
       </ListSection>
 
       <ListSection title="Plan">
         <ListRow
-          label="Plan"
-          value={planLabel}
+          label="Current plan"
+          value={currentPlanValue}
           onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
         />
         <ListRow
@@ -139,8 +138,7 @@ export function ProfileScreen() {
         />
       </ListSection>
 
-      <ListSection title="Support & privacy">
-        <ListRow label="Privacy" onPress={() => navigation.navigate('Privacy')} />
+      <ListSection title="Support">
         <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
         <ListRow label="About" onPress={() => navigation.navigate('About')} />
         <ListRow
@@ -151,22 +149,7 @@ export function ProfileScreen() {
       </ListSection>
 
       {internalPreviewTools ? (
-        <ListSection title="Internal preview tools">
-          <ListRow
-            label="Demo mode"
-            value={product.demoModeEnabled ? 'On' : 'Off'}
-            onPress={() => setDemoModeEnabled(!product.demoModeEnabled)}
-          />
-          {product.demoModeEnabled
-            ? DEMO_SCENARIO_LIST.map((scenario) => (
-                <ListRow
-                  key={scenario.id}
-                  label={scenario.label}
-                  value={product.demoScenario === scenario.id ? 'Active' : undefined}
-                  onPress={() => setDemoScenario(scenario.id)}
-                />
-              ))
-            : null}
+        <ListSection title="Preview">
           <ListRow
             label="Reset app for testing"
             value="Clears setup + local data"

@@ -27,6 +27,12 @@ export {
 export { ThemeProvider, useAppTheme } from './ThemeProvider';
 
 export const text = StyleSheet.create({
+  display: {
+    fontSize: typography.size.display,
+    lineHeight: typography.lineHeight.display,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
   headline: {
     fontSize: typography.size.headline,
     lineHeight: typography.lineHeight.headline,
@@ -643,28 +649,36 @@ export function ReviewCard({
           ) : null}
         </View>
       </View>
-      <View style={styles.reviewActions}>
-        <SecondaryButton
-          label="Work"
-          onPress={onWork}
-          accessibilityLabel={`Mark as work drive. ${title}`}
-        />
-        <SecondaryButton
-          label="Personal"
-          onPress={onPersonal}
-          accessibilityLabel={`Mark as personal drive. ${title}`}
-        />
-        {onNotSure ? (
+      <View style={styles.reviewDecisionActions}>
+        <View style={styles.reviewDecisionButton}>
           <SecondaryButton
-            label="Not sure"
-            onPress={onNotSure}
-            accessibilityLabel={`Mark as not sure. ${title}`}
+            label="Work"
+            onPress={onWork}
+            accessibilityLabel={`Mark as work drive. ${title}`}
           />
-        ) : null}
-        {onEdit ? (
-          <TertiaryButton label="Details" onPress={onEdit} accessibilityLabel={`Open details for ${title}`} />
+        </View>
+        <View style={styles.reviewDecisionButton}>
+          <SecondaryButton
+            label="Personal"
+            onPress={onPersonal}
+            accessibilityLabel={`Mark as personal drive. ${title}`}
+          />
+        </View>
+        {onNotSure ? (
+          <View style={styles.reviewDecisionButton}>
+            <SecondaryButton
+              label="Not sure"
+              onPress={onNotSure}
+              accessibilityLabel={`Mark as not sure. ${title}`}
+            />
+          </View>
         ) : null}
       </View>
+      {onEdit ? (
+        <View style={styles.reviewEditAction}>
+          <TertiaryButton label="Edit" onPress={onEdit} accessibilityLabel={`Edit ${title}`} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -1013,9 +1027,29 @@ export function SafeAreaFooter({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ProtectionCard({ children }: { children: React.ReactNode }) {
+export function ProtectionCard({
+  children,
+  variant = 'default',
+}: {
+  children: React.ReactNode;
+  variant?: 'default' | 'protected';
+}) {
   const { palette } = useAppTheme();
-  return <View style={[styles.softPanel, themedPanel(palette)]} accessibilityRole="summary">{children}</View>;
+  return (
+    <View
+      style={[
+        styles.softPanel,
+        themedPanel(palette),
+        variant === 'protected' && {
+          backgroundColor: palette.forest[800],
+          borderColor: palette.forest[700],
+        },
+      ]}
+      accessibilityRole="summary"
+    >
+      {children}
+    </View>
+  );
 }
 
 export function WelcomeHero({
@@ -1039,7 +1073,9 @@ export function WelcomeHero({
       {eyebrow ? (
         <Text style={[text.subtitle, themedText(palette), { marginTop: spacing.md }]}>{eyebrow}</Text>
       ) : null}
-      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>{body}</Text>
+      {body ? (
+        <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>{body}</Text>
+      ) : null}
     </View>
   );
 }
@@ -1602,6 +1638,9 @@ const styles = StyleSheet.create({
   timelineRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.forest[500], marginTop: 6 },
   reviewActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' },
+  reviewDecisionActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  reviewDecisionButton: { flex: 1, minWidth: 0 },
+  reviewEditAction: { marginTop: spacing.sm },
   listSection: { marginTop: spacing.lg },
   listSectionTitle: { marginBottom: spacing.sm, letterSpacing: 0.5 },
   listRow: {

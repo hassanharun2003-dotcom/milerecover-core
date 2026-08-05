@@ -30,14 +30,14 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.0',
+  version: '0.2.1',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
   splash: {
     image: './assets/splash-icon.png',
     resizeMode: 'contain',
-    backgroundColor: '#FAFAF8',
+    backgroundColor: '#F7F9FC',
   },
   ios: {
     bundleIdentifier: 'com.milerecover.app',

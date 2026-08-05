@@ -18,6 +18,7 @@ import {
   type ProductOnboardingStep,
 } from '../../product/types';
 import {
+  ChecklistRow,
   FormField,
   OnboardingScreen,
   PrimaryButton,
@@ -70,6 +71,7 @@ export function OnboardingFlow() {
     setTrackingEnabled,
     patchOnboarding,
     completeProductOnboarding,
+    setPendingPostOnboardingRoute,
   } = useProduct();
 
   const [finishing, setFinishing] = useState(false);
@@ -110,7 +112,6 @@ export function OnboardingFlow() {
 
   const saveLocale = () => {
     const entered = Number.parseFloat(rateCents);
-    // UI shows the active unit; domain rates are stored as cents-per-mile.
     const centsPerMile =
       Number.isFinite(entered) && entered > 0
         ? Math.round(unitDraft === 'km' ? entered * 1.609344 : entered)
@@ -130,17 +131,13 @@ export function OnboardingFlow() {
     if (finishing) return;
     setFinishing(true);
     const action: NextActionId =
-      route === 'ProtectionAlert'
-        ? 'start_protection'
+      route === 'ManualTrip'
+        ? 'add_first_drive'
         : route === 'BringExistingMileage'
           ? 'import_mileage'
-          : route === 'MissingTripRecovery'
-            ? 'begin_rescue'
-            : route === 'ManualTrip'
-              ? 'add_first_drive'
-              : protectionConfigured
-                ? 'start_protection'
-                : 'add_first_drive';
+          : protectionConfigured
+            ? 'start_protection'
+            : 'add_first_drive';
     completeProductOnboarding(route);
     patchOnboarding({
       nextActionSelected: action,
@@ -155,8 +152,10 @@ export function OnboardingFlow() {
   const rateLabel = unitDraft === 'km' ? 'Mileage rate (¢ per km)' : 'Mileage rate (¢ per mile)';
   const ratePreview = useMemo(() => {
     const entered = Number.parseFloat(rateCents);
-    if (!Number.isFinite(entered) || entered <= 0) return 'Optional — you can set this later in Profile';
-    return unitDraft === 'km' ? `${Math.round(entered)}¢ per km` : `${Math.round(entered)}¢ per mile`;
+    if (!Number.isFinite(entered) || entered <= 0) return 'Review this rate. It is your chosen estimate, not a tax guarantee.';
+    return unitDraft === 'km'
+      ? `${Math.round(entered)}¢ per km · your chosen estimate, not a tax guarantee`
+      : `${Math.round(entered)}¢ per mile · your chosen estimate, not a tax guarantee`;
   }, [rateCents, unitDraft]);
 
   const goalLabel =
@@ -176,6 +175,7 @@ export function OnboardingFlow() {
               label="I already use a mileage app"
               onPress={() => {
                 patchOnboarding({ selectedPainPoints: ['need_cleaner_reports'] });
+                setPendingPostOnboardingRoute('BringExistingMileage');
                 advanceOnboarding();
               }}
             />
@@ -203,7 +203,7 @@ export function OnboardingFlow() {
         ) : step === 'protect_drives' ? (
           <View style={{ gap: spacing.sm }}>
             <PrimaryButton
-              label="Set up protection"
+              label="Enable drive protection"
               loading={permissionBusy}
               onPress={() => {
                 if (permissionBusy) return;
@@ -234,7 +234,7 @@ export function OnboardingFlow() {
                   }
                 })();
               }}
-              accessibilityLabel="Set up drive protection"
+              accessibilityLabel="Enable drive protection"
             />
             <TertiaryButton
               label="Not now — I’ll add drives manually"
@@ -258,20 +258,28 @@ export function OnboardingFlow() {
       ) : null}
 
       {step === 'welcome' ? (
-        <WelcomeHero
-          title="MileRecover"
-          eyebrow="Never lose another work drive."
-          body="Automatically capture possible drives, review them in seconds, and create clear mileage proof."
-        />
+        <View>
+          <WelcomeHero
+            title="MileRecover"
+            eyebrow="Automatic mileage tracking that helps you keep every work drive."
+            body=""
+          />
+          <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
+            <ChecklistRow label="Tracks drives automatically" status="ready" />
+            <ChecklistRow label="Works in the background" status="ready" />
+            <ChecklistRow label="Creates clear mileage reports" status="ready" />
+            <ChecklistRow label="Keeps your location data private" status="ready" />
+          </View>
+        </View>
       ) : null}
 
       {step === 'purpose' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            What do you track mileage for?
+            What’s your main reason for tracking mileage?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            This shapes report wording. You can change it anytime.
+            This helps us personalize your experience.
           </Text>
           {PRIMARY_GOAL_OPTIONS.map((option) => (
             <SelectionCard
@@ -301,11 +309,12 @@ export function OnboardingFlow() {
       {step === 'locale_setup' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Country, units, and rate
+            Let’s set your region and mileage rate
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Use your employer’s or business rate. You can change it anytime.
+            We use this to display distance and estimated value correctly.
           </Text>
+          <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Country</Text>
           {COUNTRY_OPTIONS.map((opt) => (
             <SelectionCard
               key={opt.id}
@@ -319,9 +328,7 @@ export function OnboardingFlow() {
                   setUnitDraft(preset.distanceUnit);
                   const cpm = preset.rates[0]?.centsPerMile ?? 0;
                   setRateCents(
-                    String(
-                      preset.distanceUnit === 'km' ? Math.round(cpm / 1.609344) : cpm || '',
-                    ),
+                    String(preset.distanceUnit === 'km' ? Math.round(cpm / 1.609344) : cpm || ''),
                   );
                 }
               }}
@@ -332,7 +339,7 @@ export function OnboardingFlow() {
           </Text>
           <SelectionCard title="Miles" selected={unitDraft === 'mi'} onPress={() => setUnitDraft('mi')} />
           <SelectionCard
-            title="Kilometers"
+            title="Kilometres"
             selected={unitDraft === 'km'}
             onPress={() => setUnitDraft('km')}
           />
@@ -366,56 +373,79 @@ export function OnboardingFlow() {
       {step === 'protect_drives' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Protect future drives
+            Keep your drives protected
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            MileRecover can capture drives automatically, even when the app is not open.
           </Text>
           <SoftPanel>
-            <Text style={text.body}>Detect possible drives automatically</Text>
-            <Text style={[text.body, { marginTop: spacing.sm }]}>
-              Keep uncertain drives for your review
+            <Text style={text.subtitle}>Automatic detection</Text>
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>Finds possible drives for you.</Text>
+            <Text style={[text.subtitle, { marginTop: spacing.md }]}>Background tracking</Text>
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>Works when your screen is off.</Text>
+            <Text style={[text.subtitle, { marginTop: spacing.md }]}>Battery-aware</Text>
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>
+              Designed to use location carefully.
             </Text>
-            <Text style={[text.body, { marginTop: spacing.sm }]}>Add a drive manually anytime</Text>
+            <Text style={[text.subtitle, { marginTop: spacing.md }]}>Privacy control</Text>
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>
+              You decide which drives count as work.
+            </Text>
           </SoftPanel>
-          <Text style={[text.body, { marginTop: spacing.md }]}>
-            We’ll ask for location so MileRecover can notice possible drives. Uncertain drives stay in
-            Review until you decide. We don’t invent mileage.
-          </Text>
-          <Text style={[text.caption, { marginTop: spacing.sm }]}>
+          <Text style={[text.caption, { marginTop: spacing.md }]}>
+            We’ll ask for location next. If you decline, manual entry still works.
+            {'\n'}
             Location: {permissions.location === 'granted' ? 'Allowed' : 'Not yet'}
             {' · '}
-            Background:{' '}
-            {permissions.backgroundLocation === 'granted' ? 'Allowed' : 'Not yet'}
+            Background: {permissions.backgroundLocation === 'granted' ? 'Allowed' : 'Not yet'}
           </Text>
         </View>
       ) : null}
 
       {step === 'ready' ? (
-        <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            You’re ready
+        <View style={{ alignItems: 'center' }}>
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: '#E8F4EE',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: spacing.md,
+            }}
+            accessibilityLabel="Complete"
+          >
+            <Text style={[text.display, { color: '#0F6B46' }]}>✓</Text>
+          </View>
+          <Text style={[text.headline, { marginBottom: spacing.sm, textAlign: 'center' }]} accessibilityRole="header">
+            You’re all set!
           </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
+          <Text style={[text.body, { marginBottom: spacing.md, textAlign: 'center' }]}>
             {protectionConfigured
-              ? 'Automatic protection is ready. We’ll place uncertain drives in Review before they affect your records.'
+              ? 'Protection is waiting for your first drive. Uncertain drives go to Review before they affect your records.'
               : 'You can add drives manually anytime. Turn on protection later from Profile when you’re ready.'}
           </Text>
           <SoftPanel>
             <Text style={text.subtitle}>{goalLabel}</Text>
             <Text style={[text.body, { marginTop: spacing.xs }]}>
               {product.localeProfile.countryDisplayName} ·{' '}
-              {product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles'} ·{' '}
+              {product.localeProfile.distanceUnit === 'km' ? 'Kilometres' : 'Miles'} ·{' '}
               {formatActiveRateLabel(product.localeProfile)}
             </Text>
             <Text style={[text.body, { marginTop: spacing.xs }]}>
-              {protectionConfigured ? 'Protection ready' : 'Manual for now'}
+              {protectionConfigured
+                ? 'Protection is waiting for your first drive'
+                : 'Manual tracking selected'}
             </Text>
           </SoftPanel>
-          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+          <View style={{ marginTop: spacing.lg, width: '100%', gap: spacing.sm }}>
             <PrimaryButton
-              label="Go to Home"
+              label="Go to dashboard"
               onPress={() => finish(null)}
               disabled={finishing}
               loading={finishing}
-              accessibilityLabel="Go to Home"
+              accessibilityLabel="Go to dashboard"
             />
             <SecondaryButton
               label="Add my first drive"

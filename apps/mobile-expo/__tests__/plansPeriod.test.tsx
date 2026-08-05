@@ -14,9 +14,14 @@ describe('Plans monthly/annual rendering', () => {
 
   it('renders Plus and Pro on Plans screen', async () => {
     const { copy } = await renderStackScreen('PlanSelection', { source: 'profile' });
-    expect(copy).toMatch(/Protect every work drive/i);
+    expect(copy).toMatch(/7 days free/i);
+    expect(copy).toMatch(/Try Plus features\. Cancel anytime\./i);
     expect(copy).toMatch(/Plus/i);
     expect(copy).toMatch(/Pro/i);
+    expect(copy).toMatch(/40 automatic trips\/month/i);
+    expect(copy).toMatch(/1 vehicle/i);
+    expect(copy).toMatch(/1 missing scan\/month/i);
+    expect(copy).toMatch(/Then \$8\.99\/month unless cancelled/i);
     expect(copy).toMatch(/Continue with Free|Free/i);
     expect(copy).toMatch(/recover older mileage|Rescue/i);
     expect(copy).not.toMatch(/RevenueCat/i);

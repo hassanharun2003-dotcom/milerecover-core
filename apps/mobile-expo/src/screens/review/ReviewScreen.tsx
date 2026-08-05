@@ -71,13 +71,13 @@ function isRecoveryCandidate(value: unknown): value is RecoveryCandidate {
 function captureSourceLabel(source: TripRecord['source'] | undefined): string {
   switch (source) {
     case 'auto_detected':
-      return 'Automatic capture';
+      return 'Automatically captured';
     case 'recovered':
-      return 'Recovered';
+      return 'Recovered drive';
     case 'imported':
       return 'Imported';
     case 'manual':
-      return 'Manual entry';
+      return 'Added manually';
     default:
       return 'Needs review';
   }
@@ -305,7 +305,7 @@ export function ReviewScreen() {
               body="No drives need classification."
             />
             <SecondaryButton
-              label="Add a known work drive"
+              label="Add drive"
               onPress={() => navigation.navigate('ManualTrip')}
             />
             <TertiaryButton label="Check for missed drives" onPress={checkMissedDrives} />
@@ -325,9 +325,13 @@ export function ReviewScreen() {
             const vehicleLabel = vehicle
               ? vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
               : null;
-            const at = trip?.startAt ?? Date.now();
-            const whenLabel = trip ? dateTimeLabel(trip.startAt, locale.localeTag) : item.subtitle;
-            const routeLabel = routeLabelForTrip(trip, item.title);
+            const at = trip?.startAt ?? recovery?.proposedStartAt ?? Date.now();
+            const whenLabel = trip
+              ? dateTimeLabel(trip.startAt, locale.localeTag)
+              : recovery
+                ? dateTimeLabel(recovery.proposedStartAt, locale.localeTag)
+                : item.subtitle;
+            const routeLabel = routeLabelForTrip(trip, recovery ? 'Possible drive → Add details' : item.title);
             const plainReason =
               recovery?.plainLanguageExplanation ||
               (trip?.confidence === 'low'

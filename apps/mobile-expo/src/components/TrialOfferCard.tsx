@@ -46,17 +46,17 @@ export function TrialOfferCard({
     <View
       style={styles.card}
       accessibilityRole="summary"
-      accessibilityLabel="Continue automatic protection free for 7 days"
+      accessibilityLabel="Start a 7-day free trial"
     >
-      <Text style={text.subtitle}>We’ve already helped protect your mileage</Text>
+      <Text style={text.subtitle}>7 days free</Text>
       <Text style={[text.body, { marginTop: spacing.xs }]}>
-        Continue automatic protection free for 7 days. No countdown. Cancel anytime in the store.
+        Try Plus features. Cancel anytime.
       </Text>
       <Text style={[text.caption, { marginTop: spacing.sm }]}>
         {trialRenewalCopy(product.entitlement.monthlyPriceLocalized, product.entitlement.trialEndsAt)}
       </Text>
       <View style={styles.actions}>
-        <SecondaryButton label="Try Plus free for 7 days" onPress={onStartTrial} />
+        <SecondaryButton label="Start 7-day free trial" onPress={onStartTrial} />
         <TertiaryButton label="Not now" onPress={dismissTrialOfferSession} />
       </View>
     </View>

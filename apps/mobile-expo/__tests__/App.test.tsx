@@ -22,7 +22,7 @@ describe('MileRecover Expo foundation', () => {
   });
 
   it('imports config design tokens', () => {
-    expect(colors.forest[700]).toBe('#1B5538');
+    expect(colors.forest[700]).toBe('#0F6B46');
   });
 
   it('builds home view model from initial app state', () => {

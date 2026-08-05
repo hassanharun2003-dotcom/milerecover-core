@@ -7,20 +7,23 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
   capabilitiesForEntitlement,
+  formatDistance,
   rateForTimestamp,
   type ProtectionStatusView,
+  type TripRecord,
 } from '@milerecover/domain';
 import {
   PrimaryButton,
+  ProtectionCard,
   SecondaryButton,
   SoftPanel,
-  StatusCard,
   SummaryCard,
   SkeletonBlock,
   TabScreen,
   TertiaryButton,
   TimelineRow,
   text,
+  useAppTheme,
 } from '../../design-system';
 import { greetingForName, tripSourceLabel } from '../../product/copy';
 import { selectHomePeriodSummary, selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
@@ -56,14 +59,14 @@ function compactProtection(input: ProtectionStatusView): {
     case 'PROTECTED':
       return {
         kind: 'protected',
-        sentence: 'Drive protection is on.',
+        sentence: input.lastCheckLabel ?? 'Automatic capture is on.',
         actionLabel: 'View',
         action: 'protection',
       };
     case 'CONFIGURED_WAITING':
       return {
         kind: 'configured_waiting',
-        sentence: 'Ready for your first drive. We’ll check protection after one is captured.',
+        sentence: 'Waiting for your first drive.',
         actionLabel: 'View',
         action: 'protection',
       };
@@ -120,30 +123,12 @@ function compactProtection(input: ProtectionStatusView): {
   }
 }
 
-function statusVariant(kind: CompactStatus): 'success' | 'warning' | 'danger' | 'info' {
-  switch (kind) {
-    case 'protected':
-      return 'success';
-    case 'configured_waiting':
-    case 'checking':
-    case 'manual_mode':
-    case 'off':
-      return 'info';
-    case 'needs_permission':
-    case 'battery_limited':
-    case 'stale':
-      return 'warning';
-    case 'error':
-      return 'danger';
-  }
-}
-
 function statusTitle(kind: CompactStatus): string {
   switch (kind) {
     case 'protected':
-      return 'Protected';
+      return 'Drives protected';
     case 'configured_waiting':
-      return 'Waiting for first drive';
+      return 'Protection is ready';
     case 'checking':
       return 'Checking';
     case 'battery_limited':
@@ -167,6 +152,21 @@ function activityTimeLabel(timestamp: number): string {
   if (hoursAgo < 24) return `${hoursAgo}h ago`;
   const daysAgo = Math.round(hoursAgo / 24);
   return daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
+}
+
+function compactPlace(label: string | null | undefined): string | null {
+  const trimmed = label?.trim();
+  if (!trimmed) return null;
+  return trimmed.split(',')[0]?.trim() || trimmed;
+}
+
+function recentDriveTitle(trip: TripRecord): string {
+  const start = compactPlace(trip.startLabel);
+  const end = compactPlace(trip.endLabel);
+  if (start && end) return `${start} → ${end}`;
+  if (start) return `${start} → Destination`;
+  if (end) return `Start → ${end}`;
+  return trip.purpose?.trim() || 'Saved drive';
 }
 
 function HomeSkeleton() {
@@ -206,6 +206,7 @@ type NextBestAction =
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
+  const { palette } = useAppTheme();
   const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
   const {
     product,
@@ -240,7 +241,6 @@ export function HomeScreen() {
       compact.kind === 'stale' ||
       compact.kind === 'error');
   const showProtectionAction =
-    compact.kind === 'protected' ||
     compact.kind === 'configured_waiting' ||
     compact.kind === 'checking' ||
     compact.action === 'plans' ||
@@ -389,7 +389,10 @@ export function HomeScreen() {
     scenario.proofReady,
   ]);
 
-  const recent = scenario.activity.slice(0, 3);
+  const recent = experience.confirmedTrips
+    .slice()
+    .sort((a, b) => (b.endAt ?? b.startAt) - (a.endAt ?? a.startAt))
+    .slice(0, 3);
 
   if (!homeReady) return <HomeSkeleton />;
 
@@ -399,35 +402,43 @@ export function HomeScreen() {
         {greeting ?? 'Welcome back.'}
       </Text>
 
-      {protectionNeedsAction ? (
-        <StatusCard
-          variant={statusVariant(compact.kind)}
-          title={statusTitle(compact.kind)}
-          body={compact.sentence}
-          actionLabel={compact.actionLabel}
-          onAction={openProtection}
-          emphasis="subtle"
-        />
-      ) : (
-        <SoftPanel>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Text style={text.subtitle}>{statusTitle(compact.kind)}</Text>
-              <Text style={[text.body, { marginTop: spacing.xs }]}>{compact.sentence}</Text>
-              {protection.lastCheckLabel ? (
-                <Text style={[text.caption, { marginTop: spacing.xs }]}>{protection.lastCheckLabel}</Text>
-              ) : null}
-            </View>
-            {showProtectionAction ? (
-              <TertiaryButton
-                label={compact.actionLabel || 'View'}
-                onPress={openProtection}
-                accessibilityLabel="View protection status"
-              />
+      <ProtectionCard variant={compact.kind === 'protected' ? 'protected' : 'default'}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[
+                text.subtitle,
+                compact.kind === 'protected' ? { color: palette.text.inverse } : null,
+              ]}
+            >
+              {statusTitle(compact.kind)}
+            </Text>
+            <Text
+              style={[
+                text.body,
+                { marginTop: spacing.xs },
+                compact.kind === 'protected'
+                  ? { color: palette.forest[100] }
+                  : protectionNeedsAction
+                    ? { color: palette.text.primary }
+                    : null,
+              ]}
+            >
+              {compact.sentence}
+            </Text>
+            {compact.kind !== 'protected' && protection.lastCheckLabel ? (
+              <Text style={[text.caption, { marginTop: spacing.xs }]}>{protection.lastCheckLabel}</Text>
             ) : null}
           </View>
-        </SoftPanel>
-      )}
+          {showProtectionAction ? (
+            <TertiaryButton
+              label={compact.actionLabel || 'View'}
+              onPress={openProtection}
+              accessibilityLabel="View protection status"
+            />
+          ) : null}
+        </View>
+      </ProtectionCard>
 
       <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
         {periodSummary.periodLabel}
@@ -435,20 +446,16 @@ export function HomeScreen() {
       <SummaryCard
         items={[
           {
-            label: locale.distanceUnit === 'km' ? 'Work distance' : 'Work miles',
-            value: periodSummary.workDistanceLabel.replace(` ${locale.distanceUnit}`, ''),
+            label: 'Distance',
+            value: periodSummary.workDistanceLabel,
+          },
+          {
+            label: 'Drives',
+            value: String(periodSummary.tripCount),
           },
           {
             label: 'Estimated value',
             value: periodSummary.estimatedValueLabel,
-          },
-          {
-            label: 'Recovered',
-            value: periodSummary.recoveredDistanceLabel.replace(` ${locale.distanceUnit}`, ''),
-          },
-          {
-            label: 'Needs review',
-            value: String(pendingReviewCount),
           },
         ]}
       />
@@ -472,22 +479,25 @@ export function HomeScreen() {
           <Text style={text.body}>No drives yet. Add one when you know the miles.</Text>
         </SoftPanel>
       ) : (
-        recent.map((event) => {
-          const trip = state.trips.find((item) => item.id === event.id);
+        recent.map((trip) => {
           const stateLabel =
-            trip?.classification === 'business'
+            trip.classification === 'business'
               ? 'Work'
-              : trip?.classification === 'personal'
+              : trip.classification === 'personal'
                 ? 'Personal'
                 : 'Pending';
           return (
-            <View key={event.id} style={{ marginBottom: spacing.sm }}>
+            <View key={trip.id} style={{ marginBottom: spacing.sm }}>
               <TimelineRow
-                title={event.title}
-                subtitle={`${tripSourceLabel(trip?.source ?? 'manual')} · ${stateLabel}`}
-                timeLabel={activityTimeLabel(event.timestamp)}
+                title={recentDriveTitle(trip)}
+                subtitle={`${formatDistance(
+                  trip.distanceMiles,
+                  locale.distanceUnit,
+                  locale.localeTag,
+                )} · ${tripSourceLabel(trip.source)} · ${stateLabel}`}
+                timeLabel={activityTimeLabel(trip.endAt ?? trip.startAt)}
                 onPress={
-                  liveMode ? () => navigation.navigate('TripDetails', { tripId: event.id }) : undefined
+                  liveMode ? () => navigation.navigate('TripDetails', { tripId: trip.id }) : undefined
                 }
               />
             </View>

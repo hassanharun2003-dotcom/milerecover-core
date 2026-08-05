@@ -13,7 +13,6 @@ import {
   csvFilename,
   formatCurrencyCents,
   formatDistance,
-  proofFixCtaLabel,
   rateForTimestamp,
   reportTitleForGoal,
   resolveReportPeriod,
@@ -113,6 +112,19 @@ function readinessDetail(issue: ProofIssue | undefined, trips: { id: string; sta
   return issue.detail;
 }
 
+function correctionDetail(
+  issue: ProofIssue,
+  trips: { id: string; startAt: number; startLabel?: string | null; endLabel?: string | null }[],
+  localeTag: string,
+): string {
+  const severity = issue.severity === 'required' ? 'Required' : 'Recommended';
+  return `${severity} · ${readinessDetail(issue, trips, localeTag)}`;
+}
+
+function fixItemsLabel(count: number): string {
+  return count === 1 ? 'Fix 1 item' : `Fix ${count} items`;
+}
+
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
   const { state, setReportingPeriod } = useApp();
@@ -172,9 +184,10 @@ export function ProofScreen() {
 
   const requiredCount = issues.required.length;
   const recommendedCount = issues.recommended.length;
+  const corrections = [...issues.required, ...issues.recommended];
   const exportReady = requiredCount === 0 && report.tripCount > 0;
   const firstIssue = issues.required[0] ?? issues.recommended[0];
-  const readinessState = firstIssue ? 'NEEDS 1 DETAIL' : 'READY';
+  const readinessState = firstIssue ? 'Needs details' : 'Ready';
   const readinessMessage = readinessDetail(firstIssue, confirmedWorkTrips, locale.localeTag);
   const reportsDisabledReason =
     report.tripCount === 0
@@ -186,7 +199,7 @@ export function ProofScreen() {
   const fixTarget = useMemo(() => {
     const next = issues.required[0] ?? issues.recommended[0];
     if (!next) return null;
-    const label = proofFixCtaLabel(requiredCount, recommendedCount);
+    const label = fixItemsLabel(requiredCount + recommendedCount);
     const goTrip = (tripId?: string, fallback: 'Review' | 'EditSetup' | 'VehicleSetup' = 'Review') => {
       if (tripId) navigation.navigate('TripDetails', { tripId });
       else if (fallback === 'EditSetup') navigation.navigate('EditSetup');
@@ -351,20 +364,34 @@ export function ProofScreen() {
             />
           </SoftPanel>
 
-          <ListSection title="Readiness">
+          <ListSection title="Corrections">
             <ListRow label="Status" value={readinessState} showChevron={false} />
             <Text style={[text.body, { marginBottom: spacing.sm }]}>{readinessMessage}</Text>
-            <ListRow
-              label="Required"
-              value={requiredCount > 0 ? String(requiredCount) : 'None'}
-              showChevron={false}
-            />
-            <ListRow
-              label="Optional"
-              value={recommendedCount > 0 ? String(recommendedCount) : 'None'}
-              showChevron={false}
-            />
+            {corrections.length === 0 ? (
+              <Text style={[text.body, { marginBottom: spacing.sm }]}>
+                No corrections needed for this period.
+              </Text>
+            ) : (
+              corrections.map((issue) => (
+                <ListRow
+                  key={`${issue.severity}-${issue.id}`}
+                  label={issue.label}
+                  value={correctionDetail(issue, confirmedWorkTrips, locale.localeTag)}
+                  showChevron={false}
+                />
+              ))
+            )}
             {fixTarget ? <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} /> : null}
+            <View style={{ marginTop: spacing.sm }}>
+              <SecondaryButton
+                label="Preview report"
+                onPress={openPreview}
+                disabled={!exportReady}
+                accessibilityLabel={
+                  exportReady ? 'Preview report' : 'Preview report unavailable until required items are fixed'
+                }
+              />
+            </View>
           </ListSection>
 
           <ListSection title="Reports">
@@ -380,7 +407,7 @@ export function ProofScreen() {
               label="PDF"
               value={
                 reportsDisabledReason ??
-                (capabilities.canUseStandardPdf ? 'Ready' : 'Plus required')
+                (capabilities.canUseStandardPdf ? 'Ready' : 'Upgrade for PDF')
               }
               onPress={() => {
                 if (capabilities.canUseStandardPdf) void sharePdf();
@@ -394,7 +421,7 @@ export function ProofScreen() {
               value={
                 csvBusy || (shareBusy && csvBusy)
                   ? SHARE_COPY.preparingCsv
-                  : reportsDisabledReason ?? 'Free export'
+                  : reportsDisabledReason ?? 'Free CSV'
               }
               onPress={() => void shareCsv()}
               busy={csvBusy || (shareBusy && !pdfBusy)}

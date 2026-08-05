@@ -1,6 +1,6 @@
 /**
- * Design tokens — forest green brand with one canonical light palette.
- * Prefer ThemeProvider.palette in UI; static `colors` remains the light default.
+ * MileRecover design tokens — image-locked blueprint (light premium canvas).
+ * Primary #0F6B46 · Mint #E8F4EE · Canvas #F7F9FC
  */
 
 export type SemanticPalette = {
@@ -13,6 +13,7 @@ export type SemanticPalette = {
   textTertiary: string;
   border: string;
   primary: string;
+  primaryDeep: string;
   onPrimary: string;
   success: string;
   warning: string;
@@ -22,37 +23,42 @@ export type SemanticPalette = {
   scrim: string;
 };
 
+/** Blueprint-locked light semantic palette — only shipped theme. */
 export const lightSemantic: SemanticPalette = {
-  canvas: '#FAFAF8',
+  canvas: '#F7F9FC',
   surface: '#FFFFFF',
-  surfaceMuted: '#F5F5F4',
-  surfaceSelected: '#E8F3ED',
-  textPrimary: '#1C1917',
-  textSecondary: '#57534E',
-  textTertiary: '#78716C',
-  border: '#E7E5E4',
-  primary: '#236B47',
+  surfaceMuted: '#F1F5F9',
+  surfaceSelected: '#E8F4EE',
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textTertiary: '#64748B',
+  border: '#E2E8F0',
+  primary: '#0F6B46',
+  primaryDeep: '#073D2C',
   onPrimary: '#FFFFFF',
-  success: '#1B7D4E',
+  success: '#16A34A',
   warning: '#B45309',
-  danger: '#B91C1C',
-  disabledSurface: '#F5F5F4',
-  disabledText: '#A8A29E',
-  scrim: 'rgba(11, 46, 31, 0.42)',
+  danger: '#EF4444',
+  disabledSurface: '#F1F5F9',
+  disabledText: '#94A3B8',
+  scrim: 'rgba(15, 23, 42, 0.45)',
 };
 
+/** @deprecated Dark is not shipped — aliases light for compile safety. */
+export const darkSemantic: SemanticPalette = { ...lightSemantic };
+
 function buildNestedPalette(s: SemanticPalette) {
-  const successSurface = '#E6F5ED';
+  const successSurface = '#DCFCE7';
   const warningSurface = '#FEF3C7';
   const dangerSurface = '#FEE2E2';
 
   return {
     forest: {
-      900: '#0B2E1F',
-      800: '#13402C',
-      700: '#1B5538',
+      900: s.primaryDeep,
+      800: '#0A5236',
+      700: s.primary,
       600: s.primary,
-      500: '#2D8056',
+      500: '#15803D',
       100: s.surfaceSelected,
     },
     protected: {
@@ -69,7 +75,7 @@ function buildNestedPalette(s: SemanticPalette) {
     },
     neutral: {
       900: s.textPrimary,
-      700: '#44403C',
+      700: s.textSecondary,
       500: s.textTertiary,
       200: s.border,
       100: s.surfaceMuted,
@@ -91,7 +97,7 @@ function buildNestedPalette(s: SemanticPalette) {
     },
     border: {
       default: s.border,
-      focus: '#2D8056',
+      focus: s.primary,
       outline: s.textTertiary,
       selected: s.primary,
     },
@@ -106,19 +112,19 @@ function buildNestedPalette(s: SemanticPalette) {
       infoBg: s.surfaceSelected,
     },
     header: {
-      background: '#0B2E1F',
-      border: '#13402C',
+      background: s.primaryDeep,
+      border: s.primary,
     },
     action: {
       primary: s.primary,
       primaryText: s.onPrimary,
       secondary: s.surfaceSelected,
-      secondaryText: '#1B5538',
+      secondaryText: s.primary,
       selectedSurface: s.surfaceSelected,
       selectedBorder: s.primary,
       disabledSurface: s.disabledSurface,
       disabledText: s.disabledText,
-      outlineBorder: s.textTertiary,
+      outlineBorder: s.primary,
     },
     input: {
       surface: s.surface,
@@ -135,32 +141,21 @@ function buildNestedPalette(s: SemanticPalette) {
 }
 
 export const colors = buildNestedPalette(lightSemantic);
-
-/**
- * @deprecated Dark theme is not shipped. This alias remains temporarily for
- * older imports and resolves to the canonical light palette.
- */
-export const darkSemantic: SemanticPalette = lightSemantic;
-
-/**
- * @deprecated Dark theme is not shipped. Use `colors`; this alias returns the
- * canonical light palette to prevent customer paths from entering a dark UI.
- */
+/** @deprecated Not shipped — equals light palette. */
 export const darkColors = colors;
 
 export const spacing = {
   xs: 4,
   sm: 8,
-  /** Design Spacing.md space-3 */
   smMd: 12,
   md: 16,
-  /** Design Spacing.md space-5 */
   mdLg: 20,
   lg: 24,
   xl: 32,
   xxl: 48,
 } as const;
 
+/** Blueprint card radius ~12–16 */
 export const radii = {
   sm: 8,
   md: 12,
@@ -168,6 +163,10 @@ export const radii = {
   pill: 999,
 } as const;
 
+/**
+ * Blueprint typography scale (system font; hierarchy locked to image).
+ * Display ~32 · H1 ~24 · H2 ~20 · Body large 16 · Body 14–15 · Caption 12
+ */
 export const typography = {
   fontFamily: {
     regular: 'System',
@@ -176,23 +175,23 @@ export const typography = {
   },
   size: {
     caption: 12,
-    body: 16,
-    bodyLarge: 18,
-    title: 22,
-    headline: 28,
+    body: 15,
+    bodyLarge: 16,
+    title: 20,
+    headline: 24,
+    display: 32,
   },
   lineHeight: {
     caption: 16,
     body: 22,
     bodyLarge: 24,
     title: 28,
-    headline: 34,
+    headline: 32,
+    display: 40,
   },
-  /** Prefer for miles, scores, and version numbers */
   tabularNums: ['tabular-nums'] as const,
 } as const;
 
-/** Restrained motion tokens — pair with Reduce Motion on device later */
 export const motion = {
   duration: {
     fast: 120,
@@ -209,14 +208,14 @@ export const touchTarget = {
 
 export const shadows = {
   card: {
-    shadowColor: '#0B2E1F',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 2,
   },
   lifted: {
-    shadowColor: '#0B2E1F',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,

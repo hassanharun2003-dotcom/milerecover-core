@@ -29,10 +29,10 @@ describe('Screen render evidence', () => {
     );
     expect(manifest['onboarding-locale_setup']).toMatch(/Country|units|rate|Miles|Kilometers/i);
     expect(manifest['onboarding-protect_drives']).toMatch(
-      /Protect future drives|Protect your drives|Set up protection|Set up drive protection|Not now|Skip for now/i,
+      /Keep your drives protected|Protect future drives|Enable drive protection|Set up protection|Not now|Skip for now/i,
     );
     expect(manifest['onboarding-ready']).toMatch(
-      /You’re ready|You're ready|Add my first drive|Add a first drive|Go to Home/i,
+      /You’re all set|You're all set|You’re ready|You're ready|Go to dashboard|Go to Home|Add my first drive/i,
     );
 
     for (const goal of ['employee_reimbursement', 'gig_delivery', 'self_employed_business', 'mixed'] as const) {
@@ -53,7 +53,7 @@ describe('Screen render evidence', () => {
       preferredName: null,
     });
     manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
-    expect(liveHome.copy).toMatch(/Manual mode|Protected|Ready for your first drive|Needs attention|Paused/i);
+    expect(liveHome.copy).toMatch(/Manual mode|Protection is ready|Drives protected|Needs attention|Paused/i);
     expect(liveHome.copy).toMatch(/Add a drive|protection|Next/i);
     expect(liveHome.copy).not.toContain('Alex Johnson');
     expect(liveHome.copy).not.toContain('87.6');
@@ -63,7 +63,7 @@ describe('Screen render evidence', () => {
 
     const reviewHome = await renderMainTabs('recovery_available');
     manifest['home-review-item'] = reviewHome.copy.slice(0, 600);
-    expect(reviewHome.copy).toMatch(/Review \d+ drive|Needs review|Next|Manual mode|Protected/i);
+    expect(reviewHome.copy).toMatch(/Review \d+ possible drive|Distance|Drives|Estimated value|Next/i);
 
     fs.writeFileSync(path.join(evidenceDir, 'home-evidence.json'), JSON.stringify(manifest, null, 2));
   });
@@ -104,10 +104,10 @@ describe('Screen render evidence', () => {
       expect(copy.length).toBeGreaterThan(10);
     }
     expect(manifest['manual-trip']).toMatch(/Add drive|Work|Personal|Decide later|Distance|Save/i);
-    expect(manifest['tracking-active']).toMatch(/How you track|Automatic protection|Manual trip/i);
+    expect(manifest['tracking-active']).toMatch(/Tracking health|Run diagnostics|Open Protection Center/i);
     expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help|Review setup/i);
     expect(manifest['report-preview']).toMatch(/report|preview|work drive/i);
-    expect(manifest['plan-selection']).toMatch(/Protect every work drive/i);
+    expect(manifest['plan-selection']).toMatch(/Try Plus features|Current plan: Free|Free stays usable/i);
     expect(manifest['plan-selection']).toMatch(/Plus|Pro/i);
     expect(manifest['plan-selection']).not.toMatch(/RevenueCat/i);
     expect(manifest['edit-setup']).toMatch(/Update your answers|Adjust setup|Primary goal|Country/i);
@@ -132,14 +132,14 @@ describe('Screen render evidence', () => {
 
     const proofReady = await renderTab('proof_ready', 'Proof', { demoModeEnabled: true });
     expect(proofReady.copy).toMatch(
-      /READY|Readiness|Reports|Preview|CSV|Free export|Mileage reimbursement|Work mileage|Business mileage/i,
+      /Corrections|Reports|Preview|CSV|Free CSV|Mileage reimbursement|Work mileage|Business mileage/i,
     );
 
     const proofBlocked = await renderTab('proof_blocked', 'Proof');
-    expect(proofBlocked.copy).toMatch(/NEEDS 1 DETAIL|Fix|Review|Needs/i);
+    expect(proofBlocked.copy).toMatch(/Needs details|Fix \d+ item|Corrections|Needs/i);
 
     const review = await renderTab('recovery_available', 'Review');
-    expect(review.copy).toMatch(/Needs you|Possible drive|About 14\.2|Work|Personal|Not sure|Details/i);
+    expect(review.copy).toMatch(/Needs you|Possible drive|About 14\.2|Work|Personal|Not sure|Edit/i);
 
     const profile = await renderTab('new_user', 'Profile', {
       demoModeEnabled: false,
@@ -150,7 +150,7 @@ describe('Screen render evidence', () => {
     });
     expect(profile.copy).toContain('Vehicles');
     expect(profile.copy).toMatch(
-      /PROFILE|VEHICLE & MILEAGE|TRACKING & RECOVERY|PLAN|SUPPORT & PRIVACY|Review setup|Reset app for testing/i,
+      /IDENTITY|ACCOUNT|DRIVING|DATA|PLAN|SUPPORT|PREVIEW|Review setup|Reset app for testing/i,
     );
     expect(profile.copy).not.toContain('Alex Johnson');
     expect(profile.copy).not.toContain('alex@example.com');

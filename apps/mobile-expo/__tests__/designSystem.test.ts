@@ -8,14 +8,17 @@ import {
   typography,
 } from '@milerecover/config';
 
-describe('Locked forest-green design tokens', () => {
-  it('keeps deep forest primary values', () => {
-    expect(colors.forest[900]).toBe('#0B2E1F');
-    expect(colors.forest[700]).toBe('#1B5538');
-    expect(colors.background.canvas).toBe('#FAFAF8');
+describe('Blueprint-locked design tokens', () => {
+  it('keeps image-locked forest primary values', () => {
+    expect(colors.forest[900]).toBe('#073D2C');
+    expect(colors.forest[700]).toBe('#0F6B46');
+    expect(colors.background.canvas).toBe('#F7F9FC');
+    expect(lightSemantic.surfaceSelected).toBe('#E8F4EE');
+    expect(lightSemantic.textPrimary).toBe('#0F172A');
+    expect(lightSemantic.border).toBe('#E2E8F0');
   });
 
-  it('exports only the canonical light semantic palette for shipped UI', () => {
+  it('exports the canonical light semantic palette for shipped UI', () => {
     expect(Object.keys(lightSemantic)).toEqual([
       'canvas',
       'surface',
@@ -26,6 +29,7 @@ describe('Locked forest-green design tokens', () => {
       'textTertiary',
       'border',
       'primary',
+      'primaryDeep',
       'onPrimary',
       'success',
       'warning',
@@ -39,7 +43,7 @@ describe('Locked forest-green design tokens', () => {
     expect(lightSemantic.onPrimary).toBe(colors.action.primaryText);
     expect(lightSemantic.border).toBe(colors.border.default);
     expect(lightSemantic.surfaceSelected).toBe(colors.action.selectedSurface);
-    expect(darkSemantic).toBe(lightSemantic);
+    expect(darkSemantic).toEqual(lightSemantic);
     expect(darkColors).toBe(colors);
   });
 
@@ -48,7 +52,9 @@ describe('Locked forest-green design tokens', () => {
     expect(spacing.mdLg).toBe(20);
   });
 
-  it('exposes tabular nums and undo snackbar timing', () => {
+  it('exposes tabular nums, display type, and undo snackbar timing', () => {
+    expect(typography.size.display).toBe(32);
+    expect(typography.size.headline).toBe(24);
     expect(typography.tabularNums).toContain('tabular-nums');
     expect(motion.undoSnackbarMs).toBe(4000);
   });

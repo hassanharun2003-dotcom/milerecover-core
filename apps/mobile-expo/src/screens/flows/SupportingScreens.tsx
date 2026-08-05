@@ -67,8 +67,8 @@ import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
 import { voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
-import { selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
-import type { ReviewDecision, VehicleDraft, WorkLocationDraft } from '../../product/types';
+import { selectEntitlementPlanLabel, selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
+import { allowInternalPreviewTools, type ReviewDecision, type VehicleDraft, type WorkLocationDraft } from '../../product/types';
 import {
   isShareInFlight,
   SHARE_COPY,
@@ -88,7 +88,9 @@ import {
   getPurchasePort,
   PREVIEW_BILLING_NOTICE,
   STORE_UNAVAILABLE_MESSAGE,
+  trialRenewalCopy,
   type PurchasePeriod,
+  type PurchaseProduct,
 } from '../../services/purchases';
 import { isPreviewBillingBuild } from '../../services/revenueCatPurchases';
 import { getTrackingDiagnostics, type TrackingDiagnostics } from '../../services/trackingEngine';
@@ -1241,6 +1243,17 @@ export function ProtectionAlertScreen() {
   const backgroundReady =
     permissions.backgroundLocation === 'granted' || permissions.backgroundLocation === 'not_applicable';
   const primaryAction = protection.primaryAction;
+  const lastCheckValue = protection.lastCheckLabel
+    ? protection.lastCheckLabel.replace(/^Last successful check:\s*/i, '')
+    : 'Not yet';
+  const backgroundValue =
+    permissions.backgroundLocation === 'not_applicable'
+      ? 'Allowed'
+      : backgroundReady
+        ? 'Allowed'
+        : 'Needs attention';
+  const batteryValue = permissions.batteryOptimizationRestricted ? 'Needs attention' : 'Allowed';
+  const automaticValue = product.trackingEnabled && capabilities.canUseAutomaticCapture ? 'On' : 'Needs attention';
   const [guideStep, setGuideStep] = useState<
     'overview' | 'explain_fg' | 'ask_fg' | 'explain_bg' | 'ask_bg' | 'verify' | 'success'
   >('overview');
@@ -1461,64 +1474,27 @@ export function ProtectionAlertScreen() {
         body={protection.message}
         emphasis="hero"
       />
-      {protection.lastCheckLabel ? (
-        <Text style={[text.caption, { marginBottom: spacing.sm }]}>{protection.lastCheckLabel}</Text>
-      ) : (
-        <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-          No successful automatic check yet — manual drives still work.
-        </Text>
-      )}
-      {primaryAction.action !== 'none' && protection.state !== 'PROTECTED' ? (
-        <SoftPanel>
-          <Text style={text.subtitle}>{protection.title}</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{protection.message}</Text>
-          <PrimaryButton
-            label={primaryAction.label}
-            onPress={runPrimaryAction}
-            accessibilityLabel={primaryAction.label}
-          />
-        </SoftPanel>
-      ) : protection.state === 'PROTECTED' ? (
-        <PrimaryButton
-          label="View tracking health"
-          onPress={() => navigation.navigate('TrackingActive')}
-          accessibilityLabel="View tracking health"
-        />
-      ) : null}
       <SoftPanel>
-        <EvidenceRow label="While using the app" value={foregroundReady ? 'On' : 'Off'} />
-        <EvidenceRow label="In the background" value={backgroundReady ? 'On' : 'Off'} />
-        <EvidenceRow
-          label="Battery restrictions"
-          value={permissions.batteryOptimizationRestricted ? 'May stop tracking' : 'OK'}
-        />
-        <EvidenceRow label="Protection" value={product.trackingEnabled ? 'On' : 'Paused'} />
+        <EvidenceRow label="While using app" value={foregroundReady ? 'Allowed' : 'Needs attention'} />
+        <EvidenceRow label="Background" value={backgroundValue} />
+        <EvidenceRow label="Battery" value={batteryValue} />
+        <EvidenceRow label="Automatic protection" value={automaticValue} />
+        <EvidenceRow label="Last check" value={lastCheckValue} />
       </SoftPanel>
-      {protection.state !== 'PROTECTED' &&
-      protection.state !== 'MANUAL_ONLY' &&
-      protection.state !== 'CONFIGURED_WAITING' &&
-      protection.state !== 'BATTERY_LIMITED' ? (
+      {primaryAction.action !== 'none' ? (
         <PrimaryButton
-          label="Start guided repair"
-          onPress={startGuidedRepair}
-          accessibilityLabel="Start guided protection repair"
+          label={primaryAction.label}
+          onPress={runPrimaryAction}
+          accessibilityLabel={primaryAction.label}
         />
       ) : null}
-      <SecondaryButton label="Check again" onPress={() => void refreshPermissions()} />
-      {setupIncomplete ? (
-        <PrimaryButton
-          label="Looks good — continue"
-          onPress={() => setProtectionSetupState('configured')}
-          accessibilityLabel="Mark protection setup complete"
-        />
-      ) : null}
+      <SecondaryButton label="Tracking details" onPress={() => navigation.navigate('TrackingActive')} />
       <StatusCard
         variant="info"
-        title="Manual tracking always works"
-        body="If automatic protection is limited, add drives yourself. Nothing is invented."
+        title="Manual entry always works"
+        body="If automatic protection needs attention, add drives yourself. Nothing is invented."
         emphasis="subtle"
       />
-      <SecondaryButton label="See tracking status" onPress={() => navigation.navigate('TrackingActive')} />
     </ScrollScreen>
   );
 }
@@ -1544,8 +1520,8 @@ function diagnosticRejectedSampleLabel(sample: TrackingDiagnostics['lastRejected
 
 export function TrackingActiveScreen() {
   const navigation = useNavigation<Nav>();
-  const { permissions, state, automaticCaptureAvailable } = useApp();
-  const { product, setTrackingEnabled } = useProduct();
+  const { permissions, state, automaticCaptureAvailable, refreshPermissions } = useApp();
+  const { product } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const allowance = describeAutomaticAllowance(product.entitlement, state.trips);
   const allowanceOk = allowance.remaining == null || allowance.remaining > 0;
@@ -1563,82 +1539,70 @@ export function TrackingActiveScreen() {
     pendingReviewCount,
   });
   const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
+  const [diagnosticsBusy, setDiagnosticsBusy] = useState(false);
 
   const refreshDiagnostics = () => {
     void getTrackingDiagnostics().then(setDiagnostics);
+  };
+
+  const runDiagnostics = () => {
+    if (diagnosticsBusy) return;
+    setDiagnosticsBusy(true);
+    void Promise.all([refreshPermissions(), getTrackingDiagnostics()])
+      .then(([, nextDiagnostics]) => setDiagnostics(nextDiagnostics))
+      .finally(() => setDiagnosticsBusy(false));
   };
 
   useEffect(() => {
     refreshDiagnostics();
   }, [product.trackingEnabled]);
 
-  const canStart = capabilities.canUseAutomaticCapture && allowanceOk;
-  const automaticOn = product.trackingEnabled && canStart;
-  const allowanceCopy =
-    allowance.remaining != null
-      ? ` ${allowance.remaining} of ${allowance.limit} auto trips left this month.`
-      : '';
-  const automaticBody = `${protection.message}${allowanceCopy}`;
-  const start = () => {
-    if (!capabilities.canUseAutomaticCapture || !allowanceOk) {
-      navigation.navigate('PlanSelection', { source: 'upgrade' });
-      return;
-    }
-    setTrackingEnabled(true);
-    logEvent(ANALYTICS_EVENTS.trackingStarted, { source: 'tracking_screen' });
-    refreshDiagnostics();
-  };
-  const stop = () => {
-    setTrackingEnabled(false);
-    logEvent(ANALYTICS_EVENTS.trackingStopped, { source: 'tracking_screen' });
-    refreshDiagnostics();
-  };
+  const foregroundAllowed = permissions.location === 'granted';
+  const backgroundAllowed =
+    permissions.backgroundLocation === 'granted' || permissions.backgroundLocation === 'not_applicable';
+  const automaticReady = product.trackingEnabled && capabilities.canUseAutomaticCapture && allowanceOk;
+  const allowanceLabel =
+    allowance.limit == null
+      ? 'Unlimited automatic trips this month.'
+      : `${allowance.remaining} of ${allowance.limit} automatic trips left this month.`;
+  const lastCheckValue = protection.lastCheckLabel
+    ? protection.lastCheckLabel.replace(/^Last successful check:\s*/i, '')
+    : diagnostics?.lastSampleAt
+      ? `${formatDateLocal(diagnostics.lastSampleAt)} ${formatTimeLocal(diagnostics.lastSampleAt)}`
+      : 'Needs attention';
+  const allowedLabel = (ok: boolean) => (ok ? 'Allowed' : 'Needs attention');
+  const onLabel = (ok: boolean) => (ok ? 'On' : 'Needs attention');
+  const showDevDiagnostics = product.showDevTools && allowInternalPreviewTools();
 
   return (
     <ScrollScreen>
-      <SectionHeader title="How you track" />
+      <SectionHeader title="Tracking health" />
       <Text style={[text.body, { marginBottom: spacing.md }]}>
-        Choose one simple mode. Advanced thresholds and Bluetooth options stay out of the way for now.
+        Check the basics that keep automatic protection ready. Manual entry stays available anytime.
       </Text>
-      <SelectionCard
-        title="Automatic protection"
-        body={automaticBody}
-        selected={automaticOn}
-        onPress={start}
-      />
-      <SelectionCard
-        title="Manual trip"
-        body="Add drives yourself anytime. Always available, even when automatic protection is off."
-        selected={!automaticOn}
-        onPress={() => {
-          if (product.trackingEnabled) stop();
-          navigation.navigate('ManualTrip');
-        }}
+      <StatusCard
+        variant={protection.severity}
+        title={protection.title}
+        body={`${protection.message} ${allowanceLabel}`}
+        emphasis="hero"
       />
       <ListSection title="Current status">
-        <EvidenceRow label="Protection status" value={protection.title} />
-        <EvidenceRow label="Automatic protection" value={automaticOn ? 'On' : 'Off'} />
-        <EvidenceRow
-          label="Auto trips this month"
-          value={
-            allowance.limit == null
-              ? `${allowance.used} · Unlimited`
-              : `${allowance.used} of ${allowance.limit}`
-          }
-        />
-        <EvidenceRow label="While using the app" value={permissions.location === 'granted' ? 'On' : 'Off'} />
-        <EvidenceRow label="In the background" value={permissions.backgroundLocation === 'granted' ? 'On' : 'Off'} />
-        <EvidenceRow
-          label="Last location check"
-          value={
-            diagnostics?.lastSampleAt
-              ? `${formatDateLocal(diagnostics.lastSampleAt)} ${formatTimeLocal(diagnostics.lastSampleAt)}`
-              : 'None yet'
-          }
-        />
+        <EvidenceRow label="Automatic protection" value={onLabel(automaticReady)} />
+        <EvidenceRow label="While using the app" value={allowedLabel(foregroundAllowed)} />
+        <EvidenceRow label="Background" value={allowedLabel(backgroundAllowed)} />
+        <EvidenceRow label="Battery" value={allowedLabel(!permissions.batteryOptimizationRestricted)} />
+        <EvidenceRow label="Monthly auto allowance" value={allowedLabel(allowanceOk)} />
+        <EvidenceRow label="Last check" value={lastCheckValue} />
       </ListSection>
-      {product.showDevTools ? (
-        <ListSection title="Diagnostic details">
+      <PrimaryButton
+        label={diagnosticsBusy ? 'Running diagnostics…' : 'Run diagnostics'}
+        onPress={runDiagnostics}
+        loading={diagnosticsBusy}
+        accessibilityLabel="Run tracking diagnostics"
+      />
+      <SecondaryButton label="Open Protection Center" onPress={() => navigation.navigate('ProtectionAlert')} />
+      {showDevDiagnostics ? (
+        <ListSection title="Dev diagnostics">
           <EvidenceRow label="Engine state" value={diagnostics?.engineState ?? 'Unknown'} />
           <EvidenceRow label="Trip state" value={diagnostics?.activeTripState ?? 'Unknown'} />
           <EvidenceRow label="Permissions" value={diagnostics?.permissionState ?? 'Unknown'} />
@@ -1665,7 +1629,7 @@ export function TrackingActiveScreen() {
           />
         </ListSection>
       ) : null}
-      {diagnostics?.backgroundLimited && automaticOn ? (
+      {diagnostics?.backgroundLimited && automaticReady ? (
         <StatusCard
           variant="warning"
           title="Background protection is limited"
@@ -1673,17 +1637,6 @@ export function TrackingActiveScreen() {
           emphasis="subtle"
         />
       ) : null}
-      {automaticOn ? (
-        <SecondaryButton label="Pause automatic protection" onPress={stop} accessibilityLabel="Pause automatic protection" />
-      ) : (
-        <PrimaryButton
-          label={canStart ? 'Turn on automatic protection' : 'Automatic capture unavailable'}
-          onPress={start}
-          accessibilityLabel={canStart ? 'Turn on automatic protection' : 'Automatic capture unavailable'}
-        />
-      )}
-      <SecondaryButton label="Open Protection Center" onPress={() => navigation.navigate('ProtectionAlert')} />
-      <SecondaryButton label="Refresh status" onPress={refreshDiagnostics} />
     </ScrollScreen>
   );
 }
@@ -2451,6 +2404,16 @@ function paywallSubtitle(goal: import('../../product/types').ProductUiState['pri
   }
 }
 
+type PaidPlanId = 'plus' | 'pro';
+
+function paidStoreProduct(
+  products: PurchaseProduct[],
+  planId: PaidPlanId,
+  period: PurchasePeriod,
+): PurchaseProduct | undefined {
+  return products.find((product) => product.planId === planId && product.period === period && !product.oneTime);
+}
+
 export function PlanSelectionScreen() {
   const navigation = useNavigation<Nav>();
   const { state } = useApp();
@@ -2459,6 +2422,7 @@ export function PlanSelectionScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [billingAvailable, setBillingAvailable] = useState(false);
+  const [storeProducts, setStoreProducts] = useState<PurchaseProduct[]>([]);
   const period: PurchasePeriod = annual ? 'annual' : 'monthly';
   const purchasePort = getPurchasePort();
   const entitlement = product.entitlement;
@@ -2466,14 +2430,64 @@ export function PlanSelectionScreen() {
     lastOfferAt: product.paywallCaps.lastTrialOfferAt,
     dismissedSession: product.paywallCaps.trialOfferDismissedSession,
   });
+  const previewFixture = !billingAvailable && isPreviewBillingBuild();
+  const freeFixture = PLAN_FIXTURES.find((plan) => plan.id === 'free')!;
   const plusFixture = PLAN_FIXTURES.find((plan) => plan.id === 'plus')!;
   const proFixture = PLAN_FIXTURES.find((plan) => plan.id === 'pro')!;
   const locale = product.localeProfile;
+  const currentPlanLabel = selectEntitlementPlanLabel(entitlement);
+  const trialDaysLeft =
+    entitlement.status === 'trialActive' && entitlement.trialEndsAt
+      ? Math.max(0, Math.ceil((entitlement.trialEndsAt - Date.now()) / 86400000))
+      : null;
+  const currentPlanBody =
+    trialDaysLeft != null
+      ? `${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left in your trial.`
+      : entitlement.planId === 'free'
+        ? 'Free stays usable with manual logging, capped automatic trips, and basic CSV.'
+        : 'Your store-verified access controls paid features on this device.';
   const confirmedWorkMiles = state.trips.filter(isConfirmedWorkTrip).reduce((sum, trip) => sum + trip.distanceMiles, 0);
   const valueProof =
     confirmedWorkMiles > 0
       ? `You've confirmed ${formatDistance(confirmedWorkMiles, locale.distanceUnit, locale.localeTag)} of work driving on this device.`
       : null;
+  const plusPeriod = trialEligible ? 'monthly' : period;
+  const planPrice = (planId: PaidPlanId, planPeriod: PurchasePeriod): string => {
+    const storeProduct = paidStoreProduct(storeProducts, planId, planPeriod);
+    if (storeProduct) return storeProduct.priceLocalized;
+    if (previewFixture) {
+      const fixture = planId === 'plus' ? plusFixture : proFixture;
+      return planPeriod === 'annual' ? fixture.annualPrice : fixture.monthlyPrice;
+    }
+    if (entitlement.planId === planId) {
+      const entitlementPrice =
+        planPeriod === 'annual' ? entitlement.annualPriceLocalized : entitlement.monthlyPriceLocalized;
+      if (entitlementPrice) return entitlementPrice;
+    }
+    return 'Store price unavailable';
+  };
+  const plusMonthlyPrice =
+    paidStoreProduct(storeProducts, 'plus', 'monthly')?.priceLocalized ??
+    (previewFixture ? plusFixture.monthlyPrice : entitlement.planId === 'plus' ? entitlement.monthlyPriceLocalized : null);
+  const plusPrice = planPrice('plus', plusPeriod);
+  const proPrice = planPrice('pro', period);
+  const plusFeatures = [
+    'Unlimited automatic trips',
+    'Unlimited missing scans',
+    'PDF reports and more vehicles',
+  ];
+  const proFeatures = [
+    'Everything in Plus',
+    'Advanced recovery and reports',
+    'Custom reimbursement and professional sharing',
+  ];
+  const freeFeatures = [
+    '40 automatic trips/month',
+    '1 vehicle',
+    '1 missing scan/month',
+    'Unlimited manual trips',
+    'Basic CSV export',
+  ];
 
   useEffect(() => {
     logEvent(ANALYTICS_EVENTS.paywallViewed, { source: 'plan_selection' });
@@ -2482,7 +2496,10 @@ export function PlanSelectionScreen() {
   useEffect(() => {
     let mounted = true;
     void purchasePort.getProducts().then((products) => {
-      if (mounted) setBillingAvailable(products.length > 0);
+      if (mounted) {
+        setStoreProducts(products);
+        setBillingAvailable(products.length > 0);
+      }
     });
     return () => {
       mounted = false;
@@ -2525,7 +2542,12 @@ export function PlanSelectionScreen() {
     }
   };
 
-  const plusCta = trialEligible && billingAvailable ? 'Start Plus trial' : 'Continue with Plus';
+  const selectFree = () => {
+    logEvent(ANALYTICS_EVENTS.planSelected, { plan: 'free', period: 'none' });
+    setSelectedPlan('free');
+    setNotice("You're on Free. Your existing records stay available.");
+  };
+  const plusCta = trialEligible ? 'Start 7-day free trial' : 'Continue with Plus';
   const proCta = 'Continue with Pro';
 
   return (
@@ -2533,9 +2555,9 @@ export function PlanSelectionScreen() {
       scrollKey={annual ? 'annual' : 'monthly'}
       header={
         <View>
-          <Text style={text.title}>Protect every work drive</Text>
+          <Text style={text.title}>{trialEligible ? '7 days free' : 'Protect every work drive'}</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            {paywallSubtitle(product.primaryGoal)}
+            {trialEligible ? 'Try Plus features. Cancel anytime.' : paywallSubtitle(product.primaryGoal)}
           </Text>
           {valueProof ? (
             <Text style={[text.caption, { marginBottom: spacing.sm }]}>{valueProof}</Text>
@@ -2557,21 +2579,42 @@ export function PlanSelectionScreen() {
         <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" />
       ) : null}
 
+      <StatusCard
+        variant="info"
+        title={`Current plan: ${currentPlanLabel}`}
+        body={currentPlanBody}
+        emphasis="subtle"
+      />
+
+      <SoftPanel>
+        <Text style={text.subtitle}>{freeFixture.name}</Text>
+        <Text style={[text.body, { marginTop: spacing.xs }]}>{freeFixture.monthlyPrice} / month</Text>
+        {freeFeatures.map((feature) => (
+          <Text key={feature} style={[text.body, { marginTop: spacing.xs }]}>
+            • {feature}
+          </Text>
+        ))}
+        <View style={{ marginTop: spacing.md }}>
+          <SecondaryButton label="Continue with Free" onPress={selectFree} />
+        </View>
+      </SoftPanel>
+
       <PlanCard
         name={plusFixture.name}
         tagline="Best for most drivers"
-        price={annual ? plusFixture.annualPrice : plusFixture.monthlyPrice}
-        period={annual ? 'year' : 'month'}
-        features={plusFixture.features}
+        price={plusPrice}
+        period={plusPeriod === 'annual' ? 'year' : 'month'}
+        features={plusFeatures}
         highlighted
         current={entitlement.planId === 'plus'}
-        savingsLabel={annual ? plusFixture.annualSavingsLabel : undefined}
+        savingsLabel={!trialEligible && annual ? plusFixture.annualSavingsLabel : undefined}
         purchaseDisabled={purchaseBusy}
+        priceNote={trialEligible ? trialRenewalCopy(plusMonthlyPrice, null) : undefined}
         selectLabel={plusCta}
         onSelect={() =>
           void handlePurchase('plus', () =>
-            trialEligible && billingAvailable
-              ? purchasePort.purchasePlusTrial(period)
+            trialEligible
+              ? purchasePort.purchasePlusTrial('monthly')
               : purchasePort.purchasePlus(period),
           )
         }
@@ -2580,26 +2623,15 @@ export function PlanSelectionScreen() {
       <PlanCard
         name={proFixture.name}
         tagline={proFixture.tagline}
-        price={annual ? proFixture.annualPrice : proFixture.monthlyPrice}
+        price={proPrice}
         period={annual ? 'year' : 'month'}
-        features={proFixture.features}
+        features={proFeatures}
         highlighted={false}
         current={entitlement.planId === 'pro'}
         savingsLabel={annual ? proFixture.annualSavingsLabel : undefined}
         purchaseDisabled={purchaseBusy}
         selectLabel={proCta}
         onSelect={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
-      />
-
-      <SelectionCard
-        title="Continue with Free"
-        body="Manual logging, review, and CSV export stay available."
-        selected={entitlement.planId === 'free'}
-        onPress={() => {
-          logEvent(ANALYTICS_EVENTS.planSelected, { plan: 'free', period: 'none' });
-          setSelectedPlan('free');
-          setNotice("You're on Free. Your existing records stay available.");
-        }}
       />
 
       <TertiaryButton

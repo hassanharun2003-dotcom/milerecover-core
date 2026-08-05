@@ -144,10 +144,11 @@ describe('Onboarding honesty', () => {
       path.join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(onboarding).toMatch(/Protect future drives|Protect your drives/);
-    expect(onboarding).toMatch(/Set up protection|Set up drive protection/);
+    expect(onboarding).toMatch(/Keep your drives protected|Protect future drives|Protect your drives/);
+    expect(onboarding).toMatch(/Enable drive protection|Set up protection|Set up drive protection/);
     expect(onboarding).toMatch(/Not now|Skip for now/);
-    expect(onboarding).not.toMatch(/status=\"ready\"/);
+    expect(onboarding).not.toMatch(/Your drives are protected/);
+    expect(onboarding).not.toMatch(/On or ready to confirm/);
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
       'purpose',

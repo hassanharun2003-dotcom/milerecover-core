@@ -271,23 +271,23 @@ export const COUNTRY_OPTIONS = [
 export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: string }[] = [
   {
     id: 'employee_reimbursement',
-    label: 'Employee reimbursement',
+    label: 'Employee',
     body: 'Share clear records with work.',
   },
   {
     id: 'self_employed_business',
-    label: 'Self-employed or business',
-    body: 'Keep client and tax-ready logs.',
+    label: 'Self-employed or Business',
+    body: 'Track business travel and tax-ready mileage.',
   },
   {
     id: 'gig_delivery',
-    label: 'Gig work',
-    body: 'Protect shifts and earnings records.',
+    label: 'Gig or Contractor',
+    body: 'Protect shifts, jobs, and delivery drives.',
   },
   {
     id: 'mixed',
-    label: 'A mix of these',
-    body: 'More than one of these.',
+    label: 'Mixed',
+    body: 'Use MileRecover for more than one purpose.',
   },
 ];
 
