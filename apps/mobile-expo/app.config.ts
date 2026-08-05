@@ -36,7 +36,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.2',
+  version: '0.2.3',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',

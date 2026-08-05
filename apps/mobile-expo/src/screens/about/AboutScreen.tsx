@@ -19,7 +19,7 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  'Image-locked blueprint polish: clearer Protection vs Tracking health, subscription Terms, About build labels, and tighter design-system aliases.';
+  '0.2.3 composition rebuild: Welcome “Never lose another work drive.”, compact region/rate, prominent Home protection, amber Proof attention, Profile identity header, premium Plus card.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { spacing } from '@milerecover/config';
+import { colors, spacing } from '@milerecover/config';
 import {
   formatActiveRateLabel,
   localeProfileFromCountry,
@@ -18,12 +18,15 @@ import {
   type ProductOnboardingStep,
 } from '../../product/types';
 import {
+  BottomSheet,
   ChecklistRow,
   FormField,
+  ListRow,
   OnboardingScreen,
   PrimaryButton,
   ProgressIndicator,
   SecondaryButton,
+  SegmentedControl,
   SelectionCard,
   SoftPanel,
   TertiaryButton,
@@ -76,6 +79,7 @@ export function OnboardingFlow() {
 
   const [finishing, setFinishing] = useState(false);
   const [permissionBusy, setPermissionBusy] = useState(false);
+  const [countrySheetOpen, setCountrySheetOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
   const recommendedCountry = recommendCountryFromLocale(
     typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined,
@@ -152,7 +156,9 @@ export function OnboardingFlow() {
   const rateLabel = unitDraft === 'km' ? 'Mileage rate (¢ per km)' : 'Mileage rate (¢ per mile)';
   const ratePreview = useMemo(() => {
     const entered = Number.parseFloat(rateCents);
-    if (!Number.isFinite(entered) || entered <= 0) return 'Review this rate. It is your chosen estimate, not a tax guarantee.';
+    if (!Number.isFinite(entered) || entered <= 0) {
+      return 'Review this rate. It is your chosen estimate, not a tax guarantee.';
+    }
     return unitDraft === 'km'
       ? `${Math.round(entered)}¢ per km · your chosen estimate, not a tax guarantee`
       : `${Math.round(entered)}¢ per mile · your chosen estimate, not a tax guarantee`;
@@ -160,6 +166,25 @@ export function OnboardingFlow() {
 
   const goalLabel =
     PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
+  const countryLabel =
+    COUNTRY_OPTIONS.find((option) => option.id === countryDraft)?.label ?? countryDraft;
+  const currencyLabel =
+    countryDraft === 'OTHER'
+      ? otherCurrency === 'OTHER'
+        ? 'Set currency'
+        : otherCurrency
+      : localeProfileFromCountry(countryDraft).currencyCode;
+
+  const applyCountry = (id: CountryCode) => {
+    setCountryDraft(id);
+    setCountrySheetOpen(false);
+    if (id !== 'OTHER') {
+      const preset = localeProfileFromCountry(id);
+      setUnitDraft(preset.distanceUnit);
+      const cpm = preset.rates[0]?.centsPerMile ?? 0;
+      setRateCents(String(preset.distanceUnit === 'km' ? Math.round(cpm / 1.609344) : cpm || ''));
+    }
+  };
 
   return (
     <OnboardingScreen
@@ -203,7 +228,7 @@ export function OnboardingFlow() {
         ) : step === 'protect_drives' ? (
           <View style={{ gap: spacing.sm }}>
             <PrimaryButton
-              label="Enable drive protection"
+              label="Turn on drive protection"
               loading={permissionBusy}
               onPress={() => {
                 if (permissionBusy) return;
@@ -234,7 +259,7 @@ export function OnboardingFlow() {
                   }
                 })();
               }}
-              accessibilityLabel="Enable drive protection"
+              accessibilityLabel="Turn on drive protection"
             />
             <TertiaryButton
               label="Not now — I’ll add drives manually"
@@ -261,12 +286,12 @@ export function OnboardingFlow() {
         <View>
           <WelcomeHero
             title="MileRecover"
-            eyebrow="Automatic mileage tracking that helps you keep every work drive."
-            body=""
+            eyebrow="Never lose another work drive."
+            body="Automatic protection for work mileage, with manual confirmation and private location control."
           />
           <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
-            <ChecklistRow label="Tracks drives automatically" status="ready" />
-            <ChecklistRow label="Works in the background" status="ready" />
+            <ChecklistRow label="Protects drives automatically" status="ready" />
+            <ChecklistRow label="You confirm before anything counts as work" status="ready" />
             <ChecklistRow label="Creates clear mileage reports" status="ready" />
             <ChecklistRow label="Keeps your location data private" status="ready" />
           </View>
@@ -314,35 +339,32 @@ export function OnboardingFlow() {
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             We use this to display distance and estimated value correctly.
           </Text>
-          <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Country</Text>
-          {COUNTRY_OPTIONS.map((opt) => (
-            <SelectionCard
-              key={opt.id}
-              title={opt.label}
-              body={opt.id === recommendedCountry ? 'Suggested from your device' : undefined}
-              selected={countryDraft === opt.id}
-              onPress={() => {
-                setCountryDraft(opt.id);
-                if (opt.id !== 'OTHER') {
-                  const preset = localeProfileFromCountry(opt.id);
-                  setUnitDraft(preset.distanceUnit);
-                  const cpm = preset.rates[0]?.centsPerMile ?? 0;
-                  setRateCents(
-                    String(preset.distanceUnit === 'km' ? Math.round(cpm / 1.609344) : cpm || ''),
-                  );
-                }
-              }}
+
+          <SoftPanel>
+            <ListRow
+              label="Country"
+              value={
+                countryDraft === recommendedCountry
+                  ? `${countryLabel} · Suggested`
+                  : countryLabel
+              }
+              onPress={() => setCountrySheetOpen(true)}
             />
-          ))}
-          <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>
+            <ListRow label="Currency" value={currencyLabel} showChevron={false} />
+          </SoftPanel>
+
+          <Text style={[text.caption, { marginTop: spacing.md, marginBottom: spacing.xs }]}>
             Distance unit
           </Text>
-          <SelectionCard title="Miles" selected={unitDraft === 'mi'} onPress={() => setUnitDraft('mi')} />
-          <SelectionCard
-            title="Kilometres"
-            selected={unitDraft === 'km'}
-            onPress={() => setUnitDraft('km')}
+          <SegmentedControl
+            value={unitDraft}
+            onChange={setUnitDraft}
+            options={[
+              { label: 'Miles', value: 'mi' },
+              { label: 'Kilometres', value: 'km' },
+            ]}
           />
+
           {countryDraft === 'OTHER' ? (
             <FormField
               label="Currency code"
@@ -358,6 +380,7 @@ export function OnboardingFlow() {
               autoCapitalize="characters"
             />
           ) : null}
+
           <FormField
             label={rateLabel}
             value={rateCents}
@@ -367,6 +390,22 @@ export function OnboardingFlow() {
             accessibilityLabel="Mileage rate"
           />
           <Text style={[text.caption, { marginTop: spacing.xs }]}>{ratePreview}</Text>
+
+          <BottomSheet
+            visible={countrySheetOpen}
+            title="Choose country"
+            onClose={() => setCountrySheetOpen(false)}
+          >
+            {COUNTRY_OPTIONS.map((opt) => (
+              <SelectionCard
+                key={opt.id}
+                title={opt.label}
+                body={opt.id === recommendedCountry ? 'Suggested from your device' : undefined}
+                selected={countryDraft === opt.id}
+                onPress={() => applyCountry(opt.id)}
+              />
+            ))}
+          </BottomSheet>
         </View>
       ) : null}
 
@@ -378,20 +417,12 @@ export function OnboardingFlow() {
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             MileRecover can capture drives automatically, even when the app is not open.
           </Text>
-          <SoftPanel>
-            <Text style={text.subtitle}>Automatic detection</Text>
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>Finds possible drives for you.</Text>
-            <Text style={[text.subtitle, { marginTop: spacing.md }]}>Background tracking</Text>
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>Works when your screen is off.</Text>
-            <Text style={[text.subtitle, { marginTop: spacing.md }]}>Battery-aware</Text>
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>
-              Designed to use location carefully.
-            </Text>
-            <Text style={[text.subtitle, { marginTop: spacing.md }]}>Privacy control</Text>
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>
-              You decide which drives count as work.
-            </Text>
-          </SoftPanel>
+          <View style={{ gap: spacing.sm }}>
+            <ChecklistRow label="Automatic detection — finds possible drives for you" status="ready" />
+            <ChecklistRow label="Background tracking — works when your screen is off" status="ready" />
+            <ChecklistRow label="Battery-aware — uses location carefully" status="ready" />
+            <ChecklistRow label="Privacy control — you decide which drives count as work" status="ready" />
+          </View>
           <Text style={[text.caption, { marginTop: spacing.md }]}>
             We’ll ask for location next. If you decline, manual entry still works.
             {'\n'}
@@ -409,16 +440,19 @@ export function OnboardingFlow() {
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: '#E8F4EE',
+              backgroundColor: colors.background.mist,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: spacing.md,
             }}
             accessibilityLabel="Complete"
           >
-            <Text style={[text.display, { color: '#0F6B46' }]}>✓</Text>
+            <Text style={[text.display, { color: colors.forest[700] }]}>✓</Text>
           </View>
-          <Text style={[text.headline, { marginBottom: spacing.sm, textAlign: 'center' }]} accessibilityRole="header">
+          <Text
+            style={[text.headline, { marginBottom: spacing.sm, textAlign: 'center' }]}
+            accessibilityRole="header"
+          >
             You’re all set!
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md, textAlign: 'center' }]}>
@@ -427,11 +461,14 @@ export function OnboardingFlow() {
               : 'You can add drives manually anytime. Turn on protection later from Profile when you’re ready.'}
           </Text>
           <SoftPanel>
-            <Text style={text.subtitle}>{goalLabel}</Text>
+            <Text style={text.subtitle}>Purpose · {goalLabel}</Text>
             <Text style={[text.body, { marginTop: spacing.xs }]}>
               {product.localeProfile.countryDisplayName} ·{' '}
               {product.localeProfile.distanceUnit === 'km' ? 'Kilometres' : 'Miles'} ·{' '}
-              {formatActiveRateLabel(product.localeProfile)}
+              {product.localeProfile.currencyCode}
+            </Text>
+            <Text style={[text.body, { marginTop: spacing.xs }]}>
+              Rate · {formatActiveRateLabel(product.localeProfile)}
             </Text>
             <Text style={[text.body, { marginTop: spacing.xs }]}>
               {protectionConfigured
@@ -441,11 +478,11 @@ export function OnboardingFlow() {
           </SoftPanel>
           <View style={{ marginTop: spacing.lg, width: '100%', gap: spacing.sm }}>
             <PrimaryButton
-              label="Go to dashboard"
+              label="Go to Home"
               onPress={() => finish(null)}
               disabled={finishing}
               loading={finishing}
-              accessibilityLabel="Go to dashboard"
+              accessibilityLabel="Go to Home"
             />
             <SecondaryButton
               label="Add my first drive"

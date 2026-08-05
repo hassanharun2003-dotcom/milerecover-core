@@ -21,6 +21,7 @@ import {
   type ReportPeriodKind,
 } from '@milerecover/domain';
 import {
+  AttentionBox,
   EmptyState,
   FormError,
   ListRow,
@@ -28,7 +29,6 @@ import {
   PrimaryButton,
   SecondaryButton,
   SegmentedControl,
-  SoftPanel,
   SummaryCard,
   TabScreen,
   text,
@@ -341,73 +341,107 @@ export function ProofScreen() {
         />
       ) : (
         <>
-          <SoftPanel>
-            <Text style={text.subtitle}>{period.label}</Text>
-            <SummaryCard
-              items={[
-                {
-                  label: 'Work distance',
-                  value: formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag),
-                },
-                {
-                  label: 'Work drives',
-                  value: String(report.tripCount),
-                },
-                {
-                  label: 'Value',
-                  value:
-                    report.estimatedValueCents != null
-                      ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
-                      : 'Set rate',
-                },
-              ]}
-            />
-          </SoftPanel>
+          <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>{period.label}</Text>
+          <Text style={[text.caption, { marginBottom: spacing.xs }]}>{readinessState}</Text>
+          <SummaryCard
+            items={[
+              {
+                label: 'Distance',
+                value: formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag),
+              },
+              {
+                label: 'Drives',
+                value: String(report.tripCount),
+              },
+              {
+                label: 'Value',
+                value:
+                  report.estimatedValueCents != null
+                    ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
+                    : 'Set rate',
+              },
+            ]}
+          />
 
-          <ListSection title="Corrections">
-            <ListRow label="Status" value={readinessState} showChevron={false} />
-            <Text style={[text.body, { marginBottom: spacing.sm }]}>{readinessMessage}</Text>
-            {corrections.length === 0 ? (
-              <Text style={[text.body, { marginBottom: spacing.sm }]}>
-                No corrections needed for this period.
-              </Text>
-            ) : (
-              corrections.map((issue) => (
-                <ListRow
+          {corrections.length > 0 ? (
+            <AttentionBox
+              title={
+                corrections.length === 1
+                  ? '1 item needs attention'
+                  : `${corrections.length} items need attention`
+              }
+            >
+              <Text style={[text.body, { marginBottom: spacing.sm }]}>{readinessMessage}</Text>
+              {corrections.map((issue) => (
+                <Text
                   key={`${issue.severity}-${issue.id}`}
-                  label={issue.label}
-                  value={correctionDetail(issue, confirmedWorkTrips, locale.localeTag)}
-                  showChevron={false}
+                  style={[text.body, { marginBottom: spacing.xs }]}
+                >
+                  · {issue.label}
+                  {correctionDetail(issue, confirmedWorkTrips, locale.localeTag)
+                    ? ` — ${correctionDetail(issue, confirmedWorkTrips, locale.localeTag)}`
+                    : ''}
+                </Text>
+              ))}
+              {fixTarget ? (
+                <View style={{ marginTop: spacing.sm }}>
+                  <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
+                </View>
+              ) : null}
+              <View style={{ marginTop: spacing.sm }}>
+                <SecondaryButton
+                  label="Preview report"
+                  onPress={openPreview}
+                  disabled={!exportReady}
+                  accessibilityLabel={
+                    exportReady
+                      ? 'Preview report'
+                      : 'Preview report unavailable until required items are fixed'
+                  }
                 />
-              ))
-            )}
-            {fixTarget ? <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} /> : null}
-            <View style={{ marginTop: spacing.sm }}>
+              </View>
+            </AttentionBox>
+          ) : (
+            <View style={{ marginBottom: spacing.md }}>
+              <Text style={[text.body, { marginBottom: spacing.sm }]}>{readinessMessage}</Text>
               <SecondaryButton
                 label="Preview report"
                 onPress={openPreview}
                 disabled={!exportReady}
                 accessibilityLabel={
-                  exportReady ? 'Preview report' : 'Preview report unavailable until required items are fixed'
+                  exportReady
+                    ? 'Preview report'
+                    : 'Preview report unavailable until required items are fixed'
                 }
               />
             </View>
-          </ListSection>
+          )}
 
-          <ListSection title="Reports">
+          <ListSection title="Export">
             {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
             {error ? <FormError message={error} /> : null}
             <ListRow
-              label="Preview"
-              value={reportsDisabledReason ?? 'Ready'}
+              label="Preview report"
+              value={reportsDisabledReason ?? 'Available'}
               onPress={openPreview}
               disabled={!exportReady}
             />
             <ListRow
-              label="PDF"
+              label="CSV export"
+              value={
+                csvBusy || (shareBusy && csvBusy)
+                  ? SHARE_COPY.preparingCsv
+                  : reportsDisabledReason ?? 'Free'
+              }
+              onPress={() => void shareCsv()}
+              busy={csvBusy || (shareBusy && !pdfBusy)}
+              disabled={!exportReady || pdfBusy}
+            />
+            <ListRow
+              label="PDF export"
               value={
                 reportsDisabledReason ??
-                (capabilities.canUseStandardPdf ? 'Ready' : 'Upgrade for PDF')
+                (capabilities.canUseStandardPdf ? 'Plus' : 'Plus')
               }
               onPress={() => {
                 if (capabilities.canUseStandardPdf) void sharePdf();
@@ -417,19 +451,8 @@ export function ProofScreen() {
               disabled={!exportReady || (exportBusy && !pdfBusy)}
             />
             <ListRow
-              label="CSV"
-              value={
-                csvBusy || (shareBusy && csvBusy)
-                  ? SHARE_COPY.preparingCsv
-                  : reportsDisabledReason ?? 'Free CSV'
-              }
-              onPress={() => void shareCsv()}
-              busy={csvBusy || (shareBusy && !pdfBusy)}
-              disabled={!exportReady || pdfBusy}
-            />
-            <ListRow
               label="Share"
-              value={reportsDisabledReason ?? 'Open report options'}
+              value={reportsDisabledReason ?? 'Available'}
               onPress={() => navigation.navigate('ExportReport')}
               disabled={!exportReady}
             />

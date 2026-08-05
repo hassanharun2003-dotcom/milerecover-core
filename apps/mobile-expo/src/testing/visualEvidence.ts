@@ -324,3 +324,81 @@ export function renderVisualBoard(input: VisualBoardInput, outDir: string): {
 export function defaultEvidenceDir(): string {
   return path.join(__dirname, '..', '..', '..', '..', 'docs', 'assets', 'ui-evidence', 'png');
 }
+
+export function defaultActualEvidenceDir(): string {
+  return path.join(__dirname, '..', '..', '..', '..', 'docs', 'assets', 'ui-evidence', 'actual');
+}
+
+/**
+ * Compositional board from live ScreenTestHarness copy — stronger layout signal than
+ * the generic theme board. Still not a pixel RN snapshot; physical/emulator captures
+ * remain required for store sign-off.
+ */
+export function renderActualScreenBoard(
+  input: VisualBoardInput & { screenKind?: string },
+  outDir: string,
+): { filePath: string; failures: VisualCheckFailure[] } {
+  const width = input.width ?? 390;
+  const height = input.height ?? 844;
+  const s = lightSemantic;
+  const png = new PNG({ width, height });
+  fillRect(png, 0, 0, width, height, s.canvas);
+  fillRect(png, 0, 0, width, 48, s.surface);
+  drawGlyphRow(png, 'ACTUAL RENDER COPY', 12, 18, s.textSecondary, 1);
+  drawGlyphRow(png, input.title.slice(0, 30), 12, 58, s.textPrimary, 2);
+
+  const lines = input.copy
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 18);
+
+  // Hero card — forest for protection/home/plan, white otherwise
+  const kind = (input.screenKind ?? input.id).toLowerCase();
+  const heroGreen =
+    kind.includes('home') ||
+    kind.includes('protection') ||
+    kind.includes('subscription') ||
+    kind.includes('plan');
+  fillRect(png, 16, 96, width - 32, 120, heroGreen ? s.primary : s.surface);
+  if (!heroGreen) {
+    fillRect(png, 16, 96, width - 32, 2, s.border);
+    fillRect(png, 16, 214, width - 32, 2, s.border);
+  }
+  drawGlyphRow(
+    png,
+    (lines[0] ?? input.title).slice(0, 34),
+    28,
+    120,
+    heroGreen ? s.onPrimary : s.textPrimary,
+    2,
+  );
+  if (lines[1]) {
+    drawGlyphRow(png, lines[1].slice(0, 36), 28, 150, heroGreen ? '#E8F4EE' : s.textSecondary, 1);
+  }
+
+  // Metrics / body cards
+  fillRect(png, 16, 232, width - 32, 72, s.surface);
+  drawGlyphRow(png, (lines[2] ?? 'METRICS').slice(0, 40), 28, 258, s.textPrimary, 1);
+  fillRect(png, 16, 316, width - 32, 160, s.surface);
+  let ly = 332;
+  for (const line of lines.slice(3, 10)) {
+    drawGlyphRow(png, line.slice(0, 40), 28, ly, s.textSecondary, 1);
+    ly += 16;
+  }
+
+  // Primary CTA
+  fillRect(png, 16, height - 140, width - 32, 48, s.primary);
+  drawGlyphRow(png, 'PRIMARY CTA', 28, height - 124, s.onPrimary, 2);
+  fillRect(png, 0, height - 72, width, 72, s.surface);
+  fillRect(png, 0, height - 72, width, 1, s.border);
+  ['HOME', 'REVIEW', 'PROOF', 'PROFILE'].forEach((tab, i) => {
+    drawGlyphRow(png, tab, 20 + i * 90, height - 40, i === 0 ? s.primary : s.textTertiary, 1);
+  });
+
+  const failures = checkThemeContrast('light');
+  fs.mkdirSync(outDir, { recursive: true });
+  const filePath = path.join(outDir, `${input.id}-actual.png`);
+  fs.writeFileSync(filePath, PNG.sync.write(png));
+  return { filePath, failures };
+}

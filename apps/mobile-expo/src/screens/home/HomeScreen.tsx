@@ -25,6 +25,7 @@ import {
   text,
   useAppTheme,
 } from '../../design-system';
+// SoftPanel retained for HomeSkeleton loading shells.
 import { greetingForName, tripSourceLabel } from '../../product/copy';
 import { selectHomePeriodSummary, selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
 import { selectProductExperience } from '../../product/selectors';
@@ -127,23 +128,23 @@ function compactProtection(input: ProtectionStatusView): {
 function statusTitle(kind: CompactStatus): string {
   switch (kind) {
     case 'protected':
-      return 'Drives protected';
+      return 'Protected';
     case 'configured_waiting':
       return 'Protection is ready';
     case 'checking':
-      return 'Checking';
+      return 'Checking protection';
     case 'battery_limited':
-      return 'Battery limited';
+      return 'Battery may pause tracking';
     case 'off':
-      return 'Off';
+      return 'Automatic protection is off';
     case 'manual_mode':
-      return 'Manual mode';
+      return 'Manual tracking';
     case 'needs_permission':
-      return 'Needs permission';
+      return 'Protection needs attention';
     case 'stale':
-      return 'Needs check';
+      return 'Protection needs a check';
     case 'error':
-      return 'Needs attention';
+      return 'Protection needs attention';
   }
 }
 
@@ -268,19 +269,27 @@ export function HomeScreen() {
   });
 
   const nextBest = useMemo<NextBestAction>(() => {
-    // Keep protection repair in the status row so Home has one clear next action.
+    if (protectionNeedsAction) {
+      return {
+        label: compact.actionLabel || 'Fix protection',
+        run: () => {
+          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
+          else navigation.navigate('ProtectionAlert');
+        },
+      };
+    }
     if (pendingReviewCount > 0) {
       return {
         label:
           pendingReviewCount === 1
-            ? 'Review 1 possible drive'
-            : `Review ${pendingReviewCount} possible drives`,
+            ? 'Review 1 drive'
+            : `Review ${pendingReviewCount} drives`,
         run: () => navigation.navigate('Review'),
       };
     }
     if (locale.activeRateNeedsReview || !rateUsable) {
       return {
-        label: 'Add a rate to calculate your value',
+        label: 'Complete report details',
         run: () => navigation.navigate('EditSetup'),
       };
     }
@@ -302,17 +311,26 @@ export function HomeScreen() {
         run: () => navigation.navigate('Proof'),
       };
     }
+    if (confirmedCount === 0) {
+      return {
+        label: 'Add your first drive',
+        run: () => navigation.navigate('ManualTrip'),
+      };
+    }
     return {
-      label: 'No action needed right now.',
+      label: 'You’re all caught up',
       run: null,
     };
   }, [
+    compact.action,
+    compact.actionLabel,
     confirmedCount,
     experience.activeReviewItems,
     locale.activeRateNeedsReview,
     navigation,
     pendingReviewCount,
     product.importPhase,
+    protectionNeedsAction,
     rateUsable,
     scenario.proofReady,
   ]);
@@ -397,93 +415,110 @@ export function HomeScreen() {
 
   if (!homeReady) return <HomeSkeleton />;
 
+  const protectionVariant =
+    compact.kind === 'protected'
+      ? 'protected'
+      : protectionNeedsAction
+        ? 'attention'
+        : compact.kind === 'configured_waiting'
+          ? 'mint'
+          : 'default';
+  const onGreen = compact.kind === 'protected';
+
   return (
     <TabScreen>
-      <Text style={[text.subtitle, { marginBottom: spacing.xs }]} accessibilityRole="text">
-        {greeting ?? 'Welcome back.'}
-      </Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing.sm,
+        }}
+      >
+        <Text style={[text.subtitle, { flex: 1 }]} accessibilityRole="text">
+          {greeting ?? 'Welcome back'}
+        </Text>
+        <TertiaryButton
+          label="Plans"
+          onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
+          accessibilityLabel="Open plans and trial"
+        />
+      </View>
 
-      <ProtectionCard variant={compact.kind === 'protected' ? 'protected' : 'default'}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={[
-                text.subtitle,
-                compact.kind === 'protected' ? { color: palette.text.inverse } : null,
-              ]}
-            >
-              {statusTitle(compact.kind)}
-            </Text>
-            <Text
-              style={[
-                text.body,
-                { marginTop: spacing.xs },
-                compact.kind === 'protected'
-                  ? { color: palette.forest[100] }
-                  : protectionNeedsAction
-                    ? { color: palette.text.primary }
-                    : null,
-              ]}
-            >
-              {compact.sentence}
-            </Text>
-            {compact.kind !== 'protected' && protection.lastCheckLabel ? (
-              <Text style={[text.caption, { marginTop: spacing.xs }]}>{protection.lastCheckLabel}</Text>
-            ) : null}
-          </View>
-          {showProtectionAction ? (
-            <TertiaryButton
+      <ProtectionCard variant={protectionVariant}>
+        <Text style={[text.title, onGreen ? { color: palette.text.inverse } : null]}>
+          {statusTitle(compact.kind)}
+        </Text>
+        <Text
+          style={[
+            text.body,
+            { marginTop: spacing.xs },
+            onGreen ? { color: palette.forest[100] } : { color: palette.text.secondary },
+          ]}
+        >
+          {compact.sentence}
+        </Text>
+        {protection.lastCheckLabel ? (
+          <Text
+            style={[
+              text.caption,
+              { marginTop: spacing.sm },
+              onGreen ? { color: palette.forest[100] } : null,
+            ]}
+          >
+            {protection.lastCheckLabel}
+          </Text>
+        ) : null}
+        {showProtectionAction && !protectionNeedsAction ? (
+          <View style={{ marginTop: spacing.md }}>
+            <SecondaryButton
               label={compact.actionLabel || 'View'}
               onPress={openProtection}
               accessibilityLabel="View protection status"
+              compact
             />
-          ) : null}
-        </View>
+          </View>
+        ) : null}
       </ProtectionCard>
 
-      <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
-        {periodSummary.periodLabel}
+      <Text style={[text.caption, { marginBottom: spacing.xs, marginTop: spacing.md }]}>
+        {periodSummary.periodLabel.toUpperCase()}
       </Text>
       <SummaryCard
         items={[
-          {
-            label: 'Distance',
-            value: periodSummary.workDistanceLabel,
-          },
-          {
-            label: 'Drives',
-            value: String(periodSummary.tripCount),
-          },
-          {
-            label: 'Estimated value',
-            value: periodSummary.estimatedValueLabel,
-          },
+          { label: 'Distance', value: periodSummary.workDistanceLabel },
+          { label: 'Drives', value: String(periodSummary.tripCount) },
+          { label: 'Value', value: periodSummary.estimatedValueLabel },
         ]}
       />
 
-      <SoftPanel>
-        <Text style={text.subtitle}>Next</Text>
+      <ProtectionCard variant="default">
+        <Text style={text.subtitle}>Next up</Text>
         {nextBest.run ? (
-          <PrimaryButton
-            label={nextBest.label}
-            onPress={nextBest.run}
-            accessibilityLabel={nextBest.label}
-          />
+          <View style={{ marginTop: spacing.sm }}>
+            <PrimaryButton
+              label={nextBest.label}
+              onPress={nextBest.run}
+              accessibilityLabel={nextBest.label}
+            />
+          </View>
         ) : (
           <Text style={[text.body, { marginTop: spacing.xs }]}>{nextBest.label}</Text>
         )}
-      </SoftPanel>
+      </ProtectionCard>
 
       <TrialOfferCard
         confirmedWorkDriveCount={confirmedCount}
         onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
       />
 
-      <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>Recent</Text>
+      <Text style={[text.caption, { marginTop: spacing.md, marginBottom: spacing.xs }]}>
+        RECENT
+      </Text>
       {recent.length === 0 ? (
-        <SoftPanel>
-          <Text style={text.body}>No drives yet. Add one when you know the miles.</Text>
-        </SoftPanel>
+        <Text style={[text.body, { marginBottom: spacing.sm }]}>
+          No drives yet. Add one when you know the miles.
+        </Text>
       ) : (
         recent.map((trip) => {
           const stateLabel =
@@ -511,8 +546,8 @@ export function HomeScreen() {
         })
       )}
 
-      <View style={{ marginTop: spacing.sm }}>
-        <SecondaryButton
+      <View style={{ marginTop: spacing.sm, marginBottom: spacing.md }}>
+        <PrimaryButton
           label="Add a drive"
           onPress={() => navigation.navigate('ManualTrip')}
           accessibilityLabel="Add a drive from home"

@@ -272,22 +272,22 @@ export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: strin
   {
     id: 'employee_reimbursement',
     label: 'Employee',
-    body: 'Share clear records with work.',
+    body: 'Share clear records for reimbursement.',
   },
   {
     id: 'self_employed_business',
-    label: 'Self-employed or Business',
-    body: 'Track business travel and tax-ready mileage.',
+    label: 'Self-employed',
+    body: 'Track business travel for your records.',
   },
   {
     id: 'gig_delivery',
-    label: 'Gig or Contractor',
+    label: 'Delivery/gig',
     body: 'Protect shifts, jobs, and delivery drives.',
   },
   {
     id: 'mixed',
-    label: 'Mixed',
-    body: 'Use MileRecover for more than one purpose.',
+    label: 'Something else',
+    body: 'Use MileRecover for another reason.',
   },
 ];
 

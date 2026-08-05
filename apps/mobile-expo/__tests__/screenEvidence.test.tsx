@@ -25,11 +25,11 @@ describe('Screen render evidence', () => {
     }
     expect(manifest['onboarding-welcome']).toMatch(/MileRecover|Protect every work mile/i);
     expect(manifest['onboarding-purpose']).toMatch(
-      /Employee|Business|Gig|Mixed|What do you track mileage for|How do you use mileage/i,
+      /Employee|Self-employed|Delivery\/gig|Something else|Business|Gig|Mixed|What do you track mileage for|How do you use mileage/i,
     );
     expect(manifest['onboarding-locale_setup']).toMatch(/Country|units|rate|Miles|Kilometers/i);
     expect(manifest['onboarding-protect_drives']).toMatch(
-      /Keep your drives protected|Protect future drives|Enable drive protection|Set up protection|Not now|Skip for now/i,
+      /Keep your drives protected|Protect future drives|Turn on drive protection|Enable drive protection|Set up protection|Not now|Skip for now/i,
     );
     expect(manifest['onboarding-ready']).toMatch(
       /You’re all set|You're all set|You’re ready|You're ready|Go to dashboard|Go to Home|Add my first drive/i,
@@ -157,7 +157,7 @@ describe('Screen render evidence', () => {
     expect(profile.copy).toMatch(/Not set|Free|About/i);
 
     const insetWelcome = await renderOnboardingWithInsets('purpose', { top: 28, bottom: 20 });
-    expect(insetWelcome.copy).toMatch(/Employee|Business|Gig|Mixed|How do you use mileage/i);
+    expect(insetWelcome.copy).toMatch(/Employee|Self-employed|Delivery\/gig|Something else|Business|Gig|Mixed|How do you use mileage/i);
     const shellSource = fs.readFileSync(
       path.join(__dirname, '../src/design-system/screenShell.tsx'),
       'utf8',

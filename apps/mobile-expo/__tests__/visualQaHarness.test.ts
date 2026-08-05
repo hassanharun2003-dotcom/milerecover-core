@@ -4,7 +4,9 @@ import { LAUNCH_FIXTURES } from '../src/testing/launchFixtures';
 import {
   checkThemeContrast,
   contrastRatio,
+  defaultActualEvidenceDir,
   defaultEvidenceDir,
+  renderActualScreenBoard,
   renderVisualBoard,
   themeContrastPairs,
 } from '../src/testing/visualEvidence';
@@ -17,11 +19,14 @@ import {
 import { ONBOARDING_STEP_ORDER } from '../src/product/types';
 
 const pngDir = defaultEvidenceDir();
+const actualDir = defaultActualEvidenceDir();
 const manifestPath = path.join(pngDir, 'manifest.json');
+const actualManifestPath = path.join(actualDir, 'manifest.json');
 
 describe('Phase 0 visual QA harness', () => {
   beforeAll(() => {
     fs.mkdirSync(pngDir, { recursive: true });
+    fs.mkdirSync(actualDir, { recursive: true });
   });
 
   it('enforces readable contrast for shipped light semantic tokens', () => {
@@ -186,5 +191,27 @@ describe('Phase 0 visual QA harness', () => {
 
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
     expect(Object.keys(manifest).length).toBeGreaterThan(25);
+
+    const actualManifest: Record<string, { file: string; copyPreview: string }> = {};
+    for (const board of boards) {
+      const { filePath, failures } = renderActualScreenBoard(
+        {
+          id: board.id,
+          title: board.title,
+          theme: 'light',
+          copy: board.copy,
+          screenKind: board.id,
+        },
+        actualDir,
+      );
+      expect(fs.existsSync(filePath)).toBe(true);
+      expect(failures).toEqual([]);
+      actualManifest[board.id] = {
+        file: path.basename(filePath),
+        copyPreview: board.copy.slice(0, 240),
+      };
+    }
+    fs.writeFileSync(actualManifestPath, JSON.stringify(actualManifest, null, 2));
+    expect(Object.keys(actualManifest).length).toBeGreaterThan(12);
   }, 120_000);
 });

@@ -145,7 +145,7 @@ describe('Onboarding honesty', () => {
       'utf8',
     );
     expect(onboarding).toMatch(/Keep your drives protected|Protect future drives|Protect your drives/);
-    expect(onboarding).toMatch(/Enable drive protection|Set up protection|Set up drive protection/);
+    expect(onboarding).toMatch(/Turn on drive protection|Enable drive protection|Set up protection/);
     expect(onboarding).toMatch(/Not now|Skip for now/);
     expect(onboarding).not.toMatch(/Your drives are protected/);
     expect(onboarding).not.toMatch(/On or ready to confirm/);

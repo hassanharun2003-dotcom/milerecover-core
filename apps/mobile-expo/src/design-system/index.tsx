@@ -651,7 +651,7 @@ export function ReviewCard({
       </View>
       <View style={styles.reviewDecisionActions}>
         <View style={styles.reviewDecisionButton}>
-          <SecondaryButton
+          <PrimaryButton
             label="Work"
             onPress={onWork}
             accessibilityLabel={`Mark as work drive. ${title}`}
@@ -700,6 +700,7 @@ export function ListRow({
   showChevron = !!onPress,
   disabled,
   busy,
+  icon,
 }: {
   label: string;
   value?: string;
@@ -707,15 +708,35 @@ export function ListRow({
   showChevron?: boolean;
   disabled?: boolean;
   busy?: boolean;
+  /** Compact leading glyph for blueprint Profile rows. */
+  icon?: string;
 }) {
   const { palette } = useAppTheme();
   const displayValue = busy ? (value && /preparing/i.test(value) ? value : 'Preparing…') : value;
   const blocked = Boolean(disabled || busy);
   const a11yLabel = displayValue ? `${label}, ${displayValue}` : label;
   const longValue = Boolean(displayValue && displayValue.length > 22);
+  const leading = icon ? (
+    <View
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: palette.background.mist,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.sm,
+      }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Text style={{ color: palette.forest[700], fontWeight: '700', fontSize: 13 }}>{icon}</Text>
+    </View>
+  ) : null;
   const content = longValue ? (
     <View style={styles.listRowStacked}>
       <View style={styles.listRowStackedTop}>
+        {leading}
         <Text style={[text.body, styles.listRowLabelGrow, themedText(palette)]} numberOfLines={2}>
           {label}
         </Text>
@@ -729,6 +750,7 @@ export function ListRow({
     </View>
   ) : (
     <>
+      {leading}
       <Text
         style={[text.body, displayValue ? styles.listRowLabel : styles.listRowLabelGrow, themedText(palette)]}
         numberOfLines={2}
@@ -821,6 +843,10 @@ export function PlanCard({
   selectLabel?: string;
 }) {
   const { palette } = useAppTheme();
+  const premium = Boolean(highlighted);
+  const titleColor = premium ? palette.text.inverse : palette.text.primary;
+  const bodyColor = premium ? palette.forest[100] : palette.text.secondary;
+  const accentColor = premium ? palette.text.inverse : palette.action.secondaryText;
   return (
     <View
       style={[
@@ -828,29 +854,56 @@ export function PlanCard({
         themedCard(palette),
         styles.planCard,
         highlighted && styles.planHighlighted,
-        highlighted && { borderColor: palette.action.selectedBorder },
+        highlighted && {
+          borderColor: palette.forest[800],
+          backgroundColor: palette.forest[800],
+          ...shadows.lifted,
+        },
       ]}
     >
-      {highlighted ? <Badge label="Recommended" variant="info" /> : null}
+      {highlighted ? <Badge label="Recommended" variant="success" /> : null}
       {current ? <Badge label="Your plan" variant="success" /> : null}
-      <Text style={[text.subtitle, themedText(palette), { marginTop: spacing.xs }]}>{name}</Text>
+      <Text style={[text.subtitle, { color: titleColor, marginTop: spacing.xs }]}>{name}</Text>
       {tagline ? (
-        <Text style={[text.body, themedText(palette, 'action'), { marginTop: spacing.xs }]} numberOfLines={2}>
+        <Text style={[text.body, { color: accentColor, marginTop: spacing.xs }]} numberOfLines={2}>
           {tagline}
         </Text>
       ) : null}
-      <Text style={[text.title, themedText(palette), { marginTop: spacing.sm }]} allowFontScaling>
+      <Text style={[text.title, { color: titleColor, marginTop: spacing.sm }]} allowFontScaling>
         {price}
-        <Text style={[text.caption, themedText(palette, 'secondary')]}> / {period}</Text>
+        <Text style={[text.caption, { color: bodyColor }]}> / {period}</Text>
       </Text>
-      {priceNote ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{priceNote}</Text> : null}
-      {savingsLabel ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{savingsLabel}</Text> : null}
+      {priceNote ? <Text style={[text.caption, { color: bodyColor, marginTop: spacing.xs }]}>{priceNote}</Text> : null}
+      {savingsLabel ? <Text style={[text.caption, { color: bodyColor, marginTop: spacing.xs }]}>{savingsLabel}</Text> : null}
       {features.slice(0, 3).map((f) => (
-        <Text key={f} style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]} numberOfLines={2}>
+        <Text key={f} style={[text.body, { color: bodyColor, marginTop: spacing.xs }]} numberOfLines={2}>
           • {f}
         </Text>
       ))}
       <View style={{ marginTop: spacing.md }}>
+        {premium ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              {
+                backgroundColor: palette.background.card,
+                opacity: current || purchaseDisabled ? 0.55 : pressed ? 0.9 : 1,
+              },
+            ]}
+            onPress={onSelect}
+            disabled={current || purchaseDisabled}
+            accessibilityRole="button"
+            accessibilityLabel={selectLabel ?? `Choose ${name}`}
+          >
+            <Text style={[styles.primaryBtnText, { color: palette.forest[800] }]}>
+              {current
+                ? 'Current plan'
+                : purchaseDisabled
+                  ? 'Purchases unavailable'
+                  : selectLabel ?? `Choose ${name}`}
+            </Text>
+          </Pressable>
+        ) : (
         <PrimaryButton
           label={
             current
@@ -862,6 +915,7 @@ export function PlanCard({
           onPress={onSelect}
           disabled={current || purchaseDisabled}
         />
+        )}
       </View>
     </View>
   );
@@ -1032,21 +1086,66 @@ export function ProtectionCard({
   variant = 'default',
 }: {
   children: React.ReactNode;
-  variant?: 'default' | 'protected';
+  variant?: 'default' | 'protected' | 'attention' | 'mint';
 }) {
   const { palette } = useAppTheme();
+  const tone =
+    variant === 'protected'
+      ? {
+          backgroundColor: palette.forest[700],
+          borderColor: palette.forest[800],
+          ...shadows.lifted,
+        }
+      : variant === 'attention'
+        ? {
+            backgroundColor: palette.status.warningBg,
+            borderColor: palette.status.warningAccent,
+          }
+        : variant === 'mint'
+          ? {
+              backgroundColor: palette.background.mist,
+              borderColor: palette.forest[500],
+            }
+          : themedPanel(palette);
   return (
     <View
       style={[
         styles.softPanel,
-        themedPanel(palette),
-        variant === 'protected' && {
-          backgroundColor: palette.forest[800],
-          borderColor: palette.forest[700],
-        },
+        { padding: spacing.mdLg, borderRadius: radii.lg, borderWidth: 1 },
+        tone,
       ]}
       accessibilityRole="summary"
     >
+      {children}
+    </View>
+  );
+}
+
+/** Amber attention box for Proof corrections and similar alerts. */
+export function AttentionBox({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const { palette } = useAppTheme();
+  return (
+    <View
+      style={{
+        backgroundColor: palette.status.warningBg,
+        borderColor: palette.status.warningAccent,
+        borderWidth: 1.5,
+        borderRadius: radii.lg,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+      }}
+      accessibilityRole="summary"
+      accessibilityLabel={title}
+    >
+      <Text style={[text.subtitle, { color: palette.status.warning, marginBottom: spacing.sm }]}>
+        {title}
+      </Text>
       {children}
     </View>
   );
@@ -1187,9 +1286,9 @@ export function RouteMapPreview({
             borderColor: palette.forest[500],
           },
         ]}
-        accessibilityLabel="No route map yet"
+        accessibilityLabel="Route unavailable"
       >
-        <Text style={[styles.mapPlaceholderText, themedText(palette, 'action')]}>Route</Text>
+        <Text style={[styles.mapPlaceholderText, themedText(palette, 'action')]}>Route unavailable</Text>
       </View>
     );
   }
@@ -1486,6 +1585,7 @@ export function TripCard({ title, subtitle, miles }: { title: string; subtitle: 
 }
 
 /** Blueprint-locked named aliases — prefer these in new screens. */
+export { AttentionBox as InlineAttention };
 export const TextButton = TertiaryButton;
 export const StatusBadge = Badge;
 export const ChoiceCard = SelectionCard;

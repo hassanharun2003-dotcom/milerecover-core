@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { formatActiveRateLabel } from '@milerecover/domain';
-import { ConfirmDialog, ListRow, ListSection, TabScreen } from '../../design-system';
+import { spacing } from '@milerecover/config';
+import { ConfirmDialog, ListRow, ListSection, TabScreen, text, useAppTheme } from '../../design-system';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { useProduct } from '../../product/ProductContext';
 import {
@@ -23,11 +25,12 @@ type ProfileNav = CompositeNavigationProp<
 
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
+  const { palette } = useAppTheme();
   const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable, state } = useApp();
   const { product, resetProductData } = useProduct();
   const [confirmResetVisible, setConfirmResetVisible] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const displayName = product.preferredName?.trim() || 'Not set';
+  const displayName = product.preferredName?.trim() || 'Your profile';
   const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label ?? 'Not set';
   const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
   const pendingReviewCount = selectPendingReviewCount(
@@ -55,12 +58,14 @@ export function ProfileScreen() {
       ? `${planLabel} · ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left`
       : planLabel;
   const unitLabel = product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles';
-  const rateAndUnits = `${rateLabel} · ${unitLabel} · ${product.localeProfile.currencyCode}`;
+  const rateAndUnits = `${rateLabel} · ${unitLabel}`;
   const automaticAllowance =
     allowance.limit == null
       ? `${allowance.used} · Unlimited auto`
       : `${allowance.used} of ${allowance.limit} auto/mo`;
   const internalPreviewTools = product.showDevTools && allowInternalPreviewTools();
+  const initial = (product.preferredName?.trim()?.[0] || 'M').toUpperCase();
+
   const resetExperience = async () => {
     if (resetting) return;
     setResetting(true);
@@ -76,19 +81,47 @@ export function ProfileScreen() {
 
   return (
     <TabScreen>
-      <ListSection title="Identity">
-        <ListRow label="Name" value={displayName} showChevron={false} />
-        <ListRow label="Purpose" value={primaryGoal} showChevron={false} />
-        <ListRow label="Country" value={product.localeProfile.countryDisplayName} showChevron={false} />
-      </ListSection>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          marginBottom: spacing.lg,
+        }}
+        accessibilityRole="header"
+      >
+        <View
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: palette.background.mist,
+            borderWidth: 1,
+            borderColor: palette.forest[500],
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          accessibilityLabel={`Avatar ${initial}`}
+        >
+          <Text style={[text.title, { color: palette.forest[700] }]}>{initial}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={text.title}>{displayName}</Text>
+          <Text style={[text.body, { marginTop: spacing.xs }]}>
+            {primaryGoal} · {product.localeProfile.countryDisplayName}
+          </Text>
+        </View>
+      </View>
 
       <ListSection title="Account">
         <ListRow
+          icon="Pr"
           label="Profile and preferences"
           value={drivingType}
           onPress={() => navigation.navigate('EditSetup')}
         />
         <ListRow
+          icon="Pl"
           label="Familiar places"
           value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}
           onPress={() => navigation.navigate('WorkLocationSetup')}
@@ -97,12 +130,19 @@ export function ProfileScreen() {
 
       <ListSection title="Driving">
         <ListRow
+          icon="Ve"
           label="Vehicles"
           value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add a vehicle'}
           onPress={() => navigation.navigate('VehicleSetup')}
         />
-        <ListRow label="Rate and units" value={rateAndUnits} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow
+          icon="Ra"
+          label="Rate and units"
+          value={rateAndUnits}
+          onPress={() => navigation.navigate('EditSetup')}
+        />
+        <ListRow
+          icon="Po"
           label="Protection Center"
           value={protection.title}
           onPress={() => {
@@ -114,33 +154,41 @@ export function ProfileScreen() {
           }}
         />
         <ListRow
-          label="Tracking"
+          icon="Tr"
+          label="Tracking health"
           value={product.trackingEnabled ? automaticAllowance : 'Manual'}
           onPress={() => navigation.navigate('TrackingActive')}
         />
       </ListSection>
 
       <ListSection title="Data">
-        <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
-        <ListRow label="Privacy" onPress={() => navigation.navigate('Privacy')} />
+        <ListRow
+          icon="Im"
+          label="Import mileage"
+          onPress={() => navigation.navigate('BringExistingMileage')}
+        />
+        <ListRow icon="Pv" label="Privacy" onPress={() => navigation.navigate('Privacy')} />
       </ListSection>
 
       <ListSection title="Plan">
         <ListRow
-          label="Current plan"
+          icon="Pl"
+          label="Plan and billing"
           value={currentPlanValue}
           onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
         />
         <ListRow
+          icon="Rs"
           label="Restore purchases"
           onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
         />
       </ListSection>
 
       <ListSection title="Support">
-        <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
-        <ListRow label="About" onPress={() => navigation.navigate('About')} />
+        <ListRow icon="He" label="Help and support" onPress={() => navigation.navigate('HelpSupport')} />
+        <ListRow icon="Ab" label="About MileRecover" onPress={() => navigation.navigate('About')} />
         <ListRow
+          icon="Ed"
           label="Review setup"
           value="Trips stay saved"
           onPress={() => navigation.navigate('EditSetup')}
@@ -150,6 +198,7 @@ export function ProfileScreen() {
       {internalPreviewTools ? (
         <ListSection title="Preview">
           <ListRow
+            icon="Re"
             label="Reset app for testing"
             value="Clears setup + local data"
             onPress={() => setConfirmResetVisible(true)}
