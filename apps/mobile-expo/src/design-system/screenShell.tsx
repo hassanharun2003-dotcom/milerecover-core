@@ -9,10 +9,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { spacing } from '@milerecover/config';
+import { layout, spacing } from '@milerecover/config';
 import { useAppTheme } from './ThemeProvider';
 
-const GUTTER = spacing.md;
+const GUTTER = layout.pageX;
 
 type ShellProps = {
   children: React.ReactNode;

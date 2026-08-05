@@ -1,6 +1,6 @@
 /**
- * MileRecover design tokens — image-locked blueprint (light premium canvas).
- * Primary #0F6B46 · Mint #E8F4EE · Canvas #F7F9FC
+ * MileRecover design tokens — image-locked collage blueprint.
+ * Primary #0F6B46 · Deep #073D2C · Mint #E8F4EE · Canvas #FFFFFF
  */
 
 export type SemanticPalette = {
@@ -25,9 +25,9 @@ export type SemanticPalette = {
 
 /** Blueprint-locked light semantic palette — only shipped theme. */
 export const lightSemantic: SemanticPalette = {
-  canvas: '#F7F9FC',
+  canvas: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceMuted: '#F1F5F9',
+  surfaceMuted: '#F5F5F5',
   surfaceSelected: '#E8F4EE',
   textPrimary: '#0F172A',
   textSecondary: '#475569',
@@ -40,7 +40,7 @@ export const lightSemantic: SemanticPalette = {
   /** Blueprint amber accent — use nested status.warning for readable text ink. */
   warning: '#F59E0B',
   danger: '#EF4444',
-  disabledSurface: '#F1F5F9',
+  disabledSurface: '#F5F5F5',
   disabledText: '#94A3B8',
   scrim: 'rgba(15, 23, 42, 0.45)',
 };
@@ -160,18 +160,31 @@ export const spacing = {
   xxl: 48,
 } as const;
 
-/** Premium card radius — compact controls sm/md, hero surfaces lg/xl */
+/** Image-lock layout rhythm — prefer these over ad-hoc numbers in screens. */
+export const layout = {
+  pageX: 20,
+  section: 16,
+  cardPad: 16,
+  buttonH: 52,
+  segmentH: 40,
+  fieldH: 52,
+  tabBarH: 56,
+  iconCircle: 40,
+  iconGlyph: 20,
+} as const;
+
+/** Premium card radius — control md, cards lg, hero xl */
 export const radii = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 22,
+  xl: 20,
   pill: 999,
 } as const;
 
 /**
- * Blueprint typography scale (system font; hierarchy locked to image).
- * Display ~32 · H1 ~24 · H2 ~20 · Body large 16 · Body 14–15 · Caption 12
+ * Image-lock typography scale (system font; hierarchy locked to collage).
+ * Display 28/34 · Title/headline 24/30 · TitleSm 20/26 · Body 16/22
  */
 export const typography = {
   fontFamily: {
@@ -185,15 +198,15 @@ export const typography = {
     bodyLarge: 16,
     title: 20,
     headline: 24,
-    display: 32,
+    display: 28,
   },
   lineHeight: {
     caption: 16,
     body: 22,
-    bodyLarge: 24,
-    title: 28,
-    headline: 32,
-    display: 40,
+    bodyLarge: 22,
+    title: 26,
+    headline: 30,
+    display: 34,
   },
   tabularNums: ['tabular-nums'] as const,
 } as const;
@@ -241,6 +254,7 @@ export const tokens = {
   lightSemantic,
   darkSemantic,
   spacing,
+  layout,
   radii,
   typography,
   touchTarget,

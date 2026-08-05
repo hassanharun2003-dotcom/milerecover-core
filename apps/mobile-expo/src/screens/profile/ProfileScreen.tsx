@@ -27,8 +27,9 @@ export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
   const { palette } = useAppTheme();
   const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable, state } = useApp();
-  const { product, resetProductData } = useProduct();
+  const { product, resetProductData, resetOnboarding } = useProduct();
   const [confirmResetVisible, setConfirmResetVisible] = useState(false);
+  const [confirmResetOnboardingVisible, setConfirmResetOnboardingVisible] = useState(false);
   const [resetting, setResetting] = useState(false);
   const displayName = product.preferredName?.trim() || 'Your profile';
   const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label ?? 'Not set';
@@ -198,6 +199,12 @@ export function ProfileScreen() {
       {internalPreviewTools ? (
         <ListSection title="Preview">
           <ListRow
+            icon="On"
+            label="Reset onboarding"
+            value="Keeps trips · restarts setup"
+            onPress={() => setConfirmResetOnboardingVisible(true)}
+          />
+          <ListRow
             icon="Re"
             label="Reset app for testing"
             value="Clears setup + local data"
@@ -206,6 +213,19 @@ export function ProfileScreen() {
           />
         </ListSection>
       ) : null}
+      <ConfirmDialog
+        visible={confirmResetOnboardingVisible}
+        title="Reset onboarding?"
+        body="Returns you to Welcome and clears setup answers. Saved trips stay on this device."
+        confirmLabel="Reset onboarding"
+        cancelLabel="Keep setup"
+        onConfirm={() => {
+          setConfirmResetOnboardingVisible(false);
+          resetOnboarding({ keepVehicles: true });
+          restartOnboarding();
+        }}
+        onCancel={() => setConfirmResetOnboardingVisible(false)}
+      />
       <ConfirmDialog
         visible={confirmResetVisible}
         title="Reset app for testing?"

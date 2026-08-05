@@ -49,9 +49,9 @@ export type NextActionId =
 
 /**
  * Bump when essential onboarding screens/questions change and stale installs must re-enter.
- * v9: Welcome → Purpose → Country/Units/Rate → Protection → Ready.
+ * v10: Welcome → Account(auth) → Purpose → Region → Protection → Ready.
  */
-export const CURRENT_ONBOARDING_VERSION = 9;
+export const CURRENT_ONBOARDING_VERSION = 10;
 
 export interface VersionedOnboardingState {
   schemaVersion: 4;
@@ -188,7 +188,10 @@ export function nextIncompleteEssentialStep(state: VersionedOnboardingState): On
     return null;
   }
   if (state.primaryGoal == null) {
-    return state.completedSteps.includes('welcome') ? 'purpose' : 'welcome';
+    if (!state.completedSteps.includes('welcome')) return 'welcome';
+    // Account must be acknowledged (sign-in OR continue without) before purpose.
+    if (!state.accountStepAcknowledged) return 'account';
+    return 'purpose';
   }
   if (!state.countryStepAcknowledged) {
     return 'locale_setup';

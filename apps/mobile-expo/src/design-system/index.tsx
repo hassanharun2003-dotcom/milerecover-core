@@ -14,7 +14,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radii, shadows, spacing, touchTarget, typography, type AppPalette } from '@milerecover/config';
+import { colors, layout, radii, shadows, spacing, touchTarget, typography, type AppPalette } from '@milerecover/config';
 import { statusColors, type StatusVariant } from './theme';
 import { useAppTheme } from './ThemeProvider';
 import {
@@ -32,6 +32,23 @@ export {
   FixedHeaderScrollScreen,
 };
 export { ThemeProvider, useAppTheme } from './ThemeProvider';
+export {
+  MRScreen,
+  MRHeader,
+  MRCard,
+  MRHeroCard,
+  MRPrimaryButton,
+  MRSecondaryButton,
+  MRIconCircle,
+  MRMetricTile,
+  MRSegmentedControl,
+  MRStatusPanel,
+  MRFormField,
+  MRTertiaryButton,
+  MRWelcomeLogo,
+  MRProgressBar,
+  MRWelcomeDots,
+} from './imageLock';
 
 export const text = StyleSheet.create({
   display: {
@@ -1942,18 +1959,18 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: typography.size.caption, fontWeight: '600' },
   primaryBtn: {
     backgroundColor: colors.forest[700],
-    borderRadius: radii.md,
-    minHeight: touchTarget.minHeight,
+    borderRadius: 14,
+    minHeight: layout.buttonH,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
   },
-  primaryBtnText: { color: colors.text.inverse, fontWeight: '600', fontSize: typography.size.body },
+  primaryBtnText: { color: colors.text.inverse, fontWeight: '600', fontSize: typography.size.bodyLarge },
   secondaryBtn: {
     borderWidth: 1,
     borderColor: colors.forest[600],
-    borderRadius: radii.md,
-    minHeight: touchTarget.minHeight,
+    borderRadius: 14,
+    minHeight: layout.buttonH,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
@@ -2166,10 +2183,25 @@ const styles = StyleSheet.create({
   progressRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.neutral[200] },
   progressDotActive: { backgroundColor: colors.forest[600] },
-  segmented: { flexDirection: 'row', backgroundColor: colors.neutral[100], borderRadius: radii.md, padding: spacing.xs, marginBottom: spacing.md },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radii.sm },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: colors.neutral[100],
+    borderRadius: radii.md,
+    padding: spacing.xs,
+    marginBottom: spacing.md,
+    minHeight: layout.segmentH,
+  },
+  segment: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm, borderRadius: radii.sm },
   segmentSelected: { backgroundColor: colors.background.card },
-  formField: { borderWidth: 1, borderColor: colors.border.default, borderRadius: radii.md, padding: spacing.md, backgroundColor: colors.background.card },
+  formField: {
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    minHeight: layout.fieldH,
+    justifyContent: 'center',
+    backgroundColor: colors.background.card,
+  },
   formFieldCompact: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 44, justifyContent: 'center' },
   footer: { padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default, backgroundColor: colors.background.card },
   protectionCard: { backgroundColor: colors.forest[100], borderColor: colors.forest[500] },

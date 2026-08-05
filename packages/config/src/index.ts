@@ -5,6 +5,7 @@ export {
   lightSemantic,
   darkSemantic,
   spacing,
+  layout,
   radii,
   typography,
   touchTarget,

@@ -29,11 +29,22 @@ describe('Onboarding canonical state machine', () => {
     expect(launch.allowHome).toBe(false);
   });
 
-  it('incomplete purpose resumes at purpose, not Ready', () => {
+  it('after welcome without account acknowledgement resumes at account', () => {
     const state = {
       ...createEmptyOnboardingState(),
       completedSteps: ['welcome' as const],
+      currentStep: 'account' as const,
+      accountStepAcknowledged: false,
+    };
+    expect(nextIncompleteEssentialStep(state)).toBe('account');
+  });
+
+  it('incomplete purpose resumes at purpose, not Ready', () => {
+    const state = {
+      ...createEmptyOnboardingState(),
+      completedSteps: ['welcome' as const, 'account' as const],
       currentStep: 'purpose' as const,
+      accountStepAcknowledged: true,
     };
     expect(nextIncompleteEssentialStep(state)).toBe('purpose');
   });

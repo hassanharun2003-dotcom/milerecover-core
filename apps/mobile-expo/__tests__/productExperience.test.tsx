@@ -39,9 +39,10 @@ describe('Locked product experience', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('PlanSelection');
   });
 
-  it('defines the five-stage first-launch onboarding path', () => {
+  it('defines the image-lock first-launch onboarding path with account', () => {
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
+      'account',
       'purpose',
       'locale_setup',
       'protect_drives',
@@ -151,11 +152,13 @@ describe('Onboarding honesty', () => {
     expect(onboarding).not.toMatch(/On or ready to confirm/);
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
+      'account',
       'purpose',
       'locale_setup',
       'protect_drives',
       'ready',
     ]);
+    expect(onboarding).toMatch(/Continue with Google|Continue without an account/);
     const tracking = fs.readFileSync(
       path.join(__dirname, '../src/screens/flows/SupportingScreens.tsx'),
       'utf8',

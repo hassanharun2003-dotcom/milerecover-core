@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
-import { colors, spacing } from '@milerecover/config';
+import { Platform, Pressable, Text, View } from 'react-native';
+import { layout, spacing, typography } from '@milerecover/config';
 import {
   formatActiveRateLabel,
   localeProfileFromCountry,
@@ -20,22 +20,36 @@ import {
 import {
   BottomSheet,
   ChecklistRow,
-  FormField,
-  ListRow,
+  MRCard,
+  MRFormField,
+  MRIconCircle,
+  MRPrimaryButton,
+  MRProgressBar,
+  MRSecondaryButton,
+  MRSegmentedControl,
+  MRStatusPanel,
+  MRTertiaryButton,
+  MRWelcomeDots,
+  MRWelcomeLogo,
   OnboardingScreen,
-  PrimaryButton,
-  ProgressIndicator,
-  SecondaryButton,
-  SegmentedControl,
   SelectionCard,
-  SoftPanel,
-  TertiaryButton,
-  WelcomeHero,
   text,
+  useAppTheme,
 } from '../../design-system';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
+import {
+  AUTH_UNAVAILABLE_MESSAGE,
+  getAuthPort,
+  type AuthProviderId,
+} from '../../services/auth';
+
+const WELCOME_BENEFITS = [
+  { glyph: '✓', label: 'Recover forgotten miles' },
+  { glyph: '✓', label: 'Tax & employer ready' },
+  { glyph: '✓', label: 'Automatic tracking' },
+] as const;
 
 function inOrder(step: ProductOnboardingStep): boolean {
   return ONBOARDING_STEP_ORDER.includes(step);
@@ -43,7 +57,7 @@ function inOrder(step: ProductOnboardingStep): boolean {
 
 function remapStep(step: ProductOnboardingStep): ProductOnboardingStep {
   if (inOrder(step)) return step;
-  if (step === 'your_work' || step === 'primary_goal' || step === 'pain_points' || step === 'account') {
+  if (step === 'your_work' || step === 'primary_goal' || step === 'pain_points') {
     return 'purpose';
   }
   if (step === 'country' || step === 'preferred_name') return 'locale_setup';
@@ -59,7 +73,14 @@ function remapStep(step: ProductOnboardingStep): ProductOnboardingStep {
   return 'welcome';
 }
 
+function formatDisplayRate(centsPerUnit: number, unit: DistanceUnit): string {
+  if (!(centsPerUnit > 0)) return 'Not set';
+  const dollars = (centsPerUnit / 100).toFixed(2);
+  return unit === 'km' ? `$${dollars} per km` : `$${dollars} per mile`;
+}
+
 export function OnboardingFlow() {
+  const { palette } = useAppTheme();
   const { finishOnboarding, requestLocationPermission, requestBackgroundPermission, permissions } =
     useApp();
   const {
@@ -77,9 +98,13 @@ export function OnboardingFlow() {
     setPendingPostOnboardingRoute,
   } = useProduct();
 
+  const authPort = getAuthPort();
   const [finishing, setFinishing] = useState(false);
   const [permissionBusy, setPermissionBusy] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [countrySheetOpen, setCountrySheetOpen] = useState(false);
+  const [rateEditing, setRateEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
   const recommendedCountry = recommendCountryFromLocale(
     typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined,
@@ -131,6 +156,37 @@ export function OnboardingFlow() {
     logEvent(ANALYTICS_EVENTS.countrySelected, { country: countryDraft });
   };
 
+  const acknowledgeAccountAndContinue = () => {
+    patchOnboarding({ accountStepAcknowledged: true });
+    advanceOnboarding();
+  };
+
+  const tryAuth = async (provider: AuthProviderId) => {
+    if (authBusy) return;
+    setAuthBusy(true);
+    setAuthNotice(null);
+    try {
+      if (!authPort.isProviderAvailable(provider)) {
+        setAuthNotice(AUTH_UNAVAILABLE_MESSAGE);
+        return;
+      }
+      const result = await authPort.signIn(provider);
+      if (result.ok) {
+        if (result.displayName) setPreferredName(result.displayName);
+        setAuthNotice(result.email ? `Signed in as ${result.email}.` : 'Signed in.');
+        acknowledgeAccountAndContinue();
+        return;
+      }
+      if (result.reason === 'cancelled') {
+        setAuthNotice(null);
+        return;
+      }
+      setAuthNotice(result.message || AUTH_UNAVAILABLE_MESSAGE);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
   const finish = (route: PostOnboardingRoute) => {
     if (finishing) return;
     setFinishing(true);
@@ -145,6 +201,7 @@ export function OnboardingFlow() {
     completeProductOnboarding(route);
     patchOnboarding({
       nextActionSelected: action,
+      accountStepAcknowledged: true,
       countryStepAcknowledged: true,
       protectionEducationAcknowledged: true,
       permissionsEducationAcknowledged: true,
@@ -153,27 +210,20 @@ export function OnboardingFlow() {
     finishOnboarding();
   };
 
-  const rateLabel = unitDraft === 'km' ? 'Mileage rate (¢ per km)' : 'Mileage rate (¢ per mile)';
-  const ratePreview = useMemo(() => {
+  const displayRate = useMemo(() => {
     const entered = Number.parseFloat(rateCents);
-    if (!Number.isFinite(entered) || entered <= 0) {
-      return 'Review this rate. It is your chosen estimate, not a tax guarantee.';
+    if (Number.isFinite(entered) && entered > 0) {
+      return formatDisplayRate(Math.round(entered), unitDraft);
     }
-    return unitDraft === 'km'
-      ? `${Math.round(entered)}¢ per km · your chosen estimate, not a tax guarantee`
-      : `${Math.round(entered)}¢ per mile · your chosen estimate, not a tax guarantee`;
-  }, [rateCents, unitDraft]);
+    return formatActiveRateLabel({
+      ...product.localeProfile,
+      distanceUnit: unitDraft,
+      activeRateNeedsReview: false,
+    }).replace('¢/mi', '¢ per mile').replace('¢/km', '¢ per km');
+  }, [product.localeProfile, rateCents, unitDraft]);
 
-  const goalLabel =
-    PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
   const countryLabel =
     COUNTRY_OPTIONS.find((option) => option.id === countryDraft)?.label ?? countryDraft;
-  const currencyLabel =
-    countryDraft === 'OTHER'
-      ? otherCurrency === 'OTHER'
-        ? 'Set currency'
-        : otherCurrency
-      : localeProfileFromCountry(countryDraft).currencyCode;
 
   const applyCountry = (id: CountryCode) => {
     setCountryDraft(id);
@@ -186,17 +236,21 @@ export function OnboardingFlow() {
     }
   };
 
+  const showProgress = step !== 'welcome' && step !== 'ready';
+  const showBack = stepIndex > 0 && step !== 'ready';
+
   return (
     <OnboardingScreen
       footer={
         step === 'welcome' ? (
           <View style={{ gap: spacing.sm }}>
-            <PrimaryButton
-              label="Get started"
+            <MRWelcomeDots activeIndex={0} total={4} />
+            <MRPrimaryButton
+              label="Get started →"
               onPress={() => advanceOnboarding()}
               accessibilityLabel="Get started"
             />
-            <SecondaryButton
+            <MRTertiaryButton
               label="I already use a mileage app"
               onPress={() => {
                 patchOnboarding({ selectedPainPoints: ['need_cleaner_reports'] });
@@ -205,20 +259,46 @@ export function OnboardingFlow() {
               }}
             />
           </View>
+        ) : step === 'account' ? (
+          <View style={{ gap: spacing.sm }}>
+            <MRPrimaryButton
+              label={authBusy ? 'Signing in…' : 'Continue with Google'}
+              onPress={() => void tryAuth('google')}
+              disabled={authBusy}
+              loading={authBusy}
+              accessibilityLabel="Continue with Google"
+            />
+            {Platform.OS === 'ios' ? (
+              <MRSecondaryButton
+                label="Continue with Apple"
+                onPress={() => void tryAuth('apple')}
+                disabled={authBusy}
+                accessibilityLabel="Continue with Apple"
+              />
+            ) : null}
+            <MRTertiaryButton
+              label="Continue without an account"
+              onPress={() => {
+                setAuthNotice(null);
+                acknowledgeAccountAndContinue();
+              }}
+              accessibilityLabel="Continue without an account"
+            />
+          </View>
         ) : step === 'purpose' ? (
-          <PrimaryButton
-            label="Continue"
+          <MRPrimaryButton
+            label="Continue →"
             onPress={() => {
               if (!product.primaryGoal) return;
               setPreferredName(nameDraft.trim() || null);
               advanceOnboarding();
             }}
             disabled={!product.primaryGoal}
-            accessibilityLabel="Continue to country and rate"
+            accessibilityLabel="Continue to region and rate"
           />
         ) : step === 'locale_setup' ? (
-          <PrimaryButton
-            label="Continue"
+          <MRPrimaryButton
+            label="Continue →"
             onPress={() => {
               saveLocale();
               advanceOnboarding();
@@ -227,7 +307,7 @@ export function OnboardingFlow() {
           />
         ) : step === 'protect_drives' ? (
           <View style={{ gap: spacing.sm }}>
-            <PrimaryButton
+            <MRPrimaryButton
               label="Turn on drive protection"
               loading={permissionBusy}
               onPress={() => {
@@ -261,7 +341,7 @@ export function OnboardingFlow() {
               }}
               accessibilityLabel="Turn on drive protection"
             />
-            <TertiaryButton
+            <MRTertiaryButton
               label="Not now — I’ll add drives manually"
               onPress={() => {
                 setTrackingEnabled(false);
@@ -277,133 +357,260 @@ export function OnboardingFlow() {
         ) : null
       }
     >
-      <ProgressIndicator step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
-      {stepIndex > 0 ? (
-        <TertiaryButton label="Back" onPress={() => backOnboarding()} accessibilityLabel="Go back" />
+      {step === 'welcome' ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.sm }}>
+          <MRTertiaryButton
+            label="Skip"
+            onPress={() => advanceOnboarding()}
+            accessibilityLabel="Skip welcome"
+          />
+        </View>
+      ) : null}
+
+      {showProgress ? (
+        <View style={{ marginBottom: spacing.sm }}>
+          {showBack ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs }}>
+              <Pressable
+                onPress={() => backOnboarding()}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+                hitSlop={8}
+                style={{ width: 40, height: 40, justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 28, color: palette.text.primary }}>‹</Text>
+              </Pressable>
+              <View style={{ flex: 1 }}>
+                <MRProgressBar step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+              </View>
+              <View style={{ width: 40 }} />
+            </View>
+          ) : (
+            <MRProgressBar step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+          )}
+        </View>
       ) : null}
 
       {step === 'welcome' ? (
-        <View>
-          <WelcomeHero
-            title="Welcome to MileRecover"
-            eyebrow="Protect your miles. Protect your money."
-            body="Calm, privacy-first mileage protection — you confirm what counts as work."
-          />
-          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-            <SoftPanel>
-              <Text style={text.subtitle}>Recover forgotten miles</Text>
-              <Text style={[text.body, { marginTop: spacing.xs }]}>
-                Suggest likely drives from evidence on this device — you confirm what to keep.
-              </Text>
-            </SoftPanel>
-            <SoftPanel>
-              <Text style={text.subtitle}>Tax and employer ready</Text>
-              <Text style={[text.body, { marginTop: spacing.xs }]}>
-                Build clear records you can export when you need proof. Estimates are not tax advice.
-              </Text>
-            </SoftPanel>
-            <SoftPanel>
-              <Text style={text.subtitle}>Automatic tracking</Text>
-              <Text style={[text.body, { marginTop: spacing.xs }]}>
-                Capture possible drives in the background, with manual entry always available.
-              </Text>
-            </SoftPanel>
+        <View style={{ alignItems: 'center', marginTop: spacing.xl }}>
+          <MRWelcomeLogo />
+          <Text
+            style={{
+              fontSize: typography.size.display,
+              lineHeight: typography.lineHeight.display,
+              fontWeight: '700',
+              color: palette.action.primary,
+              textAlign: 'center',
+              marginBottom: spacing.lg,
+            }}
+            accessibilityRole="header"
+          >
+            Welcome to MileRecover
+          </Text>
+          <View style={{ width: '100%', gap: layout.section, paddingHorizontal: spacing.sm }}>
+            {WELCOME_BENEFITS.map((benefit) => (
+              <View
+                key={benefit.label}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.smMd }}
+              >
+                <MRIconCircle glyph={benefit.glyph} accessibilityLabel={benefit.label} />
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: typography.size.bodyLarge,
+                    lineHeight: typography.lineHeight.bodyLarge,
+                    fontWeight: '500',
+                    color: palette.text.primary,
+                  }}
+                >
+                  {benefit.label}
+                </Text>
+              </View>
+            ))}
           </View>
+        </View>
+      ) : null}
+
+      {step === 'account' ? (
+        <View>
+          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Save your progress (optional)
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Sign in to restore preferences later, or continue without an account. Your miles stay on
+            this device.
+          </Text>
+          {authNotice ? (
+            <Text
+              style={[text.caption, { color: palette.text.secondary, marginBottom: spacing.sm }]}
+              accessibilityRole="text"
+            >
+              {authNotice}
+            </Text>
+          ) : !authPort.isProviderAvailable('google') &&
+            !(Platform.OS === 'ios' && authPort.isProviderAvailable('apple')) ? (
+            <Text
+              style={[text.caption, { color: palette.text.secondary, marginBottom: spacing.sm }]}
+              accessibilityRole="text"
+            >
+              {AUTH_UNAVAILABLE_MESSAGE}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
       {step === 'purpose' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            What’s your main reason for tracking mileage?
+          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            What's your main reason for tracking mileage?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            This helps us personalize your experience.
+            We'll tailor rates, reports, and tips.
           </Text>
-          {PRIMARY_GOAL_OPTIONS.map((option) => (
-            <SelectionCard
-              key={option.id}
-              title={option.label}
-              body={option.body}
-              selected={product.primaryGoal === option.id}
-              onPress={() => {
-                setPrimaryGoal(option.id);
-                logEvent(ANALYTICS_EVENTS.goalSelected, { goal: option.id });
-              }}
-            />
-          ))}
-          {product.primaryGoal ? (
-            <View style={{ marginTop: spacing.md }}>
-              <FormField
-                label="Preferred name (optional)"
-                value={nameDraft}
-                onChangeText={setNameDraft}
-                placeholder="First name"
-              />
-            </View>
-          ) : null}
+          {PRIMARY_GOAL_OPTIONS.map((option) => {
+            const selected = product.primaryGoal === option.id;
+            return (
+              <MRCard
+                key={option.id}
+                selected={selected}
+                onPress={() => {
+                  setPrimaryGoal(option.id);
+                  logEvent(ANALYTICS_EVENTS.goalSelected, { goal: option.id });
+                }}
+                accessibilityLabel={option.label}
+                style={{
+                  minHeight: 56,
+                  paddingVertical: spacing.smMd,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: typography.size.bodyLarge,
+                    fontWeight: '600',
+                    color: palette.text.primary,
+                  }}
+                >
+                  {option.label}
+                </Text>
+                {selected ? (
+                  <Text style={{ color: palette.action.primary, fontWeight: '700', fontSize: 18 }}>✓</Text>
+                ) : null}
+              </MRCard>
+            );
+          })}
         </View>
       ) : null}
 
       {step === 'locale_setup' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Let’s set your region and mileage rate
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            We use this to display distance and estimated value correctly.
+          <Text style={[text.headline, { marginBottom: spacing.md }]} accessibilityRole="header">
+            Set your region and mileage rate.
           </Text>
 
-          <SoftPanel>
-            <ListRow
-              label="Country"
-              value={
-                countryDraft === recommendedCountry
-                  ? `${countryLabel} · Suggested`
-                  : countryLabel
-              }
-              onPress={() => setCountrySheetOpen(true)}
-            />
-            <ListRow label="Currency" value={currencyLabel} showChevron={false} />
-          </SoftPanel>
+          <Text style={[text.caption, { marginBottom: spacing.xs, fontWeight: '500' }]}>Country</Text>
+          <Pressable
+            onPress={() => setCountrySheetOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Country ${countryLabel}`}
+            style={{
+              minHeight: layout.fieldH,
+              borderWidth: 1,
+              borderColor: palette.border.default,
+              borderRadius: 12,
+              paddingHorizontal: spacing.md,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: spacing.md,
+              backgroundColor: palette.background.card,
+            }}
+          >
+            <Text style={{ color: palette.text.primary, fontSize: typography.size.bodyLarge }}>
+              {countryLabel}
+            </Text>
+            <Text style={{ color: palette.text.secondary }}>▾</Text>
+          </Pressable>
 
-          <Text style={[text.caption, { marginTop: spacing.md, marginBottom: spacing.xs }]}>
-            Distance unit
+          <Text style={[text.caption, { marginBottom: spacing.xs, fontWeight: '500' }]}>
+            Mileage rate
           </Text>
-          <SegmentedControl
-            value={unitDraft}
-            onChange={setUnitDraft}
-            options={[
-              { label: 'Miles', value: 'mi' },
-              { label: 'Kilometres', value: 'km' },
-            ]}
-          />
+          <View
+            style={{
+              minHeight: layout.fieldH,
+              borderWidth: 1,
+              borderColor: palette.border.default,
+              borderRadius: 12,
+              paddingHorizontal: spacing.md,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: spacing.md,
+              backgroundColor: palette.background.card,
+            }}
+          >
+            <Text style={{ color: palette.text.primary, fontWeight: '700', fontSize: typography.size.bodyLarge }}>
+              {displayRate.includes('Review') || displayRate === 'Not set'
+                ? unitDraft === 'km'
+                  ? 'Set a rate'
+                  : 'Set a rate'
+                : displayRate.startsWith('$')
+                  ? displayRate
+                  : displayRate}
+            </Text>
+            <Pressable
+              onPress={() => setRateEditing((open) => !open)}
+              accessibilityRole="button"
+              accessibilityLabel="Update rate"
+            >
+              <Text style={{ color: palette.action.primary, fontWeight: '700' }}>Update rate</Text>
+            </Pressable>
+          </View>
 
-          {countryDraft === 'OTHER' ? (
-            <FormField
-              label="Currency code"
-              value={otherCurrency === 'OTHER' ? '' : otherCurrency}
-              onChangeText={(value) => {
-                const nextCode = value.trim().toUpperCase();
-                if (!nextCode) setOtherCurrency('OTHER');
-                else if (['USD', 'CAD', 'GBP', 'AUD', 'EUR'].includes(nextCode)) {
-                  setOtherCurrency(nextCode as CurrencyCode);
-                }
-              }}
-              placeholder="e.g. EUR"
-              autoCapitalize="characters"
-            />
+          {rateEditing ? (
+            <View style={{ marginBottom: spacing.md }}>
+              <Text style={[text.caption, { marginBottom: spacing.xs }]}>Distance unit</Text>
+              <MRSegmentedControl
+                value={unitDraft}
+                onChange={setUnitDraft}
+                options={[
+                  { label: 'Miles', value: 'mi' },
+                  { label: 'Kilometres', value: 'km' },
+                ]}
+              />
+              {countryDraft === 'OTHER' ? (
+                <MRFormField
+                  label="Currency code"
+                  value={otherCurrency === 'OTHER' ? '' : otherCurrency}
+                  onChangeText={(value) => {
+                    const nextCode = value.trim().toUpperCase();
+                    if (!nextCode) setOtherCurrency('OTHER');
+                    else if (['USD', 'CAD', 'GBP', 'AUD', 'EUR'].includes(nextCode)) {
+                      setOtherCurrency(nextCode as CurrencyCode);
+                    }
+                  }}
+                  placeholder="e.g. EUR"
+                  autoCapitalize="characters"
+                />
+              ) : null}
+              <MRFormField
+                label={unitDraft === 'km' ? 'Rate (¢ per km)' : 'Rate (¢ per mile)'}
+                value={rateCents}
+                onChangeText={setRateCents}
+                placeholder="70"
+                keyboardType="numeric"
+                accessibilityLabel="Mileage rate"
+              />
+            </View>
           ) : null}
 
-          <FormField
-            label={rateLabel}
-            value={rateCents}
-            onChangeText={setRateCents}
-            placeholder="67"
-            keyboardType="numeric"
-            accessibilityLabel="Mileage rate"
+          <MRStatusPanel
+            tone="info"
+            message="This is your chosen estimate. You can change it anytime."
           />
-          <Text style={[text.caption, { marginTop: spacing.xs }]}>{ratePreview}</Text>
 
           <BottomSheet
             visible={countrySheetOpen}
@@ -425,7 +632,7 @@ export function OnboardingFlow() {
 
       {step === 'protect_drives' ? (
         <View>
-          <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
             Keep your drives protected
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
@@ -454,51 +661,35 @@ export function OnboardingFlow() {
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: colors.background.mist,
+              backgroundColor: palette.background.mist,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: spacing.md,
             }}
             accessibilityLabel="Complete"
           >
-            <Text style={[text.display, { color: colors.forest[700] }]}>✓</Text>
+            <Text style={[text.display, { color: palette.forest[700] }]}>✓</Text>
           </View>
           <Text
             style={[text.headline, { marginBottom: spacing.sm, textAlign: 'center' }]}
             accessibilityRole="header"
           >
-            You’re all set!
+            You’re all set
           </Text>
-          <Text style={[text.body, { marginBottom: spacing.md, textAlign: 'center' }]}>
+          <Text style={[text.body, { marginBottom: spacing.lg, textAlign: 'center' }]}>
             {protectionConfigured
               ? 'Protection is waiting for your first drive. Uncertain drives go to Review before they affect your records.'
               : 'You can add drives manually anytime. Turn on protection later from Profile when you’re ready.'}
           </Text>
-          <SoftPanel>
-            <Text style={text.subtitle}>Purpose · {goalLabel}</Text>
-            <Text style={[text.body, { marginTop: spacing.xs }]}>
-              {product.localeProfile.countryDisplayName} ·{' '}
-              {product.localeProfile.distanceUnit === 'km' ? 'Kilometres' : 'Miles'} ·{' '}
-              {product.localeProfile.currencyCode}
-            </Text>
-            <Text style={[text.body, { marginTop: spacing.xs }]}>
-              Rate · {formatActiveRateLabel(product.localeProfile)}
-            </Text>
-            <Text style={[text.body, { marginTop: spacing.xs }]}>
-              {protectionConfigured
-                ? 'Protection is waiting for your first drive'
-                : 'Manual tracking selected'}
-            </Text>
-          </SoftPanel>
-          <View style={{ marginTop: spacing.lg, width: '100%', gap: spacing.sm }}>
-            <PrimaryButton
+          <View style={{ width: '100%', gap: spacing.sm }}>
+            <MRPrimaryButton
               label="Go to Home"
               onPress={() => finish(null)}
               disabled={finishing}
               loading={finishing}
               accessibilityLabel="Go to Home"
             />
-            <SecondaryButton
+            <MRSecondaryButton
               label="Add my first drive"
               onPress={() => finish('ManualTrip')}
               disabled={finishing}

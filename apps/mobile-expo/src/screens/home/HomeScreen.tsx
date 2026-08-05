@@ -1,32 +1,30 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { spacing } from '@milerecover/config';
+import { layout, spacing, typography } from '@milerecover/config';
 import {
   capabilitiesForEntitlement,
-  formatDistance,
   rateForTimestamp,
   type ProtectionStatusView,
-  type TripRecord,
 } from '@milerecover/domain';
 import {
-  MetricRow,
-  PrimaryButton,
-  ProtectionHero,
-  SecondaryButton,
-  SoftPanel,
+  MRCard,
+  MRHeader,
+  MRHeroCard,
+  MRMetricTile,
+  MRPrimaryButton,
+  MRSecondaryButton,
+  MRStatusPanel,
   SkeletonBlock,
-  StatusBanner,
+  SoftPanel,
   TabScreen,
-  TertiaryButton,
-  TimelineRow,
   text,
   useAppTheme,
 } from '../../design-system';
-import { greetingForName, tripSourceLabel } from '../../product/copy';
+import { greetingForName } from '../../product/copy';
 import { selectHomePeriodSummary, selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
@@ -125,52 +123,6 @@ function compactProtection(input: ProtectionStatusView): {
   }
 }
 
-function statusTitle(kind: CompactStatus): string {
-  switch (kind) {
-    case 'protected':
-      return 'Protected';
-    case 'configured_waiting':
-      return 'Protection is ready';
-    case 'checking':
-      return 'Checking protection';
-    case 'battery_limited':
-      return 'Battery may pause tracking';
-    case 'off':
-      return 'Automatic protection is off';
-    case 'manual_mode':
-      return 'Manual tracking';
-    case 'needs_permission':
-      return 'Protection needs attention';
-    case 'stale':
-      return 'Protection needs a check';
-    case 'error':
-      return 'Protection needs attention';
-  }
-}
-
-function activityTimeLabel(timestamp: number): string {
-  const hoursAgo = Math.round((Date.now() - timestamp) / 3600000);
-  if (hoursAgo < 1) return 'Just now';
-  if (hoursAgo < 24) return `${hoursAgo}h ago`;
-  const daysAgo = Math.round(hoursAgo / 24);
-  return daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
-}
-
-function compactPlace(label: string | null | undefined): string | null {
-  const trimmed = label?.trim();
-  if (!trimmed) return null;
-  return trimmed.split(',')[0]?.trim() || trimmed;
-}
-
-function recentDriveTitle(trip: TripRecord): string {
-  const start = compactPlace(trip.startLabel);
-  const end = compactPlace(trip.endLabel);
-  if (start && end) return `${start} → ${end}`;
-  if (start) return `${start} → Destination`;
-  if (end) return `Start → ${end}`;
-  return trip.purpose?.trim() || 'Saved drive';
-}
-
 function HomeSkeleton() {
   return (
     <TabScreen>
@@ -178,18 +130,6 @@ function HomeSkeleton() {
       <SoftPanel>
         <SkeletonBlock width="36%" height={20} style={{ marginBottom: spacing.sm }} />
         <SkeletonBlock width="92%" height={16} />
-      </SoftPanel>
-      <SkeletonBlock width="42%" height={20} style={{ marginBottom: spacing.xs, marginTop: spacing.sm }} />
-      <SoftPanel>
-        <SkeletonBlock width="100%" height={56} />
-      </SoftPanel>
-      <SoftPanel>
-        <SkeletonBlock width="22%" height={20} style={{ marginBottom: spacing.sm }} />
-        <SkeletonBlock width="70%" height={16} />
-      </SoftPanel>
-      <SkeletonBlock width="32%" height={20} style={{ marginTop: spacing.sm, marginBottom: spacing.xs }} />
-      <SoftPanel>
-        <SkeletonBlock width="80%" height={16} />
       </SoftPanel>
       <SkeletonBlock width="100%" height={48} style={{ marginTop: spacing.sm }} />
     </TabScreen>
@@ -415,21 +355,10 @@ export function HomeScreen() {
     scenario.proofReady,
   ]);
 
-  const recent = experience.confirmedTrips
-    .slice()
-    .sort((a, b) => (b.endAt ?? b.startAt) - (a.endAt ?? a.startAt))
-    .slice(0, 3);
-
   if (!homeReady) return <HomeSkeleton />;
 
   const hasTrustworthyYearValue =
     yearSummary.estimatedValueCents != null && yearSummary.tripCount > 0;
-  const heroTitle =
-    compact.kind === 'protected'
-      ? 'You’ve protected'
-      : compact.kind === 'configured_waiting'
-        ? 'Protection is ready'
-        : statusTitle(compact.kind);
   const heroSupporting = hasTrustworthyYearValue
     ? compact.sentence
     : confirmedCount === 0
@@ -445,7 +374,7 @@ export function HomeScreen() {
   const bannerMessage = protectionNeedsAction
     ? compact.sentence
     : compact.kind === 'protected'
-      ? 'All systems normal — tracking in the background.'
+      ? 'All systems normal — Tracking'
       : compact.kind === 'configured_waiting'
         ? 'All systems ready — waiting for your first verified drive.'
       : compact.kind === 'manual_mode'
@@ -454,116 +383,178 @@ export function HomeScreen() {
 
   return (
     <TabScreen>
-      <View
+      <MRHeader
+        title="MileRecover"
+        left={
+          <Pressable
+            onPress={() => navigation.navigate('Profile')}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+            style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            hitSlop={8}
+          >
+            <Text style={{ fontSize: 20, color: palette.text.primary, fontWeight: '700', letterSpacing: -1 }}>
+              ≡
+            </Text>
+          </Pressable>
+        }
+        right={
+          <Pressable
+            onPress={() => navigation.navigate('HelpSupport')}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications and help"
+            style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            hitSlop={8}
+          >
+            <Text style={{ fontSize: 16, color: palette.text.primary, fontWeight: '700' }}>◉</Text>
+          </Pressable>
+        }
+      />
+
+      <Text
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: spacing.sm,
+          fontSize: typography.size.title,
+          lineHeight: typography.lineHeight.title,
+          fontWeight: '700',
+          color: palette.text.primary,
+          marginBottom: layout.section,
         }}
+        accessibilityRole="text"
       >
-        <Text style={[text.caption, { color: palette.forest[700], fontWeight: '700' }]}>MileRecover</Text>
-        <TertiaryButton
-          label="Plans"
-          onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
-          accessibilityLabel="Open plans and trial"
-        />
-      </View>
-      <Text style={[text.subtitle, { marginBottom: spacing.md }]} accessibilityRole="text">
         {greeting ?? 'Welcome back'}
       </Text>
 
-      <ProtectionHero
-        title={heroTitle}
-        valueLabel={hasTrustworthyYearValue ? yearSummary.estimatedValueLabel : null}
-        valueCaption={hasTrustworthyYearValue ? 'this year' : undefined}
-        supporting={heroSupporting}
+      <MRHeroCard
         onPress={openProtection}
-      />
+        accessibilityLabel={
+          hasTrustworthyYearValue
+            ? `You've protected ${yearSummary.estimatedValueLabel} this year.`
+            : heroSupporting
+        }
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, paddingRight: spacing.sm }}>
+            <Text style={{ color: palette.forest[100], fontSize: typography.size.caption, fontWeight: '500' }}>
+              You've protected
+            </Text>
+            {hasTrustworthyYearValue ? (
+              <>
+                <Text
+                  style={{
+                    color: palette.text.inverse,
+                    fontSize: typography.size.display,
+                    lineHeight: typography.lineHeight.display,
+                    fontWeight: '700',
+                    marginTop: spacing.xs,
+                  }}
+                >
+                  {yearSummary.estimatedValueLabel}
+                </Text>
+                <Text
+                  style={{
+                    color: palette.forest[100],
+                    fontSize: typography.size.bodyLarge,
+                    marginTop: spacing.xs,
+                  }}
+                >
+                  this year.
+                </Text>
+              </>
+            ) : (
+              <Text
+                style={{
+                  color: palette.text.inverse,
+                  fontSize: typography.size.title,
+                  lineHeight: typography.lineHeight.title,
+                  fontWeight: '700',
+                  marginTop: spacing.sm,
+                }}
+              >
+                {heroSupporting}
+              </Text>
+            )}
+          </View>
+          <View
+            style={{
+              width: layout.iconCircle + 8,
+              height: layout.iconCircle + 8,
+              borderRadius: (layout.iconCircle + 8) / 2,
+              backgroundColor: 'rgba(255,255,255,0.14)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            accessibilityElementsHidden
+          >
+            <Text style={{ color: palette.text.inverse, fontSize: 20, fontWeight: '700' }}>✓</Text>
+          </View>
+        </View>
+      </MRHeroCard>
 
-      <MetricRow
-        items={[
-          {
-            label: locale.distanceUnit === 'km' ? 'Work km' : 'Work miles',
-            value: monthSummary.workDistanceLabel,
-          },
-          { label: 'Work drives', value: String(monthSummary.tripCount) },
-          { label: 'This month', value: monthSummary.estimatedValueLabel },
-        ]}
-      />
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: spacing.sm,
+          marginBottom: layout.section,
+        }}
+      >
+        <MRMetricTile
+          label={locale.distanceUnit === 'km' ? 'Work km' : 'Work miles'}
+          value={monthSummary.workDistanceLabel}
+        />
+        <MRMetricTile label="Work drives" value={String(monthSummary.tripCount)} />
+        <MRMetricTile label="This month" value={monthSummary.estimatedValueLabel} />
+      </View>
 
-      <StatusBanner
+      <MRStatusPanel
         tone={bannerTone}
         message={bannerMessage}
         onPress={protectionNeedsAction || showProtectionAction ? openProtection : undefined}
       />
 
-      <SoftPanel>
-        <Text style={text.subtitle}>Next up</Text>
-        {nextBest.run ? (
-          <View style={{ marginTop: spacing.sm }}>
-            <PrimaryButton
-              label={nextBest.label}
-              onPress={nextBest.run}
-              accessibilityLabel={nextBest.label}
-            />
-          </View>
-        ) : (
-          <Text style={[text.body, { marginTop: spacing.xs }]}>{nextBest.label}</Text>
-        )}
-      </SoftPanel>
-
-      <TrialOfferCard
-        confirmedWorkDriveCount={confirmedCount}
-        onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
-      />
-
-      <Text style={[text.caption, { marginTop: spacing.md, marginBottom: spacing.xs }]}>
-        RECENT
-      </Text>
-      {recent.length === 0 ? (
-        <Text style={[text.body, { marginBottom: spacing.sm }]}>
-          No drives yet. Add one when you know the miles.
+      <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Next up</Text>
+      <MRCard
+        onPress={nextBest.run ?? undefined}
+        accessibilityLabel={nextBest.label}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          minHeight: 52,
+          paddingVertical: spacing.smMd,
+        }}
+      >
+        <Text
+          style={{
+            flex: 1,
+            fontSize: typography.size.bodyLarge,
+            fontWeight: '600',
+            color: palette.text.primary,
+          }}
+        >
+          {nextBest.label}
         </Text>
-      ) : (
-        recent.map((trip) => {
-          const stateLabel =
-            trip.classification === 'business'
-              ? 'Work'
-              : trip.classification === 'personal'
-                ? 'Personal'
-                : 'Pending';
-          return (
-            <View key={trip.id} style={{ marginBottom: spacing.sm }}>
-              <TimelineRow
-                title={recentDriveTitle(trip)}
-                subtitle={`${formatDistance(
-                  trip.distanceMiles,
-                  locale.distanceUnit,
-                  locale.localeTag,
-                )} · ${tripSourceLabel(trip.source)} · ${stateLabel}`}
-                timeLabel={activityTimeLabel(trip.endAt ?? trip.startAt)}
-                onPress={
-                  liveMode ? () => navigation.navigate('TripDetails', { tripId: trip.id }) : undefined
-                }
-              />
-            </View>
-          );
-        })
-      )}
+        {nextBest.run ? (
+          <Text style={{ color: palette.text.secondary, fontSize: 22, marginLeft: spacing.sm }}>›</Text>
+        ) : null}
+      </MRCard>
 
       <View style={{ marginTop: spacing.sm, gap: spacing.sm, marginBottom: spacing.md }}>
-        <PrimaryButton
+        <MRPrimaryButton
           label="+ Add a drive"
           onPress={() => navigation.navigate('ManualTrip')}
           accessibilityLabel="Add a drive from home"
         />
-        <SecondaryButton
+        <MRSecondaryButton
           label="Check for missed drives"
           onPress={() => navigation.navigate('MissingDrivesIntro')}
           accessibilityLabel="Check for missed drives"
         />
       </View>
+
+      <TrialOfferCard
+        confirmedWorkDriveCount={confirmedCount}
+        onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+      />
     </TabScreen>
   );
 }

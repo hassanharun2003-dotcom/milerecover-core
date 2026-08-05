@@ -221,9 +221,10 @@ describe('Continuous release regression matrix', () => {
   });
 
   it('10. keeps onboarding step order complete and starts empty users at Welcome', () => {
-    expect(ONBOARDING_STEP_ORDER).toHaveLength(5);
+    expect(ONBOARDING_STEP_ORDER).toHaveLength(6);
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
+      'account',
       'purpose',
       'locale_setup',
       'protect_drives',

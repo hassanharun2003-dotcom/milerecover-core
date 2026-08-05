@@ -567,6 +567,7 @@ export function ProductProvider({
                 'ready',
               ]),
               drivingPattern: pattern,
+              accountStepAcknowledged: true,
               countryStepAcknowledged: true,
               protectionEducationAcknowledged: true,
               permissionsEducationAcknowledged: true,

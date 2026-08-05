@@ -19,7 +19,7 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  '0.2.4 premium UI: Protect your miles. Protect your money. Home leads with real YTD protected value, MetricRow, StatusBanner, Missing drives intro, and dark ProtectionHero.';
+  '0.2.5 image lock: Batch A onboarding+auth and Batch B Home match the collage blueprint with white canvas and locked tokens.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();

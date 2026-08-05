@@ -249,11 +249,11 @@ export function createInitialProductUiState(): ProductUiState {
 }
 
 /**
- * Final product lock — five onboarding stages.
- * Welcome → Purpose → Country/Units/Rate → Protection → Ready.
+ * Image-lock onboarding — Welcome → Account → Purpose → Region → Protection → Ready.
  */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'welcome',
+  'account',
   'purpose',
   'locale_setup',
   'protect_drives',
@@ -276,7 +276,7 @@ export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: strin
   },
   {
     id: 'self_employed_business',
-    label: 'Self-employed / business',
+    label: 'Self-employed / Business',
     body: 'Track business travel for your records.',
   },
   {
@@ -286,8 +286,8 @@ export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: strin
   },
   {
     id: 'mixed',
-    label: 'Personal / mixed use',
-    body: 'Use MileRecover for more than one purpose.',
+    label: 'Personal',
+    body: 'Track personal or mixed driving.',
   },
 ];
 

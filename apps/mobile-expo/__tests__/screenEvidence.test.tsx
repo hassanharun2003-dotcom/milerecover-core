@@ -23,11 +23,12 @@ describe('Screen render evidence', () => {
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-welcome']).toMatch(/MileRecover|Protect every work mile/i);
+    expect(manifest['onboarding-welcome']).toMatch(/Welcome to MileRecover|MileRecover/i);
+    expect(manifest['onboarding-account']).toMatch(/Continue with Google|Continue without an account/i);
     expect(manifest['onboarding-purpose']).toMatch(
-      /Employee|Self-employed|Delivery|Personal \/ mixed|Business|Gig|Mixed|What do you track mileage for|How do you use mileage/i,
+      /Employee reimbursement|Self-employed \/ Business|Delivery or gig work|Personal|What's your main reason/i,
     );
-    expect(manifest['onboarding-locale_setup']).toMatch(/Country|units|rate|Miles|Kilometers/i);
+    expect(manifest['onboarding-locale_setup']).toMatch(/Country|region and mileage rate|Update rate|Miles|Kilometers/i);
     expect(manifest['onboarding-protect_drives']).toMatch(
       /Keep your drives protected|Protect future drives|Turn on drive protection|Enable drive protection|Set up protection|Not now|Skip for now/i,
     );
@@ -53,17 +54,18 @@ describe('Screen render evidence', () => {
       preferredName: null,
     });
     manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
-    expect(liveHome.copy).toMatch(/Manual mode|Protection is ready|Drives protected|Needs attention|Paused/i);
-    expect(liveHome.copy).toMatch(/Add a drive|protection|Next/i);
+    expect(liveHome.copy).toMatch(/MileRecover|Welcome back|You've protected|Start tracking/i);
+    expect(liveHome.copy).toMatch(/Add a drive|Next up|Check for missed drives/i);
     expect(liveHome.copy).not.toContain('Alex Johnson');
     expect(liveHome.copy).not.toContain('87.6');
+    expect(liveHome.copy).not.toContain('487.32');
     expect(liveHome.copy).not.toContain('Airport pickup');
     expect(liveHome.copy).not.toMatch(/OTA VERIFIED/i);
     expect(liveHome.copy).not.toMatch(/Automatic tracking is not dependable/i);
 
     const reviewHome = await renderMainTabs('recovery_available');
     manifest['home-review-item'] = reviewHome.copy.slice(0, 600);
-    expect(reviewHome.copy).toMatch(/Review \d+ possible drive|Distance|Drives|Estimated value|Next/i);
+    expect(reviewHome.copy).toMatch(/Review \d+ |Work drives|Next up|Add a drive/i);
 
     fs.writeFileSync(path.join(evidenceDir, 'home-evidence.json'), JSON.stringify(manifest, null, 2));
   });
