@@ -1,0 +1,46 @@
+{
+  "appVersion": "0.2.5",
+  "versionLabel": "0.2.5-image-lock.1",
+  "buildCommit": "8262305cf25c3657e96812ee57afc985f330c51d",
+  "package": "com.milerecover.app",
+  "device": {
+    "model": "sdk_gphone64_x86_64 (Pixel 6 AVD mile_pixel6)",
+    "androidVersion": "14 (API 34)",
+    "viewport": "1080x2400",
+    "density": "420dpi (xhdpi/xxhdpi)",
+    "acceleration": "TCG (-accel off, no KVM)"
+  },
+  "fixtureState": "clean install / truthful empty production state (no visual-QA fixture injected)",
+  "screens": {
+    "01-welcome": "captured",
+    "02-auth": "captured (protocol screen; no collage tile)",
+    "03-purpose": "captured",
+    "04-region-rate": "captured",
+    "05-protection": "captured",
+    "06-ready": "captured",
+    "07-home": "captured (truthful empty: $0 / 0 mi)"
+  },
+  "diffSummary": [
+    {
+      "screen": "01-welcome",
+      "ref": "01-welcome",
+      "mean_abs_diff": 18.63105480617329
+    },
+    {
+      "screen": "03-purpose",
+      "ref": "02-purpose",
+      "mean_abs_diff": 21.698093125936726
+    },
+    {
+      "screen": "04-region-rate",
+      "ref": "03-region-rate",
+      "mean_abs_diff": 22.592502126625348
+    },
+    {
+      "screen": "07-home",
+      "ref": "04-home",
+      "mean_abs_diff": 35.45310183497387
+    }
+  ],
+  "apkNote": "Installed APK was built before progress-label commit 8262305; onboarding shows N of 6. Rebuild pending for N of 5."
+}

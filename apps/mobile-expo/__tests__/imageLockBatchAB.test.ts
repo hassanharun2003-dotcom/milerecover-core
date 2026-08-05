@@ -104,7 +104,22 @@ describe('Image lock Batch A/B foundations', () => {
     expect(year.tripCount).toBe(0);
     expect(year.estimatedValueCents === null || year.estimatedValueCents === 0).toBe(true);
     expect(JSON.stringify(year)).not.toContain('487.32');
-    // Home only shows YTD money when tripCount > 0 and value is trustworthy.
-    expect(year.tripCount > 0 && year.estimatedValueCents != null).toBe(false);
+    // Empty Home may show truthful $0.00 when a rate is available — never collage samples.
+    expect(year.estimatedValueLabel === '$0.00' || year.estimatedValueCents == null).toBe(true);
+  });
+
+  it('Welcome uses branded green mark, not app icon asset', () => {
+    const ds = fs.readFileSync(
+      path.join(__dirname, '../src/design-system/imageLock.tsx'),
+      'utf8',
+    );
+    expect(ds).toMatch(/function MRWelcomeLogo/);
+    expect(ds).not.toMatch(/require\('\.\.\/\.\.\/assets\/icon\.png'\)/);
+    const welcome = fs.readFileSync(
+      path.join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
+      'utf8',
+    );
+    expect(welcome).toMatch(/Get started →/);
+    expect(welcome).not.toMatch(/I already use a mileage app/);
   });
 });

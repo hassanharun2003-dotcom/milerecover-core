@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.2.5-image-lock.1';
+export const APP_BUILD_LABEL = '0.2.5-image-lock.2';
 
 /**
  * Temporary Home-screen OTA verification string.

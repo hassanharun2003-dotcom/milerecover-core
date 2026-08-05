@@ -124,7 +124,10 @@ export function OnboardingFlow() {
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
   /** Collage progress is 1–5 excluding Welcome (Purpose shows “2 of 5”). */
   const progressSteps = ONBOARDING_STEP_ORDER.filter((s) => s !== 'welcome');
-  const progressIndex = Math.max(0, progressSteps.indexOf(step));
+  const progressIndex = Math.max(
+    0,
+    progressSteps.findIndex((s) => s === step),
+  );
   const protectionConfigured =
     product.trackingEnabled ||
     product.protectionSetupState === 'configured' ||
@@ -253,14 +256,6 @@ export function OnboardingFlow() {
               onPress={() => advanceOnboarding()}
               accessibilityLabel="Get started"
             />
-            <MRTertiaryButton
-              label="I already use a mileage app"
-              onPress={() => {
-                patchOnboarding({ selectedPainPoints: ['need_cleaner_reports'] });
-                setPendingPostOnboardingRoute('BringExistingMileage');
-                advanceOnboarding();
-              }}
-            />
           </View>
         ) : step === 'account' ? (
           <View style={{ gap: spacing.sm }}>
@@ -362,11 +357,17 @@ export function OnboardingFlow() {
     >
       {step === 'welcome' ? (
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.sm }}>
-          <MRTertiaryButton
-            label="Skip"
+          <Pressable
             onPress={() => advanceOnboarding()}
+            accessibilityRole="button"
             accessibilityLabel="Skip welcome"
-          />
+            hitSlop={8}
+            style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.xs }}
+          >
+            <Text style={{ color: palette.text.secondary, fontWeight: '500', fontSize: typography.size.body }}>
+              Skip
+            </Text>
+          </Pressable>
         </View>
       ) : null}
 

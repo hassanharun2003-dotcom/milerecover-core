@@ -4,9 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { layout, spacing, typography } from '@milerecover/config';
 import {
   capabilitiesForEntitlement,
+  milesToDisplay,
   rateForTimestamp,
   type ProtectionStatusView,
 } from '@milerecover/domain';
@@ -24,7 +26,7 @@ import {
   text,
   useAppTheme,
 } from '../../design-system';
-import { greetingForName } from '../../product/copy';
+import { daypartGreeting, greetingForName } from '../../product/copy';
 import { selectHomePeriodSummary, selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
@@ -163,7 +165,7 @@ export function HomeScreen() {
   const homeReady = state.hydrated && productHydrated;
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const { scenario, liveMode } = experience;
-  const greeting = greetingForName(product.preferredName);
+  const greeting = greetingForName(product.preferredName) ?? daypartGreeting();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const pendingReviewCount = selectPendingReviewCount(state, product, permissions, automaticCaptureAvailable);
   const protection = selectProtectionView({
@@ -357,15 +359,22 @@ export function HomeScreen() {
 
   if (!homeReady) return <HomeSkeleton />;
 
-  const hasTrustworthyYearValue =
-    yearSummary.estimatedValueCents != null && yearSummary.tripCount > 0;
-  const heroSupporting = hasTrustworthyYearValue
-    ? compact.sentence
-    : confirmedCount === 0
+  /** Collage hero always shows money + “this year.”; $0.00 is truthful when empty + rate set. */
+  const showHeroMoney =
+    yearSummary.estimatedValueCents != null && yearSummary.estimatedValueLabel !== 'Review rate';
+  const heroSupporting =
+    confirmedCount === 0
       ? 'Start tracking to see the value of your work miles.'
       : yearSummary.estimatedValueLabel === 'Review rate'
         ? 'Add or confirm a mileage rate to estimate value.'
         : compact.sentence;
+  const workMilesValue = milesToDisplay(monthSummary.workMiles, locale.distanceUnit).toLocaleString(
+    locale.localeTag,
+    {
+      maximumFractionDigits: monthSummary.workMiles >= 100 ? 0 : 1,
+      minimumFractionDigits: 0,
+    },
+  );
   const bannerTone: 'ok' | 'attention' | 'info' = protectionNeedsAction
     ? 'attention'
     : compact.kind === 'protected' || compact.kind === 'configured_waiting'
@@ -406,7 +415,7 @@ export function HomeScreen() {
             style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
             hitSlop={8}
           >
-            <Text style={{ fontSize: 16, color: palette.text.primary, fontWeight: '700' }}>◉</Text>
+            <Ionicons name="notifications-outline" size={22} color={palette.text.primary} />
           </Pressable>
         }
       />
@@ -421,13 +430,13 @@ export function HomeScreen() {
         }}
         accessibilityRole="text"
       >
-        {greeting ?? 'Welcome back'}
+        {greeting}
       </Text>
 
       <MRHeroCard
         onPress={openProtection}
         accessibilityLabel={
-          hasTrustworthyYearValue
+          showHeroMoney
             ? `You've protected ${yearSummary.estimatedValueLabel} this year.`
             : heroSupporting
         }
@@ -437,7 +446,7 @@ export function HomeScreen() {
             <Text style={{ color: palette.forest[100], fontSize: typography.size.caption, fontWeight: '500' }}>
               You've protected
             </Text>
-            {hasTrustworthyYearValue ? (
+            {showHeroMoney ? (
               <>
                 <Text
                   style={{
@@ -485,7 +494,7 @@ export function HomeScreen() {
             }}
             accessibilityElementsHidden
           >
-            <Text style={{ color: palette.text.inverse, fontSize: 20, fontWeight: '700' }}>✓</Text>
+            <Ionicons name="shield-checkmark" size={22} color={palette.text.inverse} />
           </View>
         </View>
       </MRHeroCard>
@@ -499,10 +508,19 @@ export function HomeScreen() {
       >
         <MRMetricTile
           label={locale.distanceUnit === 'km' ? 'Work km' : 'Work miles'}
-          value={monthSummary.workDistanceLabel}
+          value={workMilesValue}
         />
         <MRMetricTile label="Work drives" value={String(monthSummary.tripCount)} />
-        <MRMetricTile label="This month" value={monthSummary.estimatedValueLabel} />
+        <MRMetricTile
+          label="This month"
+          value={
+            monthSummary.estimatedValueCents != null
+              ? monthSummary.estimatedValueLabel
+              : monthSummary.estimatedValueLabel === 'Review rate'
+                ? '—'
+                : monthSummary.estimatedValueLabel
+          }
+        />
       </View>
 
       <MRStatusPanel

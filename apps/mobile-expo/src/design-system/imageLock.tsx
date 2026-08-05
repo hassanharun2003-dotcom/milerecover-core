@@ -5,7 +5,6 @@
  */
 import React from 'react';
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -463,13 +462,25 @@ export function MRFormField({
   );
 }
 
+/** Collage welcome mark: dark-green rounded square with white path/shield. */
 export function MRWelcomeLogo() {
+  const { palette } = useAppTheme();
   return (
-    <Image
-      source={require('../../assets/icon.png')}
-      style={styles.welcomeLogo}
+    <View
+      style={[styles.welcomeLogo, { backgroundColor: palette.forest[900] }]}
+      accessibilityRole="image"
       accessibilityLabel="MileRecover logo"
-    />
+    >
+      <View style={styles.welcomeLogoInner}>
+        <View style={[styles.welcomeLogoPath, { backgroundColor: palette.text.inverse }]} />
+        <View
+          style={[
+            styles.welcomeLogoShield,
+            { borderColor: palette.text.inverse, backgroundColor: 'transparent' },
+          ]}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -677,6 +688,29 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: radii.lg,
     marginBottom: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeLogoInner: {
+    width: 36,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeLogoPath: {
+    position: 'absolute',
+    width: 8,
+    height: 28,
+    borderRadius: 4,
+    transform: [{ rotate: '-18deg' }],
+  },
+  welcomeLogoShield: {
+    width: 28,
+    height: 32,
+    borderWidth: 2.5,
+    borderRadius: 6,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
   },
   progressBlock: {
     marginBottom: layout.section,

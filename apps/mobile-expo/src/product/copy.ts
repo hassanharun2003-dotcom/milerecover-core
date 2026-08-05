@@ -166,10 +166,14 @@ export function tripSourceLabel(source: string): string {
   }
 }
 
+export function daypartGreeting(hour = new Date().getHours()): string {
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export function greetingForName(name: string | null, hour = new Date().getHours()): string | null {
   if (!name || !name.trim()) return null;
   const first = name.trim().split(/\s+/)[0];
-  if (hour < 12) return `Good morning, ${first}.`;
-  if (hour < 17) return `Good afternoon, ${first}.`;
-  return `Good evening, ${first}.`;
+  return `${daypartGreeting(hour)}, ${first}.`;
 }
