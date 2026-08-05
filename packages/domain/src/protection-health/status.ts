@@ -6,11 +6,13 @@ import type { ProtectionHealthInput, ProtectionHealthLevel, TrackingEngineState 
 /**
  * User-facing protection status for Home + Protection Center.
  *
- * Protected | Needs attention | Tracking paused | Setup incomplete | Manual-only
+ * Protected | Configured waiting | Needs attention | Temporarily limited | Tracking paused | Setup incomplete | Manual-only
  */
 export type ProtectionStatus =
   | 'protected'
+  | 'configured_waiting'
   | 'needs_attention'
+  | 'temporarily_limited'
   | 'tracking_paused'
   | 'setup_incomplete'
   | 'manual_only';
@@ -64,10 +66,12 @@ export interface ProtectionStatusInput {
 
 const TITLES: Record<ProtectionStatus, string> = {
   protected: 'Your drives are protected',
-  needs_attention: 'One setting needs attention',
-  tracking_paused: 'Drive protection is off',
+  configured_waiting: 'Configured — waiting for first drive',
+  needs_attention: 'Needs attention',
+  temporarily_limited: 'Temporarily limited',
+  tracking_paused: 'Drive protection is paused',
   setup_incomplete: 'Finish drive protection setup',
-  manual_only: 'Drive protection is off',
+  manual_only: 'Manual mode',
 };
 
 function formatLastCheck(lastConfirmedCaptureAt: number | null, now: number): string | null {
@@ -137,8 +141,8 @@ export function resolveProtectionStatus(input: ProtectionStatusInput): Protectio
 
   if (input.automaticAllowanceExhausted) {
     return {
-      status: 'tracking_paused',
-      title: 'Monthly automatic limit reached',
+      status: 'temporarily_limited',
+      title: TITLES.temporarily_limited,
       detail: 'Future automatic capture needs Plus, or add drives manually. Saved trips stay.',
       lastCheckLabel,
       automaticDependable: false,
@@ -240,20 +244,28 @@ export function resolveProtectionStatus(input: ProtectionStatusInput): Protectio
     };
   }
 
-  const status: ProtectionStatus =
-    primaryIssue && primaryIssue.action !== 'review_trips' ? 'needs_attention' : 'protected';
+  const hasBlockingIssue = primaryIssue != null && primaryIssue.action !== 'review_trips';
+  const status: ProtectionStatus = hasBlockingIssue
+    ? 'needs_attention'
+    : input.lastConfirmedCaptureAt == null
+      ? 'configured_waiting'
+      : 'protected';
   const automaticDependable =
     status === 'protected' &&
+    health.level === 'protected' &&
+    input.lastConfirmedCaptureAt != null &&
     input.permissions.location === 'granted' &&
     input.permissions.backgroundLocation === 'granted' &&
     !input.permissions.batteryOptimizationRestricted;
 
   return {
     status,
-    title: status === 'protected' ? TITLES.protected : TITLES.needs_attention,
+    title: TITLES[status],
     detail:
       status === 'protected'
         ? lastCheckLabel ?? 'Last successful check: waiting for your next drive.'
+        : status === 'configured_waiting'
+          ? 'Take a short drive and MileRecover will confirm automatic capture before calling it protected.'
         : primaryIssue?.what ?? health.userDetail ?? health.userLabel,
     lastCheckLabel,
     automaticDependable,

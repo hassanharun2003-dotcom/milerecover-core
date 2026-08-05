@@ -162,6 +162,16 @@ export function invalidateStaleOnboardingCompletion(
     nextActionSelected: null,
     lastUpdatedAt: now,
   };
+  const hasAnyEssentialAnswer =
+    next.primaryGoal != null ||
+    next.countryStepAcknowledged === true ||
+    next.protectionEducationAcknowledged === true ||
+    next.permissionsEducationAcknowledged === true ||
+    next.nextActionSelected != null;
+  if (!hasAnyEssentialAnswer) {
+    next.currentStep = 'welcome';
+    return next;
+  }
   // Older completions already included country/units inside prior flows.
   if (next.primaryGoal != null) {
     next.countryStepAcknowledged = true;
@@ -172,8 +182,11 @@ export function invalidateStaleOnboardingCompletion(
 
 /** Resume helper — place user on the first unfinished required answer or finish step. */
 export function nextIncompleteEssentialStep(state: VersionedOnboardingState): OnboardingStepId | null {
+  if (isOnboardingMinimumComplete(state)) {
+    return null;
+  }
   if (state.primaryGoal == null) {
-    return 'purpose';
+    return state.completedSteps.includes('welcome') ? 'purpose' : 'welcome';
   }
   if (!state.countryStepAcknowledged) {
     return 'locale_setup';

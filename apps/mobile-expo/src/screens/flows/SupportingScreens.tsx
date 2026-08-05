@@ -21,6 +21,7 @@ import {
   formatReportRouteSummary,
   formatTimeLocal,
   isConfirmedWorkTrip,
+  KM_PER_MILE,
   MAX_TRIP_DISTANCE_MILES,
   milesToDisplay,
   rateForTimestamp,
@@ -79,6 +80,8 @@ import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import {
   buildUserDataExport,
   clearLocalPrivacyCaches,
+  LAST_MANUAL_PURPOSE_STORAGE_KEY,
+  LAST_MANUAL_VEHICLE_STORAGE_KEY,
   writeUserDataExportFile,
 } from '../../services/dataPrivacy';
 import {
@@ -139,6 +142,37 @@ function vehicleLookup(vehicles: VehicleDraft[]): Record<string, string> {
   }, {});
 }
 
+const LONG_DRIVE_THRESHOLD_MILES = 300 / KM_PER_MILE;
+
+function parseLocalizedDecimal(raw: string, localeTag: string): number {
+  const compact = raw.trim().replace(/\s/g, '');
+  if (!compact) return NaN;
+
+  const decimalSeparator =
+    new Intl.NumberFormat(localeTag)
+      .formatToParts(1.1)
+      .find((part) => part.type === 'decimal')?.value ?? '.';
+  const commaIndex = compact.lastIndexOf(',');
+  const dotIndex = compact.lastIndexOf('.');
+  const hasComma = commaIndex >= 0;
+  const hasDot = dotIndex >= 0;
+  let normalized = compact;
+
+  if (hasComma && hasDot) {
+    const decimalIndex = Math.max(commaIndex, dotIndex);
+    normalized = compact
+      .split('')
+      .filter((char, index) => (char !== ',' && char !== '.') || index === decimalIndex)
+      .join('')
+      .replace(',', '.');
+  } else if (hasComma || decimalSeparator === ',') {
+    normalized = compact.replace(',', '.');
+  }
+
+  if (!/^[+-]?(?:\d+|\d*\.\d+)$/.test(normalized)) return NaN;
+  return Number(normalized);
+}
+
 function reportData(
   trips: TripRecord[],
   period: ReportPeriod,
@@ -176,6 +210,10 @@ export function ManualTripScreen() {
   const [endTime, setEndTime] = useState(initialEnd);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const datePickerSnapshotRef = useRef<Date | null>(null);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [startTimeDraft, setStartTimeDraft] = useState(initialStart);
+  const [endTimeDraft, setEndTimeDraft] = useState(initialEnd);
   const [addTime, setAddTime] = useState(Boolean(existing));
   const [routeMode, setRouteMode] = useState<'distance' | 'places'>('distance');
   const [distance, setDistance] = useState(
@@ -198,12 +236,12 @@ export function ManualTripScreen() {
   useEffect(() => {
     if (existing) return;
     void AsyncStorage.multiGet([
-      '@milerecover/last-manual-purpose',
-      '@milerecover/last-manual-vehicle',
+      LAST_MANUAL_PURPOSE_STORAGE_KEY,
+      LAST_MANUAL_VEHICLE_STORAGE_KEY,
     ]).then((entries) => {
       const lastPurpose = entries[0]?.[1];
       const lastVehicle = entries[1]?.[1];
-      if (lastPurpose && !purpose) setPurpose(lastPurpose);
+      if (lastPurpose) setPurpose((current) => current || lastPurpose);
       if (lastVehicle && product.vehicles.some((v) => v.id === lastVehicle)) {
         setVehicleId(lastVehicle);
       }
@@ -264,6 +302,53 @@ export function ManualTripScreen() {
     setShowDatePicker(true);
   }, [driveDate]);
 
+  const closeTimePicker = useCallback((field: 'start' | 'end', commit: boolean) => {
+    if (field === 'start') {
+      if (commit) setStartTime(startTimeDraft);
+      setShowStartTimePicker(false);
+    } else {
+      if (commit) setEndTime(endTimeDraft);
+      setShowEndTimePicker(false);
+    }
+  }, [endTimeDraft, startTimeDraft]);
+
+  const openTimePicker = useCallback(
+    (field: 'start' | 'end') => {
+      Keyboard.dismiss();
+      if (field === 'start') {
+        setStartTimeDraft(new Date(startTime.getTime()));
+        setShowStartTimePicker(true);
+        setShowEndTimePicker(false);
+      } else {
+        setEndTimeDraft(new Date(endTime.getTime()));
+        setShowEndTimePicker(true);
+        setShowStartTimePicker(false);
+      }
+    },
+    [endTime, startTime],
+  );
+
+  const handleTimePickerChange = useCallback(
+    (field: 'start' | 'end', event: { type?: string } | undefined, selected?: Date) => {
+      const dismissed = event?.type === 'dismissed' || !selected;
+      if (Platform.OS === 'android') {
+        if (field === 'start') setShowStartTimePicker(false);
+        else setShowEndTimePicker(false);
+        if (dismissed) return;
+        if (field === 'start') setStartTime(selected);
+        else setEndTime(selected);
+        return;
+      }
+      if (dismissed) {
+        closeTimePicker(field, false);
+        return;
+      }
+      if (field === 'start') setStartTimeDraft(selected);
+      else setEndTimeDraft(selected);
+    },
+    [closeTimePicker],
+  );
+
   useEffect(() => {
     if (!showDatePicker) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -272,6 +357,16 @@ export function ManualTripScreen() {
     });
     return () => sub.remove();
   }, [closeDatePicker, showDatePicker]);
+
+  useEffect(() => {
+    if (!showStartTimePicker && !showEndTimePicker) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowStartTimePicker(false);
+      setShowEndTimePicker(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [showEndTimePicker, showStartTimePicker]);
 
   const applyDateOffset = (daysBack: number) => {
     const next = new Date();
@@ -303,16 +398,16 @@ export function ManualTripScreen() {
   const parsedMiles = useMemo(() => {
     const trimmed = distance.trim();
     if (!trimmed) return null;
-    const entered = Number.parseFloat(trimmed);
+    const entered = parseLocalizedDecimal(trimmed, locale.localeTag);
     if (!Number.isFinite(entered)) return NaN;
     return displayToMiles(entered, unit);
-  }, [distance, unit]);
+  }, [distance, locale.localeTag, unit]);
 
   const validateDistanceField = useCallback(
     (raw: string): string | null => {
       const trimmed = raw.trim();
       if (!trimmed) return `Enter the ${unit === 'km' ? 'kilometers' : 'miles'} for this drive.`;
-      const entered = Number.parseFloat(trimmed);
+      const entered = parseLocalizedDecimal(trimmed, locale.localeTag);
       if (!Number.isFinite(entered) || Number.isNaN(entered)) {
         return `Enter a valid number of ${unit === 'km' ? 'kilometers' : 'miles'}.`;
       }
@@ -329,7 +424,6 @@ export function ManualTripScreen() {
   const canSave = useMemo(() => {
     if (!classification || saving) return false;
     if (validateDistanceField(distance) != null) return false;
-    if (classification === 'work' && (purpose === 'Other' || !purpose.trim())) return false;
     if (
       routeMode === 'places' &&
       (startLabel.trim() || endLabel.trim()) &&
@@ -338,7 +432,7 @@ export function ManualTripScreen() {
       return false;
     }
     return true;
-  }, [classification, distance, endLabel, purpose, routeMode, saving, startLabel, validateDistanceField]);
+  }, [classification, distance, endLabel, routeMode, saving, startLabel, validateDistanceField]);
 
   const isDirty = useMemo(() => {
     if (existing) {
@@ -384,7 +478,7 @@ export function ManualTripScreen() {
     return unsubscribe;
   }, [isDirty, navigation, saving]);
 
-  const save = () => {
+  const save = (options: { longDriveConfirmed?: boolean; overnightConfirmed?: boolean } = {}) => {
     Keyboard.dismiss();
     if (saving) return;
     setError(null);
@@ -392,10 +486,6 @@ export function ManualTripScreen() {
     setDistanceError(fieldError);
     if (!classification) {
       setError('Choose Work, Personal, or Decide later.');
-      return;
-    }
-    if (classification === 'work' && (purpose === 'Other' || !purpose.trim())) {
-      setError(purpose === 'Other' ? 'Enter a short custom purpose.' : 'Choose a purpose for this work drive.');
       return;
     }
     if (fieldError) return;
@@ -411,13 +501,35 @@ export function ManualTripScreen() {
       return;
     }
     const startAt = composeDateTime(driveDate, startTime, 9, 0);
-    const endAt = composeDateTime(driveDate, endTime, 9, 30);
+    let endAt = composeDateTime(driveDate, endTime, 9, 30);
+    if (addTime && endAt < startAt) {
+      if (!options.overnightConfirmed) {
+        Alert.alert(
+          'End time is before start time',
+          'Was this an overnight drive that ended the next day?',
+          [
+            { text: 'Edit times', style: 'cancel' },
+            { text: 'Confirm overnight', onPress: () => save({ ...options, overnightConfirmed: true }) },
+          ],
+        );
+        return;
+      }
+      endAt += 24 * 60 * 60 * 1000;
+    }
+    if (miles >= LONG_DRIVE_THRESHOLD_MILES && !options.longDriveConfirmed) {
+      const displayDistance = formatDistance(miles, unit, locale.localeTag, 0);
+      Alert.alert('Long drive?', `That is a long drive. Confirm ${displayDistance}.`, [
+        { text: 'Edit distance', style: 'cancel' },
+        { text: 'Confirm', onPress: () => save({ ...options, longDriveConfirmed: true }) },
+      ]);
+      return;
+    }
     const input = {
       id: existing?.id,
       startAt,
       endAt,
       distanceMiles: miles,
-      purpose: classification === 'work' ? purpose.trim() : purpose.trim() || 'Personal',
+      purpose: classification === 'personal' ? purpose.trim() || 'Personal' : purpose.trim(),
       startLabel: startLabel.trim(),
       endLabel: endLabel.trim(),
       vehicleId,
@@ -441,11 +553,11 @@ export function ManualTripScreen() {
           ? { ...created, status: 'pending' as const, classification: 'unclassified' as const, confidence: 'medium' as const }
           : created;
     const parkingCents = (() => {
-      const dollars = Number.parseFloat(parkingAmount);
+      const dollars = parseLocalizedDecimal(parkingAmount, locale.localeTag);
       return Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : null;
     })();
     const tollsCents = (() => {
-      const dollars = Number.parseFloat(tollsAmount);
+      const dollars = parseLocalizedDecimal(tollsAmount, locale.localeTag);
       return Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : null;
     })();
     upsertTrip({
@@ -459,8 +571,8 @@ export function ManualTripScreen() {
       updatedAt: Date.now(),
     });
     void AsyncStorage.multiSet([
-      ['@milerecover/last-manual-purpose', purpose.trim()],
-      ['@milerecover/last-manual-vehicle', vehicleId ?? ''],
+      [LAST_MANUAL_PURPOSE_STORAGE_KEY, purpose.trim()],
+      [LAST_MANUAL_VEHICLE_STORAGE_KEY, vehicleId ?? ''],
     ]);
     logEvent(ANALYTICS_EVENTS.manualTripSaved, {
       classification,
@@ -605,9 +717,8 @@ export function ManualTripScreen() {
         label={unit === 'km' ? 'Distance (km)' : 'Distance (miles)'}
         value={distance}
         onChangeText={(value) => {
-          const normalized = value.replace(',', '.');
-          setDistance(normalized);
-          if (distanceError) setDistanceError(validateDistanceField(normalized));
+          setDistance(value);
+          if (distanceError) setDistanceError(validateDistanceField(value));
         }}
         placeholder="0.0"
         keyboardType="decimal-pad"
@@ -663,35 +774,9 @@ export function ManualTripScreen() {
         </>
       ) : null}
 
-      {classification === 'work' || classification === 'later' ? (
-        <>
-          <Text style={[text.caption, { marginBottom: spacing.xs }]}>4 · Purpose</Text>
-          <ChipRow>
-            {purposeChips.map((chip) => (
-              <Chip
-                key={chip}
-                label={chip}
-                selected={purpose === chip}
-                onPress={() => setPurpose(chip)}
-              />
-            ))}
-          </ChipRow>
-          {purpose && purpose !== 'Other' ? <EvidenceRow label="Purpose" value={purpose} /> : null}
-          {purpose === 'Other' || customPurpose ? (
-            <FormField
-              label="Custom purpose"
-              value={purpose === 'Other' ? '' : purpose}
-              onChangeText={(value) => setPurpose(value.trim() ? value : 'Other')}
-              placeholder="Describe the work drive"
-              compact
-            />
-          ) : null}
-        </>
-      ) : null}
-
       <SelectionCard
         title="More details"
-        body="Optional time, vehicle, and notes."
+        body="Optional time, vehicle, purpose, notes, expenses, and receipt."
         selected={showDetails}
         onPress={() => setShowDetails((value) => !value)}
       />
@@ -701,24 +786,104 @@ export function ManualTripScreen() {
             title="Add time"
             body={addTime ? 'Start and end time included.' : 'Optional. Date alone is fine.'}
             selected={addTime}
-            onPress={() => setAddTime((value) => !value)}
+            onPress={() =>
+              setAddTime((value) => {
+                const next = !value;
+                if (!next) {
+                  setShowStartTimePicker(false);
+                  setShowEndTimePicker(false);
+                }
+                return next;
+              })
+            }
           />
           {addTime ? (
             <>
-              <Text style={[text.caption, { marginBottom: spacing.xs }]}>Start time</Text>
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                onChange={(_, selected) => selected && setStartTime(selected)}
+              <EvidenceRow label="Start time" value={formatTimeLocal(startTime.getTime())} />
+              <SecondaryButton
+                label={showStartTimePicker ? 'Cancel start time' : 'Choose start time'}
+                onPress={() => {
+                  if (showStartTimePicker) closeTimePicker('start', false);
+                  else openTimePicker('start');
+                }}
               />
-              <Text style={[text.caption, { marginBottom: spacing.xs }]}>End time</Text>
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                onChange={(_, selected) => selected && setEndTime(selected)}
+              {showStartTimePicker ? (
+                <View>
+                  {Platform.OS === 'ios' ? (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                      <TertiaryButton label="Cancel" onPress={() => closeTimePicker('start', false)} />
+                      <TertiaryButton label="OK" onPress={() => closeTimePicker('start', true)} />
+                    </View>
+                  ) : null}
+                  <DateTimePicker
+                    value={Platform.OS === 'ios' ? startTimeDraft : startTime}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selected) => handleTimePickerChange('start', event, selected)}
+                  />
+                </View>
+              ) : null}
+              <EvidenceRow label="End time" value={formatTimeLocal(endTime.getTime())} />
+              <SecondaryButton
+                label={showEndTimePicker ? 'Cancel end time' : 'Choose end time'}
+                onPress={() => {
+                  if (showEndTimePicker) closeTimePicker('end', false);
+                  else openTimePicker('end');
+                }}
               />
+              {showEndTimePicker ? (
+                <View>
+                  {Platform.OS === 'ios' ? (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                      <TertiaryButton label="Cancel" onPress={() => closeTimePicker('end', false)} />
+                      <TertiaryButton label="OK" onPress={() => closeTimePicker('end', true)} />
+                    </View>
+                  ) : null}
+                  <DateTimePicker
+                    value={Platform.OS === 'ios' ? endTimeDraft : endTime}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selected) => handleTimePickerChange('end', event, selected)}
+                  />
+                </View>
+              ) : null}
             </>
           ) : null}
+          {classification === 'work' || classification === 'later' ? (
+            <>
+              <Text style={[text.caption, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>
+                Purpose (optional)
+              </Text>
+              <ChipRow>
+                {purposeChips.map((chip) => (
+                  <Chip
+                    key={chip}
+                    label={chip}
+                    selected={purpose === chip}
+                    onPress={() => setPurpose(chip)}
+                  />
+                ))}
+              </ChipRow>
+              {purpose && purpose !== 'Other' ? <EvidenceRow label="Purpose" value={purpose} /> : null}
+              {purpose === 'Other' || customPurpose ? (
+                <FormField
+                  label="Custom purpose"
+                  value={purpose === 'Other' ? '' : purpose}
+                  onChangeText={(value) => setPurpose(value.trim() ? value : 'Other')}
+                  placeholder="Describe the drive"
+                  compact
+                />
+              ) : null}
+            </>
+          ) : (
+            <FormField
+              label="Purpose (optional)"
+              value={purpose}
+              onChangeText={setPurpose}
+              placeholder="Personal"
+              compact
+            />
+          )}
           {product.vehicles.length > 0 ? (
             <ListSection title="Vehicle">
               {product.vehicles.map((vehicle) => (
@@ -1075,7 +1240,10 @@ export function ProtectionAlertScreen() {
   const statusVariant =
     protection.status === 'protected'
       ? ('success' as const)
-      : protection.status === 'manual_only' || protection.status === 'tracking_paused'
+      : protection.status === 'manual_only' ||
+          protection.status === 'tracking_paused' ||
+          protection.status === 'temporarily_limited' ||
+          protection.status === 'configured_waiting'
         ? ('info' as const)
         : ('warning' as const);
   const [guideStep, setGuideStep] = useState<
@@ -1220,14 +1388,30 @@ export function ProtectionAlertScreen() {
 
   if (guideStep === 'verify' || guideStep === 'success') {
     const ok = protection.status === 'protected';
+    const waiting = protection.status === 'configured_waiting';
+    const configuredReady =
+      capabilities.canUseAutomaticCapture &&
+      foregroundReady &&
+      backgroundReady &&
+      product.trackingEnabled &&
+      (protection.status === 'setup_incomplete' || waiting);
+    const canFinishSetup = ok || waiting || configuredReady;
     return (
       <ScrollScreen>
         <StatusCard
-          variant={ok ? 'success' : 'warning'}
-          title={ok ? 'You’re protected' : 'Checking protection…'}
+          variant={ok ? 'success' : configuredReady || waiting ? 'info' : 'warning'}
+          title={
+            ok
+              ? 'You’re protected'
+              : configuredReady || waiting
+                ? 'Waiting for first drive'
+                : 'Checking protection…'
+          }
           body={
             ok
               ? 'Automatic protection looks ready. Manual drives always remain available.'
+              : configuredReady || waiting
+                ? 'Permissions and automatic capture are configured. We’ll call it protected after the first verified drive.'
               : 'We’ll re-check permissions. If something is still off, we’ll show one clear fix.'
           }
           emphasis="hero"
@@ -1254,7 +1438,7 @@ export function ProtectionAlertScreen() {
         {foregroundReady && !backgroundReady ? (
           <SecondaryButton label="Allow background location" onPress={() => setGuideStep('explain_bg')} />
         ) : null}
-        {ok ? (
+        {canFinishSetup ? (
           <PrimaryButton
             label="Done"
             onPress={() => {
@@ -1315,7 +1499,10 @@ export function ProtectionAlertScreen() {
         />
         <EvidenceRow label="Protection" value={product.trackingEnabled ? 'On' : 'Paused'} />
       </SoftPanel>
-      {protection.status !== 'protected' && protection.status !== 'manual_only' ? (
+      {protection.status !== 'protected' &&
+      protection.status !== 'manual_only' &&
+      protection.status !== 'configured_waiting' &&
+      protection.status !== 'temporarily_limited' ? (
         <PrimaryButton
           label="Start guided repair"
           onPress={startGuidedRepair}
@@ -1891,7 +2078,7 @@ export function ComingLaterScreen() {
 }
 
 export function PrivacyScreen() {
-  const { state, resetLocalData, restartOnboarding } = useApp();
+  const { state, resetLocalData } = useApp();
   const { product, resetProductData, setNotificationPreferences } = useProduct();
   const [message, setMessage] = useState<string | null>(null);
   const prefs = product.notificationPreferences;
@@ -1933,8 +2120,7 @@ export function PrivacyScreen() {
             void (async () => {
               await clearLocalPrivacyCaches();
               await resetProductData();
-              resetLocalData();
-              restartOnboarding();
+              await resetLocalData();
               setMessage('Local data deleted.');
             })();
           },

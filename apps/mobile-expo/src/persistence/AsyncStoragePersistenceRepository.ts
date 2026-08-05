@@ -9,17 +9,18 @@ import {
   type PersistenceSaveOutcome,
 } from '@milerecover/domain';
 
-const PRIMARY_KEY = '@milerecover/app-state/v1';
-const BACKUP_KEY = '@milerecover/app-state-backup/v1';
+export const APP_STATE_STORAGE_KEY = '@milerecover/app-state/v1';
+export const APP_STATE_BACKUP_STORAGE_KEY = '@milerecover/app-state-backup/v1';
+export const APP_STATE_STORAGE_KEYS = [APP_STATE_STORAGE_KEY, APP_STATE_BACKUP_STORAGE_KEY] as const;
 
 export class AsyncStoragePersistenceRepository implements PersistenceRepository {
   async load(): Promise<PersistenceLoadOutcome> {
     try {
-      const primary = await AsyncStorage.getItem(PRIMARY_KEY);
+      const primary = await AsyncStorage.getItem(APP_STATE_STORAGE_KEY);
       if (primary != null) {
         return deserializePersistedPayload(primary);
       }
-      const backup = await AsyncStorage.getItem(BACKUP_KEY);
+      const backup = await AsyncStorage.getItem(APP_STATE_BACKUP_STORAGE_KEY);
       if (backup != null) {
         return deserializePersistedPayload(backup);
       }
@@ -44,11 +45,11 @@ export class AsyncStoragePersistenceRepository implements PersistenceRepository 
         },
       };
       const json = serializePersistedDocument(toSave);
-      const existing = await AsyncStorage.getItem(PRIMARY_KEY);
+      const existing = await AsyncStorage.getItem(APP_STATE_STORAGE_KEY);
       if (existing != null) {
-        await AsyncStorage.setItem(BACKUP_KEY, existing);
+        await AsyncStorage.setItem(APP_STATE_BACKUP_STORAGE_KEY, existing);
       }
-      await AsyncStorage.setItem(PRIMARY_KEY, json);
+      await AsyncStorage.setItem(APP_STATE_STORAGE_KEY, json);
       return { ok: true, savedAt: now };
     } catch (error) {
       return {
@@ -59,7 +60,7 @@ export class AsyncStoragePersistenceRepository implements PersistenceRepository 
   }
 
   async clear(): Promise<void> {
-    await AsyncStorage.multiRemove([PRIMARY_KEY, BACKUP_KEY]);
+    await AsyncStorage.multiRemove([...APP_STATE_STORAGE_KEYS]);
   }
 }
 

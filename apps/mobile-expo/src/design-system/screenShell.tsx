@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing } from '@milerecover/config';
+import { spacing } from '@milerecover/config';
 import { useAppTheme } from './ThemeProvider';
 
 const GUTTER = spacing.md;
@@ -245,7 +245,5 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border.default,
-    backgroundColor: colors.background.canvas,
   },
 });

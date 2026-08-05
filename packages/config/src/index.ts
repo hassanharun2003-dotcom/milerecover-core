@@ -2,6 +2,8 @@ export {
   tokens,
   colors,
   darkColors,
+  lightSemantic,
+  darkSemantic,
   spacing,
   radii,
   typography,
@@ -10,4 +12,4 @@ export {
   iconSize,
   motion,
 } from './tokens';
-export type { ThemeTokens } from './tokens';
+export type { ThemeTokens, SemanticPalette, AppPalette } from './tokens';

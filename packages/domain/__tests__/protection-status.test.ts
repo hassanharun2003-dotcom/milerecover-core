@@ -28,12 +28,21 @@ function base(partial: Partial<ProtectionStatusInput> = {}): ProtectionStatusInp
 }
 
 describe('Protection status model', () => {
-  it('reports Protected when watching and permissions are healthy', () => {
+  it('reports Protected only when watching, permissions, and a verified capture are healthy', () => {
     const view = resolveProtectionStatus(base());
     expect(view.status).toBe('protected');
     expect(view.title).toMatch(/protected/i);
     expect(view.automaticDependable).toBe(true);
     expect(view.lastCheckLabel).toMatch(/Last successful check/);
+  });
+
+  it('reports configured waiting when setup is healthy but no drive has been verified', () => {
+    const view = resolveProtectionStatus(base({ lastConfirmedCaptureAt: null, lastSyncAt: null }));
+    expect(view.status).toBe('configured_waiting');
+    expect(view.title).toMatch(/waiting for first drive/i);
+    expect(view.title).not.toMatch(/protected/i);
+    expect(view.automaticDependable).toBe(false);
+    expect(view.lastCheckLabel).toBeNull();
   });
 
   it('reports Tracking paused when watching is disabled', () => {
@@ -45,8 +54,17 @@ describe('Protection status model', () => {
   it('reports Manual-only when automatic capture is unavailable', () => {
     const view = resolveProtectionStatus(base({ canUseAutomaticCapture: false }));
     expect(view.status).toBe('manual_only');
+    expect(view.title).toBe('Manual mode');
     expect(view.detail).toMatch(/automatically/i);
     expect(view.primaryIssue?.action).toBe('see_plans');
+  });
+
+  it('reports temporarily limited when automatic allowance is exhausted', () => {
+    const view = resolveProtectionStatus(base({ automaticAllowanceExhausted: true }));
+    expect(view.status).toBe('temporarily_limited');
+    expect(view.title).toBe('Temporarily limited');
+    expect(view.primaryIssue?.action).toBe('see_plans');
+    expect(view.automaticDependable).toBe(false);
   });
 
   it('reports Setup incomplete when protection setup was never finished', () => {
@@ -119,6 +137,12 @@ describe('Protection status model', () => {
     );
     expect(view.status).toBe('setup_incomplete');
     expect(view.status).not.toBe('protected');
+  });
+
+  it('does not claim protected merely because permissions are granted', () => {
+    const view = resolveProtectionStatus(base({ lastConfirmedCaptureAt: null }));
+    expect(view.status).toBe('configured_waiting');
+    expect(view.title).not.toMatch(/Your drives are protected/i);
   });
 
   it('exposes ordered repair steps for the Protection Center', () => {

@@ -39,8 +39,9 @@ describe('Manual trip validation', () => {
       confirmAsWork: true,
     });
     expect(errors.map((e) => e.field)).toEqual(
-      expect.arrayContaining(['distanceMiles', 'endAt', 'purpose']),
+      expect.arrayContaining(['distanceMiles', 'endAt']),
     );
+    expect(errors.map((e) => e.field)).not.toContain('purpose');
   });
 
   it('creates a confirmed work trip when valid', () => {

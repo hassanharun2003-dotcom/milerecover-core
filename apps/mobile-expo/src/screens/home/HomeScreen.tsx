@@ -11,18 +11,18 @@ import {
   resolveProtectionStatus,
 } from '@milerecover/domain';
 import {
-  OfflineBanner,
   PrimaryButton,
   SecondaryButton,
   SoftPanel,
   StatusCard,
   SummaryCard,
+  SkeletonBlock,
   TabScreen,
   TimelineRow,
   text,
 } from '../../design-system';
 import { greetingForName, tripSourceLabel } from '../../product/copy';
-import { selectHomePeriodSummary, selectProtectionView } from '../../product/presentation';
+import { selectHomePeriodSummary, selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
@@ -34,18 +34,25 @@ type HomeNav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-type CompactStatus = 'protected' | 'setup_incomplete' | 'needs_attention' | 'paused' | 'manual_mode';
+type CompactStatus =
+  | 'protected'
+  | 'configured_waiting'
+  | 'setup_incomplete'
+  | 'needs_attention'
+  | 'temporarily_limited'
+  | 'paused'
+  | 'manual_mode';
 
 function compactProtection(input: {
   status: ReturnType<typeof resolveProtectionStatus>['status'];
   primaryIssue: ReturnType<typeof resolveProtectionStatus>['primaryIssue'];
 }): { kind: CompactStatus; sentence: string; actionLabel: string; action: 'protection' | 'plans' | 'none' } {
-  if (input.primaryIssue?.action === 'see_plans') {
+  if (input.primaryIssue?.action === 'none') {
     return {
       kind: 'needs_attention',
       sentence: input.primaryIssue.what,
-      actionLabel: 'See plans',
-      action: 'plans',
+      actionLabel: '',
+      action: 'none',
     };
   }
   switch (input.status) {
@@ -56,12 +63,26 @@ function compactProtection(input: {
         actionLabel: 'View protection',
         action: 'protection',
       };
+    case 'configured_waiting':
+      return {
+        kind: 'configured_waiting',
+        sentence: 'Automatic capture is configured. We’ll verify it after your first drive.',
+        actionLabel: 'View protection',
+        action: 'protection',
+      };
     case 'setup_incomplete':
       return {
         kind: 'setup_incomplete',
         sentence: 'Finish a short setup to protect drives automatically.',
         actionLabel: 'Finish setup',
         action: 'protection',
+      };
+    case 'temporarily_limited':
+      return {
+        kind: 'temporarily_limited',
+        sentence: 'Automatic capture is temporarily limited. Manual drives still work.',
+        actionLabel: 'See plans',
+        action: 'plans',
       };
     case 'tracking_paused':
       return {
@@ -74,8 +95,8 @@ function compactProtection(input: {
       return {
         kind: 'manual_mode',
         sentence: 'Manual tracking is active. Set up automatic protection when you’re ready.',
-        actionLabel: 'Set up protection',
-        action: 'protection',
+        actionLabel: input.primaryIssue?.action === 'see_plans' ? 'See plans' : 'Set up protection',
+        action: input.primaryIssue?.action === 'see_plans' ? 'plans' : 'protection',
       };
     case 'needs_attention':
     default:
@@ -97,13 +118,34 @@ function statusVariant(kind: CompactStatus): 'success' | 'warning' | 'danger' | 
   switch (kind) {
     case 'protected':
       return 'success';
+    case 'configured_waiting':
     case 'manual_mode':
     case 'paused':
+    case 'temporarily_limited':
       return 'info';
     case 'setup_incomplete':
       return 'warning';
     case 'needs_attention':
       return 'danger';
+  }
+}
+
+function statusTitle(kind: CompactStatus): string {
+  switch (kind) {
+    case 'protected':
+      return 'Protected';
+    case 'configured_waiting':
+      return 'Waiting for first drive';
+    case 'temporarily_limited':
+      return 'Temporarily limited';
+    case 'setup_incomplete':
+      return 'Setup incomplete';
+    case 'paused':
+      return 'Paused';
+    case 'manual_mode':
+      return 'Manual mode';
+    case 'needs_attention':
+      return 'Needs attention';
   }
 }
 
@@ -115,11 +157,47 @@ function activityTimeLabel(timestamp: number): string {
   return daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
 }
 
+function HomeSkeleton() {
+  return (
+    <TabScreen>
+      <SkeletonBlock width="58%" height={24} style={{ marginBottom: spacing.md }} />
+      <SoftPanel>
+        <SkeletonBlock width="36%" height={20} style={{ marginBottom: spacing.sm }} />
+        <SkeletonBlock width="92%" height={16} />
+      </SoftPanel>
+      <SkeletonBlock width="42%" height={20} style={{ marginBottom: spacing.xs, marginTop: spacing.sm }} />
+      <SoftPanel>
+        <SkeletonBlock width="100%" height={56} />
+      </SoftPanel>
+      <SoftPanel>
+        <SkeletonBlock width="22%" height={20} style={{ marginBottom: spacing.sm }} />
+        <SkeletonBlock width="70%" height={16} />
+      </SoftPanel>
+      <SkeletonBlock width="32%" height={20} style={{ marginTop: spacing.sm, marginBottom: spacing.xs }} />
+      <SoftPanel>
+        <SkeletonBlock width="80%" height={16} />
+      </SoftPanel>
+      <SkeletonBlock width="100%" height={48} style={{ marginTop: spacing.sm }} />
+    </TabScreen>
+  );
+}
+
+type NextBestAction =
+  | {
+      label: string;
+      run: () => void;
+    }
+  | {
+      label: string;
+      run: null;
+    };
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
   const {
     product,
+    hydrated: productHydrated,
     consumePendingPostOnboardingRoute,
     markFirstConfirmedWorkDrive,
     markFirstRecoveredDrive,
@@ -127,13 +205,14 @@ export function HomeScreen() {
     markFirstReportPreview,
   } = useProduct();
   const recoveryRefreshed = useRef(false);
+  const homeReady = state.hydrated && productHydrated;
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const { scenario, liveMode } = experience;
   const greeting = greetingForName(product.preferredName);
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const setupIncomplete =
     product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
-  const pendingReviewCount = experience.activeReviewItems.length;
+  const pendingReviewCount = selectPendingReviewCount(state, product, permissions, automaticCaptureAvailable);
   const protection = selectProtectionView({
     app: state,
     product,
@@ -157,9 +236,15 @@ export function HomeScreen() {
     periodKind: 'this_week',
   });
 
-  const nextBest = useMemo(() => {
+  const nextBest = useMemo<NextBestAction>(() => {
     // Priority: blocking tracking → classification → report correction → rate → recovery → report ready → caught up
-    if (compact.kind === 'needs_attention' || compact.kind === 'paused' || compact.kind === 'setup_incomplete') {
+    if (
+      compact.action !== 'none' &&
+      (compact.kind === 'needs_attention' ||
+        compact.kind === 'paused' ||
+        compact.kind === 'setup_incomplete' ||
+        compact.kind === 'temporarily_limited')
+    ) {
       return {
         label:
           compact.kind === 'paused'
@@ -217,7 +302,7 @@ export function HomeScreen() {
     }
     return {
       label: 'You’re all caught up',
-      run: () => navigation.navigate('ManualTrip'),
+      run: null,
     };
   }, [
     capabilities.canUseAutomaticCapture,
@@ -236,6 +321,7 @@ export function HomeScreen() {
   ]);
 
   useEffect(() => {
+    if (!homeReady) return;
     const route = consumePendingPostOnboardingRoute();
     if (!route || route === 'Proof') {
       if (route === 'Proof') navigation.navigate('Proof');
@@ -246,9 +332,10 @@ export function HomeScreen() {
     else if (route === 'BringExistingMileage') navigation.navigate('BringExistingMileage');
     else if (route === 'MissingTripRecovery') navigation.navigate('Review');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product.pendingPostOnboardingRoute]);
+  }, [homeReady, product.pendingPostOnboardingRoute]);
 
   useEffect(() => {
+    if (!homeReady) return;
     if (!capabilities.canUseGapDetection) return;
     if (recoveryRefreshed.current || experience.confirmedTrips.length === 0) return;
     recoveryRefreshed.current = true;
@@ -256,23 +343,27 @@ export function HomeScreen() {
   }, [
     capabilities.canUseGapDetection,
     experience.confirmedTrips.length,
+    homeReady,
     product.workLocations,
     refreshRecoverySuggestions,
   ]);
 
   useEffect(() => {
+    if (!homeReady) return;
     if (liveMode && confirmedCount > 0 && product.firstConfirmedWorkDriveAt == null) {
       markFirstConfirmedWorkDrive();
     }
-  }, [confirmedCount, liveMode, markFirstConfirmedWorkDrive, product.firstConfirmedWorkDriveAt]);
+  }, [confirmedCount, homeReady, liveMode, markFirstConfirmedWorkDrive, product.firstConfirmedWorkDriveAt]);
 
   useEffect(() => {
+    if (!homeReady) return;
     if (liveMode && recoveredCount > 0 && product.firstRecoveredDriveAt == null) {
       markFirstRecoveredDrive();
     }
-  }, [liveMode, markFirstRecoveredDrive, product.firstRecoveredDriveAt, recoveredCount]);
+  }, [homeReady, liveMode, markFirstRecoveredDrive, product.firstRecoveredDriveAt, recoveredCount]);
 
   useEffect(() => {
+    if (!homeReady) return;
     if (
       liveMode &&
       experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip') &&
@@ -282,17 +373,20 @@ export function HomeScreen() {
     }
   }, [
     experience.activeReviewItems,
+    homeReady,
     liveMode,
     markFirstMissingTripSeen,
     product.firstMissingTripSeenAt,
   ]);
 
   useEffect(() => {
+    if (!homeReady) return;
     if (liveMode && scenario.proofReady && product.firstReportPreviewAt == null && confirmedCount > 0) {
       markFirstReportPreview();
     }
   }, [
     confirmedCount,
+    homeReady,
     liveMode,
     markFirstReportPreview,
     product.firstReportPreviewAt,
@@ -301,35 +395,18 @@ export function HomeScreen() {
 
   const recent = scenario.activity.slice(0, 3);
 
+  if (!homeReady) return <HomeSkeleton />;
+
   return (
     <TabScreen>
       <Text style={[text.subtitle, { marginBottom: spacing.xs }]} accessibilityRole="text">
         {greeting ?? 'Welcome back.'}
       </Text>
 
-      {scenario.homeState === 'offline' ? (
-        <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
-      ) : null}
-
       <StatusCard
         variant={statusVariant(compact.kind)}
-        title={
-          compact.kind === 'protected'
-            ? 'Protected'
-            : compact.kind === 'setup_incomplete'
-              ? 'Setup incomplete'
-              : compact.kind === 'paused'
-                ? 'Paused'
-                : compact.kind === 'manual_mode'
-                  ? 'Manual mode'
-                  : 'Needs attention'
-        }
+        title={statusTitle(compact.kind)}
         body={compact.sentence}
-        actionLabel={compact.actionLabel}
-        onAction={() => {
-          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
-          else if (compact.action === 'protection') navigation.navigate('ProtectionAlert');
-        }}
         emphasis="subtle"
       />
 
@@ -359,11 +436,15 @@ export function HomeScreen() {
 
       <SoftPanel>
         <Text style={text.subtitle}>Next</Text>
-        <PrimaryButton
-          label={nextBest.label}
-          onPress={nextBest.run}
-          accessibilityLabel={nextBest.label}
-        />
+        {nextBest.run ? (
+          <PrimaryButton
+            label={nextBest.label}
+            onPress={nextBest.run}
+            accessibilityLabel={nextBest.label}
+          />
+        ) : (
+          <Text style={[text.body, { marginTop: spacing.xs }]}>{nextBest.label}</Text>
+        )}
       </SoftPanel>
 
       {experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip') ? (
@@ -371,8 +452,6 @@ export function HomeScreen() {
           variant="warning"
           title="Possible missed drives"
           body="Review suggested gaps. Nothing is added until you confirm."
-          actionLabel="Review"
-          onAction={() => navigation.navigate('Review')}
           emphasis="subtle"
         />
       ) : null}

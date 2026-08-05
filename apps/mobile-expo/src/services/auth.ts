@@ -62,7 +62,7 @@ export interface AuthPort {
   signOut(): Promise<void>;
 }
 
-const SESSION_KEY = '@milerecover/auth-session/v1';
+export const AUTH_SESSION_STORAGE_KEY = '@milerecover/auth-session/v1';
 
 export const AUTH_UNAVAILABLE_MESSAGE =
   'Sign-in isn’t configured for this build yet. You can continue without an account — your miles stay on this device.';
@@ -106,15 +106,15 @@ export function shouldShowAccountPreviewCopy(variant?: string): boolean {
 
 async function persistSession(session: AuthSession | null): Promise<void> {
   if (!session) {
-    await AsyncStorage.removeItem(SESSION_KEY);
+    await AsyncStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
     return;
   }
-  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  await AsyncStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
 async function readSession(): Promise<AuthSession | null> {
   try {
-    const raw = await AsyncStorage.getItem(SESSION_KEY);
+    const raw = await AsyncStorage.getItem(AUTH_SESSION_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AuthSession;
     if (!parsed?.userId || !parsed?.provider) return null;
@@ -310,5 +310,5 @@ export function isAuthConfigured(): boolean {
 }
 
 export async function clearAuthSessionForTests(): Promise<void> {
-  await AsyncStorage.removeItem(SESSION_KEY);
+  await AsyncStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
 }

@@ -27,7 +27,8 @@ import {
 } from '@milerecover/domain';
 import type { PlanTier } from '../fixtures/subscription';
 import type { DemoScenario } from '../fixtures/scenarios';
-import { clearProductUiState, loadProductUiState, saveProductUiState } from './persistence';
+import { resetAppExperience } from '../services/dataPrivacy';
+import { loadProductUiState, saveProductUiState } from './persistence';
 import {
   allowInternalPreviewTools,
   createInitialProductUiState,
@@ -737,10 +738,9 @@ export function ProductProvider({
       markManualTripsMigrated: () =>
         persist((prev) => ({ ...prev, manualTrips: [], manualTripsMigrated: true })),
       resetProductData: async () => {
-        await clearProductUiState();
+        await resetAppExperience();
         const next = createInitialProductUiState();
         setProduct(next);
-        if (hydratedRef.current) await saveProductUiState(next);
       },
     }),
     [product, hydrated, persist],

@@ -13,8 +13,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radii, shadows, spacing, touchTarget, typography } from '@milerecover/config';
+import { colors, radii, shadows, spacing, touchTarget, typography, type AppPalette } from '@milerecover/config';
 import { statusColors, type StatusVariant } from './theme';
+import { useAppTheme } from './ThemeProvider';
 export {
   TabScreen,
   StackScrollScreen,
@@ -70,6 +71,50 @@ const cardBase = {
   ...shadows.card,
 } as const;
 
+type TextTone = 'primary' | 'secondary' | 'muted' | 'inverse' | 'action' | 'disabled';
+
+function toneColor(palette: AppPalette, tone: TextTone = 'primary'): string {
+  switch (tone) {
+    case 'secondary':
+      return palette.text.secondary;
+    case 'muted':
+      return palette.text.muted;
+    case 'inverse':
+      return palette.text.inverse;
+    case 'action':
+      return palette.action.secondaryText;
+    case 'disabled':
+      return palette.text.disabled;
+    default:
+      return palette.text.primary;
+  }
+}
+
+function themedText(palette: AppPalette, tone: TextTone = 'primary'): TextStyle {
+  return { color: toneColor(palette, tone) };
+}
+
+function themedCard(palette: AppPalette): ViewStyle {
+  return {
+    backgroundColor: palette.background.card,
+    borderColor: palette.border.default,
+  };
+}
+
+function themedPanel(palette: AppPalette): ViewStyle {
+  return {
+    backgroundColor: palette.background.mist,
+    borderColor: palette.border.default,
+  };
+}
+
+function themedInput(palette: AppPalette): ViewStyle {
+  return {
+    backgroundColor: palette.input.surface,
+    borderColor: palette.border.default,
+  };
+}
+
 export function AppScreen({
   children,
   style,
@@ -79,8 +124,9 @@ export function AppScreen({
   style?: StyleProp<ViewStyle>;
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
 }) {
+  const { palette } = useAppTheme();
   return (
-    <SafeAreaView edges={edges} style={[styles.screen, style]}>
+    <SafeAreaView edges={edges} style={[styles.screen, { backgroundColor: palette.background.canvas }, style]}>
       {children}
     </SafeAreaView>
   );
@@ -103,6 +149,8 @@ export function AppHeader({
   onBack?: () => void;
   dark?: boolean;
 }) {
+  const { palette } = useAppTheme();
+  const headerText = dark ? themedText(palette, 'inverse') : themedText(palette);
   return (
     <View style={[styles.header, dark && styles.headerDark]}>
       {onBack ? (
@@ -112,24 +160,25 @@ export function AppHeader({
           accessibilityLabel="Go back"
           style={styles.backBtn}
         >
-          <Text style={[text.body, dark && text.inverse]}>← Back</Text>
+          <Text style={[text.body, headerText]}>← Back</Text>
         </Pressable>
       ) : null}
-      <Text style={[text.title, dark && text.inverse]} accessibilityRole="header">
+      <Text style={[text.title, headerText]} accessibilityRole="header">
         {title}
       </Text>
-      {subtitle ? <Text style={[text.body, dark && text.inverse, styles.headerSub]}>{subtitle}</Text> : null}
+      {subtitle ? <Text style={[text.body, headerText, styles.headerSub]}>{subtitle}</Text> : null}
     </View>
   );
 }
 
 export function SectionHeader({ title, actionLabel, onAction }: { title: string; actionLabel?: string; onAction?: () => void }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.sectionHeader}>
-      <Text style={text.subtitle}>{title}</Text>
+      <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction} accessibilityRole="button" accessibilityLabel={actionLabel}>
-          <Text style={styles.link}>{actionLabel}</Text>
+          <Text style={[styles.link, themedText(palette, 'action')]}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -137,7 +186,8 @@ export function SectionHeader({ title, actionLabel, onAction }: { title: string;
 }
 
 export function Badge({ label, variant = 'neutral' }: { label: string; variant?: StatusVariant }) {
-  const c = statusColors(variant);
+  const { palette } = useAppTheme();
+  const c = statusColors(variant, palette);
   return (
     <View style={[styles.badge, { backgroundColor: c.bg }]} accessibilityLabel={label}>
       <Text style={[styles.badgeText, { color: c.fg }]}>{label}</Text>
@@ -148,20 +198,28 @@ export function Badge({ label, variant = 'neutral' }: { label: string; variant?:
 export function PrimaryButton({ label, onPress, disabled, loading, accessibilityLabel }: {
   label: string; onPress: () => void; disabled?: boolean; loading?: boolean; accessibilityLabel?: string;
 }) {
+  const { palette } = useAppTheme();
+  const blocked = Boolean(disabled || loading);
   return (
     <Pressable
       style={({ pressed }) => [
         styles.primaryBtn,
-        (disabled || loading) && styles.btnDisabled,
+        { backgroundColor: palette.action.primary },
+        blocked && {
+          backgroundColor: palette.action.disabledSurface,
+          borderColor: palette.action.disabledSurface,
+        },
         pressed && !disabled && !loading && styles.btnPressed,
       ]}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={blocked}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      accessibilityState={{ disabled: blocked, busy: loading }}
     >
-      <Text style={styles.primaryBtnText}>{loading ? 'One moment…' : label}</Text>
+      <Text style={[styles.primaryBtnText, { color: blocked ? palette.action.disabledText : palette.action.primaryText }]}>
+        {loading ? 'One moment…' : label}
+      </Text>
     </Pressable>
   );
 }
@@ -169,12 +227,16 @@ export function PrimaryButton({ label, onPress, disabled, loading, accessibility
 export function SecondaryButton({ label, onPress, disabled, accessibilityLabel, compact }: {
   label: string; onPress: () => void; disabled?: boolean; accessibilityLabel?: string; compact?: boolean;
 }) {
+  const { palette } = useAppTheme();
   return (
     <Pressable
       style={({ pressed }) => [
         styles.secondaryBtn,
+        {
+          backgroundColor: disabled ? palette.action.disabledSurface : 'transparent',
+          borderColor: disabled ? palette.action.disabledSurface : palette.action.outlineBorder,
+        },
         compact && styles.secondaryBtnCompact,
-        disabled && styles.btnDisabled,
         pressed && !disabled && styles.btnPressed,
       ]}
       onPress={onPress}
@@ -183,7 +245,13 @@ export function SecondaryButton({ label, onPress, disabled, accessibilityLabel, 
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: Boolean(disabled) }}
     >
-      <Text style={[styles.secondaryBtnText, disabled && styles.secondaryBtnTextDisabled]} numberOfLines={1}>
+      <Text
+        style={[
+          styles.secondaryBtnText,
+          { color: disabled ? palette.action.disabledText : palette.action.secondaryText },
+        ]}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </Pressable>
@@ -202,11 +270,16 @@ export function Chip({
   onPress: () => void;
   accessibilityLabel?: string;
 }) {
+  const { palette } = useAppTheme();
   return (
     <Pressable
       style={({ pressed }) => [
         styles.chip,
         selected && styles.chipSelected,
+        {
+          backgroundColor: selected ? palette.action.selectedSurface : palette.background.card,
+          borderColor: selected ? palette.action.selectedBorder : palette.action.outlineBorder,
+        },
         pressed && styles.btnPressed,
       ]}
       onPress={onPress}
@@ -214,7 +287,14 @@ export function Chip({
       accessibilityState={{ selected: Boolean(selected) }}
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]} numberOfLines={1}>
+      <Text
+        style={[
+          styles.chipText,
+          selected && styles.chipTextSelected,
+          { color: selected ? palette.text.primary : palette.action.secondaryText },
+        ]}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </Pressable>
@@ -235,9 +315,10 @@ export function ChipRow({ children }: { children: React.ReactNode }) {
 }
 
 export function TertiaryButton({ label, onPress, accessibilityLabel }: { label: string; onPress: () => void; accessibilityLabel?: string }) {
+  const { palette } = useAppTheme();
   return (
     <Pressable style={styles.tertiaryBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label}>
-      <Text style={styles.tertiaryBtnText}>{label}</Text>
+      <Text style={[styles.tertiaryBtnText, themedText(palette, 'action')]}>{label}</Text>
     </Pressable>
   );
 }
@@ -245,11 +326,15 @@ export function TertiaryButton({ label, onPress, accessibilityLabel }: { label: 
 export function DestructiveButton({ label, onPress, disabled, accessibilityLabel }: {
   label: string; onPress: () => void; disabled?: boolean; accessibilityLabel?: string;
 }) {
+  const { palette } = useAppTheme();
   return (
     <Pressable
       style={({ pressed }) => [
         styles.destructiveBtn,
-        disabled && styles.btnDisabled,
+        {
+          backgroundColor: disabled ? palette.action.disabledSurface : palette.status.dangerBg,
+          borderColor: disabled ? palette.action.disabledSurface : palette.status.danger,
+        },
         pressed && !disabled && styles.btnPressed,
       ]}
       onPress={onPress}
@@ -257,32 +342,44 @@ export function DestructiveButton({ label, onPress, disabled, accessibilityLabel
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      <Text style={styles.destructiveBtnText}>{label}</Text>
+      <Text style={[styles.destructiveBtnText, { color: disabled ? palette.action.disabledText : palette.status.danger }]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 export function OfflineBanner({ body = 'Saved safely offline. Sync will resume when you are back online.' }: { body?: string }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={styles.offlineBanner} accessibilityRole="text" accessibilityLabel={body}>
-      <Text style={[text.caption, { color: colors.text.primary, fontWeight: '600' }]}>Offline</Text>
-      <Text style={[text.caption, { color: colors.text.secondary, marginTop: 2 }]}>{body}</Text>
+    <View style={[styles.offlineBanner, themedPanel(palette)]} accessibilityRole="text" accessibilityLabel={body}>
+      <Text style={[text.caption, themedText(palette), { fontWeight: '600' }]}>Offline</Text>
+      <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: 2 }]}>{body}</Text>
     </View>
   );
 }
 
 export function ErrorBanner({ title, body }: { title: string; body: string }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={styles.errorBanner} accessibilityRole="alert" accessibilityLabel={`${title}. ${body}`}>
-      <Text style={[text.subtitle, { color: colors.danger[600] }]}>{title}</Text>
-      <Text style={[text.body, { marginTop: spacing.xs }]}>{body}</Text>
+    <View
+      style={[
+        styles.errorBanner,
+        { backgroundColor: palette.status.dangerBg, borderColor: palette.status.danger },
+      ]}
+      accessibilityRole="alert"
+      accessibilityLabel={`${title}. ${body}`}
+    >
+      <Text style={[text.subtitle, { color: palette.status.danger }]}>{title}</Text>
+      <Text style={[text.body, themedText(palette), { marginTop: spacing.xs }]}>{body}</Text>
     </View>
   );
 }
 
 export function FormError({ message }: { message: string }) {
+  const { palette } = useAppTheme();
   return (
-    <Text style={styles.formError} accessibilityRole="alert">
+    <Text style={[styles.formError, { color: palette.status.danger }]} accessibilityRole="alert">
       {message}
     </Text>
   );
@@ -297,20 +394,21 @@ export function UndoSnackbar({
   onUndo: () => void;
   onDismiss?: () => void;
 }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={styles.undoSnackbar} accessibilityRole="summary" accessibilityLabel={message}>
-      <Text style={[text.body, text.inverse, { flex: 1 }]}>{message}</Text>
+    <View style={[styles.undoSnackbar, { backgroundColor: palette.neutral[900] }]} accessibilityRole="summary" accessibilityLabel={message}>
+      <Text style={[text.body, themedText(palette, 'inverse'), { flex: 1 }]}>{message}</Text>
       <Pressable
         onPress={onUndo}
         accessibilityRole="button"
         accessibilityLabel="Undo"
         style={styles.undoSnackbarAction}
       >
-        <Text style={styles.undoSnackbarActionText}>Undo</Text>
+        <Text style={[styles.undoSnackbarActionText, { color: palette.forest[100] }]}>Undo</Text>
       </Pressable>
       {onDismiss ? (
         <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Dismiss" style={styles.undoSnackbarAction}>
-          <Text style={styles.undoSnackbarActionText}>✕</Text>
+          <Text style={[styles.undoSnackbarActionText, { color: palette.forest[100] }]}>✕</Text>
         </Pressable>
       ) : null}
     </View>
@@ -318,7 +416,8 @@ export function UndoSnackbar({
 }
 
 export function SoftPanel({ children }: { children: React.ReactNode }) {
-  return <View style={styles.softPanel}>{children}</View>;
+  const { palette } = useAppTheme();
+  return <View style={[styles.softPanel, themedPanel(palette)]}>{children}</View>;
 }
 
 export function StatusCard({
@@ -337,7 +436,8 @@ export function StatusCard({
   /** hero = one dark focal surface; subtle = borderless calm panel */
   emphasis?: 'default' | 'hero' | 'subtle';
 }) {
-  const c = statusColors(variant);
+  const { palette } = useAppTheme();
+  const c = statusColors(variant, palette);
   const isAlert = variant === 'warning' || variant === 'danger';
   const isHeroSuccess = variant === 'success' && emphasis === 'hero';
   const isSubtle = emphasis === 'subtle';
@@ -348,10 +448,13 @@ export function StatusCard({
         isAlert
           ? { backgroundColor: c.bg, borderColor: c.fg }
           : isHeroSuccess
-            ? styles.statusCardProtected
+            ? [
+                styles.statusCardProtected,
+                { backgroundColor: palette.forest[800], borderColor: palette.forest[700] },
+              ]
             : isSubtle
-              ? styles.statusCardSubtle
-              : { backgroundColor: c.bg, borderColor: colors.border.default },
+              ? [styles.statusCardSubtle, themedCard(palette)]
+              : { backgroundColor: c.bg, borderColor: palette.border.default },
       ]}
       accessibilityRole="summary"
       accessibilityLabel={`${title}. ${body}`}
@@ -362,8 +465,8 @@ export function StatusCard({
           isAlert
             ? { color: c.fg }
             : isHeroSuccess
-              ? styles.statusProtectedTitle
-              : { color: colors.text.primary },
+              ? [styles.statusProtectedTitle, themedText(palette, 'inverse')]
+              : themedText(palette),
         ]}
       >
         {title}
@@ -372,10 +475,10 @@ export function StatusCard({
         style={[
           text.body,
           isAlert
-            ? { color: colors.text.primary }
+            ? themedText(palette)
             : isHeroSuccess
-              ? styles.statusProtectedBody
-              : { color: colors.text.secondary },
+              ? [styles.statusProtectedBody, { color: palette.forest[100] }]
+              : themedText(palette, 'secondary'),
           { marginTop: spacing.xs },
         ]}
       >
@@ -391,12 +494,13 @@ export function StatusCard({
 }
 
 export function SummaryCard({ items }: { items: { label: string; value: string }[] }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={[cardBase, styles.summaryRow]} accessibilityRole="summary">
+    <View style={[cardBase, themedCard(palette), styles.summaryRow]} accessibilityRole="summary">
       {items.map((item) => (
         <View key={item.label} style={styles.summaryItem}>
-          <Text style={text.caption}>{item.label}</Text>
-          <Text style={[styles.summaryValue, text.tabular]}>{item.value}</Text>
+          <Text style={[text.caption, themedText(palette, 'secondary')]}>{item.label}</Text>
+          <Text style={[styles.summaryValue, text.tabular, { color: palette.action.secondaryText }]}>{item.value}</Text>
         </View>
       ))}
     </View>
@@ -404,12 +508,13 @@ export function SummaryCard({ items }: { items: { label: string; value: string }
 }
 
 export function EvidenceRow({ label, value }: { label: string; value: string }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.evidenceRow} accessibilityLabel={`${label}, ${value}`}>
-      <Text style={[text.caption, styles.evidenceLabel]} numberOfLines={2}>
+      <Text style={[text.caption, styles.evidenceLabel, themedText(palette, 'secondary')]} numberOfLines={2}>
         {label}
       </Text>
-      <Text style={[text.body, styles.evidenceValue]} numberOfLines={3}>
+      <Text style={[text.body, styles.evidenceValue, themedText(palette)]} numberOfLines={3}>
         {value}
       </Text>
     </View>
@@ -427,13 +532,14 @@ export function TimelineRow({
   timeLabel: string;
   onPress?: () => void;
 }) {
+  const { palette } = useAppTheme();
   const content = (
     <>
-      <View style={styles.timelineDot} />
+      <View style={[styles.timelineDot, { backgroundColor: palette.forest[500] }]} />
       <View style={{ flex: 1 }}>
-        <Text style={text.subtitle}>{title}</Text>
-        <Text style={text.body}>{subtitle}</Text>
-        <Text style={text.caption}>{timeLabel}</Text>
+        <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
+        <Text style={[text.body, themedText(palette, 'secondary')]}>{subtitle}</Text>
+        <Text style={[text.caption, themedText(palette, 'secondary')]}>{timeLabel}</Text>
       </View>
     </>
   );
@@ -493,6 +599,7 @@ export function ReviewCard({
   onNotSure?: () => void;
   onUndo?: () => void;
 }) {
+  const { palette } = useAppTheme();
   const a11y = [
     title,
     `Time ${subtitle}`,
@@ -506,7 +613,7 @@ export function ReviewCard({
     .join('. ');
   return (
     <Pressable
-      style={({ pressed }) => [cardBase, pressed && styles.cardPressed]}
+      style={({ pressed }) => [cardBase, themedCard(palette), pressed && styles.cardPressed]}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="summary"
@@ -515,25 +622,25 @@ export function ReviewCard({
       <View style={styles.reviewCardTop}>
         <RouteMapPreview points={routePreview} />
         <View style={{ flex: 1 }}>
-          <Text style={text.subtitle}>{title}</Text>
-          <Text style={[text.caption, { marginTop: spacing.xs }]}>Time · {subtitle}</Text>
-          <Text style={[text.caption, { marginTop: spacing.xs }]}>Distance · {distance}</Text>
-          <Text style={[text.caption, { marginTop: spacing.xs }]}>
+          <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
+          <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Time · {subtitle}</Text>
+          <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Distance · {distance}</Text>
+          <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>
             Purpose · {purpose?.trim() ? purpose : 'Not set'}
           </Text>
           {confidence ? (
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>Confidence · {confidence}</Text>
+            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Confidence · {confidence}</Text>
           ) : null}
           {estimatedValue ? (
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>{estimatedValue}</Text>
+            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{estimatedValue}</Text>
           ) : null}
           {evidence ? (
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>{evidence}</Text>
+            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{evidence}</Text>
           ) : provenance ? (
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>{provenance}</Text>
+            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{provenance}</Text>
           ) : null}
-          {vehicle ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{vehicle}</Text> : null}
-          {reason ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{reason}</Text> : null}
+          {vehicle ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{vehicle}</Text> : null}
+          {reason ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{reason}</Text> : null}
         </View>
       </View>
       <View style={styles.reviewActions}>
@@ -566,10 +673,11 @@ export function ReviewCard({
 }
 
 export function ListSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.listSection}>
-      <Text style={[text.caption, styles.listSectionTitle]}>{title.toUpperCase()}</Text>
-      <View style={cardBase}>{children}</View>
+      <Text style={[text.caption, styles.listSectionTitle, themedText(palette, 'muted')]}>{title.toUpperCase()}</Text>
+      <View style={[cardBase, themedCard(palette)]}>{children}</View>
     </View>
   );
 }
@@ -589,6 +697,7 @@ export function ListRow({
   disabled?: boolean;
   busy?: boolean;
 }) {
+  const { palette } = useAppTheme();
   const displayValue = busy ? (value && /preparing/i.test(value) ? value : 'Preparing…') : value;
   const blocked = Boolean(disabled || busy);
   const a11yLabel = displayValue ? `${label}, ${displayValue}` : label;
@@ -596,13 +705,13 @@ export function ListRow({
   const content = longValue ? (
     <View style={styles.listRowStacked}>
       <View style={styles.listRowStackedTop}>
-        <Text style={[text.body, styles.listRowLabelGrow]} numberOfLines={2}>
+        <Text style={[text.body, styles.listRowLabelGrow, themedText(palette)]} numberOfLines={2}>
           {label}
         </Text>
-        {showChevron && !busy ? <Text style={[text.caption, styles.listRowChevron]}>›</Text> : null}
+        {showChevron && !busy ? <Text style={[text.caption, styles.listRowChevron, themedText(palette, 'secondary')]}>›</Text> : null}
       </View>
       {displayValue ? (
-        <Text style={[text.caption, styles.listRowValueStacked]} numberOfLines={4}>
+        <Text style={[text.caption, styles.listRowValueStacked, themedText(palette, 'secondary')]} numberOfLines={4}>
           {displayValue}
         </Text>
       ) : null}
@@ -610,25 +719,25 @@ export function ListRow({
   ) : (
     <>
       <Text
-        style={[text.body, displayValue ? styles.listRowLabel : styles.listRowLabelGrow]}
+        style={[text.body, displayValue ? styles.listRowLabel : styles.listRowLabelGrow, themedText(palette)]}
         numberOfLines={2}
       >
         {label}
       </Text>
       <View style={styles.listRowRight}>
         {displayValue ? (
-          <Text style={[text.caption, styles.listRowValue]} numberOfLines={2}>
+          <Text style={[text.caption, styles.listRowValue, themedText(palette, 'secondary')]} numberOfLines={2}>
             {displayValue}
           </Text>
         ) : null}
-        {showChevron && !busy ? <Text style={[text.caption, styles.listRowChevron]}>›</Text> : null}
+        {showChevron && !busy ? <Text style={[text.caption, styles.listRowChevron, themedText(palette, 'secondary')]}>›</Text> : null}
       </View>
     </>
   );
   if (onPress) {
     return (
       <Pressable
-        style={[styles.listRow, blocked && styles.listRowDisabled]}
+        style={[styles.listRow, { borderBottomColor: palette.border.default }, blocked && styles.listRowDisabled]}
         onPress={onPress}
         disabled={blocked}
         accessibilityRole="button"
@@ -640,7 +749,7 @@ export function ListRow({
     );
   }
   return (
-    <View style={styles.listRow} accessibilityLabel={a11yLabel}>
+    <View style={[styles.listRow, { borderBottomColor: palette.border.default }]} accessibilityLabel={a11yLabel}>
       {content}
     </View>
   );
@@ -649,16 +758,26 @@ export function ListRow({
 export function SelectionCard({ title, body, selected, onPress }: {
   title: string; body?: string; selected: boolean; onPress: () => void;
 }) {
+  const { palette } = useAppTheme();
   return (
     <Pressable
-      style={[cardBase, styles.selectionCard, selected && styles.selectionCardSelected]}
+      style={[
+        cardBase,
+        themedCard(palette),
+        styles.selectionCard,
+        selected && styles.selectionCardSelected,
+        selected && {
+          backgroundColor: palette.action.selectedSurface,
+          borderColor: palette.action.selectedBorder,
+        },
+      ]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={title}
     >
-      <Text style={text.subtitle}>{title}</Text>
-      {body ? <Text style={[text.body, { marginTop: spacing.xs }]}>{body}</Text> : null}
+      <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
+      {body ? <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{body}</Text> : null}
     </Pressable>
   );
 }
@@ -690,24 +809,33 @@ export function PlanCard({
   priceNote?: string;
   selectLabel?: string;
 }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={[cardBase, styles.planCard, highlighted && styles.planHighlighted]}>
+    <View
+      style={[
+        cardBase,
+        themedCard(palette),
+        styles.planCard,
+        highlighted && styles.planHighlighted,
+        highlighted && { borderColor: palette.action.selectedBorder },
+      ]}
+    >
       {highlighted ? <Badge label="Recommended" variant="info" /> : null}
       {current ? <Badge label="Your plan" variant="success" /> : null}
-      <Text style={[text.subtitle, { marginTop: spacing.xs }]}>{name}</Text>
+      <Text style={[text.subtitle, themedText(palette), { marginTop: spacing.xs }]}>{name}</Text>
       {tagline ? (
-        <Text style={[text.body, { marginTop: spacing.xs, color: colors.forest[700] }]} numberOfLines={2}>
+        <Text style={[text.body, themedText(palette, 'action'), { marginTop: spacing.xs }]} numberOfLines={2}>
           {tagline}
         </Text>
       ) : null}
-      <Text style={[text.title, { marginTop: spacing.sm }]} allowFontScaling>
+      <Text style={[text.title, themedText(palette), { marginTop: spacing.sm }]} allowFontScaling>
         {price}
-        <Text style={text.caption}> / {period}</Text>
+        <Text style={[text.caption, themedText(palette, 'secondary')]}> / {period}</Text>
       </Text>
-      {priceNote ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{priceNote}</Text> : null}
-      {savingsLabel ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{savingsLabel}</Text> : null}
+      {priceNote ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{priceNote}</Text> : null}
+      {savingsLabel ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{savingsLabel}</Text> : null}
       {features.slice(0, 3).map((f) => (
-        <Text key={f} style={[text.body, { marginTop: spacing.xs }]} numberOfLines={2}>
+        <Text key={f} style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]} numberOfLines={2}>
           • {f}
         </Text>
       ))}
@@ -729,10 +857,16 @@ export function PlanCard({
 }
 
 export function ImportOptionCard({ title, subtitle, onPress }: { title: string; subtitle: string; onPress: () => void }) {
+  const { palette } = useAppTheme();
   return (
-    <Pressable style={[cardBase, { marginBottom: spacing.sm }]} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
-      <Text style={text.subtitle}>{title}</Text>
-      <Text style={[text.body, { marginTop: spacing.xs }]}>{subtitle}</Text>
+    <Pressable
+      style={[cardBase, themedCard(palette), { marginBottom: spacing.sm }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
+      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{subtitle}</Text>
     </Pressable>
   );
 }
@@ -740,10 +874,11 @@ export function ImportOptionCard({ title, subtitle, onPress }: { title: string; 
 export function EmptyState({ title, body, actionLabel, onAction }: {
   title: string; body: string; actionLabel?: string; onAction?: () => void;
 }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.empty} accessibilityRole="text">
-      <Text style={text.title}>{title}</Text>
-      <Text style={[text.body, { marginTop: spacing.sm, textAlign: 'center' }]}>{body}</Text>
+      <Text style={[text.title, themedText(palette)]}>{title}</Text>
+      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm, textAlign: 'center' }]}>{body}</Text>
       {actionLabel && onAction ? (
         <View style={{ marginTop: spacing.lg, width: '100%' }}>
           <PrimaryButton label={actionLabel} onPress={onAction} />
@@ -754,10 +889,19 @@ export function EmptyState({ title, body, actionLabel, onAction }: {
 }
 
 export function ProgressIndicator({ step, total }: { step: number; total: number }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.progressRow} accessibilityLabel={`Step ${step + 1} of ${total}`}>
       {Array.from({ length: total }).map((_, i) => (
-        <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />
+        <View
+          key={i}
+          style={[
+            styles.progressDot,
+            { backgroundColor: palette.border.default },
+            i <= step && styles.progressDotActive,
+            i <= step && { backgroundColor: palette.action.primary },
+          ]}
+        />
       ))}
     </View>
   );
@@ -772,19 +916,32 @@ export function SegmentedControl<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={styles.segmented}>
+    <View style={[styles.segmented, { backgroundColor: palette.background.mist }]}>
       {options.map((opt) => {
         const selected = opt.value === value;
         return (
           <Pressable
             key={opt.value}
-            style={[styles.segment, selected && styles.segmentSelected]}
+            style={[
+              styles.segment,
+              selected && styles.segmentSelected,
+              selected && { backgroundColor: palette.background.card },
+            ]}
             onPress={() => onChange(opt.value)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
           >
-            <Text style={[text.body, selected && { color: colors.forest[700], fontWeight: '600' }]}>{opt.label}</Text>
+            <Text
+              style={[
+                text.body,
+                themedText(palette, selected ? 'action' : 'secondary'),
+                selected && { fontWeight: '600' },
+              ]}
+            >
+              {opt.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -813,10 +970,11 @@ export function FormField({
   autoFocus?: boolean;
   accessibilityLabel?: string;
 }) {
+  const { palette } = useAppTheme();
   return (
     <View style={{ marginBottom: compact ? spacing.sm : spacing.md }}>
-      <Text style={[text.caption, { marginBottom: spacing.xs }]}>{label}</Text>
-      <View style={[styles.formField, compact ? styles.formFieldCompact : null]}>
+      <Text style={[text.caption, themedText(palette, 'secondary'), { marginBottom: spacing.xs }]}>{label}</Text>
+      <View style={[styles.formField, themedInput(palette), compact ? styles.formFieldCompact : null]}>
         {onChangeText ? (
           <TextInput
             accessibilityLabel={accessibilityLabel ?? label}
@@ -828,10 +986,15 @@ export function FormField({
             autoCapitalize={autoCapitalize}
             multiline={false}
             numberOfLines={1}
-            style={[text.body, compact ? { paddingVertical: 0, minHeight: 22 } : null]}
+            placeholderTextColor={palette.input.placeholder}
+            style={[
+              text.body,
+              { color: palette.input.text },
+              compact ? { paddingVertical: 0, minHeight: 22 } : null,
+            ]}
           />
         ) : (
-          <Text style={text.body}>{value || placeholder || ''}</Text>
+          <Text style={[text.body, { color: palette.input.text }]}>{value || placeholder || ''}</Text>
         )}
       </View>
     </View>
@@ -839,34 +1002,56 @@ export function FormField({
 }
 
 export function SafeAreaFooter({ children }: { children: React.ReactNode }) {
-  return <SafeAreaView edges={['bottom']} style={styles.footer}>{children}</SafeAreaView>;
+  const { palette } = useAppTheme();
+  return (
+    <SafeAreaView
+      edges={['bottom']}
+      style={[
+        styles.footer,
+        { backgroundColor: palette.background.card, borderTopColor: palette.border.default },
+      ]}
+    >
+      {children}
+    </SafeAreaView>
+  );
 }
 
 export function ProtectionCard({ children }: { children: React.ReactNode }) {
-  return <View style={styles.softPanel} accessibilityRole="summary">{children}</View>;
+  const { palette } = useAppTheme();
+  return <View style={[styles.softPanel, themedPanel(palette)]} accessibilityRole="summary">{children}</View>;
 }
 
 export function WelcomeHero({ title, body }: { title: string; body: string }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.welcomeHero} accessibilityRole="header">
-      <View style={styles.welcomeHeroIcon}>
-        <Text style={styles.welcomeHeroIconText}>M</Text>
+      <View style={[styles.welcomeHeroIcon, { backgroundColor: palette.action.primary }]}>
+        <Text style={[styles.welcomeHeroIconText, { color: palette.action.primaryText }]}>M</Text>
       </View>
-      <Text style={text.headline}>{title}</Text>
-      <Text style={[text.body, { marginTop: spacing.md }]}>{body}</Text>
+      <Text style={[text.headline, themedText(palette)]}>{title}</Text>
+      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.md }]}>{body}</Text>
     </View>
   );
 }
 
 export function ChecklistRow({ label, status }: { label: string; status: 'ready' | 'pending' | 'planned' }) {
+  const { palette } = useAppTheme();
   const mark = status === 'ready' ? '✓' : status === 'pending' ? '○' : '…';
   const statusLabel = status === 'ready' ? 'ready' : status === 'pending' ? 'pending' : 'planned for tracking';
   return (
-    <View style={styles.checklistRow} accessibilityRole="text" accessibilityLabel={`${label}, ${statusLabel}`}>
-      <Text style={styles.checklistMark}>{mark}</Text>
+    <View
+      style={[styles.checklistRow, { borderBottomColor: palette.border.default }]}
+      accessibilityRole="text"
+      accessibilityLabel={`${label}, ${statusLabel}`}
+    >
+      <Text style={[styles.checklistMark, themedText(palette, 'action')]}>{mark}</Text>
       <View style={{ flex: 1 }}>
-        <Text style={text.body}>{label}</Text>
-        {status !== 'ready' ? <Text style={text.caption}>{status === 'pending' ? 'Enable when tracking starts' : 'Coming with tracking'}</Text> : null}
+        <Text style={[text.body, themedText(palette)]}>{label}</Text>
+        {status !== 'ready' ? (
+          <Text style={[text.caption, themedText(palette, 'secondary')]}>
+            {status === 'pending' ? 'Enable when tracking starts' : 'Coming with tracking'}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -887,33 +1072,34 @@ export function ProofHeroCard({
   onPreview: () => void;
   title?: string;
 }) {
+  const { palette } = useAppTheme();
   const showUnresolved = unresolved != null && unresolved !== '' && unresolved !== '0';
   return (
     <View
-      style={styles.proofHero}
+      style={[styles.proofHero, { backgroundColor: palette.forest[800] }]}
       accessibilityRole="summary"
       accessibilityLabel={`${title}. ${tripCount} drives. ${totalMiles} miles.`}
     >
-      <Text style={[text.title, text.inverse]}>{title}</Text>
-      <Text style={[text.body, styles.proofHeroSub]}>{periodLabel}</Text>
+      <Text style={[text.title, themedText(palette, 'inverse')]}>{title}</Text>
+      <Text style={[text.body, styles.proofHeroSub, { color: palette.forest[100] }]}>{periodLabel}</Text>
       <View style={styles.proofHeroStats}>
         <View style={styles.proofHeroStat}>
-          <Text style={[styles.proofHeroStatValue, text.tabular]}>{tripCount}</Text>
-          <Text style={styles.proofHeroStatLabel}>drives</Text>
+          <Text style={[styles.proofHeroStatValue, text.tabular, themedText(palette, 'inverse')]}>{tripCount}</Text>
+          <Text style={[styles.proofHeroStatLabel, { color: palette.forest[100] }]}>drives</Text>
         </View>
         <View style={styles.proofHeroStat}>
-          <Text style={[styles.proofHeroStatValue, text.tabular]}>{totalMiles}</Text>
-          <Text style={styles.proofHeroStatLabel}>miles</Text>
+          <Text style={[styles.proofHeroStatValue, text.tabular, themedText(palette, 'inverse')]}>{totalMiles}</Text>
+          <Text style={[styles.proofHeroStatLabel, { color: palette.forest[100] }]}>miles</Text>
         </View>
         {showUnresolved ? (
           <View style={styles.proofHeroStat}>
-            <Text style={[styles.proofHeroStatValue, text.tabular]}>{unresolved}</Text>
-            <Text style={styles.proofHeroStatLabel}>unresolved</Text>
+            <Text style={[styles.proofHeroStatValue, text.tabular, themedText(palette, 'inverse')]}>{unresolved}</Text>
+            <Text style={[styles.proofHeroStatLabel, { color: palette.forest[100] }]}>unresolved</Text>
           </View>
         ) : (
           <View style={styles.proofHeroStat}>
-            <Text style={[styles.proofHeroStatValue, text.tabular]}>—</Text>
-            <Text style={styles.proofHeroStatLabel}>none open</Text>
+            <Text style={[styles.proofHeroStatValue, text.tabular, themedText(palette, 'inverse')]}>—</Text>
+            <Text style={[styles.proofHeroStatLabel, { color: palette.forest[100] }]}>none open</Text>
           </View>
         )}
       </View>
@@ -939,16 +1125,25 @@ export function RouteMapPreview({
   height?: number;
   width?: number;
 }) {
+  const { palette } = useAppTheme();
   const usable = (points ?? []).filter(
     (p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude),
   );
   if (usable.length < 2) {
     return (
       <View
-        style={[styles.mapPlaceholder, { height, width }]}
+        style={[
+          styles.mapPlaceholder,
+          {
+            height,
+            width,
+            backgroundColor: palette.background.mist,
+            borderColor: palette.forest[500],
+          },
+        ]}
         accessibilityLabel="No route map yet"
       >
-        <Text style={styles.mapPlaceholderText}>Route</Text>
+        <Text style={[styles.mapPlaceholderText, themedText(palette, 'action')]}>Route</Text>
       </View>
     );
   }
@@ -968,7 +1163,16 @@ export function RouteMapPreview({
   });
   return (
     <View
-      style={[styles.mapPlaceholder, { height, width, overflow: 'hidden' }]}
+      style={[
+        styles.mapPlaceholder,
+        {
+          height,
+          width,
+          overflow: 'hidden',
+          backgroundColor: palette.background.mist,
+          borderColor: palette.forest[500],
+        },
+      ]}
       accessibilityLabel={`Route with ${usable.length} recorded points`}
     >
       {markers.map((m, i) =>
@@ -981,7 +1185,7 @@ export function RouteMapPreview({
               top: Math.min(markers[i - 1].y, m.y),
               width: Math.max(2, Math.abs(m.x - markers[i - 1].x)),
               height: Math.max(2, Math.abs(m.y - markers[i - 1].y)),
-              backgroundColor: colors.forest[500],
+              backgroundColor: palette.forest[500],
               opacity: 0.35,
               borderRadius: 1,
             }}
@@ -998,7 +1202,7 @@ export function RouteMapPreview({
             width: m.first || m.last ? 8 : 4,
             height: m.first || m.last ? 8 : 4,
             borderRadius: 4,
-            backgroundColor: m.first ? colors.forest[800] : m.last ? colors.protected[600] : colors.forest[500],
+            backgroundColor: m.first ? palette.forest[800] : m.last ? palette.protected[600] : palette.forest[500],
           }}
         />
       ))}
@@ -1015,6 +1219,7 @@ export function SkeletonBlock({
   width?: number | `${number}%` | '100%';
   style?: StyleProp<ViewStyle>;
 }) {
+  const { palette } = useAppTheme();
   return (
     <View
       style={[
@@ -1022,7 +1227,7 @@ export function SkeletonBlock({
           height,
           width: width as ViewStyle['width'],
           borderRadius: radii.sm,
-          backgroundColor: colors.forest[100],
+          backgroundColor: palette.background.mist,
           opacity: 0.7,
         },
         style,
@@ -1040,13 +1245,14 @@ export function IconGlyph({
   label: string;
   accessibilityLabel?: string;
 }) {
+  const { palette } = useAppTheme();
   return (
     <View
-      style={styles.iconGlyph}
+      style={[styles.iconGlyph, { backgroundColor: palette.background.mist }]}
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      <Text style={styles.iconGlyphText}>{label}</Text>
+      <Text style={[styles.iconGlyphText, themedText(palette, 'action')]}>{label}</Text>
     </View>
   );
 }
@@ -1059,6 +1265,7 @@ export function SimpleBarChart({
   bars: Array<{ label: string; value: number }>;
   accessibilityLabel?: string;
 }) {
+  const { palette } = useAppTheme();
   const max = Math.max(...bars.map((b) => b.value), 0.0001);
   const trackHeight = 72;
   return (
@@ -1067,10 +1274,10 @@ export function SimpleBarChart({
         const fill = Math.max(6, Math.round((bar.value / max) * trackHeight));
         return (
           <View key={bar.label} style={styles.barChartCol}>
-            <View style={[styles.barChartTrack, { height: trackHeight }]}>
-              <View style={[styles.barChartFill, { height: fill }]} />
+            <View style={[styles.barChartTrack, { height: trackHeight, backgroundColor: palette.background.mist }]}>
+              <View style={[styles.barChartFill, { height: fill, backgroundColor: palette.action.primary }]} />
             </View>
-            <Text style={styles.barChartLabel} numberOfLines={1}>
+            <Text style={[styles.barChartLabel, themedText(palette, 'secondary')]} numberOfLines={1}>
               {bar.label}
             </Text>
           </View>
@@ -1097,14 +1304,21 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { palette } = useAppTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <Pressable style={styles.dialogScrim} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Dismiss">
-        <Pressable style={styles.dialogCard} onPress={() => undefined} accessibilityRole="summary">
-          <Text style={text.title} accessibilityRole="header">
+        <Pressable
+          style={[styles.dialogCard, { backgroundColor: palette.semantic.elevatedCanvas }]}
+          onPress={() => undefined}
+          accessibilityRole="summary"
+        >
+          <Text style={[text.title, themedText(palette)]} accessibilityRole="header">
             {title}
           </Text>
-          <Text style={[text.body, { marginTop: spacing.sm, marginBottom: spacing.md }]}>{body}</Text>
+          <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm, marginBottom: spacing.md }]}>
+            {body}
+          </Text>
           <PrimaryButton label={confirmLabel} onPress={onConfirm} />
           <TertiaryButton label={cancelLabel} onPress={onCancel} />
         </Pressable>
@@ -1125,16 +1339,20 @@ export function BottomSheet({
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
+  const { palette } = useAppTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.sheetScrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close sheet">
         <Pressable
-          style={[styles.sheetCard, { maxHeight: height * 0.72 }]}
+          style={[
+            styles.sheetCard,
+            { maxHeight: height * 0.72, backgroundColor: palette.semantic.elevatedCanvas },
+          ]}
           onPress={() => undefined}
           accessibilityRole="summary"
         >
-          <View style={styles.sheetHandle} />
-          <Text style={[text.subtitle, { marginBottom: spacing.md }]} accessibilityRole="header">
+          <View style={[styles.sheetHandle, { backgroundColor: palette.border.default }]} />
+          <Text style={[text.subtitle, themedText(palette), { marginBottom: spacing.md }]} accessibilityRole="header">
             {title}
           </Text>
           <ScrollView showsVerticalScrollIndicator={false}>{children}</ScrollView>
@@ -1156,11 +1374,12 @@ export function ReviewedItemCard({
   decisionLabel: string;
   onUndo: () => void;
 }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={[cardBase, { marginBottom: spacing.sm }]} accessibilityRole="summary">
-      <Text style={text.subtitle}>{title}</Text>
-      <Text style={[text.body, { marginTop: spacing.xs }]}>{subtitle}</Text>
-      <Text style={[text.caption, { marginTop: spacing.sm }]}>Decision: {decisionLabel}</Text>
+    <View style={[cardBase, themedCard(palette), { marginBottom: spacing.sm }]} accessibilityRole="summary">
+      <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
+      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{subtitle}</Text>
+      <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>Decision: {decisionLabel}</Text>
       <View style={{ marginTop: spacing.md }}>
         <SecondaryButton label="Undo decision" onPress={onUndo} accessibilityLabel={`Undo ${decisionLabel} decision for ${title}`} />
       </View>
@@ -1169,29 +1388,43 @@ export function ReviewedItemCard({
 }
 
 export function MembershipBanner({ planName, detail }: { planName: string; detail: string }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={styles.membershipBanner} accessibilityRole="summary" accessibilityLabel={`${planName}. ${detail}`}>
-      <Text style={[text.subtitle, { color: colors.forest[800] }]}>{planName}</Text>
-      <Text style={[text.body, styles.membershipBannerSub]}>{detail}</Text>
+    <View
+      style={[
+        styles.membershipBanner,
+        { backgroundColor: palette.background.mist, borderColor: palette.forest[500] },
+      ]}
+      accessibilityRole="summary"
+      accessibilityLabel={`${planName}. ${detail}`}
+    >
+      <Text style={[text.subtitle, themedText(palette, 'action')]}>{planName}</Text>
+      <Text style={[text.body, styles.membershipBannerSub, themedText(palette, 'secondary')]}>{detail}</Text>
     </View>
   );
 }
 
 export function LoadingState({ message }: { message: string }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={styles.loadingState} accessibilityRole="progressbar" accessibilityLabel={message}>
-      <Text style={text.subtitle}>{message}</Text>
-      <Text style={[text.body, { marginTop: spacing.sm }]}>This usually takes a few seconds.</Text>
+    <View
+      style={[styles.loadingState, themedCard(palette)]}
+      accessibilityRole="progressbar"
+      accessibilityLabel={message}
+    >
+      <Text style={[text.subtitle, themedText(palette)]}>{message}</Text>
+      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>This usually takes a few seconds.</Text>
     </View>
   );
 }
 
 export function TripCard({ title, subtitle, miles }: { title: string; subtitle: string; miles: string }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={[cardBase, { marginBottom: spacing.sm }]}>
-      <Text style={text.subtitle}>{title}</Text>
-      <Text style={text.body}>{subtitle}</Text>
-      <Text style={[text.caption, { marginTop: spacing.xs }]}>{miles}</Text>
+    <View style={[cardBase, themedCard(palette), { marginBottom: spacing.sm }]}>
+      <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
+      <Text style={[text.body, themedText(palette, 'secondary')]}>{subtitle}</Text>
+      <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{miles}</Text>
     </View>
   );
 }

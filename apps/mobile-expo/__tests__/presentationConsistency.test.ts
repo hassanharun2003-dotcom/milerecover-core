@@ -35,7 +35,7 @@ describe('Canonical presentation consistency', () => {
   });
 
   it('uses the same pending review count source for protection', () => {
-    const app = createInitialAppState();
+    const app = { ...createInitialAppState(), trackingEngineState: 'active' as const };
     const product = createInitialProductUiState();
     const permissions = {
       location: 'granted' as const,
@@ -51,7 +51,9 @@ describe('Canonical presentation consistency', () => {
       automaticCaptureAvailable: true,
       pendingReviewCount: pending,
     });
-    expect(protection.pendingReviewCount ?? pending).toBe(pending);
+    expect(pending).toBe(0);
+    expect(protection.status).toBe('configured_waiting');
+    expect(protection.title).toMatch(/waiting for first drive/i);
   });
 
   it('counts Free automatic allowance from auto_detected trips only', () => {

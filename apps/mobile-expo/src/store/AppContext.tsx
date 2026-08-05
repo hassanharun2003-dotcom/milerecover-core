@@ -37,6 +37,7 @@ import {
   requestBackgroundLocation,
   requestForegroundLocation,
 } from '../services/locationPermissions';
+import { resetAppExperience } from '../services/dataPrivacy';
 import { createInitialAppState, type MileRecoverAppState } from './types';
 
 export type ClassifyAction = 'work' | 'personal' | 'not_drive' | 'not_sure';
@@ -49,7 +50,7 @@ interface AppContextValue {
   finishOnboarding: () => void;
   restartOnboarding: () => void;
   retryRestore: () => void;
-  resetLocalData: () => void;
+  resetLocalData: () => Promise<void>;
   upsertTrip: (trip: TripRecord) => void;
   deleteTrip: (tripId: string) => TripRecord | null;
   restoreTrip: (trip: TripRecord) => void;
@@ -235,14 +236,12 @@ export function AppProvider({ children, repository }: AppProviderProps) {
       retryRestore: () => {
         void restore();
       },
-      resetLocalData: () => {
-        void (async () => {
-          await repoRef.current.clear();
-          metadataRef.current = createEmptyPersistedDocument().metadata;
-          const empty = createEmptyPersistedDocument();
-          setPermissions(empty.permissions);
-          setState(withDerived(appStateFromDocument(empty, 'ready-empty', null, false)));
-        })();
+      resetLocalData: async () => {
+        await resetAppExperience({ appRepository: repoRef.current });
+        metadataRef.current = createEmptyPersistedDocument().metadata;
+        const empty = createEmptyPersistedDocument();
+        setPermissions(empty.permissions);
+        setState(withDerived(appStateFromDocument(empty, 'ready-empty', null, false)));
       },
       upsertTrip: (trip) => {
         commit((prev) => {

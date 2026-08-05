@@ -13,6 +13,7 @@ import {
   maybeCloseTripFromSamples,
   nextIncompleteStep,
   shouldOfferTrial,
+  type OnboardingStepId,
   type LocationSample,
   type TripRecord,
 } from '../src';
@@ -21,7 +22,7 @@ describe('Onboarding completeness', () => {
   it('requires goal, next action, and current version stamp (pain points optional in v8)', () => {
     const empty = createEmptyOnboardingState();
     expect(isOnboardingMinimumComplete(empty)).toBe(false);
-    expect(nextIncompleteStep(empty)).toBe('purpose');
+    expect(nextIncompleteStep(empty)).toBe('welcome');
     const complete = {
       ...empty,
       primaryGoal: 'employee_reimbursement' as const,
@@ -36,6 +37,15 @@ describe('Onboarding completeness', () => {
     };
     expect(isOnboardingMinimumComplete(complete)).toBe(true);
     expect(nextIncompleteStep(complete)).toBeNull();
+  });
+
+  it('resumes an interrupted purpose step without treating a fresh state as started', () => {
+    expect(nextIncompleteStep(createEmptyOnboardingState())).toBe('welcome');
+    expect(nextIncompleteStep({
+      ...createEmptyOnboardingState(),
+      currentStep: 'purpose',
+      completedSteps: ['welcome'],
+    })).toBe('purpose');
   });
 
   it('treats older completed versions as stale and invalidates without wiping answers', () => {
@@ -56,6 +66,20 @@ describe('Onboarding completeness', () => {
     expect(next.primaryGoal).toBe('gig_delivery');
     expect(next.selectedPainPoints).toEqual(['tracker_misses']);
     expect(next.currentStep).toBe('ready');
+  });
+
+  it('invalidates stale empty completion safely back to welcome', () => {
+    const stale = {
+      ...createEmptyOnboardingState(),
+      currentStep: 'ready' as const,
+      completedSteps: ['welcome', 'purpose', 'ready'] as OnboardingStepId[],
+      completedAt: 99,
+      completedOnboardingVersion: CURRENT_ONBOARDING_VERSION - 1,
+    };
+    const next = invalidateStaleOnboardingCompletion(stale, 1000);
+    expect(next.completedAt).toBeNull();
+    expect(next.completedOnboardingVersion).toBeNull();
+    expect(next.currentStep).toBe('welcome');
   });
 });
 

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
-import { colors, darkColors } from '@milerecover/config';
+import { colors, darkColors, type AppPalette } from '@milerecover/config';
 
-export type AppPalette = typeof colors;
+export type { AppPalette };
 
 type ThemeContextValue = {
   scheme: 'light' | 'dark';
@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ThemeContextValue>(
     () => ({
       scheme,
-      palette: (scheme === 'dark' ? darkColors : colors) as AppPalette,
+      palette: scheme === 'dark' ? darkColors : colors,
       isDark: scheme === 'dark',
     }),
     [scheme],

@@ -88,9 +88,15 @@ function buildLiveScenario(
     homeState = 'healthy';
     proofReady = true;
     proofBlockReason = null;
+  } else if (automaticCaptureAllowed && locationOk && backgroundOk && appState.lastConfirmedCaptureAt != null) {
+    homeTitle = 'Drive protection verified';
+    homeDetail = 'Automatic capture has checked in successfully.';
+    primaryAction = null;
+    homeState = 'healthy';
+    proofBlockReason = 'Add or confirm a work drive first.';
   } else if (automaticCaptureAllowed && locationOk && backgroundOk) {
-    homeTitle = 'You’re protected.';
-    homeDetail = 'Drive protection is on.';
+    homeTitle = 'Waiting for first drive';
+    homeDetail = 'Automatic capture is configured. We’ll verify protection after your first drive.';
     primaryAction = null;
     homeState = 'healthy';
     proofBlockReason = 'Add or confirm a work drive first.';

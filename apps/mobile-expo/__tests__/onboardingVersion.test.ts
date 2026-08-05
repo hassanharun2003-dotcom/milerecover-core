@@ -23,7 +23,7 @@ describe('Authoritative onboarding versioning', () => {
     const state = createInitialProductUiState();
     expect(isOnboardingMinimumComplete(state.onboarding)).toBe(false);
     expect(state.onboarding.currentStep).toBe('welcome');
-    expect(nextIncompleteStep(createEmptyOnboardingState())).toBe('purpose');
+    expect(nextIncompleteStep(createEmptyOnboardingState())).toBe('welcome');
   });
 
   it('marks older completed versions stale', () => {

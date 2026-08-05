@@ -131,9 +131,6 @@ export function validateManualTripInput(input: ManualTripInput): ManualTripValid
   } else if (input.endAt < input.startAt) {
     errors.push({ field: 'endAt', message: 'End time cannot be before start time.' });
   }
-  if (input.confirmAsWork && !input.purpose.trim()) {
-    errors.push({ field: 'purpose', message: 'Purpose is required for a confirmed work drive.' });
-  }
   if (!input.evidenceMethod) {
     errors.push({ field: 'evidenceMethod', message: 'Choose how you know this distance.' });
   }

@@ -45,6 +45,12 @@ export function ProfileScreen() {
   const allowance = selectAllowance(state, product);
   const rateLabel = formatActiveRateLabel(product.localeProfile);
   const planLabel = selectEntitlementPlanLabel(product.entitlement);
+  const resetExperience = () => {
+    void (async () => {
+      await resetProductData();
+      await resetLocalData();
+    })();
+  };
 
   return (
     <TabScreen>
@@ -176,13 +182,9 @@ export function ProfileScreen() {
               ))
             : null}
           <ListRow
-            label="Simulate first launch"
+            label="Reset app experience"
             value="Clears setup + local data"
-            onPress={() => {
-              resetProductData();
-              resetLocalData();
-              restartOnboarding();
-            }}
+            onPress={resetExperience}
           />
         </ListSection>
       ) : null}

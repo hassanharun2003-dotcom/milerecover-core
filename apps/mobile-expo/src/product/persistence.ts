@@ -3,7 +3,6 @@ import {
   createEmptyOnboardingState,
   createFreeEntitlement,
   CURRENT_ONBOARDING_VERSION,
-  inferNextAction,
   invalidateStaleOnboardingCompletion,
   isOnboardingMinimumComplete,
   isOnboardingVersionStale,
@@ -11,6 +10,7 @@ import {
   mapLegacyPattern,
   migrateLocaleProfile,
   migrateVehicleIdentity,
+  nextIncompleteEssentialStep,
   rateForTimestamp,
   type VersionedOnboardingState,
 } from '@milerecover/domain';
@@ -18,6 +18,7 @@ import {
   allowInternalPreviewTools,
   createInitialProductUiState,
   PRODUCT_UI_STORAGE_KEY,
+  PRODUCT_UI_STORAGE_KEYS,
   PRODUCT_UI_STORAGE_KEY_V1,
   PRODUCT_UI_STORAGE_KEY_V2,
   PRODUCT_UI_STORAGE_KEY_V3,
@@ -103,6 +104,9 @@ function normalizeOnboarding(raw: Partial<VersionedOnboardingState> | undefined,
   ) {
     next = invalidateStaleOnboardingCompletion(next, now);
   }
+  if (!isOnboardingMinimumComplete(next)) {
+    next.currentStep = nextIncompleteEssentialStep(next) ?? 'welcome';
+  }
   return next;
 }
 
@@ -131,9 +135,7 @@ function buildOnboardingFromLegacy(parsed: Record<string, unknown>, now: number)
   const pain =
     Array.isArray(parsed.selectedPainPoints) && parsed.selectedPainPoints.length
       ? (parsed.selectedPainPoints as VersionedOnboardingState['selectedPainPoints'])
-      : primaryGoal
-        ? (['forget_to_track'] as VersionedOnboardingState['selectedPainPoints'])
-        : [];
+      : [];
 
   const draft: VersionedOnboardingState = {
     ...base,
@@ -153,14 +155,7 @@ function buildOnboardingFromLegacy(parsed: Record<string, unknown>, now: number)
 
   // Legacy onboardingComplete boolean alone must NOT grant current-version completion.
   // Preserve answers and place the user on the first unfinished essential step.
-  if (draft.primaryGoal && draft.selectedPainPoints.length) {
-    draft.nextActionSelected = inferNextAction(draft);
-    draft.currentStep = 'ready';
-  } else if (draft.primaryGoal) {
-    draft.currentStep = 'pain_points';
-  } else {
-    draft.currentStep = 'welcome';
-  }
+  draft.currentStep = nextIncompleteEssentialStep(draft) ?? 'welcome';
   void isOnboardingMinimumComplete;
   return draft;
 }
@@ -315,10 +310,5 @@ export async function saveProductUiState(state: ProductUiState): Promise<void> {
 }
 
 export async function clearProductUiState(): Promise<void> {
-  await AsyncStorage.multiRemove([
-    PRODUCT_UI_STORAGE_KEY,
-    PRODUCT_UI_STORAGE_KEY_V3,
-    PRODUCT_UI_STORAGE_KEY_V2,
-    PRODUCT_UI_STORAGE_KEY_V1,
-  ]);
+  await AsyncStorage.multiRemove([...PRODUCT_UI_STORAGE_KEYS]);
 }

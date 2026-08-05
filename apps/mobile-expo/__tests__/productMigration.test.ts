@@ -48,7 +48,9 @@ describe('Product UI migration', () => {
     expect(state.onboarding.schemaVersion).toBe(4);
     expect(state.primaryGoal).toBe('mixed');
     expect(state.drivingType).toBe('regular_locations');
-    expect(state.selectedPainPoints).toContain('forget_to_track');
+    expect(state.selectedPainPoints).toEqual([]);
+    expect(state.onboarding.currentStep).toBe('locale_setup');
+    expect(isOnboardingMinimumComplete(state.onboarding)).toBe(false);
     expect(state.preferredName).toBe('Hassan');
     expect(state.manualTrips).toHaveLength(1);
     expect(state.selectedPlan).toBe('free');
@@ -99,6 +101,28 @@ describe('Product UI migration', () => {
     expect(state.vehicles[0]?.nickname).toBe('Van');
     expect(state.notificationPreferences.enabled).toBe(true);
     expect(isOnboardingMinimumComplete(state.onboarding)).toBe(false);
+    expect(state.onboarding.currentStep).toBe('welcome');
+  });
+
+  it('does not reopen incomplete persisted onboarding at ready', async () => {
+    await AsyncStorage.setItem(
+      PRODUCT_UI_STORAGE_KEY,
+      JSON.stringify({
+        ...createInitialProductUiState(),
+        onboarding: {
+          ...createInitialProductUiState().onboarding,
+          currentStep: 'ready',
+          primaryGoal: null,
+          nextActionSelected: null,
+          completedAt: null,
+          completedOnboardingVersion: null,
+        },
+      }),
+    );
+
+    const state = await loadProductUiState();
+    expect(isOnboardingMinimumComplete(state.onboarding)).toBe(false);
+    expect(state.onboarding.currentStep).toBe('welcome');
   });
 
   it('preserves genuine preferred name across save/load', async () => {

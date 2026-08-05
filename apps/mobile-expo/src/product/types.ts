@@ -178,6 +178,12 @@ export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v4';
 export const PRODUCT_UI_STORAGE_KEY_V3 = '@milerecover/product-ui/v3';
 export const PRODUCT_UI_STORAGE_KEY_V2 = '@milerecover/product-ui/v2';
 export const PRODUCT_UI_STORAGE_KEY_V1 = '@milerecover/product-ui/v1';
+export const PRODUCT_UI_STORAGE_KEYS = [
+  PRODUCT_UI_STORAGE_KEY,
+  PRODUCT_UI_STORAGE_KEY_V3,
+  PRODUCT_UI_STORAGE_KEY_V2,
+  PRODUCT_UI_STORAGE_KEY_V1,
+] as const;
 
 export function allowInternalPreviewTools(variant?: string): boolean {
   const v = variant ?? (typeof process !== 'undefined' ? process.env.APP_VARIANT : undefined);

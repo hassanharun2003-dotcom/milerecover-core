@@ -1,9 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { buildMileageCsv, type TripRecord } from '@milerecover/domain';
-import { clearProductUiState, loadProductUiState } from '../product/persistence';
-import { PRODUCT_UI_STORAGE_KEY } from '../product/types';
-import { TRACKING_SAMPLE_STORAGE_KEY } from './trackingEngine';
+import { buildMileageCsv, type PersistenceRepository, type TripRecord } from '@milerecover/domain';
+import { loadProductUiState } from '../product/persistence';
+import { PRODUCT_UI_STORAGE_KEYS } from '../product/types';
+import { APP_STATE_STORAGE_KEYS } from '../persistence/AsyncStoragePersistenceRepository';
+import { AUTH_SESSION_STORAGE_KEY } from './auth';
+import {
+  TRACKING_MACHINE_STORAGE_KEY,
+  TRACKING_PENDING_TRIPS_KEY,
+  TRACKING_SAMPLE_STORAGE_KEY,
+} from './trackingEngine';
 import { writeTextFile } from './fileShare';
+
+export const LAST_MANUAL_PURPOSE_STORAGE_KEY = '@milerecover/last-manual-purpose';
+export const LAST_MANUAL_VEHICLE_STORAGE_KEY = '@milerecover/last-manual-vehicle';
+
+export const LOCAL_EXPERIENCE_STORAGE_KEYS = [
+  ...PRODUCT_UI_STORAGE_KEYS,
+  ...APP_STATE_STORAGE_KEYS,
+  TRACKING_SAMPLE_STORAGE_KEY,
+  TRACKING_MACHINE_STORAGE_KEY,
+  TRACKING_PENDING_TRIPS_KEY,
+  AUTH_SESSION_STORAGE_KEY,
+  LAST_MANUAL_PURPOSE_STORAGE_KEY,
+  LAST_MANUAL_VEHICLE_STORAGE_KEY,
+] as const;
 
 export interface UserDataExportBundle {
   exportedAt: string;
@@ -55,8 +75,15 @@ export async function writeUserDataExportFile(bundle: UserDataExportBundle): Pro
   return writeTextFile(`MileRecover-data-export-${bundle.exportedAt.slice(0, 10)}.json`, payload);
 }
 
-/** Clears product UI and tracking sample buffers. Domain trips are cleared via AppContext reset. */
+/** Clears every local app/product/onboarding/tracking/auth key used by the demo experience. */
+export async function resetAppExperience(options: { appRepository?: PersistenceRepository } = {}): Promise<void> {
+  await Promise.all([
+    options.appRepository?.clear() ?? Promise.resolve(),
+    AsyncStorage.multiRemove([...LOCAL_EXPERIENCE_STORAGE_KEYS]),
+  ]);
+}
+
+/** Clears all local device data for privacy deletion and first-launch simulation. */
 export async function clearLocalPrivacyCaches(): Promise<void> {
-  await clearProductUiState();
-  await AsyncStorage.multiRemove([PRODUCT_UI_STORAGE_KEY, TRACKING_SAMPLE_STORAGE_KEY]);
+  await resetAppExperience();
 }

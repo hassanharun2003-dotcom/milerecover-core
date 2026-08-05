@@ -53,6 +53,7 @@ const config = {
   },
   android: {
     package: 'com.milerecover.app',
+    allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundColor: '#E8F3ED',
