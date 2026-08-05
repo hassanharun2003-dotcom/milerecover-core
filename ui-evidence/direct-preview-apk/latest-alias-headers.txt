@@ -1,0 +1,8 @@
+HTTP/2 302 
+date: Tue, 04 Aug 2026 18:48:53 GMT
+content-type: text/html; charset=utf-8
+location: https://release-assets.githubusercontent.com/github-production-release-asset/1318176277/82eb755f-a989-4960-a9e2-b8eb81399af8?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-08-04T19%3A37%3A23Z&rscd=attachment%3B+filename%3DMileRecover-preview-latest.apk&rsct=application%2Fvnd.android.package-archive&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-08-04T18%3A37%3A02Z&ske=2026-08-04T19%3A37%3A23Z&sks=b&skv=2018-11-09&sig=7y6VZku6C0Q4eN6dHyG4bXsRmhqZ%2Buo0DgD%2BQJcvhRs%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc4NTg3MTEzMywibmJmIjoxNzg1ODY5MzMzLCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.u0gtHmxpQ7quCdb4TzPW0EnCmT_1aoerZY2GV7mqbuA&response-content-disposition=attachment%3B%20filename%3DMileRecover-preview-latest.apk&response-content-type=application%2Fvnd.android.package-archive
+vary: X-PJAX, X-PJAX-Container, Turbo-Visit, Turbo-Frame, X-Requested-With, X-GitHub-Client-Version, Sec-Fetch-Site,Accept-Encoding, Accept, X-Requested-With
+cache-control: no-cache
+strict-transport-security: max-age=31536000; includeSubdomains; preload
+x-frame-options: deny
