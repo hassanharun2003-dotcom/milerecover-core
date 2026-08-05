@@ -43,8 +43,14 @@ describe('Onboarding completeness', () => {
     expect(nextIncompleteStep(createEmptyOnboardingState())).toBe('welcome');
     expect(nextIncompleteStep({
       ...createEmptyOnboardingState(),
-      currentStep: 'purpose',
+      currentStep: 'account',
       completedSteps: ['welcome'],
+    })).toBe('account');
+    expect(nextIncompleteStep({
+      ...createEmptyOnboardingState(),
+      currentStep: 'purpose',
+      completedSteps: ['welcome', 'account'],
+      accountStepAcknowledged: true,
     })).toBe('purpose');
   });
 

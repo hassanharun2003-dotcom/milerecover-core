@@ -1,27 +1,31 @@
 {
   "onboarding-welcome": {
     "file": "onboarding-welcome-actual.png",
-    "copyPreview": "Welcome to MileRecover Protect your miles. Protect your money. Calm, privacy-first mileage protection — you confirm what counts as work. Recover forgotten miles Suggest likely drives from evidence on this device — you confirm what to keep. "
+    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started → I already use a mileage app"
+  },
+  "onboarding-account": {
+    "file": "onboarding-account-actual.png",
+    "copyPreview": "‹ 2 of 6 Save your progress (optional) Sign in to restore preferences later, or continue without an account. Your miles stay on this device. Continue with Google Continue with Apple Continue without an account"
   },
   "onboarding-purpose": {
     "file": "onboarding-purpose-actual.png",
-    "copyPreview": "Back What’s your main reason for tracking mileage? This helps us personalize your experience. Employee reimbursement Share clear records with work. Self-employed / business Track business travel for your records. Delivery or gig work Protec"
+    "copyPreview": "‹ 3 of 6 What's your main reason for tracking mileage? We'll tailor rates, reports, and tips. Employee reimbursement Self-employed / Business Delivery or gig work Personal Continue →"
   },
   "onboarding-locale_setup": {
     "file": "onboarding-locale_setup-actual.png",
-    "copyPreview": "Back Let’s set your region and mileage rate We use this to display distance and estimated value correctly. Country › United States · Suggested Currency USD Distance unit Miles Kilometres Mileage rate (¢ per mile) 70¢ per mile · your chosen "
+    "copyPreview": "‹ 4 of 6 Set your region and mileage rate. Country United States ▾ Mileage rate $0.70 per mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →"
   },
   "onboarding-protect_drives": {
     "file": "onboarding-protect_drives-actual.png",
-    "copyPreview": "Back Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — uses "
+    "copyPreview": "‹ 5 of 6 Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — u"
   },
   "onboarding-ready": {
     "file": "onboarding-ready-actual.png",
-    "copyPreview": "Back ✓ You’re all set! You can add drives manually anytime. Turn on protection later from Profile when you’re ready. Purpose · Not set United States · Miles · USD Rate · 70¢/mi · USD Manual tracking selected Go to Home Add my first drive"
+    "copyPreview": "✓ You’re all set You can add drives manually anytime. Turn on protection later from Profile when you’re ready. Go to Home Add my first drive"
   },
   "home-live": {
     "file": "home-live-actual.png",
-    "copyPreview": "MileRecover Plans Welcome back Automatic protection is off Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Drive protection is paused. Next up Turn on protection RECENT No drives yet. A"
+    "copyPreview": "≡ MileRecover ◉ Welcome back You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Drive protection is paused. Next up Turn on protection › + Add a drive Check for missed d"
   },
   "review-pending": {
     "file": "review-pending-actual.png",
@@ -65,7 +69,7 @@
   },
   "about": {
     "file": "about-actual.png",
-    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.4 Build 0.2.4-premium-ui.1 Release notes 0.2.4 premium UI: Protect your miles. Protect yo"
+    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.5 Build 0.2.5-image-lock.1 Release notes 0.2.5 image lock: Batch A onboarding+auth and Ba"
   },
   "terms": {
     "file": "terms-actual.png",

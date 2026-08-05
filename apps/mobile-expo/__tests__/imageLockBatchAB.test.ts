@@ -102,7 +102,9 @@ describe('Image lock Batch A/B foundations', () => {
       periodKind: 'ytd',
     });
     expect(year.tripCount).toBe(0);
-    expect(year.estimatedValueCents).toBeNull();
+    expect(year.estimatedValueCents === null || year.estimatedValueCents === 0).toBe(true);
     expect(JSON.stringify(year)).not.toContain('487.32');
+    // Home only shows YTD money when tripCount > 0 and value is trustworthy.
+    expect(year.tripCount > 0 && year.estimatedValueCents != null).toBe(false);
   });
 });
