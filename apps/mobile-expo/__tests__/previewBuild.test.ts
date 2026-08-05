@@ -65,14 +65,23 @@ describe('Production MVP build configuration', () => {
     expect(pkg.scripts?.['update:production']).toContain('APP_VARIANT=production');
   });
 
-  it('excludes expo-dev-client from autolinking for standalone variants', () => {
-    expect(getDevClientAutolinkingExclude('preview')).toEqual(['expo-dev-client']);
-    expect(getDevClientAutolinkingExclude('production')).toEqual(['expo-dev-client']);
+  it('excludes expo-dev-client native modules from autolinking for standalone variants', () => {
+    const expected = [
+      'expo-dev-client',
+      'expo-dev-launcher',
+      'expo-dev-menu',
+      'expo-dev-menu-interface',
+    ];
+    expect(getDevClientAutolinkingExclude('preview')).toEqual(expected);
+    expect(getDevClientAutolinkingExclude('production')).toEqual(expected);
     expect(getDevClientAutolinkingExclude('development')).toEqual([]);
     expect(packageJson.scripts?.['eas-build-pre-install']).toContain(
       'sync-dev-client-autolinking.cjs',
     );
-    expect(syncScript).toContain("exclude = variant === 'development' ? [] : ['expo-dev-client']");
-    expect(appConfigSource).toContain("APP_VARIANT === 'development' ? [] : ['expo-dev-client']");
+    expect(syncScript).toContain("'expo-dev-launcher'");
+    expect(syncScript).toContain("'expo-dev-menu'");
+    expect(syncScript).toContain('DEV_CLIENT_NATIVE_PACKAGES');
+    expect(appConfigSource).toContain("'expo-dev-launcher'");
+    expect(appConfigSource).toContain('DEV_CLIENT_NATIVE_PACKAGES');
   });
 });

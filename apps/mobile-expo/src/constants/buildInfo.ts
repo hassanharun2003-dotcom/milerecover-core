@@ -19,11 +19,19 @@ export function isStandaloneBuild(variant: AppVariant | string | undefined): boo
   return variant === 'preview' || variant === 'production';
 }
 
-/** expo-dev-client must not be autolinked into standalone preview/production APKs. */
+/** Dev-client native modules that must not ship in standalone preview/production APKs. */
+export const DEV_CLIENT_NATIVE_PACKAGES = [
+  'expo-dev-client',
+  'expo-dev-launcher',
+  'expo-dev-menu',
+  'expo-dev-menu-interface',
+] as const;
+
+/** expo-dev-client modules must not be autolinked into standalone preview/production APKs. */
 export function getDevClientAutolinkingExclude(
   variant: string = typeof process !== 'undefined' && process.env.APP_VARIANT
     ? process.env.APP_VARIANT
     : 'development',
 ): string[] {
-  return variant === 'development' ? [] : ['expo-dev-client'];
+  return variant === 'development' ? [] : [...DEV_CLIENT_NATIVE_PACKAGES];
 }

@@ -16,8 +16,14 @@ const EAS_PROJECT_ID = 'c61d0a3c-ba3d-40e1-9764-5118fa2429f3';
  */
 const APP_VARIANT = process.env.APP_VARIANT ?? 'development';
 const IS_DEV_CLIENT = APP_VARIANT === 'development';
+const DEV_CLIENT_NATIVE_PACKAGES = [
+  'expo-dev-client',
+  'expo-dev-launcher',
+  'expo-dev-menu',
+  'expo-dev-menu-interface',
+];
 const DEV_CLIENT_AUTOLINKING_EXCLUDE =
-  APP_VARIANT === 'development' ? [] : ['expo-dev-client'];
+  APP_VARIANT === 'development' ? [] : DEV_CLIENT_NATIVE_PACKAGES;
 /** Embedded in Profile → About. EAS Build sets EAS_BUILD_GIT_COMMIT_HASH. */
 const GIT_COMMIT_HASH =
   process.env.EAS_BUILD_GIT_COMMIT_HASH ??
