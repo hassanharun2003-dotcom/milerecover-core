@@ -98,6 +98,36 @@ describe('Phase 0 visual QA harness', () => {
     const report = await renderStackScreen('ReportPreview', { format: 'pdf' });
     boards.push({ id: 'report-preview', title: 'Report preview', copy: report.copy });
 
+    const plans = await renderStackScreen('PlanSelection', { source: 'profile' });
+    boards.push({ id: 'subscription', title: 'Subscription', copy: plans.copy });
+
+    const importMileage = await renderStackScreen('BringExistingMileage');
+    boards.push({ id: 'import', title: 'Import mileage', copy: importMileage.copy });
+
+    const vehicles = await renderStackScreen('VehicleSetup');
+    boards.push({ id: 'vehicles', title: 'Vehicles', copy: vehicles.copy });
+
+    const about = await renderStackScreen('About');
+    boards.push({ id: 'about', title: 'About', copy: about.copy });
+
+    const terms = await renderStackScreen('Terms');
+    boards.push({ id: 'terms', title: 'Terms', copy: terms.copy });
+
+    boards.push({
+      id: 'manual-trip-start-end',
+      title: 'Add drive · Start & end',
+      copy: [
+        'Add drive',
+        '3 · Distance',
+        'Enter distance',
+        'Start & end',
+        'Start and end add context only. We never invent a route or distance.',
+        'Start (optional)',
+        'End (optional)',
+        'Save work drive',
+      ].join('\n'),
+    });
+
     for (const board of boards) {
       const { filePath, failures } = renderVisualBoard(
         {

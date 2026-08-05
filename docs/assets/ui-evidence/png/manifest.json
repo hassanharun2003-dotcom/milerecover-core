@@ -41,7 +41,7 @@
   },
   "profile-light": {
     "file": "profile-light.png",
-    "copyPreview": "IDENTITY Name Not set Purpose Not set Country United States ACCOUNT Profile/preferences Not set › Purpose Not set › Familiar places Add anytime › DRIVING Vehicles Add a vehicle › Rate and units › 70¢/mi · USD · Miles · USD Protection Center",
+    "copyPreview": "IDENTITY Name Not set Purpose Not set Country United States ACCOUNT Profile and preferences Not set › Familiar places Add anytime › DRIVING Vehicles Add a vehicle › Rate and units › 70¢/mi · USD · Miles · USD Protection Center › Drive prote",
     "failures": []
   },
   "manual-trip-light": {
@@ -56,12 +56,42 @@
   },
   "tracking-light": {
     "file": "tracking-light.png",
-    "copyPreview": "Tracking health Check the basics that keep automatic protection ready. Manual entry stays available anytime. Drive protection is off Turn automatic protection on to capture future drives. Manual drives still work. 40 of 40 automatic trips l",
+    "copyPreview": "Tracking health Diagnostics for automatic capture. Protection status and repair actions are in Protection Center. One or more checks need attention 40 of 40 automatic trips left this month. Open Protection Center to repair anything that nee",
     "failures": []
   },
   "report-preview-light": {
     "file": "report-preview-light.png",
     "copyPreview": "Work mileage report · 2026 year to date 2026 year to date. For your records — not tax or legal advice. Work mileage report · 2026 year to date On-device preview · not tax or legal advice Period 2026 year to date Driver Add a name in Profile",
+    "failures": []
+  },
+  "subscription-light": {
+    "file": "subscription-light.png",
+    "copyPreview": "7 days free Try Plus features. Cancel anytime. Monthly Annual — Save 17% Preview Purchases are disabled in this preview. Current plan: Free Free stays usable with manual logging, capped automatic trips, and basic CSV. Free $0 / month • 40 a",
+    "failures": []
+  },
+  "import-light": {
+    "file": "import-light.png",
+    "copyPreview": "Bring your history with you Pick a CSV file. We will analyze the columns, show issues, and import only rows we can read without hiding duplicates. Pick CSV file Mileage exports or spreadsheets saved as CSV Add drives by hand Start fresh ins",
+    "failures": []
+  },
+  "vehicles-light": {
+    "file": "vehicles-light.png",
+    "copyPreview": "Which vehicle carries your work miles? Search make and model, or type your own. One primary vehicle is the default for new drives. Year Search make Acura Audi BMW Chevrolet Dodge Ford GMC Honda Other Search model Nickname (optional) License",
+    "failures": []
+  },
+  "about-light": {
+    "file": "about-light.png",
+    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.2 Build 0.2.2-blueprint-lock.2 Release notes Image-locked blueprint polish: clearer Prote",
+    "failures": []
+  },
+  "terms-light": {
+    "file": "terms-light.png",
+    "copyPreview": "Terms of use Simple terms for MileRecover MileRecover helps you track and report mileage you capture, import, or confirm. Estimated values use the rate you choose and are not tax, legal, or reimbursement advice. You stay in control of which",
+    "failures": []
+  },
+  "manual-trip-start-end-light": {
+    "file": "manual-trip-start-end-light.png",
+    "copyPreview": "Add drive\n3 · Distance\nEnter distance\nStart & end\nStart and end add context only. We never invent a route or distance.\nStart (optional)\nEnd (optional)\nSave work drive",
     "failures": []
   },
   "fixture-brand_new_install-light": {

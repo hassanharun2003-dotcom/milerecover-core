@@ -27,6 +27,7 @@ describe('MileRecover navigation IA', () => {
 
   it('registers tracking stub and coming-later honesty routes', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('TrackingActive');
+    expect(SUPPORTING_STACK_ROUTES).toContain('Terms');
     expect(SUPPORTING_STACK_ROUTES).toContain('ComingLater');
     expect(ROOT_STACK_ROUTE_NAMES).toContain('TrackingActive');
     expect(ROOT_STACK_ROUTE_NAMES).toContain('ComingLater');

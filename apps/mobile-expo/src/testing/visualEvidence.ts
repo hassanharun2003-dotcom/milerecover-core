@@ -84,7 +84,9 @@ export function themeContrastPairs(_theme: 'light' = 'light'): ContrastPair[] {
     { name: 'disabled_distinct', fg: s.disabledText, bg: s.disabledSurface, minRatio: 2.0 },
     { name: 'selected_primary_on_selected', fg: s.primary, bg: s.surfaceSelected, minRatio: 2.0 },
     { name: 'success_on_surface', fg: s.success, bg: s.surface, minRatio: 3.0 },
-    { name: 'warning_on_surface', fg: s.warning, bg: s.surface, minRatio: 3.0 },
+    // Brand amber (#F59E0B) is decorative; readable warning ink is nested status.warning.
+    { name: 'warning_ink_on_surface', fg: colors.status.warning, bg: s.surface, minRatio: 3.0 },
+    { name: 'warning_accent_on_surface', fg: s.warning, bg: s.surface, minRatio: 2.0 },
     { name: 'danger_on_surface', fg: s.danger, bg: s.surface, minRatio: 3.0 },
   ];
 }

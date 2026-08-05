@@ -30,7 +30,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.1',
+  version: '0.2.2',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -56,7 +56,7 @@ const config = {
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
-      backgroundColor: '#E8F3ED',
+      backgroundColor: '#E8F4EE',
     },
     permissions: [
       'ACCESS_COARSE_LOCATION',
@@ -83,7 +83,7 @@ const config = {
     [
       'expo-notifications',
       {
-        color: '#1F4D36',
+        color: '#0F6B46',
       },
     ],
     [

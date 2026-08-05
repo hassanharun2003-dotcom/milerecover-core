@@ -37,7 +37,8 @@ export const lightSemantic: SemanticPalette = {
   primaryDeep: '#073D2C',
   onPrimary: '#FFFFFF',
   success: '#16A34A',
-  warning: '#B45309',
+  /** Blueprint amber accent — use nested status.warning for readable text ink. */
+  warning: '#F59E0B',
   danger: '#EF4444',
   disabledSurface: '#F1F5F9',
   disabledText: '#94A3B8',
@@ -51,6 +52,8 @@ function buildNestedPalette(s: SemanticPalette) {
   const successSurface = '#DCFCE7';
   const warningSurface = '#FEF3C7';
   const dangerSurface = '#FEE2E2';
+  /** Darker amber for text/icons on light surfaces (WCAG); brand accent stays s.warning. */
+  const warningInk = '#B45309';
 
   return {
     forest: {
@@ -66,7 +69,8 @@ function buildNestedPalette(s: SemanticPalette) {
       100: successSurface,
     },
     review: {
-      600: s.warning,
+      600: warningInk,
+      500: s.warning,
       100: warningSurface,
     },
     danger: {
@@ -104,7 +108,8 @@ function buildNestedPalette(s: SemanticPalette) {
     status: {
       success: s.success,
       successBg: successSurface,
-      warning: s.warning,
+      warning: warningInk,
+      warningAccent: s.warning,
       warningBg: warningSurface,
       danger: s.danger,
       dangerBg: dangerSurface,

@@ -31,6 +31,7 @@ import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { TrialOfferCard } from '../../components/TrialOfferCard';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 
 type HomeNav = CompositeNavigationProp<
@@ -472,6 +473,11 @@ export function HomeScreen() {
           <Text style={[text.body, { marginTop: spacing.xs }]}>{nextBest.label}</Text>
         )}
       </SoftPanel>
+
+      <TrialOfferCard
+        confirmedWorkDriveCount={confirmedCount}
+        onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+      />
 
       <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>Recent</Text>
       {recent.length === 0 ? (

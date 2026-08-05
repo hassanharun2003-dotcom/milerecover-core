@@ -16,6 +16,7 @@ export const SUPPORTING_STACK_ROUTES = [
   'PlanSelection',
   'EditSetup',
   'Privacy',
+  'Terms',
   'HelpSupport',
   'About',
   'Diagnostics',
@@ -60,6 +61,7 @@ export type RootStackParamList = {
   PlanSelection: { source?: 'profile' | 'upgrade' };
   EditSetup: undefined;
   Privacy: undefined;
+  Terms: undefined;
   HelpSupport: undefined;
   About: undefined;
   Diagnostics: undefined;

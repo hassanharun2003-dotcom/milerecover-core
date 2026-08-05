@@ -715,27 +715,31 @@ export function ManualTripScreen() {
           { label: 'Start & end', value: 'places' },
         ]}
       />
-      <FormField
-        label={unit === 'km' ? 'Distance (km)' : 'Distance (miles)'}
-        value={distance}
-        onChangeText={(value) => {
-          setDistance(value);
-          if (distanceError) setDistanceError(validateDistanceField(value));
-        }}
-        placeholder="0.0"
-        keyboardType="decimal-pad"
-        compact
-        autoFocus={!existing}
-        accessibilityLabel={unit === 'km' ? 'Distance in kilometers' : 'Distance in miles'}
-      />
-      {distanceError ? <FormError message={distanceError} /> : null}
+      {routeMode === 'distance' ? (
+        <>
+          <FormField
+            label={unit === 'km' ? 'Distance (km)' : 'Distance (miles)'}
+            value={distance}
+            onChangeText={(value) => {
+              setDistance(value);
+              if (distanceError) setDistanceError(validateDistanceField(value));
+            }}
+            placeholder="0.0"
+            keyboardType="decimal-pad"
+            compact
+            autoFocus={!existing}
+            accessibilityLabel={unit === 'km' ? 'Distance in kilometers' : 'Distance in miles'}
+          />
+          {distanceError ? <FormError message={distanceError} /> : null}
+        </>
+      ) : null}
       {savedFlash ? (
         <StatusCard variant="success" title="Saved" body="Your drive is on this device." emphasis="subtle" />
       ) : null}
       {routeMode === 'places' ? (
         <>
           <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-            Start and end add context only. We never invent a route or distance.
+            Start and end add context. Enter a known distance below — we never invent a route.
           </Text>
           <FormField
             label="Start (optional)"
@@ -773,6 +777,21 @@ export function ManualTripScreen() {
               />
             ))}
           </ChipRow>
+          <FormField
+            label={unit === 'km' ? 'Known distance (km)' : 'Known distance (miles)'}
+            value={distance}
+            onChangeText={(value) => {
+              setDistance(value);
+              if (distanceError) setDistanceError(validateDistanceField(value));
+            }}
+            placeholder="0.0"
+            keyboardType="decimal-pad"
+            compact
+            accessibilityLabel={
+              unit === 'km' ? 'Known distance in kilometers' : 'Known distance in miles'
+            }
+          />
+          {distanceError ? <FormError message={distanceError} /> : null}
         </>
       ) : null}
 
@@ -1489,12 +1508,7 @@ export function ProtectionAlertScreen() {
         />
       ) : null}
       <SecondaryButton label="Tracking details" onPress={() => navigation.navigate('TrackingActive')} />
-      <StatusCard
-        variant="info"
-        title="Manual entry always works"
-        body="If automatic protection needs attention, add drives yourself. Nothing is invented."
-        emphasis="subtle"
-      />
+      <Text style={[text.caption, { marginTop: spacing.md }]}>Manual entry is always available.</Text>
     </ScrollScreen>
   );
 }
@@ -1574,25 +1588,42 @@ export function TrackingActiveScreen() {
   const onLabel = (ok: boolean) => (ok ? 'On' : 'Needs attention');
   const showDevDiagnostics = product.showDevTools && allowInternalPreviewTools();
 
+  const systemsOk =
+    foregroundAllowed &&
+    backgroundAllowed &&
+    !permissions.batteryOptimizationRestricted &&
+    automaticReady &&
+    !(diagnostics?.backgroundLimited === true);
+  const topTitle = systemsOk ? 'All systems normal' : 'One or more checks need attention';
+  const topBody = systemsOk
+    ? `${allowanceLabel} Repair actions live in Protection Center.`
+    : `${allowanceLabel} Open Protection Center to repair anything that needs attention.`;
+
   return (
     <ScrollScreen>
       <SectionHeader title="Tracking health" />
       <Text style={[text.body, { marginBottom: spacing.md }]}>
-        Check the basics that keep automatic protection ready. Manual entry stays available anytime.
+        Diagnostics for automatic capture. Protection status and repair actions are in Protection Center.
       </Text>
       <StatusCard
-        variant={protection.severity}
-        title={protection.title}
-        body={`${protection.message} ${allowanceLabel}`}
-        emphasis="hero"
+        variant={systemsOk ? 'success' : 'warning'}
+        title={topTitle}
+        body={topBody}
+        emphasis="subtle"
       />
-      <ListSection title="Current status">
+      <ListSection title="System checks">
+        <EvidenceRow label="Location access" value={allowedLabel(foregroundAllowed)} />
+        <EvidenceRow label="Background permission" value={allowedLabel(backgroundAllowed)} />
+        <EvidenceRow
+          label="Battery optimization"
+          value={allowedLabel(!permissions.batteryOptimizationRestricted)}
+        />
         <EvidenceRow label="Automatic protection" value={onLabel(automaticReady)} />
-        <EvidenceRow label="While using the app" value={allowedLabel(foregroundAllowed)} />
-        <EvidenceRow label="Background" value={allowedLabel(backgroundAllowed)} />
-        <EvidenceRow label="Battery" value={allowedLabel(!permissions.batteryOptimizationRestricted)} />
-        <EvidenceRow label="Monthly auto allowance" value={allowedLabel(allowanceOk)} />
-        <EvidenceRow label="Last check" value={lastCheckValue} />
+        <EvidenceRow label="Last location check" value={lastCheckValue} />
+        <EvidenceRow
+          label="Last verified capture"
+          value={diagnosticTimeLabel(diagnostics?.lastSuccessfulAutomaticTripAt)}
+        />
       </ListSection>
       <PrimaryButton
         label={diagnosticsBusy ? 'Running diagnostics…' : 'Run diagnostics'}
@@ -1620,10 +1651,6 @@ export function TrackingActiveScreen() {
             value={diagnosticRejectedSampleLabel(diagnostics?.lastRejectedSample ?? null)}
           />
           <EvidenceRow
-            label="Last automatic trip"
-            value={diagnosticTimeLabel(diagnostics?.lastSuccessfulAutomaticTripAt)}
-          />
-          <EvidenceRow
             label="Battery restriction"
             value={diagnostics?.batteryRestrictionState ?? 'unknown'}
           />
@@ -1632,11 +1659,12 @@ export function TrackingActiveScreen() {
       {diagnostics?.backgroundLimited && automaticReady ? (
         <StatusCard
           variant="warning"
-          title="Background protection is limited"
-          body="Some drives may be missed when the app isn’t open. Open Protection Center to repair permissions."
+          title="Background capture may be limited"
+          body="Some drives may be missed when the app isn’t open. Use Protection Center to repair permissions."
           emphasis="subtle"
         />
       ) : null}
+      <Text style={[text.caption, { marginTop: spacing.md }]}>Manual entry is always available.</Text>
     </ScrollScreen>
   );
 }
@@ -2076,6 +2104,34 @@ export function ComingLaterScreen() {
         body="This screen is intentionally honest: no fake switches, no placeholder success states."
         emphasis="subtle"
       />
+    </ScrollScreen>
+  );
+}
+
+export function TermsScreen() {
+  return (
+    <ScrollScreen>
+      <SectionHeader title="Terms of use" />
+      <StatusCard
+        variant="info"
+        title="Simple terms for MileRecover"
+        body="MileRecover helps you track and report mileage you capture, import, or confirm. Estimated values use the rate you choose and are not tax, legal, or reimbursement advice."
+        emphasis="hero"
+      />
+      <SoftPanel>
+        <Text style={[text.body, { marginBottom: spacing.sm }]}>
+          You stay in control of which drives count as work. Automatic capture only creates records from
+          location evidence on this device. Manual entry always remains available.
+        </Text>
+        <Text style={[text.body, { marginBottom: spacing.sm }]}>
+          Subscriptions and trials are billed through Google Play or the App Store. Cancel anytime in
+          store settings. Free remains usable after a trial under the published Free plan limits.
+        </Text>
+        <Text style={text.body}>
+          By using MileRecover you agree to keep your records accurate and to review exported reports
+          before sharing them with an employer or tax preparer.
+        </Text>
+      </SoftPanel>
     </ScrollScreen>
   );
 }
@@ -2652,7 +2708,7 @@ export function PlanSelectionScreen() {
         />
         <Text style={text.caption}>
           Subscriptions renew unless cancelled in Google Play or App Store settings.{' '}
-          <Text style={text.caption} onPress={() => navigation.navigate('Privacy')}>
+          <Text style={text.caption} onPress={() => navigation.navigate('Terms')}>
             Terms
           </Text>
           {' · '}

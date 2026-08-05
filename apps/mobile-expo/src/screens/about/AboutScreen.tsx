@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
@@ -13,13 +12,14 @@ import {
   StatusCard,
   text,
 } from '../../design-system';
+import { APP_BUILD_LABEL, APP_VERSION } from '../../constants/buildInfo';
 import type { RootStackParamList } from '../../navigation/types';
 import { useAppUpdates } from '../../updates/UpdateProvider';
 
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  'Review empty states, layered Proof, and a cleaner Profile. Familiar places and rate review are easier to manage.';
+  'Image-locked blueprint polish: clearer Protection vs Tracking health, subscription Terms, About build labels, and tighter design-system aliases.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();
@@ -27,7 +27,6 @@ export function AboutScreen() {
   const [checking, setChecking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [versionTaps, setVersionTaps] = useState(0);
-  const appVersion = Constants.expoConfig?.version ?? '—';
 
   const onCheck = async () => {
     setChecking(true);
@@ -53,14 +52,19 @@ export function AboutScreen() {
       <StatusCard
         variant="info"
         title="Quietly protecting your work miles"
-        body="We help you keep every legitimate work mile—and show it clearly when you need to. Never invent miles."
+        body="We help you keep every legitimate work mile—and show it clearly when you need to."
         emphasis="subtle"
       />
 
       <ListSection title="App">
-        <Pressable onPress={onVersionPress} accessibilityRole="button" accessibilityLabel={`App version ${appVersion}`}>
-          <ListRow label="Version" value={appVersion} showChevron={false} />
+        <Pressable
+          onPress={onVersionPress}
+          accessibilityRole="button"
+          accessibilityLabel={`App version ${APP_VERSION}`}
+        >
+          <ListRow label="Version" value={APP_VERSION} showChevron={false} />
         </Pressable>
+        <ListRow label="Build" value={APP_BUILD_LABEL} showChevron={false} />
         <ListRow label="Release notes" value={RELEASE_NOTES} showChevron={false} />
       </ListSection>
 
@@ -86,7 +90,7 @@ export function AboutScreen() {
       <ListSection title="Support and legal">
         <ListRow label="Support" onPress={() => navigation.navigate('HelpSupport')} />
         <ListRow label="Privacy" onPress={() => navigation.navigate('Privacy')} />
-        <ListRow label="Terms" onPress={() => navigation.navigate('Privacy')} />
+        <ListRow label="Terms" onPress={() => navigation.navigate('Terms')} />
       </ListSection>
     </ScrollScreen>
   );

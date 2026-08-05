@@ -1485,6 +1485,125 @@ export function TripCard({ title, subtitle, miles }: { title: string; subtitle: 
   );
 }
 
+/** Blueprint-locked named aliases — prefer these in new screens. */
+export const TextButton = TertiaryButton;
+export const StatusBadge = Badge;
+export const ChoiceCard = SelectionCard;
+export const SummaryMetric = SummaryCard;
+export const SettingsGroup = ListSection;
+export const SettingsRow = ListRow;
+export const RouteMapCard = RouteMapPreview;
+export const PeriodSegmentControl = SegmentedControl;
+export const ConfirmationDialog = ConfirmDialog;
+export const LoadingSkeleton = SkeletonBlock;
+
+export function InlineNotice({
+  title,
+  body,
+  variant = 'info',
+}: {
+  title?: string;
+  body: string;
+  variant?: StatusVariant;
+}) {
+  return (
+    <StatusCard
+      variant={variant}
+      title={title ?? (variant === 'danger' ? 'Something went wrong' : 'Note')}
+      body={body}
+      emphasis="subtle"
+    />
+  );
+}
+
+export function ErrorState({
+  title = 'Something went wrong',
+  body,
+  actionLabel,
+  onAction,
+}: {
+  title?: string;
+  body: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <View style={{ marginBottom: spacing.md }}>
+      <StatusCard variant="danger" title={title} body={body} emphasis="hero" />
+      {actionLabel && onAction ? (
+        <PrimaryButton label={actionLabel} onPress={onAction} accessibilityLabel={actionLabel} />
+      ) : null}
+    </View>
+  );
+}
+
+export function TrialBanner({
+  title = '7 days free',
+  body = 'Try Plus features. Cancel anytime.',
+  priceNote,
+  primaryLabel = 'Start 7-day free trial',
+  secondaryLabel = 'Not now',
+  onPrimary,
+  onSecondary,
+}: {
+  title?: string;
+  body?: string;
+  priceNote?: string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
+  onPrimary: () => void;
+  onSecondary?: () => void;
+}) {
+  const { palette } = useAppTheme();
+  return (
+    <View
+      style={[
+        styles.membershipBanner,
+        { backgroundColor: palette.background.mist, borderColor: palette.forest[500] },
+      ]}
+      accessibilityRole="summary"
+      accessibilityLabel={title}
+    >
+      <Text style={[text.subtitle, themedText(palette, 'action')]}>{title}</Text>
+      <Text style={[text.body, styles.membershipBannerSub, themedText(palette, 'secondary')]}>{body}</Text>
+      {priceNote ? (
+        <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>
+          {priceNote}
+        </Text>
+      ) : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
+        <SecondaryButton label={primaryLabel} onPress={onPrimary} compact />
+        {onSecondary ? <TertiaryButton label={secondaryLabel} onPress={onSecondary} /> : null}
+      </View>
+    </View>
+  );
+}
+
+export function ReportOptionRow({
+  label,
+  value,
+  locked,
+  onPress,
+}: {
+  label: string;
+  value?: string;
+  locked?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <ListRow
+      label={label}
+      value={locked ? value ?? 'Plus' : value}
+      onPress={onPress}
+      showChevron={Boolean(onPress)}
+    />
+  );
+}
+
+/** Snackbar alias — UndoSnackbar is the production toast pattern. */
+export const Toast = UndoSnackbar;
+export const Snackbar = UndoSnackbar;
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background.canvas },
   scrollContent: { padding: spacing.md, paddingBottom: spacing.xxl },

@@ -16,6 +16,9 @@ describe('Blueprint-locked design tokens', () => {
     expect(lightSemantic.surfaceSelected).toBe('#E8F4EE');
     expect(lightSemantic.textPrimary).toBe('#0F172A');
     expect(lightSemantic.border).toBe('#E2E8F0');
+    expect(lightSemantic.warning).toBe('#F59E0B');
+    expect(colors.status.warning).toBe('#B45309');
+    expect(colors.status.warningAccent).toBe('#F59E0B');
   });
 
   it('exports the canonical light semantic palette for shipped UI', () => {

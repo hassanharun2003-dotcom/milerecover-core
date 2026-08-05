@@ -84,11 +84,10 @@ export function ProfileScreen() {
 
       <ListSection title="Account">
         <ListRow
-          label="Profile/preferences"
+          label="Profile and preferences"
           value={drivingType}
           onPress={() => navigation.navigate('EditSetup')}
         />
-        <ListRow label="Purpose" value={primaryGoal} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow
           label="Familiar places"
           value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}

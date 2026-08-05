@@ -16,6 +16,7 @@ import {
   ProtectionAlertScreen,
   ReportPreviewScreen,
   RescueProductsScreen,
+  TermsScreen,
   TrackingActiveScreen,
   TripDetailsScreen,
   VehicleSetupScreen,
@@ -59,6 +60,7 @@ export function RootNavigator() {
       <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Plans' }} />
       <Stack.Screen name="EditSetup" component={EditSetupScreen} options={{ title: 'Edit setup' }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
+      <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms' }} />
       <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: 'Help' }} />
       <Stack.Screen name="About" component={AboutScreen} options={{ title: 'About' }} />
       <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: 'Diagnostics' }} />

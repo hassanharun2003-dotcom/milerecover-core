@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.2.1-blueprint-lock.1';
+export const APP_BUILD_LABEL = '0.2.2-blueprint-lock.2';
 
 /**
  * Temporary Home-screen OTA verification string.
@@ -7,8 +7,8 @@ export const APP_BUILD_LABEL = '0.2.1-blueprint-lock.1';
  */
 export const PREVIEW_CHANNEL_MARKER = '';
 
-/** App store / runtime version — image-locked blueprint rebuild. */
-export const APP_VERSION = '0.2.1';
+/** App store / runtime version — image-locked blueprint polish. */
+export const APP_VERSION = '0.2.2';
 
 /** Android applicationId / iOS bundle identifier for MileRecover product builds. */
 export const APP_PACKAGE_ID = 'com.milerecover.app';
