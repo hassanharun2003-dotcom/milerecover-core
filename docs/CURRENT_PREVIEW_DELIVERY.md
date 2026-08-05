@@ -2,7 +2,7 @@
 
 **Branch:** `cursor/final-product-recovery-29cb`  
 **PR:** https://github.com/hassanharun2003-dotcom/milerecover-core/pull/12  
-**Commit:** `d22d0d1`  
+**Commit (APK source):** `7a09316` · **branch tip:** `03fb8b0`  
 **App version / runtime:** `0.2.0`  
 **versionCode:** `22`  
 **Build label:** `0.2.0-product-recovery.1`  
