@@ -122,6 +122,9 @@ export function OnboardingFlow() {
 
   const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
+  /** Collage progress is 1–5 excluding Welcome (Purpose shows “2 of 5”). */
+  const progressSteps = ONBOARDING_STEP_ORDER.filter((s) => s !== 'welcome');
+  const progressIndex = Math.max(0, progressSteps.indexOf(step));
   const protectionConfigured =
     product.trackingEnabled ||
     product.protectionSetupState === 'configured' ||
@@ -381,12 +384,12 @@ export function OnboardingFlow() {
                 <Text style={{ fontSize: 28, color: palette.text.primary }}>‹</Text>
               </Pressable>
               <View style={{ flex: 1 }}>
-                <MRProgressBar step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+                <MRProgressBar step={progressIndex} total={progressSteps.length} />
               </View>
               <View style={{ width: 40 }} />
             </View>
           ) : (
-            <MRProgressBar step={stepIndex} total={ONBOARDING_STEP_ORDER.length} />
+            <MRProgressBar step={progressIndex} total={progressSteps.length} />
           )}
         </View>
       ) : null}
