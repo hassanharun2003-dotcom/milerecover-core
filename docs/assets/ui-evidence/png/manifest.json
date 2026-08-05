@@ -131,77 +131,77 @@
   },
   "fixture-manual_mode-light": {
     "file": "fixture-manual_mode-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Automatic protection is off Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Drive protection is paused. Next up Turn on protection RECENT No drive",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Automatic protection is off Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Drive protection is paused. Next up Turn on protection RECENT No drives ",
     "failures": []
   },
   "fixture-permission_partial-light": {
     "file": "fixture-permission_partial-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive sta",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive start",
     "failures": []
   },
   "fixture-permission_granted_no_drive-light": {
     "file": "fixture-permission_granted_no_drive-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive sta",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive start",
     "failures": []
   },
   "fixture-tracking_verified-light": {
     "file": "fixture-tracking_verified-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive sta",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive start",
     "failures": []
   },
   "fixture-protection_degraded-light": {
     "file": "fixture-protection_degraded-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive sta",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive start",
     "failures": []
   },
   "fixture-no_trips-light": {
     "file": "fixture-no_trips-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive sta",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive start",
     "failures": []
   },
   "fixture-pending_review_trips-light": {
     "file": "fixture-pending_review_trips-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $15.47 this year ✓ Allow location so automatic protection can notice when a work drive starts. 22.1 mi Work miles 2 Work drives $15.47 This month Allow location so automatic ",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $15.47 this year ✓ Allow location so automatic protection can notice when a work drive starts. 22.1 mi Work miles 2 Work drives $15.47 This month Allow location so automatic pr",
     "failures": []
   },
   "fixture-confirmed_trips-light": {
     "file": "fixture-confirmed_trips-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $40.60 this year ✓ Allow location so automatic protection can notice when a work drive starts. 58.0 mi Work miles 3 Work drives $40.60 This month Allow location so automatic ",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $40.60 this year ✓ Allow location so automatic protection can notice when a work drive starts. 58.0 mi Work miles 3 Work drives $40.60 This month Allow location so automatic pr",
     "failures": []
   },
   "fixture-recovered_trip-light": {
     "file": "fixture-recovered_trip-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $15.47 this year ✓ Allow location so automatic protection can notice when a work drive starts. 22.1 mi Work miles 2 Work drives $15.47 This month Allow location so automatic ",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $15.47 this year ✓ Allow location so automatic protection can notice when a work drive starts. 22.1 mi Work miles 2 Work drives $15.47 This month Allow location so automatic pr",
     "failures": []
   },
   "fixture-free_limit_close-light": {
     "file": "fixture-free_limit_close-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $11.20 this year ✓ Allow location so automatic protection can notice when a work drive starts. 16.0 mi Work miles 1 Work drives $11.20 This month Allow location so automatic ",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $11.20 this year ✓ Allow location so automatic protection can notice when a work drive starts. 16.0 mi Work miles 1 Work drives $11.20 This month Allow location so automatic pr",
     "failures": []
   },
   "fixture-free_limit_reached-light": {
     "file": "fixture-free_limit_reached-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $11.20 this year ✓ Allow location so automatic protection can notice when a work drive starts. 16.0 mi Work miles 1 Work drives $11.20 This month Allow location so automatic ",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $11.20 this year ✓ Allow location so automatic protection can notice when a work drive starts. 16.0 mi Work miles 1 Work drives $11.20 This month Allow location so automatic pr",
     "failures": []
   },
   "fixture-report_ready-light": {
     "file": "fixture-report_ready-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $40.60 this year ✓ Allow location so automatic protection can notice when a work drive starts. 58.0 mi Work miles 3 Work drives $40.60 This month Allow location so automatic ",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $40.60 this year ✓ Allow location so automatic protection can notice when a work drive starts. 58.0 mi Work miles 3 Work drives $40.60 This month Allow location so automatic pr",
     "failures": []
   },
   "fixture-report_blocked-light": {
     "file": "fixture-report_blocked-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $10.50 this year ✓ Allow location so automatic protection can notice when a work drive starts. 15.0 mi Work miles 1 Work drives $10.50 This month Allow location so automatic ",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $10.50 this year ✓ Allow location so automatic protection can notice when a work drive starts. 15.0 mi Work miles 1 Work drives $10.50 This month Allow location so automatic pr",
     "failures": []
   },
   "fixture-offline-light": {
     "file": "fixture-offline-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention $12.60 this year ✓ MileRecover is offline. Saved miles stay on this device until checks can run again. 18.0 mi Work miles 2 Work drives $12.60 This month MileRecover is offli",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention $12.60 this year ✓ MileRecover is offline. Saved miles stay on this device until checks can run again. 18.0 mi Work miles 2 Work drives $12.60 This month MileRecover is offline",
     "failures": []
   },
   "fixture-light_mode-light": {
     "file": "fixture-light_mode-light.png",
-    "copyPreview": "MileRecover Plans Good afternoon, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive sta",
+    "copyPreview": "MileRecover Plans Good evening, Sam. Protection needs attention Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month Allow location so automatic protection can notice when a work drive start",
     "failures": []
   }
 }
