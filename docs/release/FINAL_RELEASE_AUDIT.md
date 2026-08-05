@@ -158,11 +158,17 @@
 
 ## Release checklist
 
-- [x] Domain tests green  
-- [x] Mobile tests green  
+- [x] Domain tests green (92)  
+- [x] Mobile tests green (94)  
 - [x] Typecheck green  
 - [x] check:all green  
-- [ ] EAS preview APK published + direct install URL  
+- [x] EAS preview APK published + direct install URL (`0.1.7` vc17)  
 - [ ] Physical-device protection + background validation  
 - [ ] Store products + RevenueCat live  
 - [ ] Production privacy policy / store listings  
+
+## Published Android preview
+
+- Direct APK: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.7/MileRecover-preview-0.1.7.apk  
+- Build ID: `8b28bed1-c747-42b6-bcb3-e8afc0e1f908`  
+- SHA-256: `f72fcf92d52a76bf215ef95f5b928586a12a1938377f2b829b80e94b8641b68a`  

@@ -1,28 +1,38 @@
 # Current preview delivery — final production pass
 
 **Branch:** `cursor/final-production-pass-29cb`  
+**Commit:** `da1088244a2e655bf994741f3d0ce049c94d115c`  
 **App version / runtime:** `0.1.7`  
+**versionCode:** `17`  
 **Build label:** `0.1.7-final.1`  
-**Channel:** `preview`
+**Channel:** `preview`  
+**EAS build ID:** `8b28bed1-c747-42b6-bcb3-e8afc0e1f908`
 
-## Why a new APK is required
+## Direct install (preferred)
 
-Native tracking foundation changes (engine → AppContext sync, trip state machine persistence, FGS copy, Free 40-trip allowance gating, battery settings deep-link). Runtime policy is `appVersion`, so OTAs for `0.1.7` only install on `0.1.7` binaries.
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.7/MileRecover-preview-0.1.7.apk
 
-## Install
+Latest alias:
 
-Publish via EAS preview profile, then attach the APK to a GitHub prerelease:
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.7/MileRecover-preview-latest.apk
 
-- Tag pattern: `android-preview-0.1.7`
-- Assets: `MileRecover-preview-0.1.7.apk` and `MileRecover-preview-latest.apk`
+Release page: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.1.7
 
-Until the EAS build URL is published, use the EAS dashboard build artifact for account `milerecover` / project `milerecover`.
+## Artifact checks
 
-## Prior baseline (superseded for native)
+| Check | Result |
+|---|---|
+| SHA-256 | `f72fcf92d52a76bf215ef95f5b928586a12a1938377f2b829b80e94b8641b68a` |
+| Size | ~85 MB |
+| `updates.enabled` | `true` |
+| `extra.appVariant` | `preview` |
+| `expo-dev-client` plugin | absent (standalone) |
+| Runtime policy | `appVersion` → `0.1.7` |
 
-https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.6/MileRecover-preview-0.1.6.apk  
-(versionCode 16 — JS OTAs only for runtime `0.1.6`)
+## EAS artifact mirror
 
-## Validation
+https://expo.dev/artifacts/eas/qKD4VXkiflRIAmzuSbymxOPAMdi49bA7BOQCcXkM2vg.apk
 
-See `docs/release/FINAL_RELEASE_AUDIT.md` and `ui-evidence/final-production/`.
+## Why this APK
+
+Native tracking foundation changes (engine → AppContext sync, trip state machine persistence, FGS notification, Free 40-trip allowance gating, battery settings deep-link). Future JS-only OTAs for runtime `0.1.7` install on this binary via the preview channel.
