@@ -44,5 +44,7 @@
       "mean_abs_diff": 36.20801940292461
     }
   ],
-  "installUrl": "https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.5/MileRecover-preview-0.2.5.apk"
+  "installUrl": "https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.5/MileRecover-preview-0.2.5.apk",
+  "apkSourceCommit": "b47494089a6c1a6d12bb201763e7989aa9f63c62",
+  "evidenceCommit": "31e318f"
 }
