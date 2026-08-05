@@ -1,17 +1,37 @@
 # Current preview delivery — 0.2.5 image-lock Batch A+B
 
 **Branch:** `cursor/image-lock-protocol-29cb`  
-**Build label:** `0.2.5-image-lock.2`  
+**APK source commit:** `b474940`  
 **App version / runtime:** `0.2.5`  
+**versionCode:** `32`  
+**Build label:** `0.2.5-image-lock.2`  
 **Channel:** `preview`  
 **Build method:** Local EAS preview APK (`APP_VARIANT=preview`)  
 **Dev launcher:** absent  
 
 ## Direct install
 
-See GitHub release `android-preview-0.2.5` (APK artifact updated for image-lock.2 when published).
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.5/MileRecover-preview-0.2.5.apk
 
-Artifact path (CI/agent): `/opt/cursor/artifacts/apk/MileRecover-preview-0.2.5.apk`
+Latest alias:
+
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.5/MileRecover-preview-latest.apk
+
+Release: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.2.5
+
+## Artifact checks
+
+| Check | Result |
+|---|---|
+| SHA-256 | `134265313b8a417d604d6bab899f6547108a995616a0668b9cd1f7e66f6c587d` |
+| Package | `com.milerecover.app` |
+| versionName | `0.2.5` |
+| versionCode | `32` |
+| runtimeVersion | `0.2.5` |
+| updates.enabled | `true` |
+| channel | `preview` |
+| Launchable | `com.milerecover.app.MainActivity` |
+| DevLauncher in dex | absent |
 
 ## Scope this run
 
@@ -20,16 +40,6 @@ Not started: Review · Proof · Add Drive · Missing Drives · Protection Center
 
 ## Device evidence
 
-`docs/assets/ui-evidence/device/0.2.5/`
+`docs/assets/ui-evidence/device/0.2.5/` — real Android emulator PNGs, side-by-sides, diffs, overlays, `meta.json`, `MISMATCHES.md`.
 
-- `raw/` — actual Android screenshots (Pixel 6 AVD, API 34, 1080×2400)
-- `compare/` — side-by-side reference vs device
-- `diff/` + `overlay/` — difference / blend images
-- `meta.json` — device, viewport, commit, fixture state
-- `MISMATCHES.md` — corrections and honest remaining gaps
-
-## Notes
-
-- Collage marketing panel excluded from crops.
-- Auth and Ready have no collage tiles; captured as protocol screens.
-- Home evidence uses truthful empty production state (no collage sample dollars injected).
+Harness / Storyboard PNGs do **not** count as device proof.

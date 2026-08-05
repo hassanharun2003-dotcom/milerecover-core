@@ -1,37 +1,34 @@
-# Device visual mismatches — 0.2.5 Batch A/B
+# Device visual mismatches — 0.2.5 Batch A/B (image-lock.2)
 
-Evidence from Pixel 6 AVD (`sdk_gphone64_x86_64`, API 34, 1080×2400, TCG).
+Evidence: Pixel 6 AVD (`sdk_gphone64_x86_64`, API 34, 1080×2400, TCG).  
+APK: versionCode **32**, label **0.2.5-image-lock.2**.
 
-## Corrected before rebuild (image-lock.2)
+## Verified on device after rebuild
 
-| Screen | Mismatch | Correction |
-|---|---|---|
-| Welcome | App icon was blue chevron, not green shield mark | `MRWelcomeLogo` draws dark-green rounded mark |
-| Welcome | Extra “I already use a mileage app” link under CTA | Removed from Welcome footer (not in collage) |
-| Welcome | Skip used primary green tertiary weight | Skip uses muted secondary text |
-| Auth–Region | Progress “N of 6” | Progress excludes Welcome → “N of 5” (`8262305` + rebuild) |
-| Home | Greeting fell back to “Welcome back” without name | Time-of-day greeting (`Good morning` / …) |
-| Home | Empty hero used long CTA copy instead of money silhouette | Shows truthful `$0.00` / `this year.` when rate usable |
-| Home | Metric tile put unit inside value (`0.0 mi`) | Numeric value + “Work miles” label |
-| Home | Notification control was ◉ glyph | `notifications-outline` icon |
-| Home | Hero glyph was text check | `shield-checkmark` icon |
-
-## Honest remaining differences (post-correction intent)
-
-| Screen | Remaining |
+| Screen | Verified |
 |---|---|
-| Welcome | Pagination dots imply 4 intro pages; product only has one Welcome step |
-| Auth | No collage tile — layout is protocol-required, not pixel-locked to a crop |
-| Purpose | Selection checkmark / green border only after tap (capture can show unselected) |
-| Region | Info row uses check circle; collage uses “i” info treatment |
-| Protection | Product copy/actions (“Turn on drive protection”) vs collage Protection Center tile (different screen) |
-| Ready | Not a collage tile; success CTA pair differs from marketing panels |
-| Home | Truthful empty state (`$0.00`, `0` drives) vs collage populated sample (`$487.32`, `1,264`) |
-| Home | Status panel attention tone when protection paused (amber) vs collage mint “All systems normal” |
-| Home | Next-up label follows live next-best action, not always “Review 2 drives” |
-| All | Status bar / gesture inset differ from collage chrome |
-| Crops | Working crops are vision-derived geometry locks; original collage binary was not on disk |
+| Welcome | Green brand mark, muted Skip, 3 benefits, dots, Get started → (no extra import link) |
+| Auth | Progress **1 of 5**, Google primary, continue without account, truthful unavailable copy |
+| Purpose | Progress **2 of 5**, four collage goal labels |
+| Region | Progress **3 of 5**, country + $0.70/mi + estimate panel |
+| Protection | Progress **4 of 5**, education + Turn on / Not now |
+| Ready | You’re all set + Go to Home / Add my first drive |
+| Home | Light canvas, greeting, `$0.00` / this year., 3 metric tiles, status, Next up, dual CTAs, 4 tabs |
 
-## Acceptance for this stop condition
+## Honest remaining differences
 
-Batch A + Batch B presentation rebuilt to white canvas + collage hierarchy. Device PNGs under `raw/`, comparisons under `compare/` + `diff/`. Review/Proof and later batches not started.
+| Item | Notes |
+|---|---|
+| Welcome pagination | 4 dots imply multi-page intro; product has one Welcome step |
+| Auth / Ready | No collage tiles — protocol screens only |
+| Region info icon | App uses check circle; collage uses “i” |
+| Protection vs Protection Center | Onboarding education ≠ collage tile 08 |
+| Home empty vs collage sample | Truthful `$0.00` / `0` miles vs collage `$487.32` / `1,264` |
+| Home status tone | Amber “paused” when protection off vs collage mint “All systems normal” |
+| Home Next up | Live next-best (“Turn on protection”) vs collage “Review 2 drives” |
+| Crops provenance | Vision-derived working locks (original collage binary not on disk) |
+| Emulator | TCG-only; ANRs occurred during earlier attempts — final set captured with wifi/data off |
+
+## Out of scope this run
+
+Review · Proof · Add Drive · Missing Drives · Protection Center · Profile · Subscription.
