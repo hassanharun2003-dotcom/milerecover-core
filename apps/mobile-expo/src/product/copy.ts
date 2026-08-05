@@ -95,9 +95,9 @@ export function nextActionCopy(action: NextActionId): NextActionCopy {
     default:
       return {
         id: 'start_protection',
-        title: 'Turn on watching',
+        title: 'Turn on drive protection',
         body: 'So future drives aren’t missed. We’ll explain each permission first.',
-        cta: 'Turn on watching',
+        cta: 'Turn on protection',
         route: 'ProtectionAlert',
       };
   }
@@ -137,7 +137,7 @@ export function secondaryHomeActionForGoal(goal: MileageGoal | null): {
 export function protectionLabel(state: ProtectionSetupState): string {
   switch (state) {
     case 'healthy':
-      return 'Watching';
+      return 'Protected';
     case 'configured':
       return 'Ready';
     case 'limited':

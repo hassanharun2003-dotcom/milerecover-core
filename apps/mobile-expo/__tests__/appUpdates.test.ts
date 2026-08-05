@@ -3,7 +3,7 @@ import { updatesEnabled } from '../src/updates/appUpdates';
 
 describe('Preview update workflow constants', () => {
   it('exposes build label and optional preview marker', () => {
-    expect(APP_BUILD_LABEL).toMatch(/mvp|preview|final/);
+    expect(APP_BUILD_LABEL).toMatch(/mvp|preview|final|product-lock/);
     expect(typeof PREVIEW_CHANNEL_MARKER).toBe('string');
   });
 

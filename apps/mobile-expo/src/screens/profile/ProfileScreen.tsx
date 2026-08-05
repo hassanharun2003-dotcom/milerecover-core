@@ -4,11 +4,7 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { capabilitiesForEntitlement, formatActiveRateLabel, resolveProtectionStatus } from '@milerecover/domain';
-import {
-  ListRow,
-  ListSection,
-  TabScreen,
-} from '../../design-system';
+import { ListRow, ListSection, TabScreen } from '../../design-system';
 import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { useProduct } from '../../product/ProductContext';
@@ -22,20 +18,8 @@ type ProfileNav = CompositeNavigationProp<
 
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
-  const {
-    resetLocalData,
-    restartOnboarding,
-    permissions,
-    automaticCaptureAvailable,
-    state,
-  } = useApp();
-  const {
-    product,
-    setDemoScenario,
-    setDemoModeEnabled,
-    resetProductData,
-    resetOnboarding,
-  } = useProduct();
+  const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable, state } = useApp();
+  const { product, setDemoScenario, setDemoModeEnabled, resetProductData, resetOnboarding } = useProduct();
   const displayName = product.preferredName?.trim() || 'Not set';
   const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label ?? 'Not set';
   const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
@@ -62,7 +46,7 @@ export function ProfileScreen() {
 
   return (
     <TabScreen>
-      <ListSection title="Your setup">
+      <ListSection title="Profile">
         <ListRow label="Name" value={displayName} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow label="Goal" value={primaryGoal} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow label="Driving pattern" value={drivingType} onPress={() => navigation.navigate('EditSetup')} />
@@ -71,21 +55,27 @@ export function ProfileScreen() {
           value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}
           onPress={() => navigation.navigate('WorkLocationSetup')}
         />
+      </ListSection>
+
+      <ListSection title="Vehicles">
         <ListRow
           label="Vehicles"
-          value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add anytime'}
+          value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add a vehicle'}
           onPress={() => navigation.navigate('VehicleSetup')}
         />
       </ListSection>
 
-      <ListSection title="Mileage settings">
+      <ListSection title="Country">
         <ListRow
           label="Country"
           value={product.localeProfile.countryDisplayName}
           onPress={() => navigation.navigate('EditSetup')}
         />
+      </ListSection>
+
+      <ListSection title="Units">
         <ListRow
-          label="Units"
+          label="Distance"
           value={product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles'}
           onPress={() => navigation.navigate('EditSetup')}
         />
@@ -94,16 +84,14 @@ export function ProfileScreen() {
           value={product.localeProfile.currencyCode}
           onPress={() => navigation.navigate('EditSetup')}
         />
+      </ListSection>
+
+      <ListSection title="Rates">
         <ListRow label="Mileage rate" value={rateLabel} onPress={() => navigation.navigate('EditSetup')} />
       </ListSection>
 
-      <ListSection title="Drive protection">
+      <ListSection title="Protection">
         <ListRow label="Status" value={protection.title} showChevron={false} />
-        <ListRow
-          label="Tracking mode"
-          value={product.trackingEnabled ? 'Automatic protection' : 'Manual trip'}
-          onPress={() => navigation.navigate('TrackingActive')}
-        />
         <ListRow
           label="Protection center"
           onPress={() => {
@@ -116,15 +104,21 @@ export function ProfileScreen() {
         />
       </ListSection>
 
-      <ListSection title="Reports and data">
-        <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
-        <ListRow label="Export report" onPress={() => navigation.navigate('ExportReport')} />
-        <ListRow label="Privacy" onPress={() => navigation.navigate('Privacy')} />
+      <ListSection title="Tracking">
+        <ListRow
+          label="Tracking mode"
+          value={product.trackingEnabled ? 'Automatic protection' : 'Manual'}
+          onPress={() => navigation.navigate('TrackingActive')}
+        />
       </ListSection>
 
-      <ListSection title="Plan and support">
+      <ListSection title="Import">
+        <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
+      </ListSection>
+
+      <ListSection title="Subscription">
         <ListRow
-          label="Subscription"
+          label="Plan"
           value={planLabel}
           onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
         />
@@ -132,7 +126,17 @@ export function ProfileScreen() {
           label="Restore purchases"
           onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
         />
+      </ListSection>
+
+      <ListSection title="Privacy">
+        <ListRow label="Privacy" onPress={() => navigation.navigate('Privacy')} />
+      </ListSection>
+
+      <ListSection title="Help">
         <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
+      </ListSection>
+
+      <ListSection title="About">
         <ListRow label="About" onPress={() => navigation.navigate('About')} />
       </ListSection>
 

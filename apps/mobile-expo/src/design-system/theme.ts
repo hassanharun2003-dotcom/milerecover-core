@@ -1,18 +1,22 @@
-import { colors } from '@milerecover/config';
+import { colors, darkColors } from '@milerecover/config';
 
 export type StatusVariant = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+export type Palette = typeof colors | typeof darkColors;
 
-export function statusColors(variant: StatusVariant): { fg: string; bg: string } {
+export function statusColors(
+  variant: StatusVariant,
+  palette: Palette = colors,
+): { fg: string; bg: string } {
   switch (variant) {
     case 'success':
-      return { fg: colors.status.success, bg: colors.status.successBg };
+      return { fg: palette.status.success, bg: palette.status.successBg };
     case 'warning':
-      return { fg: colors.status.warning, bg: colors.status.warningBg };
+      return { fg: palette.status.warning, bg: palette.status.warningBg };
     case 'danger':
-      return { fg: colors.status.danger, bg: colors.status.dangerBg };
+      return { fg: palette.status.danger, bg: palette.status.dangerBg };
     case 'info':
-      return { fg: colors.status.info, bg: colors.status.infoBg };
+      return { fg: palette.status.info, bg: palette.status.infoBg };
     default:
-      return { fg: colors.neutral[700], bg: colors.neutral[100] };
+      return { fg: palette.neutral[700], bg: palette.neutral[100] };
   }
 }

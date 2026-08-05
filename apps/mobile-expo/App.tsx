@@ -16,7 +16,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { StartupGate } from './src/components/StartupGate';
 import { ManualTripMigration } from './src/components/ManualTripMigration';
 import { UpdateProvider, useAppUpdates } from './src/updates/UpdateProvider';
-import { SafeFillScreen, text } from './src/design-system';
+import { SafeFillScreen, text, ThemeProvider, useAppTheme } from './src/design-system';
 import { createTrackingController } from './src/services/trackingEngine';
 import { resolveLaunchState } from './src/startup/launchState';
 
@@ -108,6 +108,7 @@ function AppRoot() {
   const { state, retryRestore, resetLocalData, finishOnboarding } = useApp();
   const { product, hydrated: productHydrated } = useProduct();
   const { setUpdatePromptBlocked } = useAppUpdates();
+  const { isDark } = useAppTheme();
 
   const appHydrated = state.startupPhase !== 'restoring';
   const launch = resolveLaunchState({
@@ -141,7 +142,7 @@ function AppRoot() {
       onConfirmReset={resetLocalData}
       launchKind={launch.kind}
     >
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <ManualTripMigration />
       <TrackingBootstrap>
         {launch.showOnboarding ? (
@@ -161,13 +162,15 @@ function AppRoot() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <ProductProvider>
-          <UpdateProvider>
-            <AppRoot />
-          </UpdateProvider>
-        </ProductProvider>
-      </AppProvider>
+      <ThemeProvider>
+        <AppProvider>
+          <ProductProvider>
+            <UpdateProvider>
+              <AppRoot />
+            </UpdateProvider>
+          </ProductProvider>
+        </AppProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

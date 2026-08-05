@@ -21,12 +21,13 @@ describe('Onboarding completeness', () => {
   it('requires goal, next action, and current version stamp (pain points optional in v8)', () => {
     const empty = createEmptyOnboardingState();
     expect(isOnboardingMinimumComplete(empty)).toBe(false);
-    expect(nextIncompleteStep(empty)).toBe('your_work');
+    expect(nextIncompleteStep(empty)).toBe('purpose');
     const complete = {
       ...empty,
       primaryGoal: 'employee_reimbursement' as const,
       selectedPainPoints: ['forget_to_track' as const],
       drivingPattern: 'regular_locations' as const,
+      countryStepAcknowledged: true,
       protectionEducationAcknowledged: true,
       permissionsEducationAcknowledged: true,
       nextActionSelected: 'add_first_drive' as const,

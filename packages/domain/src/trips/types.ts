@@ -21,6 +21,11 @@ export interface TripRecord {
   purpose: string | null;
   notes: string | null;
   hasRouteCoordinates: boolean;
+  /**
+   * Downsampled observed points for map preview only.
+   * Never invents geometry — empty/absent when evidence is insufficient.
+   */
+  routePreview?: Array<{ latitude: number; longitude: number }> | null;
   confidence: 'high' | 'medium' | 'low' | null;
   /** Optional MVP fields — absent on older persisted records */
   startLabel?: string | null;

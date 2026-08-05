@@ -243,13 +243,14 @@ export function createInitialProductUiState(): ProductUiState {
 }
 
 /**
- * Ultimate UX v8 — four meaningful onboarding stages.
- * Auth is inline/skippable; permissions live inside Protect.
+ * Final product lock — five onboarding stages.
+ * Welcome → Purpose → Country/Units/Rate → Protection → Ready.
  */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
-  'your_work',
+  'welcome',
+  'purpose',
+  'locale_setup',
   'protect_drives',
-  'personalize',
   'ready',
 ];
 
@@ -262,10 +263,10 @@ export const COUNTRY_OPTIONS = [
 ];
 
 export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: string }[] = [
-  { id: 'employee_reimbursement', label: 'Employee reimbursement', body: 'Share clear records with work.' },
-  { id: 'gig_delivery', label: 'Gig or delivery driving', body: 'Protect shifts and earnings records.' },
-  { id: 'self_employed_business', label: 'Self-employed or business', body: 'Keep client and tax-ready logs.' },
-  { id: 'mixed', label: 'A mix of these', body: 'I do more than one of these.' },
+  { id: 'employee_reimbursement', label: 'Employee', body: 'Share clear records with work.' },
+  { id: 'self_employed_business', label: 'Business', body: 'Keep client and tax-ready logs.' },
+  { id: 'gig_delivery', label: 'Gig', body: 'Protect shifts and earnings records.' },
+  { id: 'mixed', label: 'Mixed', body: 'More than one of these.' },
 ];
 
 export const PAIN_POINT_OPTIONS: { id: PainPoint; label: string }[] = [

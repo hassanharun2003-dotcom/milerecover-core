@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '@milerecover/config';
+import { useAppTheme } from './ThemeProvider';
 
 const GUTTER = spacing.md;
 
@@ -25,6 +26,7 @@ type ShellProps = {
  */
 export function TabScreen({ children, style, contentStyle, footer }: ShellProps) {
   const insets = useSafeAreaInsets();
+  const { palette } = useAppTheme();
   return (
     <View
       style={[
@@ -33,7 +35,7 @@ export function TabScreen({ children, style, contentStyle, footer }: ShellProps)
           paddingTop: insets.top,
           paddingLeft: Math.max(insets.left, GUTTER),
           paddingRight: Math.max(insets.right, GUTTER),
-          backgroundColor: colors.background.canvas,
+          backgroundColor: palette.background.canvas,
         },
         style,
       ]}
@@ -57,6 +59,7 @@ export function TabScreen({ children, style, contentStyle, footer }: ShellProps)
  */
 export function StackScrollScreen({ children, style, contentStyle, footer }: ShellProps) {
   const insets = useSafeAreaInsets();
+  const { palette } = useAppTheme();
   return (
     <KeyboardAvoidingView
       style={[
@@ -64,7 +67,7 @@ export function StackScrollScreen({ children, style, contentStyle, footer }: She
         {
           paddingLeft: Math.max(insets.left, GUTTER),
           paddingRight: Math.max(insets.right, GUTTER),
-          backgroundColor: colors.background.canvas,
+          backgroundColor: palette.background.canvas,
         },
         style,
       ]}
@@ -92,8 +95,8 @@ export function StackScrollScreen({ children, style, contentStyle, footer }: She
           style={{
             paddingBottom: Math.max(insets.bottom, spacing.sm),
             borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: colors.border.default,
-            backgroundColor: colors.background.canvas,
+            borderTopColor: palette.border.default,
+            backgroundColor: palette.background.canvas,
             paddingTop: spacing.sm,
           }}
         >
@@ -109,6 +112,7 @@ export function StackScrollScreen({ children, style, contentStyle, footer }: She
  */
 export function OnboardingScreen({ children, style, contentStyle, footer }: ShellProps) {
   const insets = useSafeAreaInsets();
+  const { palette } = useAppTheme();
   return (
     <View
       style={[
@@ -118,7 +122,7 @@ export function OnboardingScreen({ children, style, contentStyle, footer }: Shel
           paddingBottom: footer ? spacing.sm : Math.max(insets.bottom, spacing.md),
           paddingLeft: Math.max(insets.left, GUTTER),
           paddingRight: Math.max(insets.right, GUTTER),
-          backgroundColor: colors.background.canvas,
+          backgroundColor: palette.background.canvas,
         },
         style,
       ]}
@@ -151,6 +155,7 @@ export function SafeFillScreen({
   style?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
+  const { palette } = useAppTheme();
   return (
     <View
       style={[
@@ -160,7 +165,7 @@ export function SafeFillScreen({
           paddingBottom: Math.max(insets.bottom, spacing.md),
           paddingLeft: Math.max(insets.left, GUTTER),
           paddingRight: Math.max(insets.right, GUTTER),
-          backgroundColor: colors.background.canvas,
+          backgroundColor: palette.background.canvas,
         },
         style,
       ]}
@@ -182,6 +187,7 @@ export function FixedHeaderScrollScreen({
   scrollKey,
 }: ShellProps & { header: React.ReactNode; scrollKey?: string | number | boolean }) {
   const insets = useSafeAreaInsets();
+  const { palette } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   React.useEffect(() => {
     if (scrollKey === undefined) return;
@@ -194,12 +200,22 @@ export function FixedHeaderScrollScreen({
         {
           paddingLeft: Math.max(insets.left, GUTTER),
           paddingRight: Math.max(insets.right, GUTTER),
-          backgroundColor: colors.background.canvas,
+          backgroundColor: palette.background.canvas,
         },
         style,
       ]}
     >
-      <View style={styles.fixedHeader}>{header}</View>
+      <View
+        style={[
+          styles.fixedHeader,
+          {
+            borderBottomColor: palette.border.default,
+            backgroundColor: palette.background.canvas,
+          },
+        ]}
+      >
+        {header}
+      </View>
       <ScrollView
         ref={scrollRef}
         style={styles.flex}

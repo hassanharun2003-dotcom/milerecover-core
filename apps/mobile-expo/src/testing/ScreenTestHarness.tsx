@@ -10,6 +10,7 @@ import { createPreviewPersistenceRepository } from '../persistence/AsyncStorageP
 import { AppProvider } from '../store/AppContext';
 import { ProductProvider } from '../product/ProductContext';
 import { UpdateProvider } from '../updates/UpdateProvider';
+import { ThemeProvider } from '../design-system/ThemeProvider';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { ReviewScreen } from '../screens/review/ReviewScreen';
 import { ProofScreen } from '../screens/proof/ProofScreen';
@@ -45,11 +46,13 @@ const SAFE_AREA_METRICS = {
 function TestProviders({ children, product }: { children: React.ReactNode; product: ProductUiState }) {
   return (
     <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>
-      <AppProvider repository={createPreviewPersistenceRepository()}>
-        <ProductProvider initialState={product} skipHydration>
-          <UpdateProvider>{children}</UpdateProvider>
-        </ProductProvider>
-      </AppProvider>
+      <ThemeProvider>
+        <AppProvider repository={createPreviewPersistenceRepository()}>
+          <ProductProvider initialState={product} skipHydration>
+            <UpdateProvider>{children}</UpdateProvider>
+          </ProductProvider>
+        </AppProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

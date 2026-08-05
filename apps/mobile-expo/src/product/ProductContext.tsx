@@ -332,7 +332,12 @@ export function ProductProvider({
             },
             {
               countryStepAcknowledged: true,
-              completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'country', 'your_work']),
+              completedSteps: uniqueSteps([
+                ...prev.onboarding.completedSteps,
+                'country',
+                'locale_setup',
+                'purpose',
+              ]),
             },
           );
         }),
@@ -611,6 +616,7 @@ export function ProductProvider({
       upsertVehicle: (vehicle) =>
         persist((prev) => {
           const now = Date.now();
+          const makePrimary = vehicle.isPrimary ?? prev.vehicles.length === 0;
           const nextVehicle: VehicleDraft = {
             ...vehicle,
             nickname: vehicle.nickname?.trim() || 'My vehicle',
@@ -618,15 +624,22 @@ export function ProductProvider({
             make: vehicle.make?.trim() ?? '',
             model: vehicle.model?.trim() ?? '',
             plate: vehicle.plate?.trim() ?? '',
-            isPrimary: vehicle.isPrimary ?? prev.vehicles.length === 0,
+            isPrimary: makePrimary,
             nicknameUserSet: vehicle.nicknameUserSet === true,
             createdAt: vehicle.createdAt ?? now,
             updatedAt: now,
           };
           const exists = prev.vehicles.some((item) => item.id === nextVehicle.id);
-          const vehicles = exists
+          let vehicles = exists
             ? prev.vehicles.map((item) => (item.id === nextVehicle.id ? nextVehicle : item))
             : [...prev.vehicles, nextVehicle];
+          if (makePrimary) {
+            vehicles = vehicles.map((item) =>
+              item.id === nextVehicle.id ? { ...item, isPrimary: true } : { ...item, isPrimary: false },
+            );
+          } else if (!vehicles.some((item) => item.isPrimary) && vehicles.length > 0) {
+            vehicles = vehicles.map((item, index) => ({ ...item, isPrimary: index === 0 }));
+          }
           const vehicleSetupState = vehicles.length > 1 ? 'multi' : 'added';
           return patchOnboardingState(
             { ...prev, vehicles },

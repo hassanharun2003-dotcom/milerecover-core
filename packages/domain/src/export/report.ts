@@ -10,7 +10,14 @@ import {
 import { isConfirmedWorkTrip, type TripRecord } from '../trips/types';
 import { filterExportableTrips } from './csv';
 
-export type ReportPeriodKind = 'this_week' | 'this_month' | 'previous_month' | 'ytd' | 'custom';
+export type ReportPeriodKind =
+  | 'this_week'
+  | 'this_month'
+  | 'this_quarter'
+  | 'this_year'
+  | 'ytd'
+  | 'previous_month'
+  | 'custom';
 
 /** Heading derived from the user’s selected mileage goal / report style. */
 export function reportTitleForGoal(goal: MileageGoal | null | undefined): string {
@@ -124,6 +131,16 @@ export function resolveReportPeriod(kind: ReportPeriodKind, now = Date.now(), cu
   if (kind === 'this_month') {
     const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
     return { kind, label: 'This month', startAt: start, endAt: now };
+  }
+  if (kind === 'this_quarter') {
+    const quarter = Math.floor(d.getMonth() / 3);
+    const start = new Date(d.getFullYear(), quarter * 3, 1).getTime();
+    return { kind, label: `Q${quarter + 1} ${d.getFullYear()}`, startAt: start, endAt: now };
+  }
+  if (kind === 'this_year') {
+    const start = new Date(d.getFullYear(), 0, 1).getTime();
+    const end = new Date(d.getFullYear(), 11, 31, 23, 59, 59, 999).getTime();
+    return { kind, label: `${d.getFullYear()}`, startAt: start, endAt: Math.min(now, end) };
   }
   if (kind === 'previous_month') {
     const start = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime();

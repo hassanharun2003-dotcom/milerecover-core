@@ -16,18 +16,15 @@ import {
 } from '@milerecover/domain';
 import {
   EmptyState,
-  PrimaryButton,
   ReviewCard,
   ReviewedItemCard,
   SecondaryButton,
   SegmentedControl,
-  SoftPanel,
   TabScreen,
   TertiaryButton,
-  text,
   UndoSnackbar,
 } from '../../design-system';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { selectProductExperience } from '../../product/selectors';
 import { useProduct } from '../../product/ProductContext';
@@ -222,35 +219,6 @@ export function ReviewScreen() {
     refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
   };
 
-  const safeBulkWorkItems = pending.filter((item) => {
-    if (item.kind === 'possible_missing_trip') return false;
-    const trip = state.trips.find((record) => record.id === item.tripId);
-    if (!trip) return false;
-    if (trip.confidence !== 'high') return false;
-    if (!trip.purpose?.trim()) return false;
-    if (!(trip.distanceMiles > 0)) return false;
-    return item.kind === 'classification_needed';
-  });
-
-  const confirmAllSafe = () => {
-    if (safeBulkWorkItems.length === 0) return;
-    Alert.alert(
-      `Confirm ${safeBulkWorkItems.length} clear work drive${safeBulkWorkItems.length === 1 ? '' : 's'}?`,
-      'Only high-confidence trips with purpose and distance are included. You can undo each one afterward.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm all',
-          onPress: () => {
-            for (const item of safeBulkWorkItems) {
-              decide(item, 'work');
-            }
-          },
-        },
-      ],
-    );
-  };
-
   return (
     <TabScreen>
       <SegmentedControl
@@ -277,18 +245,6 @@ export function ReviewScreen() {
           </>
         ) : (
           <>
-            {safeBulkWorkItems.length >= 2 ? (
-              <SoftPanel>
-                <Text style={text.body}>
-                  {safeBulkWorkItems.length} clear work drives can be confirmed together. Nothing uncertain is included.
-                </Text>
-                <PrimaryButton
-                  label={`Confirm ${safeBulkWorkItems.length} clear work drives`}
-                  onPress={confirmAllSafe}
-                  accessibilityLabel={`Confirm ${safeBulkWorkItems.length} clear work drives`}
-                />
-              </SoftPanel>
-            ) : null}
             {pending.map((item) => {
             const tripId = item.kind === 'possible_missing_trip' ? null : item.tripId;
             const trip = tripId ? state.trips.find((record) => record.id === tripId) : undefined;
@@ -323,14 +279,21 @@ export function ReviewScreen() {
                     : 'Distance needed'
                 }
                 estimatedValue={estimateForMiles(item.distanceMiles, at)}
+                purpose={trip?.purpose ?? null}
+                confidence={
+                  trip?.confidence === 'high'
+                    ? 'High'
+                    : trip?.confidence === 'medium'
+                      ? 'Medium'
+                      : trip?.confidence === 'low'
+                        ? 'Low'
+                        : null
+                }
                 reason={item.reason || 'Needs a quick decision before Proof'}
                 provenance={provenanceForItem(item.kind)}
-                evidence={
-                  trip
-                    ? `${captureSourceLabel(trip.source)}${trip.confidence ? ` · ${trip.confidence} confidence` : ''}`
-                    : provenanceForItem(item.kind)
-                }
+                evidence={trip ? captureSourceLabel(trip.source) : provenanceForItem(item.kind)}
                 vehicle={vehicleLabel}
+                routePreview={trip?.routePreview ?? null}
                 onPress={() => {
                   if (item.kind === 'possible_missing_trip') {
                     openRecovery(item.id);
@@ -344,11 +307,11 @@ export function ReviewScreen() {
                   if (item.kind === 'possible_missing_trip') {
                     openRecovery(item.id);
                   } else {
-                    navigation.navigate('TripDetails', { tripId: item.tripId });
+                    navigation.navigate('ManualTrip', { tripId: item.tripId });
                   }
                 }}
                 onNotSure={() => decide(item, 'not_sure')}
-                onNotDrive={() => decide(item, 'not_drive')}
+                onUndo={undoItem ? () => undo(undoItem) : undefined}
               />
             );
           })}

@@ -24,15 +24,12 @@ import {
   SummaryCard,
   TabScreen,
   TimelineRow,
-  TertiaryButton,
   text,
 } from '../../design-system';
 import { greetingForName, tripSourceLabel } from '../../product/copy';
 import { selectProductExperience } from '../../product/selectors';
-import { earnedTrialMoment, isWithinFirstWeek } from '../../product/trialValue';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
-import { TrialOfferCard } from '../../components/TrialOfferCard';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 
@@ -124,9 +121,6 @@ export function HomeScreen() {
     markFirstRecoveredDrive,
     markFirstMissingTripSeen,
     markFirstReportPreview,
-    markCelebratedFirstDrive,
-    markCelebratedFirstReport,
-    markCelebratedFirstRecovery,
   } = useProduct();
   const recoveryRefreshed = useRef(false);
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
@@ -164,10 +158,6 @@ export function HomeScreen() {
       : null);
   const recoveredMiles = scenario.weekSummary.recoveredMiles;
   const pendingReviewCount = experience.activeReviewItems.length;
-  const trialMoment = earnedTrialMoment(product, confirmedCount);
-  const firstWeek =
-    isWithinFirstWeek(product.onboarding.completedAt) ||
-    isWithinFirstWeek(product.firstConfirmedWorkDriveAt);
 
   const nextBest = useMemo(() => {
     // Priority: blocking tracking → classification → report correction → rate → recovery → report ready → caught up
@@ -311,26 +301,6 @@ export function HomeScreen() {
     scenario.proofReady,
   ]);
 
-  const showTrial =
-    liveMode &&
-    trialMoment != null &&
-    compact.kind === 'protected' &&
-    pendingReviewCount === 0 &&
-    confirmedCount >= 3;
-
-  const celebration =
-    firstWeek && liveMode
-      ? product.celebratedFirstDriveAt == null && confirmedCount > 0
-        ? ('drive' as const)
-        : product.celebratedFirstRecoveryAt == null && recoveredCount > 0
-          ? ('recovery' as const)
-          : product.celebratedFirstReportAt == null &&
-              scenario.proofReady &&
-              product.firstReportPreviewAt != null
-            ? ('report' as const)
-            : null
-      : null;
-
   const recent = scenario.activity.slice(0, 3);
 
   return (
@@ -400,52 +370,25 @@ export function HomeScreen() {
 
       <SoftPanel>
         <Text style={text.subtitle}>Next</Text>
-        <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-          One clear step to keep your miles protected and ready.
-        </Text>
-        <PrimaryButton label={nextBest.label} onPress={nextBest.run} accessibilityLabel={nextBest.label} />
+        <PrimaryButton
+          label={nextBest.label}
+          onPress={nextBest.run}
+          accessibilityLabel={nextBest.label}
+        />
       </SoftPanel>
 
-      {celebration === 'drive' ? (
-        <SoftPanel>
-          <Text style={text.subtitle}>First work drive saved</Text>
-          <TertiaryButton label="Got it" onPress={markCelebratedFirstDrive} />
-        </SoftPanel>
-      ) : null}
-      {celebration === 'recovery' ? (
-        <SoftPanel>
-          <Text style={text.subtitle}>First recovery confirmed</Text>
-          <TertiaryButton label="Got it" onPress={markCelebratedFirstRecovery} />
-        </SoftPanel>
-      ) : null}
-      {celebration === 'report' ? (
-        <SoftPanel>
-          <Text style={text.subtitle}>First report ready</Text>
-          <TertiaryButton label="Got it" onPress={markCelebratedFirstReport} />
-        </SoftPanel>
-      ) : null}
-
-      {showTrial ? (
-        <TrialOfferCard
-          confirmedWorkDriveCount={confirmedCount}
-          onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+      {experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip') ? (
+        <StatusCard
+          variant="warning"
+          title="Possible missed drives"
+          body="Review suggested gaps. Nothing is added until you confirm."
+          actionLabel="Review"
+          onAction={() => navigation.navigate('Review')}
+          emphasis="subtle"
         />
       ) : null}
 
-      <View
-        style={{
-          marginTop: spacing.sm,
-          marginBottom: spacing.xs,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Text style={text.subtitle}>Recent</Text>
-        {scenario.activity.length > 3 ? (
-          <TertiaryButton label="View all" onPress={() => navigation.navigate('Review')} />
-        ) : null}
-      </View>
+      <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>Recent</Text>
       {recent.length === 0 ? (
         <SoftPanel>
           <Text style={text.body}>No drives yet. Add one when you know the miles.</Text>

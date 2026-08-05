@@ -48,6 +48,7 @@ import {
   LoadingState,
   PlanCard,
   PrimaryButton,
+  RouteMapPreview,
   ScrollScreen,
   SecondaryButton,
   SectionHeader,
@@ -58,6 +59,7 @@ import {
   TertiaryButton,
   text,
 } from '../../design-system';
+import { searchMakes, searchModels } from '../../data/vehicles';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
 import { nextActionForGoal, voiceForDrivingType } from '../../product/copy';
@@ -843,6 +845,9 @@ export function TripDetailsScreen() {
         emphasis="subtle"
       />
       <ListSection title="Route">
+        <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
+          <RouteMapPreview points={trip.routePreview ?? null} height={160} width={280} />
+        </View>
         <EvidenceRow label="Date" value={formatDateLocal(trip.startAt)} />
         <EvidenceRow
           label="Time"
@@ -864,6 +869,14 @@ export function TripDetailsScreen() {
               : rateMissing
                 ? 'Missing historical rate'
                 : 'Set a rate in Profile'
+          }
+        />
+        <EvidenceRow
+          label="Trip replay"
+          value={
+            trip.routePreview && trip.routePreview.length >= 2
+              ? `${trip.routePreview.length} recorded points`
+              : 'No recorded route points'
           }
         />
       </ListSection>
@@ -1173,7 +1186,7 @@ export function ProtectionAlertScreen() {
         <StatusCard
           variant="info"
           title="You’re in control"
-          body="You can skip this and keep adding drives manually. Automatic protection won’t be dependable until background location is on."
+          body="You can skip this and keep adding drives manually. Background location helps catch drives when the app isn’t open."
           emphasis="hero"
         />
         <PrimaryButton
@@ -1311,16 +1324,16 @@ export function ProtectionAlertScreen() {
         <PrimaryButton
           label="Looks good — continue"
           onPress={() => setProtectionSetupState('configured')}
-          accessibilityLabel="Mark watching setup complete"
+          accessibilityLabel="Mark protection setup complete"
         />
       ) : null}
       <StatusCard
         variant="info"
         title="Manual tracking always works"
-        body="If automatic watching is limited, add drives yourself. Nothing is invented."
+        body="If automatic protection is limited, add drives yourself. Nothing is invented."
         emphasis="subtle"
       />
-      <SecondaryButton label="See watching status" onPress={() => navigation.navigate('TrackingActive')} />
+      <SecondaryButton label="See tracking status" onPress={() => navigation.navigate('TrackingActive')} />
     </ScrollScreen>
   );
 }
@@ -1424,15 +1437,51 @@ export function VehicleSetupScreen() {
   const navigation = useNavigation<Nav>();
   const { product, upsertVehicle } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
-  const primary = product.vehicles[0];
-  const [nickname, setNickname] = useState(primary?.nickname ?? '');
-  const [year, setYear] = useState(primary?.year ?? '');
-  const [make, setMake] = useState(primary?.make ?? '');
-  const [model, setModel] = useState(primary?.model ?? '');
-  const [plate, setPlate] = useState(primary?.plate ?? '');
+  const primary = product.vehicles.find((v) => v.isPrimary) ?? product.vehicles[0];
+  const [editingId, setEditingId] = useState<string | null>(primary?.id ?? null);
+  const editing = product.vehicles.find((v) => v.id === editingId) ?? null;
+  const [nickname, setNickname] = useState(editing?.nickname ?? '');
+  const [year, setYear] = useState(editing?.year ?? '');
+  const [make, setMake] = useState(editing?.make ?? '');
+  const [model, setModel] = useState(editing?.model ?? '');
+  const [plate, setPlate] = useState(editing?.plate ?? '');
+  const [makeQuery, setMakeQuery] = useState(editing?.make ?? '');
+  const [modelQuery, setModelQuery] = useState(editing?.model ?? '');
+  const [isPrimary, setIsPrimary] = useState(editing?.isPrimary ?? true);
+  const [vehicleSearch, setVehicleSearch] = useState('');
   const [saved, setSaved] = useState(false);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
-  const atFreeLimit = !primary && product.vehicles.length >= capabilities.maxVehicles;
+  const isNew = editingId == null;
+  const atFreeLimit = isNew && product.vehicles.length >= capabilities.maxVehicles;
+  const makeMatches = useMemo(() => searchMakes(makeQuery || make).slice(0, 8), [make, makeQuery]);
+  const modelMatches = useMemo(
+    () => (make ? searchModels(make, modelQuery || model).slice(0, 8) : []),
+    [make, model, modelQuery],
+  );
+  const filteredVehicles = useMemo(() => {
+    const q = vehicleSearch.trim().toLowerCase();
+    if (!q) return product.vehicles;
+    return product.vehicles.filter((vehicle) =>
+      [vehicle.nickname, vehicle.make, vehicle.model, vehicle.year, vehicle.plate]
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [product.vehicles, vehicleSearch]);
+
+  const loadVehicle = (vehicleId: string | null) => {
+    const vehicle = vehicleId ? product.vehicles.find((item) => item.id === vehicleId) : null;
+    setEditingId(vehicleId);
+    setNickname(vehicle?.nickname ?? '');
+    setYear(vehicle?.year ?? '');
+    setMake(vehicle?.make ?? '');
+    setModel(vehicle?.model ?? '');
+    setPlate(vehicle?.plate ?? '');
+    setMakeQuery(vehicle?.make ?? '');
+    setModelQuery(vehicle?.model ?? '');
+    setIsPrimary(vehicle?.isPrimary ?? product.vehicles.length === 0);
+    setSaved(false);
+  };
 
   const save = () => {
     const hasValue = nickname.trim() || make.trim() || model.trim() || year.trim();
@@ -1444,17 +1493,19 @@ export function VehicleSetupScreen() {
     }
     const composed = [year.trim(), make.trim(), model.trim()].filter(Boolean).join(' ');
     const nick = nickname.trim();
+    const id = editing?.id ?? localId('vehicle');
     upsertVehicle({
-      id: primary?.id ?? localId('vehicle'),
+      id,
       nickname: nick || composed || 'My vehicle',
       year: year.trim(),
       make: make.trim(),
       model: model.trim() || (make === 'Other' ? 'Other' : ''),
       plate: plate.trim(),
-      isPrimary: primary?.isPrimary ?? product.vehicles.length === 0,
-      createdAt: primary?.createdAt,
+      isPrimary,
+      createdAt: editing?.createdAt,
       nicknameUserSet: Boolean(nick) && nick !== composed,
     });
+    setEditingId(id);
     setSaved(true);
     setLimitMessage(null);
   };
@@ -1464,10 +1515,35 @@ export function VehicleSetupScreen() {
       <StatusCard
         variant="info"
         title="Which vehicle carries your work miles?"
-        body="Choose year, make, and model. Nickname and plate are optional."
+        body="Search make and model, or type your own. One primary vehicle is the default for new drives."
         emphasis="subtle"
       />
       {limitMessage ? <StatusCard variant="warning" title="Vehicle limit" body={limitMessage} emphasis="subtle" /> : null}
+      {product.vehicles.length > 0 ? (
+        <ListSection title="Your vehicles">
+          <FormField
+            label="Search saved vehicles"
+            value={vehicleSearch}
+            onChangeText={setVehicleSearch}
+            placeholder="Nickname, make, model…"
+            accessibilityLabel="Search saved vehicles"
+          />
+          {filteredVehicles.map((vehicle) => (
+            <SelectionCard
+              key={vehicle.id}
+              title={vehicleDisplayTitle(vehicle)}
+              body={
+                vehicle.isPrimary
+                  ? 'Primary · tap to edit'
+                  : vehicleDisplaySubtitle(vehicle) ?? 'Tap to edit'
+              }
+              selected={editingId === vehicle.id}
+              onPress={() => loadVehicle(vehicle.id)}
+            />
+          ))}
+          <TertiaryButton label="Add another vehicle" onPress={() => loadVehicle(null)} />
+        </ListSection>
+      ) : null}
       <FormField
         label="Year"
         value={year}
@@ -1477,18 +1553,57 @@ export function VehicleSetupScreen() {
         accessibilityLabel="Vehicle year"
       />
       <FormField
-        label="Make"
-        value={make}
-        onChangeText={setMake}
-        placeholder="Search or type make"
-        accessibilityLabel="Vehicle make"
+        label="Search make"
+        value={makeQuery}
+        onChangeText={(value) => {
+          setMakeQuery(value);
+          setMake(value);
+        }}
+        placeholder="Honda, Toyota…"
+        accessibilityLabel="Search vehicle make"
       />
-      <ChipRow>
-        {COMMON_MAKES.slice(0, 6).map((choice) => (
-          <Chip key={choice} label={choice} selected={make === choice} onPress={() => setMake(choice)} />
-        ))}
-      </ChipRow>
-      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Civic or Other" />
+      {makeMatches.map((choice) => (
+        <SelectionCard
+          key={choice}
+          title={choice}
+          selected={make === choice}
+          onPress={() => {
+            setMake(choice);
+            setMakeQuery(choice);
+            setModel('');
+            setModelQuery('');
+          }}
+        />
+      ))}
+      <SelectionCard
+        title="Other"
+        selected={make === 'Other'}
+        onPress={() => {
+          setMake('Other');
+          setMakeQuery('Other');
+        }}
+      />
+      <FormField
+        label="Search model"
+        value={modelQuery}
+        onChangeText={(value) => {
+          setModelQuery(value);
+          setModel(value);
+        }}
+        placeholder="Civic, Camry, or Other"
+        accessibilityLabel="Search vehicle model"
+      />
+      {modelMatches.map((choice) => (
+        <SelectionCard
+          key={choice}
+          title={choice}
+          selected={model === choice}
+          onPress={() => {
+            setModel(choice);
+            setModelQuery(choice);
+          }}
+        />
+      ))}
       <FormField
         label="Nickname (optional)"
         value={nickname}
@@ -1496,23 +1611,18 @@ export function VehicleSetupScreen() {
         placeholder="Work sedan"
       />
       <FormField label="License plate (optional)" value={plate} onChangeText={setPlate} placeholder="Optional" />
+      <SelectionCard
+        title="Primary vehicle"
+        body={isPrimary ? 'Used as the default on new drives' : 'Tap to make this your primary vehicle'}
+        selected={isPrimary}
+        onPress={() => setIsPrimary(true)}
+      />
       <PrimaryButton
-        label="Save vehicle"
+        label={isNew ? 'Save vehicle' : 'Update vehicle'}
         onPress={save}
         disabled={!nickname.trim() && !make.trim() && !model.trim() && !year.trim()}
       />
       {saved ? <StatusCard variant="success" title="Saved" body="Vehicle details are stored locally." emphasis="subtle" /> : null}
-      {product.vehicles.length > 0 ? (
-        <ListSection title="Saved vehicles">
-          {product.vehicles.map((vehicle) => (
-            <EvidenceRow
-              key={vehicle.id}
-              label={vehicleDisplayTitle(vehicle)}
-              value={vehicleDisplaySubtitle(vehicle) ?? (vehicle.isPrimary ? 'Primary' : 'Saved')}
-            />
-          ))}
-        </ListSection>
-      ) : null}
     </ScrollScreen>
   );
 }
@@ -2306,9 +2416,9 @@ export function HelpSupportScreen() {
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
             No. Manual entries, imports, and recovery suggestions all require real details or your confirmation.
           </Text>
-          <Text style={text.subtitle}>When does automatic watching start?</Text>
+          <Text style={text.subtitle}>When does automatic protection start?</Text>
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
-            After you turn watching on with Plus or a Plus trial, and allow location. Free still lets you add drives, import, and review.
+            After you turn protection on and allow location. Free includes up to 40 automatic trips per month, plus unlimited manual drives.
           </Text>
           <Text style={text.subtitle}>What happens if I restart onboarding?</Text>
           <Text style={text.body}>

@@ -39,8 +39,14 @@ describe('Locked product experience', () => {
     expect(SUPPORTING_STACK_ROUTES).toContain('PlanSelection');
   });
 
-  it('defines the four-stage first-launch onboarding path', () => {
-    expect(ONBOARDING_STEP_ORDER).toEqual(['your_work', 'protect_drives', 'personalize', 'ready']);
+  it('defines the five-stage first-launch onboarding path', () => {
+    expect(ONBOARDING_STEP_ORDER).toEqual([
+      'welcome',
+      'purpose',
+      'locale_setup',
+      'protect_drives',
+      'ready',
+    ]);
   });
 
   it('centralizes subscription fixtures with design prices', () => {
@@ -109,7 +115,7 @@ describe('Locked product experience', () => {
 
 describe('Onboarding personalization', () => {
   it('adapts next action by primary goal', () => {
-    expect(nextActionForGoal('employee_reimbursement').title).toMatch(/turn on watching|turn on protection/i);
+    expect(nextActionForGoal('employee_reimbursement').title).toMatch(/turn on drive protection|turn on protection/i);
     expect(nextActionForGoal('mixed').title).toMatch(/bring what you already have|file or source/i);
   });
 
@@ -131,7 +137,7 @@ describe('Onboarding personalization', () => {
 });
 
 describe('Onboarding honesty', () => {
-  it('educates before permission prompts and stays honest on watching screens', () => {
+  it('educates before permission prompts and stays honest on protection screens', () => {
     const fs = require('fs');
     const path = require('path');
     const onboarding = fs.readFileSync(
@@ -142,14 +148,18 @@ describe('Onboarding honesty', () => {
     expect(onboarding).toMatch(/Set up drive protection/);
     expect(onboarding).toMatch(/Skip for now/);
     expect(onboarding).not.toMatch(/status=\"ready\"/);
-    expect(ONBOARDING_STEP_ORDER).toEqual(['your_work', 'protect_drives', 'personalize', 'ready']);
+    expect(ONBOARDING_STEP_ORDER).toEqual([
+      'welcome',
+      'purpose',
+      'locale_setup',
+      'protect_drives',
+      'ready',
+    ]);
     const tracking = fs.readFileSync(
       path.join(__dirname, '../src/screens/flows/SupportingScreens.tsx'),
       'utf8',
     );
-    expect(tracking).toMatch(
-      /Automatic protection|Manual trip|Watching is off|Watching needs Plus|Not yet|Partially/i,
-    );
+    expect(tracking).toMatch(/Automatic protection|Manual trip|Not yet|Partially|How you track/i);
   });
 });
 

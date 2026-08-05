@@ -34,6 +34,7 @@ export const colors = {
   background: {
     canvas: '#FAFAF8',
     card: '#FFFFFF',
+    mist: '#E8F3ED',
   },
   text: {
     primary: '#1C1917',
@@ -54,6 +55,38 @@ export const colors = {
     dangerBg: '#FEE2E2',
     info: '#236B47',
     infoBg: '#E8F3ED',
+  },
+  header: {
+    background: '#0B2E1F',
+    border: '#13402C',
+  },
+} as const;
+
+/** Dark palette — same brand, reduced glare. Use with Appearance. */
+export const darkColors = {
+  ...colors,
+  background: {
+    canvas: '#0F1A14',
+    card: '#16241C',
+    mist: '#1B5538',
+  },
+  text: {
+    primary: '#F5F5F4',
+    secondary: '#A8A29E',
+    inverse: '#FFFFFF',
+    onForest: '#FFFFFF',
+  },
+  border: {
+    default: '#2A3B32',
+    focus: '#2D8056',
+  },
+  neutral: {
+    900: '#F5F5F4',
+    700: '#D6D3D1',
+    500: '#A8A29E',
+    200: '#2A3B32',
+    100: '#1A2820',
+    0: '#16241C',
   },
   header: {
     background: '#0B2E1F',
@@ -143,6 +176,6 @@ export const iconSize = {
   lg: 28,
 } as const;
 
-export const tokens = { colors, spacing, radii, typography, touchTarget, shadows, iconSize, motion };
+export const tokens = { colors, darkColors, spacing, radii, typography, touchTarget, shadows, iconSize, motion };
 
 export type ThemeTokens = typeof tokens;

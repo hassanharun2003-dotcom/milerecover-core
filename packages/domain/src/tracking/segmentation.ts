@@ -60,6 +60,24 @@ export function pathDistanceMeters(samples: LocationSample[]): number {
   return sum;
 }
 
+/** Keep a short observed polyline for map preview — never invents midpoints. */
+export function downsampleRoutePreview(
+  samples: LocationSample[],
+  maxPoints = 40,
+): Array<{ latitude: number; longitude: number }> {
+  if (samples.length === 0) return [];
+  if (samples.length <= maxPoints) {
+    return samples.map((s) => ({ latitude: s.latitude, longitude: s.longitude }));
+  }
+  const out: Array<{ latitude: number; longitude: number }> = [];
+  const step = (samples.length - 1) / (maxPoints - 1);
+  for (let i = 0; i < maxPoints; i += 1) {
+    const sample = samples[Math.round(i * step)];
+    out.push({ latitude: sample.latitude, longitude: sample.longitude });
+  }
+  return out;
+}
+
 /**
  * Segment an open buffer into a completed trip candidate when quiet time elapsed.
  * Never invents coordinates — returns null when evidence is insufficient.
@@ -84,6 +102,7 @@ export function maybeCloseTripFromSamples(
     clean.some((s, i) => i > 0 && s.timestamp - clean[i - 1].timestamp > 120_000) ||
     clean.some((s) => s.accuracyMeters != null && s.accuracyMeters > 40);
 
+  const routePreview = downsampleRoutePreview(clean);
   const trip: TripRecord = {
     id: `trip-auto-${first.timestamp}-${last.timestamp}`,
     source: 'auto_detected',
@@ -96,7 +115,8 @@ export function maybeCloseTripFromSamples(
     notes: hasGap
       ? 'Automatic capture with GPS gaps or reduced accuracy — confirm in Review. Miles are from recorded points only.'
       : 'Automatic capture — confirm work vs personal in Review.',
-    hasRouteCoordinates: true,
+    hasRouteCoordinates: routePreview.length >= 2,
+    routePreview: routePreview.length >= 2 ? routePreview : null,
     confidence: hasGap ? 'low' : 'medium',
     startLabel: null,
     endLabel: null,

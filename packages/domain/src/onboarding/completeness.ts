@@ -1,11 +1,13 @@
 export type OnboardingStepId =
-  /** Ultimate UX v8 — four customer-facing stages */
-  | 'your_work'
+  /** Final product lock — five customer-facing stages */
+  | 'welcome'
+  | 'purpose'
+  | 'locale_setup'
   | 'protect_drives'
-  | 'personalize'
   | 'ready'
   /** Legacy step ids — remapped by mobile onboarding */
-  | 'welcome'
+  | 'your_work'
+  | 'personalize'
   | 'account'
   | 'country'
   | 'primary_goal'
@@ -47,9 +49,9 @@ export type NextActionId =
 
 /**
  * Bump when essential onboarding screens/questions change and stale installs must re-enter.
- * v8: four-stage onboarding (Your work → Protect → Personalize → Ready).
+ * v9: Welcome → Purpose → Country/Units/Rate → Protection → Ready.
  */
-export const CURRENT_ONBOARDING_VERSION = 8;
+export const CURRENT_ONBOARDING_VERSION = 9;
 
 export interface VersionedOnboardingState {
   schemaVersion: 4;
@@ -78,7 +80,7 @@ export interface VersionedOnboardingState {
 export function createEmptyOnboardingState(now = Date.now()): VersionedOnboardingState {
   return {
     schemaVersion: 4,
-    currentStep: 'your_work',
+    currentStep: 'welcome',
     completedSteps: [],
     primaryGoal: null,
     selectedPainPoints: [],
@@ -160,14 +162,21 @@ export function invalidateStaleOnboardingCompletion(
     nextActionSelected: null,
     lastUpdatedAt: now,
   };
-  next.currentStep = nextIncompleteEssentialStep(next) ?? 'your_work';
+  // Older completions already included country/units inside prior flows.
+  if (next.primaryGoal != null) {
+    next.countryStepAcknowledged = true;
+  }
+  next.currentStep = nextIncompleteEssentialStep(next) ?? 'welcome';
   return next;
 }
 
 /** Resume helper — place user on the first unfinished required answer or finish step. */
 export function nextIncompleteEssentialStep(state: VersionedOnboardingState): OnboardingStepId | null {
   if (state.primaryGoal == null) {
-    return 'your_work';
+    return 'purpose';
+  }
+  if (!state.countryStepAcknowledged) {
+    return 'locale_setup';
   }
   if (!state.protectionEducationAcknowledged && !state.permissionsEducationAcknowledged) {
     return 'protect_drives';

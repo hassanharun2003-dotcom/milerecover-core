@@ -28,11 +28,11 @@ import {
   PrimaryButton,
   SecondaryButton,
   SegmentedControl,
+  SimpleBarChart,
   SoftPanel,
   TabScreen,
   text,
 } from '../../design-system';
-// SecondaryButton used for checklist toggle
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
 import { useProduct } from '../../product/ProductContext';
@@ -54,7 +54,8 @@ type Nav = CompositeNavigationProp<
 const PERIOD_OPTIONS: { label: string; value: ReportPeriodKind }[] = [
   { label: 'Week', value: 'this_week' },
   { label: 'Month', value: 'this_month' },
-  { label: 'Prev. month', value: 'previous_month' },
+  { label: 'Quarter', value: 'this_quarter' },
+  { label: 'Year', value: 'this_year' },
   { label: 'YTD', value: 'ytd' },
 ];
 
@@ -283,6 +284,17 @@ export function ProofScreen() {
         <>
           <SoftPanel>
             <Text style={text.subtitle}>{period.label}</Text>
+            <SimpleBarChart
+              accessibilityLabel="Work distance and drive count for this period"
+              bars={[
+                { label: 'Distance', value: Math.max(report.totalMiles, 0) },
+                { label: 'Drives', value: Math.max(report.tripCount, 0) },
+                {
+                  label: 'Value',
+                  value: Math.max((report.estimatedValueCents ?? 0) / 100, 0),
+                },
+              ]}
+            />
             <ListRow
               label="Work distance"
               value={formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag)}
@@ -314,7 +326,7 @@ export function ProofScreen() {
               <PrimaryButton label="Preview report" onPress={openPreview} />
             )}
             <SecondaryButton
-              label={showReadiness ? 'Hide checklist' : 'Show checklist'}
+              label={showReadiness ? 'Hide readiness' : 'Show readiness'}
               onPress={() => setShowReadiness((open) => !open)}
             />
           </SoftPanel>
@@ -360,27 +372,34 @@ export function ProofScreen() {
             </ListSection>
           ) : null}
 
-          {exportReady ? (
-            <ListSection title="Export">
-              {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
-              {error ? <FormError message={error} /> : null}
-              <ListRow label="Preview report" onPress={openPreview} />
-              <ListRow
-                label={capabilities.canUseStandardPdf ? 'Share PDF' : 'Share PDF · Plus'}
-                onPress={() => void sharePdf()}
-                busy={pdfBusy || (shareBusy && !csvBusy)}
-                disabled={exportBusy && !pdfBusy}
-              />
-              <ListRow
-                label="Share CSV"
-                value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
-                onPress={() => void shareCsv()}
-                busy={csvBusy || (shareBusy && !pdfBusy)}
-                disabled={pdfBusy}
-              />
-              <ListRow label="Share" onPress={() => navigation.navigate('ExportReport')} />
-            </ListSection>
-          ) : null}
+          <ListSection title="Reports">
+            {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
+            {error ? <FormError message={error} /> : null}
+            {!exportReady ? (
+              <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+                Finish required corrections before employer-ready export.
+              </Text>
+            ) : null}
+            <ListRow label="Preview" onPress={openPreview} disabled={!exportReady && report.tripCount === 0} />
+            <ListRow
+              label={capabilities.canUseStandardPdf ? 'PDF' : 'PDF · Plus'}
+              onPress={() => void sharePdf()}
+              busy={pdfBusy || (shareBusy && !csvBusy)}
+              disabled={!exportReady || (exportBusy && !pdfBusy)}
+            />
+            <ListRow
+              label="CSV"
+              value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
+              onPress={() => void shareCsv()}
+              busy={csvBusy || (shareBusy && !pdfBusy)}
+              disabled={!exportReady || pdfBusy}
+            />
+            <ListRow
+              label="Share"
+              onPress={() => navigation.navigate('ExportReport')}
+              disabled={!exportReady}
+            />
+          </ListSection>
 
           <View style={{ marginTop: spacing.md }}>
             <SecondaryButton label="Add another drive" onPress={() => navigation.navigate('ManualTrip')} />

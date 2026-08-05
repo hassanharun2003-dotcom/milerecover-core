@@ -1,10 +1,12 @@
 import React from 'react';
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   type StyleProp,
   type TextStyle,
@@ -20,6 +22,7 @@ export {
   SafeFillScreen,
   FixedHeaderScrollScreen,
 } from './screenShell';
+export { ThemeProvider, useAppTheme } from './ThemeProvider';
 
 export const text = StyleSheet.create({
   headline: {
@@ -458,40 +461,46 @@ export function ReviewCard({
   subtitle,
   distance,
   estimatedValue,
+  purpose,
+  confidence,
   reason,
   provenance,
   evidence,
   vehicle,
+  routePreview,
   onPress,
   onWork,
   onPersonal,
   onEdit,
   onNotSure,
-  onNotDrive,
+  onUndo,
 }: {
   title: string;
   subtitle: string;
   distance: string;
   estimatedValue?: string | null;
+  purpose?: string | null;
+  confidence?: string | null;
   reason: string;
   provenance?: string;
   evidence?: string | null;
   vehicle?: string | null;
+  routePreview?: Array<{ latitude: number; longitude: number }> | null;
   onPress?: () => void;
   onWork: () => void;
   onPersonal: () => void;
   onEdit?: () => void;
   onNotSure?: () => void;
-  onNotDrive?: () => void;
+  onUndo?: () => void;
 }) {
   const a11y = [
     title,
-    subtitle,
-    distance,
+    `Time ${subtitle}`,
+    `Distance ${distance}`,
+    purpose ? `Purpose ${purpose}` : 'Purpose not set',
+    confidence ? `Confidence ${confidence}` : null,
     estimatedValue,
-    provenance,
     evidence,
-    vehicle,
   ]
     .filter(Boolean)
     .join('. ');
@@ -504,18 +513,27 @@ export function ReviewCard({
       accessibilityLabel={a11y}
     >
       <View style={styles.reviewCardTop}>
-        <MapPlaceholder />
+        <RouteMapPreview points={routePreview} />
         <View style={{ flex: 1 }}>
           <Text style={text.subtitle}>{title}</Text>
-          <Text style={[text.body, { marginTop: spacing.xs }]}>{subtitle}</Text>
-          <Text style={[text.caption, { marginTop: spacing.sm }]}>{distance}</Text>
+          <Text style={[text.caption, { marginTop: spacing.xs }]}>Time · {subtitle}</Text>
+          <Text style={[text.caption, { marginTop: spacing.xs }]}>Distance · {distance}</Text>
+          <Text style={[text.caption, { marginTop: spacing.xs }]}>
+            Purpose · {purpose?.trim() ? purpose : 'Not set'}
+          </Text>
+          {confidence ? (
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>Confidence · {confidence}</Text>
+          ) : null}
           {estimatedValue ? (
             <Text style={[text.caption, { marginTop: spacing.xs }]}>{estimatedValue}</Text>
           ) : null}
+          {evidence ? (
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>{evidence}</Text>
+          ) : provenance ? (
+            <Text style={[text.caption, { marginTop: spacing.xs }]}>{provenance}</Text>
+          ) : null}
           {vehicle ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{vehicle}</Text> : null}
-          {evidence ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{evidence}</Text> : null}
-          {provenance ? <Badge label={provenance} variant="info" /> : null}
-          <Text style={[text.caption, { marginTop: spacing.xs }]}>{reason}</Text>
+          {reason ? <Text style={[text.caption, { marginTop: spacing.xs }]}>{reason}</Text> : null}
         </View>
       </View>
       <View style={styles.reviewActions}>
@@ -529,9 +547,6 @@ export function ReviewCard({
           onPress={onPersonal}
           accessibilityLabel={`Mark as personal drive. ${title}`}
         />
-        {onEdit ? (
-          <SecondaryButton label="Edit" onPress={onEdit} accessibilityLabel={`Edit trip. ${title}`} />
-        ) : null}
         {onNotSure ? (
           <TertiaryButton
             label="Not sure"
@@ -539,12 +554,11 @@ export function ReviewCard({
             accessibilityLabel={`Mark as not sure. ${title}`}
           />
         ) : null}
-        {onNotDrive ? (
-          <TertiaryButton
-            label="Not a drive"
-            onPress={onNotDrive}
-            accessibilityLabel={`Exclude as not a drive. ${title}`}
-          />
+        {onEdit ? (
+          <SecondaryButton label="Edit" onPress={onEdit} accessibilityLabel={`Edit trip. ${title}`} />
+        ) : null}
+        {onUndo ? (
+          <TertiaryButton label="Undo" onPress={onUndo} accessibilityLabel={`Undo last action. ${title}`} />
         ) : null}
       </View>
     </Pressable>
@@ -909,10 +923,225 @@ export function ProofHeroCard({
 }
 
 export function MapPlaceholder() {
+  return <RouteMapPreview points={null} />;
+}
+
+/**
+ * Observed-route preview. Draws only provided points — never invents a path.
+ * Pure React Native (no native map SDK) for OTA-safe rendering on all devices.
+ */
+export function RouteMapPreview({
+  points,
+  height = 88,
+  width = 88,
+}: {
+  points?: Array<{ latitude: number; longitude: number }> | null;
+  height?: number;
+  width?: number;
+}) {
+  const usable = (points ?? []).filter(
+    (p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude),
+  );
+  if (usable.length < 2) {
+    return (
+      <View
+        style={[styles.mapPlaceholder, { height, width }]}
+        accessibilityLabel="No route map yet"
+      >
+        <Text style={styles.mapPlaceholderText}>Route</Text>
+      </View>
+    );
+  }
+  const lats = usable.map((p) => p.latitude);
+  const lngs = usable.map((p) => p.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const pad = 0.0008;
+  const latSpan = Math.max(maxLat - minLat, pad);
+  const lngSpan = Math.max(maxLng - minLng, pad);
+  const markers = usable.map((p, index) => {
+    const x = ((p.longitude - minLng) / lngSpan) * (width - 12) + 6;
+    const y = (1 - (p.latitude - minLat) / latSpan) * (height - 12) + 6;
+    return { key: `${index}`, x, y, first: index === 0, last: index === usable.length - 1 };
+  });
   return (
-    <View style={styles.mapPlaceholder} accessibilityLabel="Route map preview placeholder">
-      <Text style={styles.mapPlaceholderText}>Route</Text>
+    <View
+      style={[styles.mapPlaceholder, { height, width, overflow: 'hidden' }]}
+      accessibilityLabel={`Route with ${usable.length} recorded points`}
+    >
+      {markers.map((m, i) =>
+        i > 0 ? (
+          <View
+            key={`seg-${m.key}`}
+            style={{
+              position: 'absolute',
+              left: Math.min(markers[i - 1].x, m.x),
+              top: Math.min(markers[i - 1].y, m.y),
+              width: Math.max(2, Math.abs(m.x - markers[i - 1].x)),
+              height: Math.max(2, Math.abs(m.y - markers[i - 1].y)),
+              backgroundColor: colors.forest[500],
+              opacity: 0.35,
+              borderRadius: 1,
+            }}
+          />
+        ) : null,
+      )}
+      {markers.map((m) => (
+        <View
+          key={m.key}
+          style={{
+            position: 'absolute',
+            left: m.x - (m.first || m.last ? 4 : 2),
+            top: m.y - (m.first || m.last ? 4 : 2),
+            width: m.first || m.last ? 8 : 4,
+            height: m.first || m.last ? 8 : 4,
+            borderRadius: 4,
+            backgroundColor: m.first ? colors.forest[800] : m.last ? colors.protected[600] : colors.forest[500],
+          }}
+        />
+      ))}
     </View>
+  );
+}
+
+export function SkeletonBlock({
+  height = 16,
+  width = '100%',
+  style,
+}: {
+  height?: number;
+  width?: number | `${number}%` | '100%';
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View
+      style={[
+        {
+          height,
+          width: width as ViewStyle['width'],
+          borderRadius: radii.sm,
+          backgroundColor: colors.forest[100],
+          opacity: 0.7,
+        },
+        style,
+      ]}
+      accessibilityLabel="Loading"
+    />
+  );
+}
+
+/** Lightweight icon glyph for list/status rows — keeps DS free of icon packs. */
+export function IconGlyph({
+  label,
+  accessibilityLabel,
+}: {
+  label: string;
+  accessibilityLabel?: string;
+}) {
+  return (
+    <View
+      style={styles.iconGlyph}
+      accessibilityRole="image"
+      accessibilityLabel={accessibilityLabel ?? label}
+    >
+      <Text style={styles.iconGlyphText}>{label}</Text>
+    </View>
+  );
+}
+
+/** Simple period bar chart for Proof — values only, no invented data. */
+export function SimpleBarChart({
+  bars,
+  accessibilityLabel,
+}: {
+  bars: Array<{ label: string; value: number }>;
+  accessibilityLabel?: string;
+}) {
+  const max = Math.max(...bars.map((b) => b.value), 0.0001);
+  const trackHeight = 72;
+  return (
+    <View style={styles.barChart} accessibilityRole="summary" accessibilityLabel={accessibilityLabel}>
+      {bars.map((bar) => {
+        const fill = Math.max(6, Math.round((bar.value / max) * trackHeight));
+        return (
+          <View key={bar.label} style={styles.barChartCol}>
+            <View style={[styles.barChartTrack, { height: trackHeight }]}>
+              <View style={[styles.barChartFill, { height: fill }]} />
+            </View>
+            <Text style={styles.barChartLabel} numberOfLines={1}>
+              {bar.label}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+export function ConfirmDialog({
+  visible,
+  title,
+  body,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  onConfirm,
+  onCancel,
+}: {
+  visible: boolean;
+  title: string;
+  body: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable style={styles.dialogScrim} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Dismiss">
+        <Pressable style={styles.dialogCard} onPress={() => undefined} accessibilityRole="summary">
+          <Text style={text.title} accessibilityRole="header">
+            {title}
+          </Text>
+          <Text style={[text.body, { marginTop: spacing.sm, marginBottom: spacing.md }]}>{body}</Text>
+          <PrimaryButton label={confirmLabel} onPress={onConfirm} />
+          <TertiaryButton label={cancelLabel} onPress={onCancel} />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+export function BottomSheet({
+  visible,
+  title,
+  children,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  const { height } = useWindowDimensions();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetScrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close sheet">
+        <Pressable
+          style={[styles.sheetCard, { maxHeight: height * 0.72 }]}
+          onPress={() => undefined}
+          accessibilityRole="summary"
+        >
+          <View style={styles.sheetHandle} />
+          <Text style={[text.subtitle, { marginBottom: spacing.md }]} accessibilityRole="header">
+            {title}
+          </Text>
+          <ScrollView showsVerticalScrollIndicator={false}>{children}</ScrollView>
+          <TertiaryButton label="Close" onPress={onClose} />
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -1250,4 +1479,72 @@ const styles = StyleSheet.create({
   },
   membershipBannerSub: { color: colors.text.secondary, marginTop: spacing.xs },
   loadingState: { ...cardBase, alignItems: 'center', paddingVertical: spacing.xl, borderWidth: 0 },
+  iconGlyph: {
+    width: touchTarget.minWidth,
+    height: touchTarget.minHeight,
+    borderRadius: radii.md,
+    backgroundColor: colors.forest[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconGlyphText: { color: colors.forest[800], fontWeight: '700', fontSize: typography.size.body },
+  barChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  barChartCol: { flex: 1, alignItems: 'center', gap: spacing.xs },
+  barChartTrack: {
+    width: '100%',
+    maxWidth: 36,
+    justifyContent: 'flex-end',
+    backgroundColor: colors.forest[100],
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+  },
+  barChartFill: {
+    width: '100%',
+    backgroundColor: colors.forest[600],
+    borderTopLeftRadius: radii.sm,
+    borderTopRightRadius: radii.sm,
+  },
+  barChartLabel: {
+    fontSize: typography.size.caption,
+    color: colors.text.secondary,
+    textAlign: 'center',
+  },
+  dialogScrim: {
+    flex: 1,
+    backgroundColor: 'rgba(11, 46, 31, 0.45)',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  dialogCard: {
+    backgroundColor: colors.background.card,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    ...shadows.lifted,
+  },
+  sheetScrim: {
+    flex: 1,
+    backgroundColor: 'rgba(11, 46, 31, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheetCard: {
+    backgroundColor: colors.background.card,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    padding: spacing.lg,
+    ...shadows.lifted,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.neutral[200],
+    marginBottom: spacing.md,
+  },
 });

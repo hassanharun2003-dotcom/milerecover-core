@@ -23,10 +23,11 @@ describe('Screen render evidence', () => {
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-your_work']).toMatch(/Your work|Primary goal|Country/i);
-    expect(manifest['onboarding-protect_drives']).toMatch(/Protect your drives|Set up drive protection/i);
-    expect(manifest['onboarding-personalize']).toMatch(/Personalize|Vehicle|Skip/i);
-    expect(manifest['onboarding-ready']).toMatch(/You’re ready|You're ready|Add a first drive/i);
+    expect(manifest['onboarding-welcome']).toMatch(/MileRecover|Protect every work mile/i);
+    expect(manifest['onboarding-purpose']).toMatch(/Employee|Business|Gig|Mixed|How do you use mileage/i);
+    expect(manifest['onboarding-locale_setup']).toMatch(/Country|units|rate|Miles|Kilometers/i);
+    expect(manifest['onboarding-protect_drives']).toMatch(/Protect your drives|Set up drive protection|Skip for now/i);
+    expect(manifest['onboarding-ready']).toMatch(/You’re ready|You're ready|Add a first drive|Go to Home/i);
 
     for (const goal of ['employee_reimbursement', 'gig_delivery', 'self_employed_business', 'mixed'] as const) {
       const { copy } = await renderOnboarding('ready', { primaryGoal: goal });
@@ -142,13 +143,13 @@ describe('Screen render evidence', () => {
       showDevTools: true,
     });
     expect(profile.copy).toContain('Vehicles');
-    expect(profile.copy).toMatch(/Your setup|Mileage settings|Drive protection|Reports and data|Plan and support/i);
+    expect(profile.copy).toMatch(/Profile|Vehicles|Country|Units|Rates|Protection|Tracking|Import|Subscription|Privacy|Help|About/i);
     expect(profile.copy).not.toContain('Alex Johnson');
     expect(profile.copy).not.toContain('alex@example.com');
     expect(profile.copy).toMatch(/Not set|Free|About/i);
 
-    const insetWelcome = await renderOnboardingWithInsets('your_work', { top: 28, bottom: 20 });
-    expect(insetWelcome.copy).toMatch(/Your work|Primary goal|Country/i);
+    const insetWelcome = await renderOnboardingWithInsets('purpose', { top: 28, bottom: 20 });
+    expect(insetWelcome.copy).toMatch(/Employee|Business|Gig|Mixed|How do you use mileage/i);
     const shellSource = fs.readFileSync(
       path.join(__dirname, '../src/design-system/screenShell.tsx'),
       'utf8',
