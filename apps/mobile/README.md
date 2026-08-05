@@ -1,36 +1,56 @@
 # Mobile application (`apps/mobile`)
 
-**Status:** Phase 0 placeholder — React Native **not initialized**
+**Status:** Package 3 Increment 2 — native shell + local persistence
 
-Future home of the MileRecover React Native application (DEC-001).
+React Native **0.76.5** production shell with five-tab navigation, onboarding, domain-driven screens, and durable local state.
 
-## Responsibilities
+## Native identity
 
-- Shared presentation and navigation (four tabs — DEC-007)
-- Product orchestration, review, proof, profile flows
-- Domain service wiring, sync client, export UI
-- Native bridge consumption (typed contracts)
+| Platform | Application ID |
+|----------|----------------|
+| Android | `com.milerecover.app` (non-production placeholder) |
+| iOS | `com.milerecover.app` (non-production placeholder) |
+| JS component | `MileRecover` (`app.json` / `index.js`) |
 
-## Must not own
+Distinct from prototype IDs (`com.milerecover.prototype.*`).
 
-- Operating-system background location execution (Swift/Kotlin native modules)
-- Raw GPS sampling or tracking state machine
-- Backend business logic
+## Architecture
 
-## Prohibited in Phase 0
+- **UI:** `src/screens/*`, `src/navigation/RootTabs.tsx`, `src/components/StartupGate.tsx`
+- **State:** `src/store/AppContext.tsx` — restores from `PersistenceRepository` on launch
+- **Persistence:** `src/persistence/AsyncStoragePersistenceRepository.ts` (production adapter)
+- **Domain contract:** `@milerecover/domain` persistence + selectors
+- **Tokens:** `@milerecover/config`
 
-- `react-native init`, Expo production scaffold, UI screens
-- Tracking implementation, subscriptions, recovery UI
+## Run (local)
 
-## Entry criteria
+```bash
+cd apps/mobile
+npm ci
+npm start
 
-Phase 0 exit + Phase 3+ for production shell (see TIP §26).
+# Android (separate terminal)
+cd android && ./gradlew assembleDebug   # Windows: gradlew.bat assembleDebug
+npm run android
 
-## Promotion
+# iOS (macOS)
+cd ios && pod install
+npm run ios
+```
 
-Native modules attach here in later phases — not copied from `prototypes/` without ADR review.
+## Persistence
 
-## References
+- Schema version **1** — see `architecture/Package 3 Local Persistence.md`
+- **Not encrypted** beyond OS sandbox in Increment 2
+- Clear app data → first-launch onboarding restored
 
-- [architecture/Frontend.md](../architecture/Frontend.md)
-- [adr/0002-application-boundaries.md](../docs/adr/0002-application-boundaries.md)
+## Package 3 scope
+
+**Increment 2:** native android/ios projects, AsyncStorage persistence, startup restore states, mobile CI.  
+**Deferred:** bridge promotion, production location permissions, review expansion, encrypted trip store.
+
+## Must not
+
+- Import from `prototypes/` (ADR-0003)
+- Show fabricated trips, savings, or protection scores
+- Commit `local.properties`, Pods, signing secrets, or build outputs
