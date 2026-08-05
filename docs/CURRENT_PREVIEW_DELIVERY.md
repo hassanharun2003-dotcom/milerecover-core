@@ -1,53 +1,48 @@
-# Current preview delivery — 0.1.9 continuous release pass
+# Current preview delivery — 0.2.0 final product recovery
 
-**Branch:** `cursor/continuous-release-pass-29cb`  
-**PR:** https://github.com/hassanharun2003-dotcom/milerecover-core/pull/11  
-**App version / runtime:** `0.1.9`  
-**versionCode:** `21`  
-**Build label:** `0.1.9-continuous-pass.1`  
+**Branch:** `cursor/final-product-recovery-29cb`  
+**PR:** https://github.com/hassanharun2003-dotcom/milerecover-core/pull/12  
+**Commit:** `7a09316`  
+**App version / runtime:** `0.2.0`  
+**versionCode:** `22`  
+**Build label:** `0.2.0-product-recovery.1`  
 **Channel:** `preview`  
 **Build method:** Local EAS (`eas build --profile preview --platform android --local`)  
-**Not a development client:** confirmed (no DevLauncher paths; `APP_VARIANT=preview`; expo-dev-client excluded)
+**Not a development client:** confirmed (no DevLauncher paths; `APP_VARIANT=preview`)  
+**Appearance:** polished light theme only (`userInterfaceStyle: light`)
 
-## Direct install (preferred)
+## Direct install
 
-https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.9/MileRecover-preview-0.1.9.apk
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.0/MileRecover-preview-0.2.0.apk
 
 Latest alias:
 
-https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.9/MileRecover-preview-latest.apk
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.0/MileRecover-preview-latest.apk
 
-Release page: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.1.9
+Release page: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.2.0
 
 ## Artifact checks
 
 | Check | Result |
 |---|---|
-| SHA-256 | `ecd35468221dd04d60955ed9debd2cb002b30525151fa83ab86600228fbcb861` |
-| Size | ~84.5 MB |
+| SHA-256 | `1744f17bec3ee5d0467286e683f60ad517f4c99a63401424f3dbd9bc390ab3f9` |
+| Size | ~84.8 MB |
 | Package | `com.milerecover.app` |
-| versionName | `0.1.9` |
-| versionCode | `21` |
+| versionName | `0.2.0` |
+| versionCode | `22` |
 | Background location | present |
 | Foreground service location | present |
 | Dev client | absent |
 
-## What this build fixes vs 0.1.8
+## What this build recovers
 
-- Dark theme contrast (semantic tokens through design system + tabs)
-- Fresh install / reset always starts onboarding at Welcome
-- Protection never claims “Protected” without a verified capture (`configured_waiting`)
-- Stable Home composition (skeleton, single next action)
-- Manual drive date/time picker reliability + high-distance confirmation
-- Visual PNG QA harness + release regression suite
+- Deterministic onboarding Welcome / resume / completed Home
+- Readable light theme (dark theme not shipped)
+- Canonical protection states (never Protected before verified capture)
+- GPS drift discarded before Review / Free allowance
+- Simplified Home · Review · Proof · Profile
+- Review setup + preview Reset app for testing
 
 ## Phone QA
 
-`docs/qa/PHONE_QA_15MIN.md` — only physical-device-dependent checks.
-
-## Notes
-
-- EAS cloud Android free-plan quota may still be exhausted; this APK was produced with a **local** EAS build using the same preview profile, remote signing credentials, and preview channel.
-- Automatic background tracking still requires physical-device QA.
-- Visual evidence PNGs: `docs/assets/ui-evidence/png/`
-- Regression matrix: `docs/qa/CONTINUOUS_RELEASE_REGRESSION.md`
+`docs/qa/PHONE_QA_15MIN.md`
