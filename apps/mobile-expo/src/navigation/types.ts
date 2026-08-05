@@ -3,6 +3,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export const SUPPORTING_STACK_ROUTES = [
   'TripDetails',
   'MissingTripRecovery',
+  'MissingDrivesIntro',
   'ProtectionAlert',
   'TrackingActive',
   'BringExistingMileage',
@@ -48,6 +49,7 @@ export type RootStackParamList = {
   ManualTrip: { tripId?: string; preferWork?: boolean } | undefined;
   TripDetails: { tripId: string };
   MissingTripRecovery: { reviewId: string };
+  MissingDrivesIntro: undefined;
   ProtectionAlert: undefined;
   TrackingActive: undefined;
   BringExistingMileage: undefined;

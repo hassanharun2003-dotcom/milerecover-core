@@ -19,7 +19,7 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  '0.2.3 composition rebuild: Welcome “Never lose another work drive.”, compact region/rate, prominent Home protection, amber Proof attention, Profile identity header, premium Plus card.';
+  '0.2.4 premium UI: Protect your miles. Protect your money. Home leads with real YTD protected value, MetricRow, StatusBanner, Missing drives intro, and dark ProtectionHero.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();

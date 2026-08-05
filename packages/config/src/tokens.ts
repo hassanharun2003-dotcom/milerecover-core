@@ -160,11 +160,12 @@ export const spacing = {
   xxl: 48,
 } as const;
 
-/** Blueprint card radius ~12–16 */
+/** Premium card radius — compact controls sm/md, hero surfaces lg/xl */
 export const radii = {
   sm: 8,
   md: 12,
   lg: 16,
+  xl: 22,
   pill: 999,
 } as const;
 

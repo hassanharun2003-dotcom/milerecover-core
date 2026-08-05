@@ -13,19 +13,19 @@ import {
   type TripRecord,
 } from '@milerecover/domain';
 import {
+  MetricRow,
   PrimaryButton,
-  ProtectionCard,
+  ProtectionHero,
   SecondaryButton,
   SoftPanel,
-  SummaryCard,
   SkeletonBlock,
+  StatusBanner,
   TabScreen,
   TertiaryButton,
   TimelineRow,
   text,
   useAppTheme,
 } from '../../design-system';
-// SoftPanel retained for HomeSkeleton loading shells.
 import { greetingForName, tripSourceLabel } from '../../product/copy';
 import { selectHomePeriodSummary, selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
 import { selectProductExperience } from '../../product/selectors';
@@ -260,12 +260,19 @@ export function HomeScreen() {
   const locale = product.localeProfile;
   const currentRate = rateForTimestamp(locale.rates, Date.now());
   const rateUsable = currentRate != null && !locale.activeRateNeedsReview;
-  const periodSummary = selectHomePeriodSummary({
+  const yearSummary = selectHomePeriodSummary({
     trips: experience.confirmedTrips,
     locale,
     preferredName: product.preferredName,
     primaryGoal: product.primaryGoal,
-    periodKind: 'this_week',
+    periodKind: 'ytd',
+  });
+  const monthSummary = selectHomePeriodSummary({
+    trips: experience.confirmedTrips,
+    locale,
+    preferredName: product.preferredName,
+    primaryGoal: product.primaryGoal,
+    periodKind: 'this_month',
   });
 
   const nextBest = useMemo<NextBestAction>(() => {
@@ -302,7 +309,7 @@ export function HomeScreen() {
     if (experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip')) {
       return {
         label: 'Check for missed drives',
-        run: () => navigation.navigate('Review'),
+        run: () => navigation.navigate('MissingDrivesIntro'),
       };
     }
     if (scenario.proofReady && confirmedCount > 0) {
@@ -415,15 +422,35 @@ export function HomeScreen() {
 
   if (!homeReady) return <HomeSkeleton />;
 
-  const protectionVariant =
+  const hasTrustworthyYearValue =
+    yearSummary.estimatedValueCents != null && yearSummary.tripCount > 0;
+  const heroTitle =
     compact.kind === 'protected'
-      ? 'protected'
-      : protectionNeedsAction
-        ? 'attention'
-        : compact.kind === 'configured_waiting'
-          ? 'mint'
-          : 'default';
-  const onGreen = compact.kind === 'protected';
+      ? 'You’ve protected'
+      : compact.kind === 'configured_waiting'
+        ? 'Protection is ready'
+        : statusTitle(compact.kind);
+  const heroSupporting = hasTrustworthyYearValue
+    ? compact.sentence
+    : confirmedCount === 0
+      ? 'Start tracking to see the value of your work miles.'
+      : yearSummary.estimatedValueLabel === 'Review rate'
+        ? 'Add or confirm a mileage rate to estimate value.'
+        : compact.sentence;
+  const bannerTone: 'ok' | 'attention' | 'info' = protectionNeedsAction
+    ? 'attention'
+    : compact.kind === 'protected' || compact.kind === 'configured_waiting'
+      ? 'ok'
+      : 'info';
+  const bannerMessage = protectionNeedsAction
+    ? compact.sentence
+    : compact.kind === 'protected'
+      ? 'All systems normal — tracking in the background.'
+      : compact.kind === 'configured_waiting'
+        ? 'All systems ready — waiting for your first verified drive.'
+      : compact.kind === 'manual_mode'
+        ? 'Manual tracking selected. Automatic protection is off.'
+        : compact.sentence;
 
   return (
     <TabScreen>
@@ -435,64 +462,43 @@ export function HomeScreen() {
           marginBottom: spacing.sm,
         }}
       >
-        <Text style={[text.subtitle, { flex: 1 }]} accessibilityRole="text">
-          {greeting ?? 'Welcome back'}
-        </Text>
+        <Text style={[text.caption, { color: palette.forest[700], fontWeight: '700' }]}>MileRecover</Text>
         <TertiaryButton
           label="Plans"
           onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
           accessibilityLabel="Open plans and trial"
         />
       </View>
-
-      <ProtectionCard variant={protectionVariant}>
-        <Text style={[text.title, onGreen ? { color: palette.text.inverse } : null]}>
-          {statusTitle(compact.kind)}
-        </Text>
-        <Text
-          style={[
-            text.body,
-            { marginTop: spacing.xs },
-            onGreen ? { color: palette.forest[100] } : { color: palette.text.secondary },
-          ]}
-        >
-          {compact.sentence}
-        </Text>
-        {protection.lastCheckLabel ? (
-          <Text
-            style={[
-              text.caption,
-              { marginTop: spacing.sm },
-              onGreen ? { color: palette.forest[100] } : null,
-            ]}
-          >
-            {protection.lastCheckLabel}
-          </Text>
-        ) : null}
-        {showProtectionAction && !protectionNeedsAction ? (
-          <View style={{ marginTop: spacing.md }}>
-            <SecondaryButton
-              label={compact.actionLabel || 'View'}
-              onPress={openProtection}
-              accessibilityLabel="View protection status"
-              compact
-            />
-          </View>
-        ) : null}
-      </ProtectionCard>
-
-      <Text style={[text.caption, { marginBottom: spacing.xs, marginTop: spacing.md }]}>
-        {periodSummary.periodLabel.toUpperCase()}
+      <Text style={[text.subtitle, { marginBottom: spacing.md }]} accessibilityRole="text">
+        {greeting ?? 'Welcome back'}
       </Text>
-      <SummaryCard
+
+      <ProtectionHero
+        title={heroTitle}
+        valueLabel={hasTrustworthyYearValue ? yearSummary.estimatedValueLabel : null}
+        valueCaption={hasTrustworthyYearValue ? 'this year' : undefined}
+        supporting={heroSupporting}
+        onPress={openProtection}
+      />
+
+      <MetricRow
         items={[
-          { label: 'Distance', value: periodSummary.workDistanceLabel },
-          { label: 'Drives', value: String(periodSummary.tripCount) },
-          { label: 'Value', value: periodSummary.estimatedValueLabel },
+          {
+            label: locale.distanceUnit === 'km' ? 'Work km' : 'Work miles',
+            value: monthSummary.workDistanceLabel,
+          },
+          { label: 'Work drives', value: String(monthSummary.tripCount) },
+          { label: 'This month', value: monthSummary.estimatedValueLabel },
         ]}
       />
 
-      <ProtectionCard variant="default">
+      <StatusBanner
+        tone={bannerTone}
+        message={bannerMessage}
+        onPress={protectionNeedsAction || showProtectionAction ? openProtection : undefined}
+      />
+
+      <SoftPanel>
         <Text style={text.subtitle}>Next up</Text>
         {nextBest.run ? (
           <View style={{ marginTop: spacing.sm }}>
@@ -505,7 +511,7 @@ export function HomeScreen() {
         ) : (
           <Text style={[text.body, { marginTop: spacing.xs }]}>{nextBest.label}</Text>
         )}
-      </ProtectionCard>
+      </SoftPanel>
 
       <TrialOfferCard
         confirmedWorkDriveCount={confirmedCount}
@@ -546,11 +552,16 @@ export function HomeScreen() {
         })
       )}
 
-      <View style={{ marginTop: spacing.sm, marginBottom: spacing.md }}>
+      <View style={{ marginTop: spacing.sm, gap: spacing.sm, marginBottom: spacing.md }}>
         <PrimaryButton
-          label="Add a drive"
+          label="+ Add a drive"
           onPress={() => navigation.navigate('ManualTrip')}
           accessibilityLabel="Add a drive from home"
+        />
+        <SecondaryButton
+          label="Check for missed drives"
+          onPress={() => navigation.navigate('MissingDrivesIntro')}
+          accessibilityLabel="Check for missed drives"
         />
       </View>
     </TabScreen>

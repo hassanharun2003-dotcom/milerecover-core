@@ -29,6 +29,7 @@ import {
   PrimaryButton,
   SecondaryButton,
   SegmentedControl,
+  SoftPanel,
   SummaryCard,
   TabScreen,
   text,
@@ -342,19 +343,18 @@ export function ProofScreen() {
       ) : (
         <>
           <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>{period.label}</Text>
-          <Text style={[text.caption, { marginBottom: spacing.xs }]}>{readinessState}</Text>
           <SummaryCard
             items={[
               {
-                label: 'Distance',
+                label: 'Work distance',
                 value: formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag),
               },
               {
-                label: 'Drives',
+                label: 'Work drives',
                 value: String(report.tripCount),
               },
               {
-                label: 'Value',
+                label: 'Estimated value',
                 value:
                   report.estimatedValueCents != null
                     ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
@@ -362,6 +362,16 @@ export function ProofScreen() {
               },
             ]}
           />
+          <SoftPanel>
+            <Text style={text.subtitle}>
+              {exportReady ? 'Ready to share with work or your records' : readinessState}
+            </Text>
+            <Text style={[text.body, { marginTop: spacing.xs }]}>
+              {exportReady
+                ? 'Clear work-drive summary for the selected period. Estimated values use your chosen rate — not tax advice.'
+                : readinessMessage}
+            </Text>
+          </SoftPanel>
 
           {corrections.length > 0 ? (
             <AttentionBox

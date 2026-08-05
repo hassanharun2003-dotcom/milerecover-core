@@ -290,7 +290,7 @@ export function ReviewScreen() {
     <TabScreen>
       <SegmentedControl
         options={[
-          { label: `Needs you (${pending.length})`, value: 'needs' },
+          { label: `Needs review (${pending.length})`, value: 'needs' },
           { label: `Done (${reviewed.length})`, value: 'reviewed' },
         ]}
         value={segment}

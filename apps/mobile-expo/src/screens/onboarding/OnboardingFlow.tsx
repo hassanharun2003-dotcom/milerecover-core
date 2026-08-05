@@ -285,15 +285,29 @@ export function OnboardingFlow() {
       {step === 'welcome' ? (
         <View>
           <WelcomeHero
-            title="MileRecover"
-            eyebrow="Never lose another work drive."
-            body="Automatic protection for work mileage, with manual confirmation and private location control."
+            title="Welcome to MileRecover"
+            eyebrow="Protect your miles. Protect your money."
+            body="Calm, privacy-first mileage protection — you confirm what counts as work."
           />
-          <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
-            <ChecklistRow label="Protects drives automatically" status="ready" />
-            <ChecklistRow label="You confirm before anything counts as work" status="ready" />
-            <ChecklistRow label="Creates clear mileage reports" status="ready" />
-            <ChecklistRow label="Keeps your location data private" status="ready" />
+          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+            <SoftPanel>
+              <Text style={text.subtitle}>Recover forgotten miles</Text>
+              <Text style={[text.body, { marginTop: spacing.xs }]}>
+                Suggest likely drives from evidence on this device — you confirm what to keep.
+              </Text>
+            </SoftPanel>
+            <SoftPanel>
+              <Text style={text.subtitle}>Tax and employer ready</Text>
+              <Text style={[text.body, { marginTop: spacing.xs }]}>
+                Build clear records you can export when you need proof. Estimates are not tax advice.
+              </Text>
+            </SoftPanel>
+            <SoftPanel>
+              <Text style={text.subtitle}>Automatic tracking</Text>
+              <Text style={[text.body, { marginTop: spacing.xs }]}>
+                Capture possible drives in the background, with manual entry always available.
+              </Text>
+            </SoftPanel>
           </View>
         </View>
       ) : null}

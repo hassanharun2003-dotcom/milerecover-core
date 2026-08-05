@@ -1,6 +1,9 @@
-# MileRecover image-locked blueprint (0.2.3)
+# MileRecover premium UI lock (0.2.4)
 
-Authoritative visual direction from the attached product blueprint.
+Authoritative direction: money-protection hierarchy on a light premium canvas.
+
+## Promise
+“Protect your miles. Protect your money.”
 
 ## Tokens
 | Token | Value |
@@ -9,25 +12,17 @@ Authoritative visual direction from the attached product blueprint.
 | Deep green | `#073D2C` |
 | Mint | `#E8F4EE` |
 | Canvas | `#F7F9FC` |
-| Text primary | `#0F172A` |
-| Text secondary | `#475569` |
+| Text | `#0F172A` / `#475569` |
 | Border | `#E2E8F0` |
-| Success / Warning / Danger | `#16A34A` / `#F59E0B` / `#EF4444` |
 
-Warning amber `#F59E0B` is the brand accent. Readable warning text ink uses `#B45309` via `colors.status.warning`.
-
-## Composition (0.2.3)
-- Welcome headline: “Never lose another work drive.”
-- Purpose: Employee · Self-employed · Delivery/gig · Something else
-- Region & rate: compact country sheet + unit segment + rate field
-- Protect CTA: “Turn on drive protection”
-- Ready CTA: “Go to Home”
-- Home: prominent protection card, weekly metrics, Next up, primary Add a drive
-- Review: Work = green primary among equal decision buttons
-- Proof: amber AttentionBox with named issues; Export Free/Plus labels
-- Profile: avatar identity header + icon rows
-- Plans: premium dark Plus card for trial/highlighted plan
+## Composition
+- Welcome: Welcome to MileRecover · Protect your miles. Protect your money. · three value panels
+- Purpose: Employee reimbursement · Self-employed / business · Delivery or gig work · Personal / mixed use
+- Home: ProtectionHero (real YTD value when trustworthy) · MetricRow (month) · StatusBanner · Next up · Add a drive · Check for missed drives
+- Review: Needs review / Done
+- Proof: period summary + ready-to-share positioning (not tax guarantees)
+- Missing drives intro: confirm-before-add safeguards
+- Protection Center: dark ProtectionHero + diagnostics
 
 ## Evidence
-Theme boards: `docs/assets/ui-evidence/png/`  
-Actual harness boards: `docs/assets/ui-evidence/actual/`
+`docs/assets/ui-evidence/actual/` · `docs/assets/ui-evidence/png/`

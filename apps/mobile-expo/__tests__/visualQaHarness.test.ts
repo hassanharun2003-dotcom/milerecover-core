@@ -118,6 +118,9 @@ describe('Phase 0 visual QA harness', () => {
     const terms = await renderStackScreen('Terms');
     boards.push({ id: 'terms', title: 'Terms', copy: terms.copy });
 
+    const missed = await renderStackScreen('MissingDrivesIntro');
+    boards.push({ id: 'missing-drives', title: 'Missed drives', copy: missed.copy });
+
     boards.push({
       id: 'manual-trip-start-end',
       title: 'Add drive · Start & end',

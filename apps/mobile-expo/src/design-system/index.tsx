@@ -17,13 +17,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radii, shadows, spacing, touchTarget, typography, type AppPalette } from '@milerecover/config';
 import { statusColors, type StatusVariant } from './theme';
 import { useAppTheme } from './ThemeProvider';
-export {
+import {
   TabScreen,
   StackScrollScreen,
   OnboardingScreen,
   SafeFillScreen,
   FixedHeaderScrollScreen,
 } from './screenShell';
+export {
+  TabScreen,
+  StackScrollScreen,
+  OnboardingScreen,
+  SafeFillScreen,
+  FixedHeaderScrollScreen,
+};
 export { ThemeProvider, useAppTheme } from './ThemeProvider';
 
 export const text = StyleSheet.create({
@@ -1120,6 +1127,224 @@ export function ProtectionCard({
     </View>
   );
 }
+
+/** Dark-green money-protection hero — Home / Protection Center. */
+export function ProtectionHero({
+  title,
+  valueLabel,
+  valueCaption,
+  supporting,
+  onPress,
+}: {
+  title: string;
+  /** Formatted currency when trustworthy; omit for empty/truthful alternative. */
+  valueLabel?: string | null;
+  valueCaption?: string;
+  supporting: string;
+  onPress?: () => void;
+}) {
+  const { palette } = useAppTheme();
+  const body = (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <View style={{ flex: 1, paddingRight: spacing.sm }}>
+          <Text style={[text.caption, { color: palette.forest[100] }]}>{title}</Text>
+          {valueLabel ? (
+            <>
+              <Text
+                style={[text.display, { color: palette.text.inverse, marginTop: spacing.xs }]}
+                accessibilityRole="text"
+              >
+                {valueLabel}
+              </Text>
+              {valueCaption ? (
+                <Text style={[text.body, { color: palette.forest[100], marginTop: spacing.xs }]}>
+                  {valueCaption}
+                </Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={[text.title, { color: palette.text.inverse, marginTop: spacing.sm }]}>
+              {supporting}
+            </Text>
+          )}
+        </View>
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: 'rgba(255,255,255,0.14)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          accessibilityElementsHidden
+        >
+          <Text style={{ color: palette.text.inverse, fontSize: 22, fontWeight: '700' }}>✓</Text>
+        </View>
+      </View>
+      {valueLabel ? (
+        <Text style={[text.caption, { color: palette.forest[100], marginTop: spacing.md }]}>
+          {supporting}
+        </Text>
+      ) : null}
+    </>
+  );
+  const style = [
+    {
+      backgroundColor: palette.forest[800],
+      borderRadius: radii.xl,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      borderWidth: 1,
+      borderColor: palette.forest[700],
+      ...shadows.lifted,
+    },
+  ];
+  if (onPress) {
+    return (
+      <Pressable
+        style={style}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${valueLabel ?? supporting}`}
+      >
+        {body}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={style} accessibilityRole="summary" accessibilityLabel={`${title}. ${valueLabel ?? supporting}`}>
+      {body}
+    </View>
+  );
+}
+
+export function StatusBanner({
+  tone = 'ok',
+  message,
+  onPress,
+}: {
+  tone?: 'ok' | 'attention' | 'info';
+  message: string;
+  onPress?: () => void;
+}) {
+  const { palette } = useAppTheme();
+  const bg =
+    tone === 'attention'
+      ? palette.status.warningBg
+      : tone === 'info'
+        ? palette.background.mist
+        : palette.status.successBg;
+  const fg =
+    tone === 'attention'
+      ? palette.status.warning
+      : tone === 'info'
+        ? palette.forest[700]
+        : palette.status.success;
+  const content = (
+    <Text style={[text.caption, { color: fg, fontWeight: '600' }]} numberOfLines={3}>
+      {message}
+    </Text>
+  );
+  const wrap = {
+    backgroundColor: bg,
+    borderRadius: radii.md,
+    paddingVertical: spacing.smMd,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: tone === 'attention' ? palette.status.warningAccent : palette.border.default,
+    minHeight: touchTarget.minHeight,
+    justifyContent: 'center' as const,
+  };
+  if (onPress) {
+    return (
+      <Pressable style={wrap} onPress={onPress} accessibilityRole="button" accessibilityLabel={message}>
+        {content}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={wrap} accessibilityRole="text" accessibilityLabel={message}>
+      {content}
+    </View>
+  );
+}
+
+export function MetricRow({
+  items,
+}: {
+  items: Array<{ label: string; value: string }>;
+}) {
+  const { palette } = useAppTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: palette.background.card,
+        borderRadius: radii.xl,
+        borderWidth: 1,
+        borderColor: palette.border.default,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.sm,
+        marginBottom: spacing.md,
+        ...shadows.card,
+      }}
+      accessibilityRole="summary"
+    >
+      {items.map((item, index) => (
+        <View
+          key={item.label}
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            borderLeftWidth: index === 0 ? 0 : 1,
+            borderLeftColor: palette.border.default,
+            paddingHorizontal: spacing.xs,
+          }}
+        >
+          <Text style={[text.subtitle, { color: palette.forest[700], textAlign: 'center' }]} numberOfLines={2}>
+            {item.value}
+          </Text>
+          <Text style={[text.caption, { color: palette.text.secondary, marginTop: spacing.xs, textAlign: 'center' }]}>
+            {item.label}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function PrivacyNote({
+  body = 'Your data stays private and secure on this device.',
+}: {
+  body?: string;
+}) {
+  const { palette } = useAppTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        marginTop: spacing.md,
+        marginBottom: spacing.sm,
+      }}
+      accessibilityRole="text"
+      accessibilityLabel={body}
+    >
+      <Text style={{ color: palette.forest[700], fontWeight: '700', fontSize: 12 }}>Lock</Text>
+      <Text style={[text.caption, { color: palette.text.secondary, flex: 1 }]}>{body}</Text>
+    </View>
+  );
+}
+
+/** Alias — TabScreen / StackScrollScreen already provide safe containers. */
+export const ScreenContainer = TabScreen;
+export const MetricCard = SummaryCard;
+export const ReviewTripCard = ReviewCard;
+export const ProofSummaryCard = SummaryCard;
 
 /** Amber attention box for Proof corrections and similar alerts. */
 export function AttentionBox({

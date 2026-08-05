@@ -10,6 +10,7 @@ import {
   ExportReportScreen,
   HelpSupportScreen,
   ManualTripScreen,
+  MissingDrivesIntroScreen,
   MissingTripRecoveryScreen,
   PlanSelectionScreen,
   PrivacyScreen,
@@ -47,6 +48,7 @@ export function RootNavigator() {
       <Stack.Screen name="ManualTrip" component={ManualTripScreen} options={{ title: 'Add drive' }} />
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} options={{ title: 'Trip details' }} />
       <Stack.Screen name="MissingTripRecovery" component={MissingTripRecoveryScreen} options={{ title: 'Recovery' }} />
+      <Stack.Screen name="MissingDrivesIntro" component={MissingDrivesIntroScreen} options={{ title: 'Missed drives' }} />
       <Stack.Screen name="ProtectionAlert" component={ProtectionAlertScreen} options={{ title: 'Protection' }} />
       <Stack.Screen name="TrackingActive" component={TrackingActiveScreen} options={{ title: 'Tracking' }} />
       <Stack.Screen name="BringExistingMileage" component={BringExistingMileageScreen} options={{ title: 'Bring mileage' }} />

@@ -40,6 +40,7 @@ import {
   type TripRecord,
 } from '@milerecover/domain';
 import {
+  ChecklistRow,
   Chip,
   ChipRow,
   DestructiveButton,
@@ -51,6 +52,8 @@ import {
   LoadingState,
   PlanCard,
   PrimaryButton,
+  PrivacyNote,
+  ProtectionHero,
   RouteMapPreview,
   ScrollScreen,
   SecondaryButton,
@@ -615,6 +618,7 @@ export function ManualTripScreen() {
             loading={saving}
           />
           {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
+          <PrivacyNote />
         </View>
       }
     >
@@ -1113,6 +1117,54 @@ export function TripDetailsScreen() {
   );
 }
 
+export function MissingDrivesIntroScreen() {
+  const navigation = useNavigation<Nav>();
+  const { product } = useProduct();
+  const { refreshRecoverySuggestions } = useApp();
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const [busy, setBusy] = useState(false);
+
+  const runCheck = () => {
+    if (busy) return;
+    if (!capabilities.canUseGapDetection) {
+      navigation.navigate('PlanSelection', { source: 'upgrade' });
+      return;
+    }
+    setBusy(true);
+    refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
+    setBusy(false);
+    navigation.navigate('MainTabs', { screen: 'Review' });
+  };
+
+  return (
+    <ScrollScreen>
+      <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+        Find the miles you missed
+      </Text>
+      <Text style={[text.body, { marginBottom: spacing.md }]}>
+        MileRecover can suggest likely work drives from location history on this device. You confirm
+        what to keep — nothing is added without your review.
+      </Text>
+      <SoftPanel>
+        <ChecklistRow label="Uses location evidence already on this device" status="ready" />
+        <ChecklistRow label="You confirm every suggestion before it counts" status="ready" />
+        <ChecklistRow label="Nothing is invented or added without consent" status="ready" />
+      </SoftPanel>
+      <PrimaryButton
+        label={busy ? 'Checking…' : 'Run check now'}
+        loading={busy}
+        onPress={runCheck}
+        accessibilityLabel="Run check for missed drives"
+      />
+      <SecondaryButton label="Review pending drives" onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })} />
+      <Text style={[text.caption, { marginTop: spacing.md }]}>
+        Suggested drives are not confirmed until you review them. Free includes limited missing-drive
+        scans each month.
+      </Text>
+    </ScrollScreen>
+  );
+}
+
 export function MissingTripRecoveryScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'MissingTripRecovery'>>();
   const navigation = useNavigation<Nav>();
@@ -1487,18 +1539,18 @@ export function ProtectionAlertScreen() {
   return (
     <ScrollScreen>
       <SectionHeader title="Protection Center" />
-      <StatusCard
-        variant={protection.severity}
-        title={protection.title}
-        body={protection.message}
-        emphasis="hero"
+      <ProtectionHero
+        title={protection.state === 'PROTECTED' ? "You're protected" : protection.title}
+        valueLabel={null}
+        supporting={protection.message}
+        onPress={primaryAction.action !== 'none' ? runPrimaryAction : undefined}
       />
       <SoftPanel>
-        <EvidenceRow label="While using app" value={foregroundReady ? 'Allowed' : 'Needs attention'} />
-        <EvidenceRow label="Background" value={backgroundValue} />
-        <EvidenceRow label="Battery" value={batteryValue} />
+        <EvidenceRow label="Background tracking" value={backgroundValue} />
+        <EvidenceRow label="Location access" value={foregroundReady ? 'Allowed' : 'Needs attention'} />
+        <EvidenceRow label="Battery optimization" value={batteryValue} />
         <EvidenceRow label="Automatic protection" value={automaticValue} />
-        <EvidenceRow label="Last check" value={lastCheckValue} />
+        <EvidenceRow label="Last successful check" value={lastCheckValue} />
       </SoftPanel>
       {primaryAction.action !== 'none' ? (
         <PrimaryButton
@@ -1506,7 +1558,13 @@ export function ProtectionAlertScreen() {
           onPress={runPrimaryAction}
           accessibilityLabel={primaryAction.label}
         />
-      ) : null}
+      ) : (
+        <PrimaryButton
+          label="Run diagnostics"
+          onPress={() => void refreshPermissions()}
+          accessibilityLabel="Run diagnostics"
+        />
+      )}
       <SecondaryButton label="Tracking details" onPress={() => navigation.navigate('TrackingActive')} />
       <Text style={[text.caption, { marginTop: spacing.md }]}>Manual entry is always available.</Text>
     </ScrollScreen>
