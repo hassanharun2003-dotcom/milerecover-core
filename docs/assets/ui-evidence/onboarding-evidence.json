@@ -1,0 +1,11 @@
+{
+  "onboarding-welcome": "M MileRecover Protect every work mile. Recover forgotten drives and create beautiful proof — without inventing mileage. Get started",
+  "onboarding-purpose": "Back How do you use mileage? This sets report wording. You can change it anytime. Preferred name (optional) Employee Share clear records with work. Business Keep client and tax-ready logs. Gig Protect shifts and earnings records. Mixed More than one of these. Continue",
+  "onboarding-locale_setup": "Back Country, units, and rate Choose how distance and value appear. Rates are your choice — not a tax guarantee. United States Suggested from your device Canada United Kingdom Australia Other country Distance unit Miles Kilometers Suggested rate (¢ per mile) 70¢ per mile Continue",
+  "onboarding-protect_drives": "Back Protect your drives Set up drive protection so fewer work miles are missed. Manual entry always works. Location while using the app Needed for automatic capture Background location Helps catch drives when the app isn’t open Battery settings Some phones pause apps — we’ll help you check if needed. Skip for now if you prefer adding drives yourself. Turn on drive protection Skip for now — add drives manually",
+  "onboarding-ready": "Back You’re ready Goal: Not set United States · Miles · 70¢/mi · USD Protection: Manual for now So future drives aren’t missed. We’ll explain each permission first. Go to Home Add a first drive",
+  "onboarding-next-employee_reimbursement": "Back You’re ready Goal: Employee United States · Miles · 70¢/mi · USD Protection: Manual for now So future drives aren’t missed. We’ll explain each permission first. Go to Home Add a first drive",
+  "onboarding-next-gig_delivery": "Back You’re ready Goal: Gig United States · Miles · 70¢/mi · USD Protection: Manual for now So future drives aren’t missed. We’ll explain each permission first. Go to Home Add a first drive",
+  "onboarding-next-self_employed_business": "Back You’re ready Goal: Business United States · Miles · 70¢/mi · USD Protection: Manual for now A few taps. Enter the miles you know — we won’t invent a route. Go to Home Add a first drive",
+  "onboarding-next-mixed": "Back You’re ready Goal: Mixed United States · Miles · 70¢/mi · USD Protection: Manual for now We’ll organize what we can and show anything that needs a quick look. Go to Home Add a first drive"
+}

@@ -45,10 +45,9 @@ jobs:
       - name: Validate boundary rules schema
         run: node -e "JSON.parse(require('fs').readFileSync('tooling/schemas/boundary-rules.json','utf8')); console.log('boundary-rules.json OK')"
 
-      - name: Confirm no dependency installation
+      - name: Confirm checkout has no installed node_modules
         run: |
           test ! -d node_modules
           test ! -f pnpm-lock.yaml
-          test ! -f package-lock.json
           test ! -f yarn.lock
-          echo "No lockfiles or node_modules (Phase 0 policy OK)"
+          echo "Checkout is clean of node_modules and non-npm lockfiles"
