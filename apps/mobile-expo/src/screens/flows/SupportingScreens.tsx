@@ -1528,6 +1528,25 @@ export function ProtectionAlertScreen() {
   );
 }
 
+function diagnosticTimeLabel(timestamp: number | null | undefined): string {
+  if (!timestamp) return 'None';
+  return `${formatDateLocal(timestamp)} ${formatTimeLocal(timestamp)}`;
+}
+
+function diagnosticSampleLabel(sample: TrackingDiagnostics['lastAcceptedSample']): string {
+  if (!sample) return 'None';
+  const coords =
+    sample.latitude != null && sample.longitude != null
+      ? ` · ${sample.latitude.toFixed(5)}, ${sample.longitude.toFixed(5)}`
+      : '';
+  return `${diagnosticTimeLabel(sample.timestamp)}${coords}`;
+}
+
+function diagnosticRejectedSampleLabel(sample: TrackingDiagnostics['lastRejectedSample']): string {
+  if (!sample) return 'None';
+  return `${diagnosticTimeLabel(sample.timestamp)} · ${sample.reason}`;
+}
+
 export function TrackingActiveScreen() {
   const navigation = useNavigation<Nav>();
   const { permissions, state } = useApp();
@@ -1615,6 +1634,34 @@ export function TrackingActiveScreen() {
           }
         />
       </ListSection>
+      {product.showDevTools ? (
+        <ListSection title="Diagnostic details">
+          <EvidenceRow label="Engine state" value={diagnostics?.engineState ?? 'Unknown'} />
+          <EvidenceRow label="Trip state" value={diagnostics?.activeTripState ?? 'Unknown'} />
+          <EvidenceRow label="Permissions" value={diagnostics?.permissionState ?? 'Unknown'} />
+          <EvidenceRow label="Pending queue" value={String(diagnostics?.queueLength ?? 0)} />
+          <EvidenceRow
+            label="Background callback"
+            value={diagnosticTimeLabel(diagnostics?.lastBackgroundCallbackAt)}
+          />
+          <EvidenceRow
+            label="Last accepted sample"
+            value={diagnosticSampleLabel(diagnostics?.lastAcceptedSample ?? null)}
+          />
+          <EvidenceRow
+            label="Last rejected sample"
+            value={diagnosticRejectedSampleLabel(diagnostics?.lastRejectedSample ?? null)}
+          />
+          <EvidenceRow
+            label="Last automatic trip"
+            value={diagnosticTimeLabel(diagnostics?.lastSuccessfulAutomaticTripAt)}
+          />
+          <EvidenceRow
+            label="Battery restriction"
+            value={diagnostics?.batteryRestrictionState ?? 'unknown'}
+          />
+        </ListSection>
+      ) : null}
       {diagnostics?.backgroundLimited && automaticOn ? (
         <StatusCard
           variant="warning"

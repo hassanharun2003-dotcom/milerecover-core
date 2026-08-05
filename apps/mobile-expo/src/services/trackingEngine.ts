@@ -18,6 +18,8 @@ import { enrichTripEndpoints } from './geocode';
 export const TRACKING_SAMPLE_STORAGE_KEY = '@milerecover/tracking/samples/v1';
 export const TRACKING_MACHINE_STORAGE_KEY = '@milerecover/tracking/machine/v1';
 export const TRACKING_PENDING_TRIPS_KEY = '@milerecover/tracking/pending-trips/v1';
+export const TRACKING_LAST_SUCCESSFUL_AUTOMATIC_TRIP_KEY =
+  '@milerecover/tracking/last-successful-automatic-trip/v1';
 export const TASK_NAME = 'milerecover-tracking';
 const MAX_BUFFERED_SAMPLES = 2000;
 
@@ -39,9 +41,17 @@ export interface TrackingDiagnostics {
   backgroundLimited: boolean;
   backgroundLimitedReason: string | null;
   lastSampleAt: number | null;
+  lastAcceptedSample: { timestamp: number; latitude?: number; longitude?: number } | null;
+  lastRejectedSample: { timestamp: number; reason: string } | null;
   sampleCount: number;
   engineState: EngineState;
   tripMachineState: TripMachineState;
+  activeTripState: TripMachineState;
+  lastBackgroundCallbackAt: number | null;
+  lastSuccessfulAutomaticTripAt: number | null;
+  queueLength: number;
+  batteryRestrictionState: 'unknown' | 'restricted' | 'unrestricted';
+  permissionState: string;
   automaticCaptureAvailable: boolean;
 }
 
@@ -113,6 +123,20 @@ async function persistPendingTrips(trips: TripRecord[]): Promise<void> {
   await AsyncStorage.setItem(TRACKING_PENDING_TRIPS_KEY, JSON.stringify(trips.slice(0, 50)));
 }
 
+async function loadLastSuccessfulAutomaticTripAt(): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(TRACKING_LAST_SUCCESSFUL_AUTOMATIC_TRIP_KEY);
+    const parsed = raw == null ? null : Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function persistLastSuccessfulAutomaticTripAt(timestamp: number): Promise<void> {
+  await AsyncStorage.setItem(TRACKING_LAST_SUCCESSFUL_AUTOMATIC_TRIP_KEY, String(timestamp));
+}
+
 async function enqueuePendingTrip(trip: TripRecord): Promise<void> {
   const pending = await loadPendingTrips();
   if (isDuplicateAutoTrip(trip, pending) || overlapsExistingAutoTrip(trip, pending)) return;
@@ -165,7 +189,7 @@ async function appendSamples(locations: Location.LocationObject[]): Promise<void
   for (const sample of candidates) {
     const previous = sampleBuffer[sampleBuffer.length - 1] ?? accepted[accepted.length - 1] ?? null;
     if (previous && isImpossibleJump(previous, sample)) {
-      activeController?.noteRejectedSample('impossible_jump');
+      activeController?.noteRejectedSample('impossible_jump', sample.timestamp);
       continue;
     }
     accepted.push(sample);
@@ -185,7 +209,7 @@ async function appendSamples(locations: Location.LocationObject[]): Promise<void
   activeController?.advanceMachine({ type: 'SAMPLE_ACCEPTED', moving });
 
   await applyBufferEvaluation();
-  activeController?.markLastSample(accepted[accepted.length - 1].timestamp);
+  activeController?.noteAcceptedSample(accepted[accepted.length - 1]);
 }
 
 function defineBackgroundTask(): boolean {
@@ -193,6 +217,7 @@ function defineBackgroundTask(): boolean {
   try {
     if (!TaskManager.isTaskDefined(TASK_NAME)) {
       TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
+        activeController?.markBackgroundCallback(Date.now());
         if (error) {
           activeController?.markBackgroundLimited(error.message);
           activeController?.advanceMachine({ type: 'ENGINE_ERROR', recoverable: true });
@@ -219,6 +244,11 @@ class TrackingControllerImpl implements TrackingController {
   private engineState: EngineState = 'idle';
   private tripMachineState: TripMachineState = 'IDLE';
   private lastSampleAt: number | null = null;
+  private lastAcceptedSample: TrackingDiagnostics['lastAcceptedSample'] = null;
+  private lastRejectedSample: TrackingDiagnostics['lastRejectedSample'] = null;
+  private lastBackgroundCallbackAt: number | null = null;
+  private lastSuccessfulAutomaticTripAt: number | null = null;
+  private lastSuccessfulAutomaticTripLoaded = false;
   private backgroundLimitedReason: string | null = null;
   private closedTrips: TripRecord[] = [];
 
@@ -241,8 +271,18 @@ class TrackingControllerImpl implements TrackingController {
     }
   }
 
-  noteRejectedSample(_reason: string): void {
+  noteRejectedSample(reason: string, timestamp = Date.now()): void {
+    this.lastRejectedSample = { timestamp, reason };
     this.advanceMachine({ type: 'SAMPLE_REJECTED' });
+  }
+
+  noteAcceptedSample(sample: LocationSample): void {
+    this.lastAcceptedSample = {
+      timestamp: sample.timestamp,
+      latitude: sample.latitude,
+      longitude: sample.longitude,
+    };
+    this.markLastSample(sample.timestamp);
   }
 
   async startTracking(): Promise<void> {
@@ -324,6 +364,11 @@ class TrackingControllerImpl implements TrackingController {
 
   async getDiagnostics(): Promise<TrackingDiagnostics> {
     await loadSampleBuffer();
+    if (!this.lastSuccessfulAutomaticTripLoaded) {
+      this.lastSuccessfulAutomaticTripAt = await loadLastSuccessfulAutomaticTripAt();
+      this.lastSuccessfulAutomaticTripLoaded = true;
+    }
+    const pendingTrips = await loadPendingTrips();
     const taskManagerAvailable = await this.isTaskManagerAvailable();
     const foregroundPermission = await safePermission(() => Location.getForegroundPermissionsAsync());
     const backgroundPermission = await safePermission(() => Location.getBackgroundPermissionsAsync());
@@ -334,6 +379,16 @@ class TrackingControllerImpl implements TrackingController {
       !taskManagerAvailable ||
       backgroundPermission !== Location.PermissionStatus.GRANTED ||
       this.backgroundLimitedReason != null;
+    const backgroundLimitedReason =
+      this.backgroundLimitedReason ??
+      (!taskManagerAvailable
+        ? 'TaskManager is unavailable in this runtime.'
+        : backgroundPermission !== Location.PermissionStatus.GRANTED
+          ? 'Background location permission is not granted.'
+          : !backgroundRegistered
+            ? 'Background updates are not registered; foreground watch is still active while the app is open.'
+            : null);
+    const lastBufferedSample = sampleBuffer.at(-1) ?? null;
 
     return {
       foregroundPermission,
@@ -341,19 +396,27 @@ class TrackingControllerImpl implements TrackingController {
       taskManagerAvailable,
       backgroundRegistered,
       backgroundLimited,
-      backgroundLimitedReason:
-        this.backgroundLimitedReason ??
-        (!taskManagerAvailable
-          ? 'TaskManager is unavailable in this runtime.'
-          : backgroundPermission !== Location.PermissionStatus.GRANTED
-            ? 'Background location permission is not granted.'
-            : !backgroundRegistered
-              ? 'Background updates are not registered; foreground watch is still active while the app is open.'
-              : null),
-      lastSampleAt: this.lastSampleAt ?? sampleBuffer.at(-1)?.timestamp ?? null,
+      backgroundLimitedReason,
+      lastSampleAt: this.lastSampleAt ?? lastBufferedSample?.timestamp ?? null,
+      lastAcceptedSample:
+        this.lastAcceptedSample ??
+        (lastBufferedSample
+          ? {
+              timestamp: lastBufferedSample.timestamp,
+              latitude: lastBufferedSample.latitude,
+              longitude: lastBufferedSample.longitude,
+            }
+          : null),
+      lastRejectedSample: this.lastRejectedSample,
       sampleCount: sampleBuffer.length,
       engineState: this.engineState,
       tripMachineState: this.tripMachineState,
+      activeTripState: this.tripMachineState,
+      lastBackgroundCallbackAt: this.lastBackgroundCallbackAt,
+      lastSuccessfulAutomaticTripAt: this.lastSuccessfulAutomaticTripAt,
+      queueLength: pendingTrips.length,
+      batteryRestrictionState: batteryRestrictionState(backgroundLimitedReason),
+      permissionState: summarizePermissionState(foregroundPermission, backgroundPermission),
       automaticCaptureAvailable,
     };
   }
@@ -377,6 +440,12 @@ class TrackingControllerImpl implements TrackingController {
     const end = nextTrip.routePreview?.[nextTrip.routePreview.length - 1] ?? null;
     // Emit immediately so Review is not blocked by network geocoding.
     this.closedTrips = [nextTrip, ...this.closedTrips].slice(0, 50);
+    if (nextTrip.source === 'auto_detected') {
+      const closedAt = Date.now();
+      this.lastSuccessfulAutomaticTripAt = closedAt;
+      this.lastSuccessfulAutomaticTripLoaded = true;
+      void persistLastSuccessfulAutomaticTripAt(closedAt);
+    }
     this.options.onTripClosed(nextTrip);
 
     void enrichTripEndpoints({ start, end }).then(({ startLabel, endLabel }) => {
@@ -398,6 +467,10 @@ class TrackingControllerImpl implements TrackingController {
 
   markBackgroundLimited(reason: string): void {
     this.backgroundLimitedReason = reason;
+  }
+
+  markBackgroundCallback(timestamp: number): void {
+    this.lastBackgroundCallbackAt = timestamp;
   }
 
   private async ensureForegroundPermission(): Promise<Location.PermissionStatus> {
@@ -475,6 +548,26 @@ async function safeBoolean(getter: () => Promise<boolean>): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function batteryRestrictionState(
+  reason: string | null,
+): TrackingDiagnostics['batteryRestrictionState'] {
+  if (!reason || !/battery/i.test(reason)) return 'unknown';
+  if (/unrestricted|not restricted|disabled|off/i.test(reason)) return 'unrestricted';
+  return 'restricted';
+}
+
+function summarizePermissionState(
+  foreground: Location.PermissionStatus | 'unknown',
+  background: Location.PermissionStatus | 'unknown',
+): string {
+  if (foreground === 'unknown' || background === 'unknown') return 'permission status unknown';
+  if (foreground === Location.PermissionStatus.GRANTED && background === Location.PermissionStatus.GRANTED) {
+    return 'foreground and background granted';
+  }
+  if (foreground !== Location.PermissionStatus.GRANTED) return `foreground ${foreground}`;
+  return `background ${background}`;
 }
 
 export function createTrackingController(options: TrackingControllerOptions): TrackingController {
