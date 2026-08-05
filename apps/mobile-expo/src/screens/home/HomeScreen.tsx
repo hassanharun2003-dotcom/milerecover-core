@@ -1,0 +1,486 @@
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { spacing } from '@milerecover/config';
+import {
+  canCaptureAutomaticTrip,
+  capabilitiesForEntitlement,
+  estimatedValueCents,
+  formatCurrencyCents,
+  formatDistance,
+  rateForTimestamp,
+  resolveProtectionStatus,
+  sumEstimatedValueCents,
+} from '@milerecover/domain';
+import {
+  OfflineBanner,
+  PrimaryButton,
+  SecondaryButton,
+  SoftPanel,
+  StatusCard,
+  SummaryCard,
+  TabScreen,
+  TimelineRow,
+  TertiaryButton,
+  text,
+} from '../../design-system';
+import { greetingForName, tripSourceLabel } from '../../product/copy';
+import { selectProductExperience } from '../../product/selectors';
+import { earnedTrialMoment, isWithinFirstWeek } from '../../product/trialValue';
+import { useApp } from '../../store/AppContext';
+import { useProduct } from '../../product/ProductContext';
+import { TrialOfferCard } from '../../components/TrialOfferCard';
+import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
+
+type HomeNav = CompositeNavigationProp<
+  BottomTabNavigationProp<RootTabParamList, 'Home'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+type CompactStatus = 'protected' | 'setup_incomplete' | 'needs_attention' | 'paused' | 'manual_mode';
+
+function compactProtection(input: {
+  status: ReturnType<typeof resolveProtectionStatus>['status'];
+  primaryIssue: ReturnType<typeof resolveProtectionStatus>['primaryIssue'];
+}): { kind: CompactStatus; sentence: string; actionLabel: string; action: 'protection' | 'plans' | 'none' } {
+  switch (input.status) {
+    case 'protected':
+      return {
+        kind: 'protected',
+        sentence: 'Drive protection is on.',
+        actionLabel: 'View protection',
+        action: 'protection',
+      };
+    case 'setup_incomplete':
+      return {
+        kind: 'setup_incomplete',
+        sentence: 'Finish a short setup to protect drives automatically.',
+        actionLabel: 'Finish setup',
+        action: 'protection',
+      };
+    case 'tracking_paused':
+      return {
+        kind: 'paused',
+        sentence: 'Drive protection is paused.',
+        actionLabel: 'Turn on protection',
+        action: 'protection',
+      };
+    case 'manual_only':
+      return {
+        kind: 'manual_mode',
+        sentence: 'Manual tracking is active. Set up automatic protection when you’re ready.',
+        actionLabel: 'Set up protection',
+        action: 'plans',
+      };
+    case 'needs_attention':
+    default:
+      return {
+        kind: 'needs_attention',
+        sentence:
+          input.primaryIssue?.what === 'Battery restrictions may stop MileRecover'
+            ? 'Battery settings may prevent some drives from being captured.'
+            : input.primaryIssue?.what === 'Background location is off'
+              ? 'Background location is off — some drives may be missed.'
+              : input.primaryIssue?.what ?? 'Protection needs a quick fix.',
+        actionLabel: 'Fix protection',
+        action: 'protection',
+      };
+  }
+}
+
+function statusVariant(kind: CompactStatus): 'success' | 'warning' | 'danger' | 'info' {
+  switch (kind) {
+    case 'protected':
+      return 'success';
+    case 'manual_mode':
+    case 'paused':
+      return 'info';
+    case 'setup_incomplete':
+      return 'warning';
+    case 'needs_attention':
+      return 'danger';
+  }
+}
+
+function activityTimeLabel(timestamp: number): string {
+  const hoursAgo = Math.round((Date.now() - timestamp) / 3600000);
+  if (hoursAgo < 1) return 'Just now';
+  if (hoursAgo < 24) return `${hoursAgo}h ago`;
+  const daysAgo = Math.round(hoursAgo / 24);
+  return daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
+}
+
+export function HomeScreen() {
+  const navigation = useNavigation<HomeNav>();
+  const { state, permissions, automaticCaptureAvailable, refreshRecoverySuggestions } = useApp();
+  const {
+    product,
+    consumePendingPostOnboardingRoute,
+    markFirstConfirmedWorkDrive,
+    markFirstRecoveredDrive,
+    markFirstMissingTripSeen,
+    markFirstReportPreview,
+    markCelebratedFirstDrive,
+    markCelebratedFirstReport,
+    markCelebratedFirstRecovery,
+  } = useProduct();
+  const recoveryRefreshed = useRef(false);
+  const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
+  const { scenario, liveMode } = experience;
+  const greeting = greetingForName(product.preferredName);
+  const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const setupIncomplete =
+    product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
+  const allowanceOk = canCaptureAutomaticTrip(product.entitlement, state.trips);
+  const protection = resolveProtectionStatus({
+    permissions,
+    trackingEnabled: product.trackingEnabled,
+    canUseAutomaticCapture: capabilities.canUseAutomaticCapture && automaticCaptureAvailable,
+    trackingEngineState: state.trackingEngineState,
+    lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
+    lastSyncAt: state.lastSyncAt,
+    pendingReviewCount: experience.activeReviewItems.length,
+    setupIncomplete,
+    offline: scenario.homeState === 'offline',
+    automaticAllowanceExhausted: capabilities.canUseAutomaticCapture && !allowanceOk,
+  });
+  const compact = compactProtection(protection);
+
+  const confirmedCount = experience.confirmedTrips.length;
+  const recoveredCount = experience.confirmedTrips.filter((trip) => trip.source === 'recovered').length;
+  const locale = product.localeProfile;
+  const currentRate = rateForTimestamp(locale.rates, Date.now());
+  const rateUsable = currentRate != null && !locale.activeRateNeedsReview;
+  const protectedMiles = scenario.weekSummary.milesProtected;
+  const snapshotTotal = sumEstimatedValueCents(experience.confirmedTrips, locale);
+  const estimatedProtected =
+    snapshotTotal ??
+    (rateUsable && currentRate != null
+      ? estimatedValueCents(protectedMiles, currentRate.centsPerMile)
+      : null);
+  const recoveredMiles = scenario.weekSummary.recoveredMiles;
+  const pendingReviewCount = experience.activeReviewItems.length;
+  const trialMoment = earnedTrialMoment(product, confirmedCount);
+  const firstWeek =
+    isWithinFirstWeek(product.onboarding.completedAt) ||
+    isWithinFirstWeek(product.firstConfirmedWorkDriveAt);
+
+  const nextBest = useMemo(() => {
+    // Priority: blocking tracking → classification → report correction → rate → recovery → report ready → caught up
+    if (compact.kind === 'needs_attention' || compact.kind === 'paused' || compact.kind === 'setup_incomplete') {
+      return {
+        label:
+          compact.kind === 'paused'
+            ? 'Turn on drive protection'
+            : compact.kind === 'setup_incomplete'
+              ? 'Finish protection setup'
+              : compact.actionLabel,
+        run: () => {
+          if (compact.kind === 'needs_attention') {
+            logEvent(ANALYTICS_EVENTS.protectionDegradedViewed, {});
+          }
+          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
+          else navigation.navigate('ProtectionAlert');
+        },
+      };
+    }
+    if (pendingReviewCount > 0) {
+      return {
+        label:
+          pendingReviewCount === 1
+            ? 'Review 1 possible drive'
+            : `Review ${pendingReviewCount} possible drives`,
+        run: () => navigation.navigate('Review'),
+      };
+    }
+    if (locale.activeRateNeedsReview || !rateUsable) {
+      return {
+        label: 'Add a rate to calculate your value',
+        run: () => navigation.navigate('EditSetup'),
+      };
+    }
+    if (setupIncomplete && capabilities.canUseAutomaticCapture) {
+      return {
+        label: 'Turn on drive protection',
+        run: () => navigation.navigate('ProtectionAlert'),
+      };
+    }
+    if (product.importPhase !== 'idle' && product.importPhase !== 'success') {
+      return {
+        label: 'Finish your import',
+        run: () => navigation.navigate('BringExistingMileage'),
+      };
+    }
+    if (experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip')) {
+      return {
+        label: 'Check for missed drives',
+        run: () => navigation.navigate('Review'),
+      };
+    }
+    if (scenario.proofReady && confirmedCount > 0) {
+      return {
+        label: 'Preview your report',
+        run: () => navigation.navigate('Proof'),
+      };
+    }
+    return {
+      label: 'You’re all caught up',
+      run: () => navigation.navigate('ManualTrip'),
+    };
+  }, [
+    capabilities.canUseAutomaticCapture,
+    compact.action,
+    compact.actionLabel,
+    compact.kind,
+    confirmedCount,
+    experience.activeReviewItems,
+    locale.activeRateNeedsReview,
+    navigation,
+    pendingReviewCount,
+    product.importPhase,
+    rateUsable,
+    scenario.proofReady,
+    setupIncomplete,
+  ]);
+
+  useEffect(() => {
+    const route = consumePendingPostOnboardingRoute();
+    if (!route || route === 'Proof') {
+      if (route === 'Proof') navigation.navigate('Proof');
+      return;
+    }
+    if (route === 'ProtectionAlert') navigation.navigate('ProtectionAlert');
+    else if (route === 'ManualTrip') navigation.navigate('ManualTrip');
+    else if (route === 'BringExistingMileage') navigation.navigate('BringExistingMileage');
+    else if (route === 'MissingTripRecovery') navigation.navigate('Review');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.pendingPostOnboardingRoute]);
+
+  useEffect(() => {
+    if (!capabilities.canUseGapDetection) return;
+    if (recoveryRefreshed.current || experience.confirmedTrips.length === 0) return;
+    recoveryRefreshed.current = true;
+    refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
+  }, [
+    capabilities.canUseGapDetection,
+    experience.confirmedTrips.length,
+    product.workLocations,
+    refreshRecoverySuggestions,
+  ]);
+
+  useEffect(() => {
+    if (liveMode && confirmedCount > 0 && product.firstConfirmedWorkDriveAt == null) {
+      markFirstConfirmedWorkDrive();
+    }
+  }, [confirmedCount, liveMode, markFirstConfirmedWorkDrive, product.firstConfirmedWorkDriveAt]);
+
+  useEffect(() => {
+    if (liveMode && recoveredCount > 0 && product.firstRecoveredDriveAt == null) {
+      markFirstRecoveredDrive();
+    }
+  }, [liveMode, markFirstRecoveredDrive, product.firstRecoveredDriveAt, recoveredCount]);
+
+  useEffect(() => {
+    if (
+      liveMode &&
+      experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip') &&
+      product.firstMissingTripSeenAt == null
+    ) {
+      markFirstMissingTripSeen();
+    }
+  }, [
+    experience.activeReviewItems,
+    liveMode,
+    markFirstMissingTripSeen,
+    product.firstMissingTripSeenAt,
+  ]);
+
+  useEffect(() => {
+    if (liveMode && scenario.proofReady && product.firstReportPreviewAt == null && confirmedCount > 0) {
+      markFirstReportPreview();
+    }
+  }, [
+    confirmedCount,
+    liveMode,
+    markFirstReportPreview,
+    product.firstReportPreviewAt,
+    scenario.proofReady,
+  ]);
+
+  const showTrial =
+    liveMode &&
+    trialMoment != null &&
+    compact.kind === 'protected' &&
+    pendingReviewCount === 0 &&
+    confirmedCount >= 3;
+
+  const celebration =
+    firstWeek && liveMode
+      ? product.celebratedFirstDriveAt == null && confirmedCount > 0
+        ? ('drive' as const)
+        : product.celebratedFirstRecoveryAt == null && recoveredCount > 0
+          ? ('recovery' as const)
+          : product.celebratedFirstReportAt == null &&
+              scenario.proofReady &&
+              product.firstReportPreviewAt != null
+            ? ('report' as const)
+            : null
+      : null;
+
+  const recent = scenario.activity.slice(0, 3);
+
+  return (
+    <TabScreen>
+      <Text style={[text.subtitle, { marginBottom: spacing.xs }]} accessibilityRole="text">
+        {greeting ?? 'Welcome back.'}
+      </Text>
+
+      {scenario.homeState === 'offline' ? (
+        <OfflineBanner body="Your miles are safe on this device. Sync resumes when you’re back online." />
+      ) : null}
+
+      <StatusCard
+        variant={statusVariant(compact.kind)}
+        title={
+          compact.kind === 'protected'
+            ? 'Protected'
+            : compact.kind === 'setup_incomplete'
+              ? 'Setup incomplete'
+              : compact.kind === 'paused'
+                ? 'Paused'
+                : compact.kind === 'manual_mode'
+                  ? 'Manual mode'
+                  : 'Needs attention'
+        }
+        body={compact.sentence}
+        actionLabel={compact.actionLabel}
+        onAction={() => {
+          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
+          else if (compact.action === 'protection') navigation.navigate('ProtectionAlert');
+        }}
+        emphasis="subtle"
+      />
+
+      <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>This period</Text>
+      <SummaryCard
+        items={[
+          {
+            label: locale.distanceUnit === 'km' ? 'Work distance' : 'Work miles',
+            value: formatDistance(protectedMiles, locale.distanceUnit, locale.localeTag, 1).replace(
+              ` ${locale.distanceUnit}`,
+              '',
+            ),
+          },
+          {
+            label: 'Estimated value',
+            value:
+              estimatedProtected != null
+                ? formatCurrencyCents(estimatedProtected, locale.currencyCode, locale.localeTag)
+                : locale.activeRateNeedsReview
+                  ? 'Review rate'
+                  : '—',
+          },
+          {
+            label: 'Recovered',
+            value: formatDistance(recoveredMiles, locale.distanceUnit, locale.localeTag, 1).replace(
+              ` ${locale.distanceUnit}`,
+              '',
+            ),
+          },
+          {
+            label: 'Needs review',
+            value: String(pendingReviewCount),
+          },
+        ]}
+      />
+
+      <SoftPanel>
+        <Text style={text.subtitle}>Next</Text>
+        <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+          One clear step to keep your miles protected and ready.
+        </Text>
+        <PrimaryButton label={nextBest.label} onPress={nextBest.run} accessibilityLabel={nextBest.label} />
+      </SoftPanel>
+
+      {celebration === 'drive' ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>First work drive saved</Text>
+          <TertiaryButton label="Got it" onPress={markCelebratedFirstDrive} />
+        </SoftPanel>
+      ) : null}
+      {celebration === 'recovery' ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>First recovery confirmed</Text>
+          <TertiaryButton label="Got it" onPress={markCelebratedFirstRecovery} />
+        </SoftPanel>
+      ) : null}
+      {celebration === 'report' ? (
+        <SoftPanel>
+          <Text style={text.subtitle}>First report ready</Text>
+          <TertiaryButton label="Got it" onPress={markCelebratedFirstReport} />
+        </SoftPanel>
+      ) : null}
+
+      {showTrial ? (
+        <TrialOfferCard
+          confirmedWorkDriveCount={confirmedCount}
+          onStartTrial={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+        />
+      ) : null}
+
+      <View
+        style={{
+          marginTop: spacing.sm,
+          marginBottom: spacing.xs,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Text style={text.subtitle}>Recent</Text>
+        {scenario.activity.length > 3 ? (
+          <TertiaryButton label="View all" onPress={() => navigation.navigate('Review')} />
+        ) : null}
+      </View>
+      {recent.length === 0 ? (
+        <SoftPanel>
+          <Text style={text.body}>No drives yet. Add one when you know the miles.</Text>
+        </SoftPanel>
+      ) : (
+        recent.map((event) => {
+          const trip = state.trips.find((item) => item.id === event.id);
+          const stateLabel =
+            trip?.classification === 'business'
+              ? 'Work'
+              : trip?.classification === 'personal'
+                ? 'Personal'
+                : 'Pending';
+          return (
+            <View key={event.id} style={{ marginBottom: spacing.sm }}>
+              <TimelineRow
+                title={event.title}
+                subtitle={`${tripSourceLabel(trip?.source ?? 'manual')} · ${stateLabel}`}
+                timeLabel={activityTimeLabel(event.timestamp)}
+                onPress={
+                  liveMode ? () => navigation.navigate('TripDetails', { tripId: event.id }) : undefined
+                }
+              />
+            </View>
+          );
+        })
+      )}
+
+      <View style={{ marginTop: spacing.sm }}>
+        <SecondaryButton
+          label="Add a drive"
+          onPress={() => navigation.navigate('ManualTrip')}
+          accessibilityLabel="Add a drive from home"
+        />
+      </View>
+    </TabScreen>
+  );
+}
