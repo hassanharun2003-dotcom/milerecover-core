@@ -26,7 +26,6 @@ import {
   milesToDisplay,
   rateForTimestamp,
   reportHasExportableTrips,
-  resolveProtectionStatus,
   resolveTripEstimatedValue,
   shouldOfferTrial,
   validateManualTripInput,
@@ -66,8 +65,9 @@ import {
 import { isModelCompatibleWithMake, searchMakes, searchModels } from '../../data/vehicles';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
-import { nextActionForGoal, voiceForDrivingType } from '../../product/copy';
+import { voiceForDrivingType } from '../../product/copy';
 import { useProduct } from '../../product/ProductContext';
+import { selectPendingReviewCount, selectProtectionView } from '../../product/presentation';
 import type { ReviewDecision, VehicleDraft, WorkLocationDraft } from '../../product/types';
 import {
   isShareInFlight,
@@ -1224,28 +1224,23 @@ export function ProtectionAlertScreen() {
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const setupIncomplete =
     product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
-  const protection = resolveProtectionStatus({
+  const pendingReviewCount = selectPendingReviewCount(
+    state,
+    product,
     permissions,
-    trackingEnabled: product.trackingEnabled,
-    canUseAutomaticCapture: capabilities.canUseAutomaticCapture && automaticCaptureAvailable,
-    trackingEngineState: state.trackingEngineState,
-    lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
-    lastSyncAt: state.lastSyncAt,
-    pendingReviewCount: state.reviewItems.length,
-    setupIncomplete,
+    automaticCaptureAvailable,
+  );
+  const protection = selectProtectionView({
+    app: state,
+    product,
+    permissions,
+    automaticCaptureAvailable,
+    pendingReviewCount,
   });
   const foregroundReady = permissions.location === 'granted';
-  const backgroundReady = permissions.backgroundLocation === 'granted';
-  const issue = protection.primaryIssue;
-  const statusVariant =
-    protection.status === 'protected'
-      ? ('success' as const)
-      : protection.status === 'manual_only' ||
-          protection.status === 'tracking_paused' ||
-          protection.status === 'temporarily_limited' ||
-          protection.status === 'configured_waiting'
-        ? ('info' as const)
-        : ('warning' as const);
+  const backgroundReady =
+    permissions.backgroundLocation === 'granted' || permissions.backgroundLocation === 'not_applicable';
+  const primaryAction = protection.primaryAction;
   const [guideStep, setGuideStep] = useState<
     'overview' | 'explain_fg' | 'ask_fg' | 'explain_bg' | 'ask_bg' | 'verify' | 'success'
   >('overview');
@@ -1259,11 +1254,11 @@ export function ProtectionAlertScreen() {
   }, [refreshPermissions]);
 
   useEffect(() => {
-    if (protection.status === 'protected' && guideStep !== 'overview') {
+    if (protection.state === 'PROTECTED' && guideStep !== 'overview') {
       setGuideStep('success');
       if (setupIncomplete) setProtectionSetupState('configured');
     }
-  }, [guideStep, protection.status, setProtectionSetupState, setupIncomplete]);
+  }, [guideStep, protection.state, setProtectionSetupState, setupIncomplete]);
 
   const startGuidedRepair = () => {
     if (!capabilities.canUseAutomaticCapture) {
@@ -1278,17 +1273,17 @@ export function ProtectionAlertScreen() {
     } else setGuideStep('verify');
   };
 
-  const runPrimaryIssueAction = () => {
-    if (!issue) return;
-    if (issue.action === 'see_plans') {
+  const runPrimaryAction = () => {
+    if (primaryAction.action === 'none') return;
+    if (primaryAction.action === 'see_plans') {
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
-    if (issue.action === 'review_trips') {
+    if (primaryAction.action === 'review_trips') {
       navigation.navigate('MainTabs', { screen: 'Review' });
       return;
     }
-    if (issue.action === 'enable_watching') {
+    if (primaryAction.action === 'enable_watching') {
       if (!capabilities.canUseAutomaticCapture) {
         navigation.navigate('PlanSelection', { source: 'upgrade' });
         return;
@@ -1296,11 +1291,11 @@ export function ProtectionAlertScreen() {
       setTrackingEnabled(true);
       return;
     }
-    if (issue.action === 'finish_setup' || issue.action === 'open_location_settings') {
+    if (primaryAction.action === 'finish_setup' || primaryAction.action === 'open_location_settings') {
       startGuidedRepair();
       return;
     }
-    if (issue.action === 'open_battery_settings') {
+    if (primaryAction.action === 'open_battery_settings') {
       void openSystemSettings();
     }
   };
@@ -1387,14 +1382,14 @@ export function ProtectionAlertScreen() {
   }
 
   if (guideStep === 'verify' || guideStep === 'success') {
-    const ok = protection.status === 'protected';
-    const waiting = protection.status === 'configured_waiting';
+    const ok = protection.state === 'PROTECTED';
+    const waiting = protection.state === 'CONFIGURED_WAITING';
     const configuredReady =
       capabilities.canUseAutomaticCapture &&
       foregroundReady &&
       backgroundReady &&
       product.trackingEnabled &&
-      (protection.status === 'setup_incomplete' || waiting);
+      waiting;
     const canFinishSetup = ok || waiting || configuredReady;
     return (
       <ScrollScreen>
@@ -1461,9 +1456,9 @@ export function ProtectionAlertScreen() {
     <ScrollScreen>
       <SectionHeader title="Protection Center" />
       <StatusCard
-        variant={statusVariant}
+        variant={protection.severity}
         title={protection.title}
-        body={protection.detail}
+        body={protection.message}
         emphasis="hero"
       />
       {protection.lastCheckLabel ? (
@@ -1473,17 +1468,17 @@ export function ProtectionAlertScreen() {
           No successful automatic check yet — manual drives still work.
         </Text>
       )}
-      {issue && protection.status !== 'protected' ? (
+      {primaryAction.action !== 'none' && protection.state !== 'PROTECTED' ? (
         <SoftPanel>
-          <Text style={text.subtitle}>{issue.what}</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{issue.why}</Text>
+          <Text style={text.subtitle}>{protection.title}</Text>
+          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{protection.message}</Text>
           <PrimaryButton
-            label={issue.actionLabel}
-            onPress={runPrimaryIssueAction}
-            accessibilityLabel={issue.actionLabel}
+            label={primaryAction.label}
+            onPress={runPrimaryAction}
+            accessibilityLabel={primaryAction.label}
           />
         </SoftPanel>
-      ) : protection.status === 'protected' ? (
+      ) : protection.state === 'PROTECTED' ? (
         <PrimaryButton
           label="View tracking health"
           onPress={() => navigation.navigate('TrackingActive')}
@@ -1499,10 +1494,10 @@ export function ProtectionAlertScreen() {
         />
         <EvidenceRow label="Protection" value={product.trackingEnabled ? 'On' : 'Paused'} />
       </SoftPanel>
-      {protection.status !== 'protected' &&
-      protection.status !== 'manual_only' &&
-      protection.status !== 'configured_waiting' &&
-      protection.status !== 'temporarily_limited' ? (
+      {protection.state !== 'PROTECTED' &&
+      protection.state !== 'MANUAL_ONLY' &&
+      protection.state !== 'CONFIGURED_WAITING' &&
+      protection.state !== 'BATTERY_LIMITED' ? (
         <PrimaryButton
           label="Start guided repair"
           onPress={startGuidedRepair}
@@ -1549,11 +1544,24 @@ function diagnosticRejectedSampleLabel(sample: TrackingDiagnostics['lastRejected
 
 export function TrackingActiveScreen() {
   const navigation = useNavigation<Nav>();
-  const { permissions, state } = useApp();
+  const { permissions, state, automaticCaptureAvailable } = useApp();
   const { product, setTrackingEnabled } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const allowance = describeAutomaticAllowance(product.entitlement, state.trips);
   const allowanceOk = allowance.remaining == null || allowance.remaining > 0;
+  const pendingReviewCount = selectPendingReviewCount(
+    state,
+    product,
+    permissions,
+    automaticCaptureAvailable,
+  );
+  const protection = selectProtectionView({
+    app: state,
+    product,
+    permissions,
+    automaticCaptureAvailable,
+    pendingReviewCount,
+  });
   const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
 
   const refreshDiagnostics = () => {
@@ -1566,17 +1574,11 @@ export function TrackingActiveScreen() {
 
   const canStart = capabilities.canUseAutomaticCapture && allowanceOk;
   const automaticOn = product.trackingEnabled && canStart;
-  const automaticBody = !capabilities.canUseAutomaticCapture
-    ? 'Automatic capture needs a paid plan. Manual trips stay free.'
-    : !allowanceOk
-      ? `Free includes ${allowance.limit ?? 40} automatic trips this month — limit reached. Manual trips stay free.`
-      : automaticOn
-        ? `On — protecting drives when permissions allow.${
-            allowance.remaining != null ? ` ${allowance.remaining} of ${allowance.limit} auto trips left this month.` : ''
-          }`
-        : `Turn on to protect drives automatically.${
-            allowance.remaining != null ? ` Free includes ${allowance.limit} auto trips/month.` : ''
-          } You’ll still review anything uncertain.`;
+  const allowanceCopy =
+    allowance.remaining != null
+      ? ` ${allowance.remaining} of ${allowance.limit} auto trips left this month.`
+      : '';
+  const automaticBody = `${protection.message}${allowanceCopy}`;
   const start = () => {
     if (!capabilities.canUseAutomaticCapture || !allowanceOk) {
       navigation.navigate('PlanSelection', { source: 'upgrade' });
@@ -1614,6 +1616,7 @@ export function TrackingActiveScreen() {
         }}
       />
       <ListSection title="Current status">
+        <EvidenceRow label="Protection status" value={protection.title} />
         <EvidenceRow label="Automatic protection" value={automaticOn ? 'On' : 'Off'} />
         <EvidenceRow
           label="Auto trips this month"
@@ -2712,9 +2715,7 @@ export function RescueProductsScreen() {
 }
 
 export function HelpSupportScreen() {
-  const { resetOnboarding } = useProduct();
-  const { restartOnboarding } = useApp();
-  const next = nextActionForGoal(null);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
     <ScrollScreen>
@@ -2746,19 +2747,16 @@ export function HelpSupportScreen() {
           <Text style={[text.body, { marginBottom: spacing.sm }]}>
             After you turn protection on and allow location. Free includes up to 40 automatic trips per month, plus unlimited manual drives.
           </Text>
-          <Text style={text.subtitle}>What happens if I restart onboarding?</Text>
+          <Text style={text.subtitle}>Can I review setup without losing trips?</Text>
           <Text style={text.body}>
-            Trips stay on this device. Only the onboarding questions restart, beginning with {next.cta.toLowerCase()}.
+            Yes. Review setup lets you adjust profile, country, units, and rates while keeping trips on this device.
           </Text>
         </View>
       </ListSection>
       <PrimaryButton
-        label="Restart onboarding"
-        onPress={() => {
-          resetOnboarding({ keepVehicles: false });
-          restartOnboarding();
-        }}
-        accessibilityLabel="Restart onboarding while preserving trips"
+        label="Review setup"
+        onPress={() => navigation.navigate('EditSetup')}
+        accessibilityLabel="Review setup while preserving trips"
       />
       <StatusCard
         variant="neutral"

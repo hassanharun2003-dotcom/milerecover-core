@@ -1,7 +1,7 @@
-import { colors, darkColors } from '@milerecover/config';
+import { colors } from '@milerecover/config';
 
 export type StatusVariant = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
-export type Palette = typeof colors | typeof darkColors;
+export type Palette = typeof colors;
 
 export function statusColors(
   variant: StatusVariant,

@@ -33,13 +33,13 @@ describe('Production MVP build configuration', () => {
     };
   };
 
-  it('ships package com.milerecover.app and version/runtime 0.1.9', () => {
+  it('ships package com.milerecover.app and version/runtime 0.2.0', () => {
     expect(APP_PACKAGE_ID).toBe('com.milerecover.app');
-    expect(APP_VERSION).toBe('0.1.9');
-    expect(APP_BUILD_LABEL).toBe('0.1.9-continuous-pass.1');
+    expect(APP_VERSION).toBe('0.2.0');
+    expect(APP_BUILD_LABEL).toBe('0.2.0-product-recovery.1');
     expect(appConfigSource).toContain("package: 'com.milerecover.app'");
     expect(appConfigSource).toContain("bundleIdentifier: 'com.milerecover.app'");
-    expect(appConfigSource).toContain("version: '0.1.9'");
+    expect(appConfigSource).toContain("version: '0.2.0'");
     expect(appConfigSource).toContain("policy: 'appVersion'");
     expect(appConfigSource).toContain('expo-location');
     expect(appConfigSource).toContain('@react-native-community/datetimepicker');

@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -579,7 +580,6 @@ export function ReviewCard({
   onPersonal,
   onEdit,
   onNotSure,
-  onUndo,
 }: {
   title: string;
   subtitle: string;
@@ -597,7 +597,6 @@ export function ReviewCard({
   onPersonal: () => void;
   onEdit?: () => void;
   onNotSure?: () => void;
-  onUndo?: () => void;
 }) {
   const { palette } = useAppTheme();
   const a11y = [
@@ -623,10 +622,8 @@ export function ReviewCard({
         <RouteMapPreview points={routePreview} />
         <View style={{ flex: 1 }}>
           <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
-          <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Time · {subtitle}</Text>
-          <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Distance · {distance}</Text>
           <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>
-            Purpose · {purpose?.trim() ? purpose : 'Not set'}
+            {subtitle} · {distance}
           </Text>
           {confidence ? (
             <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Confidence · {confidence}</Text>
@@ -634,13 +631,16 @@ export function ReviewCard({
           {estimatedValue ? (
             <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{estimatedValue}</Text>
           ) : null}
+          {purpose?.trim() ? (
+            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Purpose · {purpose}</Text>
+          ) : null}
+          {vehicle ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{vehicle}</Text> : null}
+          {reason ? <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>{reason}</Text> : null}
           {evidence ? (
             <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{evidence}</Text>
           ) : provenance ? (
             <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{provenance}</Text>
           ) : null}
-          {vehicle ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{vehicle}</Text> : null}
-          {reason ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{reason}</Text> : null}
         </View>
       </View>
       <View style={styles.reviewActions}>
@@ -655,17 +655,14 @@ export function ReviewCard({
           accessibilityLabel={`Mark as personal drive. ${title}`}
         />
         {onNotSure ? (
-          <TertiaryButton
+          <SecondaryButton
             label="Not sure"
             onPress={onNotSure}
             accessibilityLabel={`Mark as not sure. ${title}`}
           />
         ) : null}
         {onEdit ? (
-          <SecondaryButton label="Edit" onPress={onEdit} accessibilityLabel={`Edit trip. ${title}`} />
-        ) : null}
-        {onUndo ? (
-          <TertiaryButton label="Undo" onPress={onUndo} accessibilityLabel={`Undo last action. ${title}`} />
+          <TertiaryButton label="Details" onPress={onEdit} accessibilityLabel={`Open details for ${title}`} />
         ) : null}
       </View>
     </Pressable>
@@ -1021,15 +1018,28 @@ export function ProtectionCard({ children }: { children: React.ReactNode }) {
   return <View style={[styles.softPanel, themedPanel(palette)]} accessibilityRole="summary">{children}</View>;
 }
 
-export function WelcomeHero({ title, body }: { title: string; body: string }) {
+export function WelcomeHero({
+  title,
+  body,
+  eyebrow,
+}: {
+  title: string;
+  body: string;
+  eyebrow?: string;
+}) {
   const { palette } = useAppTheme();
   return (
     <View style={styles.welcomeHero} accessibilityRole="header">
-      <View style={[styles.welcomeHeroIcon, { backgroundColor: palette.action.primary }]}>
-        <Text style={[styles.welcomeHeroIconText, { color: palette.action.primaryText }]}>M</Text>
-      </View>
+      <Image
+        source={require('../../assets/icon.png')}
+        style={styles.welcomeHeroLogo}
+        accessibilityLabel="MileRecover logo"
+      />
       <Text style={[text.headline, themedText(palette)]}>{title}</Text>
-      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.md }]}>{body}</Text>
+      {eyebrow ? (
+        <Text style={[text.subtitle, themedText(palette), { marginTop: spacing.md }]}>{eyebrow}</Text>
+      ) : null}
+      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>{body}</Text>
     </View>
   );
 }
@@ -1307,9 +1317,14 @@ export function ConfirmDialog({
   const { palette } = useAppTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={styles.dialogScrim} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Dismiss">
+      <Pressable
+        style={[styles.dialogScrim, { backgroundColor: palette.semantic.scrim }]}
+        onPress={onCancel}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      >
         <Pressable
-          style={[styles.dialogCard, { backgroundColor: palette.semantic.elevatedCanvas }]}
+          style={[styles.dialogCard, { backgroundColor: palette.semantic.surface }]}
           onPress={() => undefined}
           accessibilityRole="summary"
         >
@@ -1342,11 +1357,16 @@ export function BottomSheet({
   const { palette } = useAppTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetScrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close sheet">
+      <Pressable
+        style={[styles.sheetScrim, { backgroundColor: palette.semantic.scrim }]}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close sheet"
+      >
         <Pressable
           style={[
             styles.sheetCard,
-            { maxHeight: height * 0.72, backgroundColor: palette.semantic.elevatedCanvas },
+            { maxHeight: height * 0.72, backgroundColor: palette.semantic.surface },
           ]}
           onPress={() => undefined}
           accessibilityRole="summary"
@@ -1681,6 +1701,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   welcomeHeroIconText: { color: colors.text.inverse, fontSize: 28, fontWeight: '700' },
+  welcomeHeroLogo: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.lg,
+    marginBottom: spacing.md,
+  },
   checklistRow: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border.default },
   checklistMark: { width: 24, color: colors.forest[700], fontWeight: '700', fontSize: typography.size.bodyLarge },
   proofHero: { backgroundColor: colors.forest[800], borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.md },
@@ -1750,7 +1776,6 @@ const styles = StyleSheet.create({
   },
   dialogScrim: {
     flex: 1,
-    backgroundColor: 'rgba(11, 46, 31, 0.45)',
     justifyContent: 'center',
     padding: spacing.lg,
   },
@@ -1762,7 +1787,6 @@ const styles = StyleSheet.create({
   },
   sheetScrim: {
     flex: 1,
-    backgroundColor: 'rgba(11, 46, 31, 0.4)',
     justifyContent: 'flex-end',
   },
   sheetCard: {

@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import { useColorScheme } from 'react-native';
-import { colors, darkColors, type AppPalette } from '@milerecover/config';
+import { colors, type AppPalette } from '@milerecover/config';
 
 export type { AppPalette };
 
 type ThemeContextValue = {
-  scheme: 'light' | 'dark';
+  scheme: 'light';
   palette: AppPalette;
-  isDark: boolean;
+  isDark: false;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -17,15 +16,15 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const system = useColorScheme();
-  const scheme: 'light' | 'dark' = system === 'dark' ? 'dark' : 'light';
   const value = useMemo<ThemeContextValue>(
     () => ({
-      scheme,
-      palette: scheme === 'dark' ? darkColors : colors,
-      isDark: scheme === 'dark',
+      // Dark mode is not a shipped customer path yet; force the polished light palette
+      // so OS appearance cannot route users into the unfinished dark experience.
+      scheme: 'light',
+      palette: colors,
+      isDark: false,
     }),
-    [scheme],
+    [],
   );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

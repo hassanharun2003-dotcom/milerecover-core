@@ -24,15 +24,11 @@ describe('Phase 0 visual QA harness', () => {
     fs.mkdirSync(pngDir, { recursive: true });
   });
 
-  it('enforces readable contrast for light and dark semantic tokens', () => {
+  it('enforces readable contrast for shipped light semantic tokens', () => {
     const lightFails = checkThemeContrast('light');
-    const darkFails = checkThemeContrast('dark');
     expect(lightFails).toEqual([]);
-    expect(darkFails).toEqual([]);
-    for (const theme of ['light', 'dark'] as const) {
-      for (const pair of themeContrastPairs(theme)) {
-        expect(contrastRatio(pair.fg, pair.bg)).toBeGreaterThanOrEqual(pair.minRatio);
-      }
+    for (const pair of themeContrastPairs('light')) {
+      expect(contrastRatio(pair.fg, pair.bg)).toBeGreaterThanOrEqual(pair.minRatio);
     }
   });
 
@@ -61,7 +57,6 @@ describe('Phase 0 visual QA harness', () => {
       'offline',
       'loading',
       'recoverable_error',
-      'dark_mode',
       'light_mode',
     ];
     for (const id of required) {
@@ -69,7 +64,7 @@ describe('Phase 0 visual QA harness', () => {
     }
   });
 
-  it('writes PNG visual evidence for major screens in light and dark', async () => {
+  it('writes PNG visual evidence for major screens in shipped light theme', async () => {
     const manifest: Record<string, { file: string; copyPreview: string; failures: string[] }> = {};
 
     const boards: Array<{ id: string; title: string; copy: string }> = [];
@@ -104,31 +99,28 @@ describe('Phase 0 visual QA harness', () => {
     boards.push({ id: 'report-preview', title: 'Report preview', copy: report.copy });
 
     for (const board of boards) {
-      for (const theme of ['light', 'dark'] as const) {
-        const { filePath, failures } = renderVisualBoard(
-          {
-            id: board.id,
-            title: board.title,
-            theme,
-            copy: board.copy,
-          },
-          pngDir,
-        );
-        expect(fs.existsSync(filePath)).toBe(true);
-        expect(fs.statSync(filePath).size).toBeGreaterThan(800);
-        expect(failures).toEqual([]);
-        manifest[`${board.id}-${theme}`] = {
-          file: path.basename(filePath),
-          copyPreview: board.copy.slice(0, 240),
-          failures: failures.map((f) => f.detail),
-        };
-      }
+      const { filePath, failures } = renderVisualBoard(
+        {
+          id: board.id,
+          title: board.title,
+          theme: 'light',
+          copy: board.copy,
+        },
+        pngDir,
+      );
+      expect(fs.existsSync(filePath)).toBe(true);
+      expect(fs.statSync(filePath).size).toBeGreaterThan(800);
+      expect(failures).toEqual([]);
+      manifest[`${board.id}-light`] = {
+        file: path.basename(filePath),
+        copyPreview: board.copy.slice(0, 240),
+        failures: failures.map((f) => f.detail),
+      };
     }
 
     // Fixture-labeled boards
     for (const fixture of LAUNCH_FIXTURES) {
       if (fixture.expectRoute === 'loading' || fixture.expectRoute === 'error') continue;
-      const theme = fixture.theme === 'system' ? 'light' : fixture.theme;
       let copy = fixture.label;
       if (fixture.expectRoute === 'onboarding') {
         const step =
@@ -148,14 +140,14 @@ describe('Phase 0 visual QA harness', () => {
         {
           id: `fixture-${fixture.id}`,
           title: fixture.label,
-          theme,
+          theme: 'light',
           copy,
         },
         pngDir,
       );
       expect(fs.existsSync(filePath)).toBe(true);
       expect(failures).toEqual([]);
-      manifest[`fixture-${fixture.id}-${theme}`] = {
+      manifest[`fixture-${fixture.id}-light`] = {
         file: path.basename(filePath),
         copyPreview: copy.slice(0, 240),
         failures: [],
@@ -163,6 +155,6 @@ describe('Phase 0 visual QA harness', () => {
     }
 
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-    expect(Object.keys(manifest).length).toBeGreaterThan(30);
+    expect(Object.keys(manifest).length).toBeGreaterThan(25);
   }, 120_000);
 });

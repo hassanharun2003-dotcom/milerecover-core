@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import { PNG } from 'pngjs';
-import { darkColors, lightSemantic, darkSemantic, colors, type AppPalette } from '@milerecover/config';
+import { lightSemantic, colors, type AppPalette } from '@milerecover/config';
 
 export type Hex = string;
 
@@ -31,7 +31,7 @@ export type VisualCheckFailure = {
 export type VisualBoardInput = {
   id: string;
   title: string;
-  theme: 'light' | 'dark';
+  theme?: 'light';
   copy: string;
   width?: number;
   height?: number;
@@ -71,25 +71,25 @@ export function contrastRatio(fg: Hex, bg: Hex): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-export function themeContrastPairs(theme: 'light' | 'dark'): ContrastPair[] {
-  const s = theme === 'dark' ? darkSemantic : lightSemantic;
+export function themeContrastPairs(_theme: 'light' = 'light'): ContrastPair[] {
+  const s = lightSemantic;
   return [
     { name: 'textPrimary_on_canvas', fg: s.textPrimary, bg: s.canvas, minRatio: 4.5 },
     { name: 'textSecondary_on_canvas', fg: s.textSecondary, bg: s.canvas, minRatio: 3.0 },
     { name: 'textPrimary_on_surface', fg: s.textPrimary, bg: s.surface, minRatio: 4.5 },
-    { name: 'textMuted_on_surface', fg: s.textMuted, bg: s.surface, minRatio: 3.0 },
-    { name: 'actionPrimaryText_on_action', fg: s.actionPrimaryText, bg: s.actionPrimary, minRatio: 4.5 },
-    { name: 'outline_on_canvas', fg: s.outlineBorder, bg: s.canvas, minRatio: 3.0 },
-    { name: 'actionSecondaryText_on_secondary', fg: s.actionSecondaryText, bg: s.actionSecondary, minRatio: 3.0 },
-    { name: 'inputText_on_input', fg: s.inputText, bg: s.inputSurface, minRatio: 4.5 },
+    { name: 'textTertiary_on_surface', fg: s.textTertiary, bg: s.surface, minRatio: 3.0 },
+    { name: 'onPrimary_on_primary', fg: s.onPrimary, bg: s.primary, minRatio: 4.5 },
+    { name: 'primary_on_selected', fg: s.primary, bg: s.surfaceSelected, minRatio: 3.0 },
+    { name: 'textPrimary_on_input', fg: s.textPrimary, bg: s.surface, minRatio: 4.5 },
     { name: 'disabled_distinct', fg: s.disabledText, bg: s.disabledSurface, minRatio: 2.0 },
-    { name: 'selectedBorder_on_selected', fg: s.selectedBorder, bg: s.selectedSurface, minRatio: 2.0 },
-    { name: 'warningText_on_warning', fg: s.warningText, bg: s.warningSurface, minRatio: 3.0 },
-    { name: 'dangerText_on_danger', fg: s.dangerText, bg: s.dangerSurface, minRatio: 3.0 },
+    { name: 'selected_primary_on_selected', fg: s.primary, bg: s.surfaceSelected, minRatio: 2.0 },
+    { name: 'success_on_surface', fg: s.success, bg: s.surface, minRatio: 3.0 },
+    { name: 'warning_on_surface', fg: s.warning, bg: s.surface, minRatio: 3.0 },
+    { name: 'danger_on_surface', fg: s.danger, bg: s.surface, minRatio: 3.0 },
   ];
 }
 
-export function checkThemeContrast(theme: 'light' | 'dark'): VisualCheckFailure[] {
+export function checkThemeContrast(theme: 'light' = 'light'): VisualCheckFailure[] {
   const failures: VisualCheckFailure[] = [];
   for (const pair of themeContrastPairs(theme)) {
     const ratio = contrastRatio(pair.fg, pair.bg);
@@ -106,9 +106,9 @@ export function checkThemeContrast(theme: 'light' | 'dark'): VisualCheckFailure[
       });
     }
   }
-  const s = theme === 'dark' ? darkSemantic : lightSemantic;
+  const s = lightSemantic;
   // Enabled outline must be clearly stronger than disabled text on canvas
-  const outline = contrastRatio(s.outlineBorder, s.canvas);
+  const outline = contrastRatio(s.textTertiary, s.canvas);
   const disabled = contrastRatio(s.disabledText, s.canvas);
   if (outline < disabled + 0.4) {
     failures.push({
@@ -117,7 +117,7 @@ export function checkThemeContrast(theme: 'light' | 'dark'): VisualCheckFailure[
     });
   }
   // Selected state must not rely only on faint border — border vs surface contrast
-  const selectedEdge = contrastRatio(s.selectedBorder, s.selectedSurface);
+  const selectedEdge = contrastRatio(s.primary, s.surfaceSelected);
   if (selectedEdge < 1.8) {
     failures.push({
       kind: 'selected_ambiguity',
@@ -223,8 +223,8 @@ function drawGlyphRow(
   }
 }
 
-export function paletteForTheme(theme: 'light' | 'dark'): AppPalette {
-  return theme === 'dark' ? darkColors : colors;
+export function paletteForTheme(_theme: 'light' = 'light'): AppPalette {
+  return colors;
 }
 
 export function renderVisualBoard(input: VisualBoardInput, outDir: string): {
@@ -234,14 +234,15 @@ export function renderVisualBoard(input: VisualBoardInput, outDir: string): {
   const width = input.width ?? 390;
   const height = input.height ?? 844;
   const tabBarHeight = input.tabBarHeight ?? 72;
-  const palette = paletteForTheme(input.theme);
-  const s = input.theme === 'dark' ? darkSemantic : lightSemantic;
+  const theme = input.theme ?? 'light';
+  const palette = paletteForTheme(theme);
+  const s = lightSemantic;
   const png = new PNG({ width, height });
   fillRect(png, 0, 0, width, height, s.canvas);
 
   // Status bar strip
-  fillRect(png, 0, 0, width, 44, s.elevatedCanvas);
-  drawGlyphRow(png, input.theme === 'dark' ? 'DARK' : 'LIGHT', 12, 16, s.textPrimary, 2);
+  fillRect(png, 0, 0, width, 44, s.surface);
+  drawGlyphRow(png, 'LIGHT', 12, 16, s.textPrimary, 2);
 
   // Header / title
   fillRect(png, 0, 44, width, 64, s.surface);
@@ -262,34 +263,34 @@ export function renderVisualBoard(input: VisualBoardInput, outDir: string): {
   }
 
   // Primary + outline buttons
-  fillRect(png, 16, 424, width - 32, 48, s.actionPrimary);
-  drawGlyphRow(png, 'PRIMARY ACTION', 28, 440, s.actionPrimaryText, 2);
+  fillRect(png, 16, 424, width - 32, 48, s.primary);
+  drawGlyphRow(png, 'PRIMARY ACTION', 28, 440, s.onPrimary, 2);
   // Outline enabled
   fillRect(png, 16, 488, width - 32, 48, s.canvas);
   // outline border
-  fillRect(png, 16, 488, width - 32, 2, s.outlineBorder);
-  fillRect(png, 16, 534, width - 32, 2, s.outlineBorder);
-  fillRect(png, 16, 488, 2, 48, s.outlineBorder);
-  fillRect(png, width - 18, 488, 2, 48, s.outlineBorder);
-  drawGlyphRow(png, 'OUTLINE ENABLED', 28, 504, s.actionPrimary, 2);
+  fillRect(png, 16, 488, width - 32, 2, s.textTertiary);
+  fillRect(png, 16, 534, width - 32, 2, s.textTertiary);
+  fillRect(png, 16, 488, 2, 48, s.textTertiary);
+  fillRect(png, width - 18, 488, 2, 48, s.textTertiary);
+  drawGlyphRow(png, 'OUTLINE ENABLED', 28, 504, s.primary, 2);
   // Disabled
   fillRect(png, 16, 552, width - 32, 48, s.disabledSurface);
   drawGlyphRow(png, 'DISABLED', 28, 568, s.disabledText, 2);
 
   // Input card (always light surface with dark text)
-  fillRect(png, 16, 616, width - 32, 56, s.inputSurface);
-  drawGlyphRow(png, 'INPUT TEXT 12.5', 28, 636, s.inputText, 2);
+  fillRect(png, 16, 616, width - 32, 56, s.surface);
+  drawGlyphRow(png, 'INPUT TEXT 12.5', 28, 636, s.textPrimary, 2);
 
   // Tab bar
-  fillRect(png, 0, height - tabBarHeight, width, tabBarHeight, s.tabBar);
-  fillRect(png, 0, height - tabBarHeight, width, 1, s.divider);
+  fillRect(png, 0, height - tabBarHeight, width, tabBarHeight, palette.tab.bar);
+  fillRect(png, 0, height - tabBarHeight, width, 1, s.border);
   const tabs = ['HOME', 'REVIEW', 'PROOF', 'PROFILE'];
   tabs.forEach((tab, i) => {
     const tx = 16 + i * ((width - 32) / 4);
-    drawGlyphRow(png, tab, tx, height - tabBarHeight + 28, i === 0 ? s.tabActive : s.tabInactive, 1);
+    drawGlyphRow(png, tab, tx, height - tabBarHeight + 28, i === 0 ? palette.tab.active : palette.tab.inactive, 1);
   });
 
-  const failures = checkThemeContrast(input.theme);
+  const failures = checkThemeContrast(theme);
 
   const regions = input.regions ?? [
     { label: 'primary', y: 424, height: 48, touch: true },
@@ -313,7 +314,7 @@ export function renderVisualBoard(input: VisualBoardInput, outDir: string): {
   }
 
   fs.mkdirSync(outDir, { recursive: true });
-  const filePath = path.join(outDir, `${input.id}-${input.theme}.png`);
+  const filePath = path.join(outDir, `${input.id}-${theme}.png`);
   fs.writeFileSync(filePath, PNG.sync.write(png));
   return { filePath, failures };
 }

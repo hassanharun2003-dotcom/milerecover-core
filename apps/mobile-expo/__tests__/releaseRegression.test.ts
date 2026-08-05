@@ -110,9 +110,9 @@ describe('Continuous release regression matrix', () => {
       pendingReviewCount: 0,
     });
 
-    expect(waiting.status).toBe('configured_waiting');
+    expect(waiting.state).toBe('CONFIGURED_WAITING');
     expect(waiting.title).not.toMatch(/protected/i);
-    expect(protectedView.status).toBe('protected');
+    expect(protectedView.state).toBe('PROTECTED');
   });
 
   it('3. clears every local app experience key during reset', async () => {
@@ -195,9 +195,8 @@ describe('Continuous release regression matrix', () => {
     expect(trips).toHaveLength(40);
   });
 
-  it('8. has no light or dark semantic contrast failures', () => {
+  it('8. has no shipped light semantic contrast failures', () => {
     expect(checkThemeContrast('light')).toEqual([]);
-    expect(checkThemeContrast('dark')).toEqual([]);
   });
 
   it('9. renders substantial copy for tabs and critical stack screens', async () => {
@@ -215,6 +214,10 @@ describe('Continuous release regression matrix', () => {
       expect(name).toBeTruthy();
       expect(copy.replace(/\s+/g, ' ').trim().length).toBeGreaterThan(80);
     }
+    const copyByName = Object.fromEntries(rendered) as Record<string, string>;
+    expect(copyByName.Review).toMatch(/Possible drive|Not sure|Details/i);
+    expect(copyByName.Proof).toMatch(/Readiness|Reports|READY|NEEDS 1 DETAIL/i);
+    expect(copyByName.Profile).toMatch(/VEHICLE & MILEAGE|TRACKING & RECOVERY|SUPPORT & PRIVACY/i);
   });
 
   it('10. keeps onboarding step order complete and starts empty users at Welcome', () => {

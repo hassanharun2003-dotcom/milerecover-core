@@ -2,6 +2,8 @@ import type { TripRecord } from '../trips/types';
 import type { CapabilitySet, EntitlementSnapshot } from './types';
 import { capabilitiesForEntitlement } from './types';
 
+const SURFACED_AUTOMATIC_TRIP_STATUSES = new Set(['pending', 'confirmed', 'personal']);
+
 /** Calendar month key YYYY-MM in local device time. */
 export function calendarPeriodKey(at = Date.now()): string {
   const d = new Date(at);
@@ -21,7 +23,7 @@ export function countAutomaticTripsInPeriod(
 ): number {
   return trips.filter((trip) => {
     if (trip.source !== 'auto_detected') return false;
-    if (trip.status === 'rejected') return false;
+    if (!SURFACED_AUTOMATIC_TRIP_STATUSES.has(trip.status)) return false;
     return calendarPeriodKey(trip.startAt) === periodKey;
   }).length;
 }

@@ -10,6 +10,7 @@ import {
   sampleIndicatesMovement,
   transitionTripMachine,
   type LocationSample,
+  type SampleBufferDiscardReason,
   type TripMachineState,
   type TripRecord,
 } from '@milerecover/domain';
@@ -22,6 +23,12 @@ export const TRACKING_LAST_SUCCESSFUL_AUTOMATIC_TRIP_KEY =
   '@milerecover/tracking/last-successful-automatic-trip/v1';
 export const TASK_NAME = 'milerecover-tracking';
 const MAX_BUFFERED_SAMPLES = 2000;
+const DISCARD_REASONS: SampleBufferDiscardReason[] = [
+  'insufficient_evidence',
+  'stationary_drift',
+  'walking_noise',
+  'poor_accuracy',
+];
 
 export type EngineState =
   | 'idle'
@@ -53,6 +60,7 @@ export interface TrackingDiagnostics {
   batteryRestrictionState: 'unknown' | 'restricted' | 'unrestricted';
   permissionState: string;
   automaticCaptureAvailable: boolean;
+  discardReasonCounts: Record<SampleBufferDiscardReason, number>;
 }
 
 export interface TrackingController {
@@ -74,6 +82,15 @@ let sampleBufferLoaded = false;
 let activeController: TrackingControllerImpl | null = null;
 let singletonController: TrackingControllerImpl | null = null;
 let taskDefined = false;
+
+function emptyDiscardReasonCounts(): Record<SampleBufferDiscardReason, number> {
+  return {
+    insufficient_evidence: 0,
+    stationary_drift: 0,
+    walking_noise: 0,
+    poor_accuracy: 0,
+  };
+}
 
 function toSample(location: Location.LocationObject): LocationSample | null {
   const { coords, timestamp } = location;
@@ -107,6 +124,13 @@ async function loadSampleBuffer(): Promise<LocationSample[]> {
 
 async function persistSampleBuffer(): Promise<void> {
   await AsyncStorage.setItem(TRACKING_SAMPLE_STORAGE_KEY, JSON.stringify(sampleBuffer.slice(-MAX_BUFFERED_SAMPLES)));
+}
+
+function lastCleanSample(samples: LocationSample[]): LocationSample | null {
+  for (let i = samples.length - 1; i >= 0; i -= 1) {
+    if (filterSample(samples[i])) return samples[i];
+  }
+  return null;
 }
 
 async function loadPendingTrips(): Promise<TripRecord[]> {
@@ -157,6 +181,7 @@ async function applyBufferEvaluation(): Promise<void> {
   if (evaluation.action === 'wait') return;
 
   if (evaluation.action === 'discard') {
+    activeController?.noteBufferDiscard(evaluation.reason);
     activeController?.advanceMachine({ type: 'QUIET_ELAPSED' });
     activeController?.advanceMachine({ type: 'EVIDENCE_INSUFFICIENT' });
     sampleBuffer = sampleBuffer.filter((sample) => sample.timestamp > evaluation.consumedUntil);
@@ -180,36 +205,45 @@ async function applyBufferEvaluation(): Promise<void> {
 async function appendSamples(locations: Location.LocationObject[]): Promise<void> {
   const candidates = locations
     .map(toSample)
-    .filter((sample): sample is LocationSample => sample != null && filterSample(sample));
+    .filter((sample): sample is LocationSample => sample != null);
 
   if (candidates.length === 0) return;
 
   await loadSampleBuffer();
-  const accepted: LocationSample[] = [];
+  const buffered: LocationSample[] = [];
+  const cleanForMotion: LocationSample[] = [];
+  let previousClean = lastCleanSample(sampleBuffer);
   for (const sample of candidates) {
-    const previous = sampleBuffer[sampleBuffer.length - 1] ?? accepted[accepted.length - 1] ?? null;
-    if (previous && isImpossibleJump(previous, sample)) {
+    if (filterSample(sample) && previousClean && isImpossibleJump(previousClean, sample)) {
       activeController?.noteRejectedSample('impossible_jump', sample.timestamp);
       continue;
     }
-    accepted.push(sample);
+    buffered.push(sample);
+    if (filterSample(sample)) {
+      cleanForMotion.push(sample);
+      previousClean = sample;
+    }
   }
-  if (accepted.length === 0) return;
+  if (buffered.length === 0) return;
 
-  const previousForMotion = sampleBuffer[sampleBuffer.length - 1] ?? null;
-  sampleBuffer = [...sampleBuffer, ...accepted]
+  const previousForMotion = lastCleanSample(sampleBuffer);
+  sampleBuffer = [...sampleBuffer, ...buffered]
     .sort((a, b) => a.timestamp - b.timestamp)
     .slice(-MAX_BUFFERED_SAMPLES);
 
-  const moving = accepted.some((sample, index) => {
+  const moving = cleanForMotion.some((sample, index) => {
     const prev =
-      index === 0 ? previousForMotion : accepted[index - 1] ?? previousForMotion;
+      index === 0 ? previousForMotion : cleanForMotion[index - 1] ?? previousForMotion;
     return sampleIndicatesMovement(sample, prev);
   });
-  activeController?.advanceMachine({ type: 'SAMPLE_ACCEPTED', moving });
+  if (cleanForMotion.length > 0) {
+    activeController?.advanceMachine({ type: 'SAMPLE_ACCEPTED', moving });
+  }
 
   await applyBufferEvaluation();
-  activeController?.noteAcceptedSample(accepted[accepted.length - 1]);
+  if (cleanForMotion.length > 0) {
+    activeController?.noteAcceptedSample(cleanForMotion[cleanForMotion.length - 1]);
+  }
 }
 
 function defineBackgroundTask(): boolean {
@@ -251,6 +285,7 @@ class TrackingControllerImpl implements TrackingController {
   private lastSuccessfulAutomaticTripLoaded = false;
   private backgroundLimitedReason: string | null = null;
   private closedTrips: TripRecord[] = [];
+  private discardReasonCounts = emptyDiscardReasonCounts();
 
   constructor(private options: TrackingControllerOptions) {}
 
@@ -274,6 +309,13 @@ class TrackingControllerImpl implements TrackingController {
   noteRejectedSample(reason: string, timestamp = Date.now()): void {
     this.lastRejectedSample = { timestamp, reason };
     this.advanceMachine({ type: 'SAMPLE_REJECTED' });
+  }
+
+  noteBufferDiscard(reason: SampleBufferDiscardReason): void {
+    this.discardReasonCounts = {
+      ...this.discardReasonCounts,
+      [reason]: this.discardReasonCounts[reason] + 1,
+    };
   }
 
   noteAcceptedSample(sample: LocationSample): void {
@@ -418,6 +460,13 @@ class TrackingControllerImpl implements TrackingController {
       batteryRestrictionState: batteryRestrictionState(backgroundLimitedReason),
       permissionState: summarizePermissionState(foregroundPermission, backgroundPermission),
       automaticCaptureAvailable,
+      discardReasonCounts: DISCARD_REASONS.reduce(
+        (counts, reason) => ({
+          ...counts,
+          [reason]: this.discardReasonCounts[reason],
+        }),
+        emptyDiscardReasonCounts(),
+      ),
     };
   }
 

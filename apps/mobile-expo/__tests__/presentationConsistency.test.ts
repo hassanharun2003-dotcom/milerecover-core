@@ -52,8 +52,9 @@ describe('Canonical presentation consistency', () => {
       pendingReviewCount: pending,
     });
     expect(pending).toBe(0);
-    expect(protection.status).toBe('configured_waiting');
-    expect(protection.title).toMatch(/waiting for first drive/i);
+    expect(protection.state).toBe('CONFIGURED_WAITING');
+    expect(protection.title).toBe('Ready for your first drive');
+    expect(protection.message).toMatch(/first drive/i);
   });
 
   it('counts Free automatic allowance from auto_detected trips only', () => {

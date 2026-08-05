@@ -1,92 +1,47 @@
 {
   "onboarding-welcome-light": {
     "file": "onboarding-welcome-light.png",
-    "copyPreview": "M MileRecover Protect every work mile. Recover forgotten drives and create beautiful proof — without inventing mileage. Get started",
-    "failures": []
-  },
-  "onboarding-welcome-dark": {
-    "file": "onboarding-welcome-dark.png",
-    "copyPreview": "M MileRecover Protect every work mile. Recover forgotten drives and create beautiful proof — without inventing mileage. Get started",
+    "copyPreview": "MileRecover Never lose another work drive. Automatically capture possible drives, review them in seconds, and create clear mileage proof. Get started I already use a mileage app",
     "failures": []
   },
   "onboarding-purpose-light": {
     "file": "onboarding-purpose-light.png",
-    "copyPreview": "Back How do you use mileage? This sets report wording. You can change it anytime. Preferred name (optional) Employee Share clear records with work. Business Keep client and tax-ready logs. Gig Protect shifts and earnings records. Mixed More",
-    "failures": []
-  },
-  "onboarding-purpose-dark": {
-    "file": "onboarding-purpose-dark.png",
-    "copyPreview": "Back How do you use mileage? This sets report wording. You can change it anytime. Preferred name (optional) Employee Share clear records with work. Business Keep client and tax-ready logs. Gig Protect shifts and earnings records. Mixed More",
+    "copyPreview": "Back What do you track mileage for? This shapes report wording. You can change it anytime. Employee reimbursement Share clear records with work. Self-employed or business Keep client and tax-ready logs. Gig work Protect shifts and earnings ",
     "failures": []
   },
   "onboarding-locale_setup-light": {
     "file": "onboarding-locale_setup-light.png",
-    "copyPreview": "Back Country, units, and rate Choose how distance and value appear. Rates are your choice — not a tax guarantee. United States Suggested from your device Canada United Kingdom Australia Other country Distance unit Miles Kilometers Suggested",
-    "failures": []
-  },
-  "onboarding-locale_setup-dark": {
-    "file": "onboarding-locale_setup-dark.png",
-    "copyPreview": "Back Country, units, and rate Choose how distance and value appear. Rates are your choice — not a tax guarantee. United States Suggested from your device Canada United Kingdom Australia Other country Distance unit Miles Kilometers Suggested",
+    "copyPreview": "Back Country, units, and rate Use your employer’s or business rate. You can change it anytime. United States Suggested from your device Canada United Kingdom Australia Other country Distance unit Miles Kilometers Mileage rate (¢ per mile) 7",
     "failures": []
   },
   "onboarding-protect_drives-light": {
     "file": "onboarding-protect_drives-light.png",
-    "copyPreview": "Back Protect your drives Set up drive protection so fewer work miles are missed. Manual entry always works. Location while using the app Needed for automatic capture Background location Helps catch drives when the app isn’t open Battery set",
-    "failures": []
-  },
-  "onboarding-protect_drives-dark": {
-    "file": "onboarding-protect_drives-dark.png",
-    "copyPreview": "Back Protect your drives Set up drive protection so fewer work miles are missed. Manual entry always works. Location while using the app Needed for automatic capture Background location Helps catch drives when the app isn’t open Battery set",
+    "copyPreview": "Back Protect future drives Detect possible drives automatically Keep uncertain drives for your review Add a drive manually anytime We’ll ask for location so MileRecover can notice possible drives. Uncertain drives stay in Review until you d",
     "failures": []
   },
   "onboarding-ready-light": {
     "file": "onboarding-ready-light.png",
-    "copyPreview": "Back You’re ready Goal: Not set United States · Miles · 70¢/mi · USD Protection: Manual for now So future drives aren’t missed. We’ll explain each permission first. Go to Home Add a first drive",
-    "failures": []
-  },
-  "onboarding-ready-dark": {
-    "file": "onboarding-ready-dark.png",
-    "copyPreview": "Back You’re ready Goal: Not set United States · Miles · 70¢/mi · USD Protection: Manual for now So future drives aren’t missed. We’ll explain each permission first. Go to Home Add a first drive",
+    "copyPreview": "Back You’re ready You can add drives manually anytime. Turn on protection later from Profile when you’re ready. Not set United States · Miles · 70¢/mi · USD Manual for now Go to Home Add my first drive",
     "failures": []
   },
   "home-live-light": {
     "file": "home-live-light.png",
-    "copyPreview": "Welcome back. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know the mi",
-    "failures": []
-  },
-  "home-live-dark": {
-    "file": "home-live-dark.png",
-    "copyPreview": "Welcome back. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know the mi",
+    "copyPreview": "Welcome back. Off Drive protection is paused. Turn on protection This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Recent No drives yet. Add one when you know the miles. Add a drive",
     "failures": []
   },
   "review-pending-light": {
     "file": "review-pending-light.png",
-    "copyPreview": "Needs you (1) Done (0) Route Client site visit Time · Your phone was quiet for part of this stretch. Distance · 14.2 mi Purpose · Not set Estimated value $9.94 Possible missing drive We noticed a quiet stretch when you might have been drivi",
-    "failures": []
-  },
-  "review-pending-dark": {
-    "file": "review-pending-dark.png",
-    "copyPreview": "Needs you (1) Done (0) Route Client site visit Time · Your phone was quiet for part of this stretch. Distance · 14.2 mi Purpose · Not set Estimated value $9.94 Possible missing drive We noticed a quiet stretch when you might have been drivi",
+    "copyPreview": "Needs you (1) Done (0) Route Client site visit Your phone was quiet for part of this stretch. · 14.2 mi Confidence · Possible drive Estimated value $9.94 We noticed a quiet stretch when you might have been driving. Possible drive. Confirm i",
     "failures": []
   },
   "proof-ready-light": {
     "file": "proof-ready-light.png",
-    "copyPreview": "Work mileage report Week Month Quarter Year YTD 2026 year to date Distance Drives Value Work distance 58.0 mi Estimated value Set a rate in Profile Work drives 3 Required corrections 1 Optional improvements 1 Report generated 8/5/2026, 10:3",
-    "failures": []
-  },
-  "proof-ready-dark": {
-    "file": "proof-ready-dark.png",
-    "copyPreview": "Work mileage report Week Month Quarter Year YTD 2026 year to date Distance Drives Value Work distance 58.0 mi Estimated value Set a rate in Profile Work drives 3 Required corrections 1 Optional improvements 1 Report generated 8/5/2026, 10:3",
+    "copyPreview": "Work mileage report Week Month Quarter Year YTD 2026 year to date Work distance 58.0 mi Work drives 3 Value Set rate READINESS Status NEEDS 1 DETAIL Needs purpose for drive on Aug 1. Required 1 Optional 1 Fix next issue REPORTS Preview › Ne",
     "failures": []
   },
   "profile-light": {
     "file": "profile-light.png",
-    "copyPreview": "PROFILE Name Not set › Goal Not set › Driving pattern Not set › Familiar places Add anytime › VEHICLES Vehicles Add a vehicle › COUNTRY Country United States › UNITS Distance Miles › Currency USD › RATES Mileage rate 70¢/mi · USD › PROTECTI",
-    "failures": []
-  },
-  "profile-dark": {
-    "file": "profile-dark.png",
-    "copyPreview": "PROFILE Name Not set › Goal Not set › Driving pattern Not set › Familiar places Add anytime › VEHICLES Vehicles Add a vehicle › COUNTRY Country United States › UNITS Distance Miles › Currency USD › RATES Mileage rate 70¢/mi · USD › PROTECTI",
+    "copyPreview": "PROFILE Name Not set › Goal Not set › Driving pattern Not set › Familiar places Add anytime › VEHICLE & MILEAGE Vehicles Add a vehicle › Mileage rate 70¢/mi · USD › Country United States › Distance Miles › Currency USD › TRACKING & RECOVERY",
     "failures": []
   },
   "manual-trip-light": {
@@ -94,29 +49,14 @@
     "copyPreview": "Add drive Save the details you know. We never invent a route. 1 · Work or personal Work Personal Decide later 2 · Date Today Yesterday Choose date Selected 2026-08-05 3 · Distance Enter distance Start & end Distance (miles) More details Opt",
     "failures": []
   },
-  "manual-trip-dark": {
-    "file": "manual-trip-dark.png",
-    "copyPreview": "Add drive Save the details you know. We never invent a route. 1 · Work or personal Work Personal Decide later 2 · Date Today Yesterday Choose date Selected 2026-08-05 3 · Distance Enter distance Start & end Distance (miles) More details Opt",
-    "failures": []
-  },
   "protection-light": {
     "file": "protection-light.png",
-    "copyPreview": "Protection Center Finish drive protection setup Take a short drive and MileRecover will confirm that tracking works. No successful automatic check yet — manual drives still work. Protection setup is incomplete Without setup, MileRecover can",
-    "failures": []
-  },
-  "protection-dark": {
-    "file": "protection-dark.png",
-    "copyPreview": "Protection Center Finish drive protection setup Take a short drive and MileRecover will confirm that tracking works. No successful automatic check yet — manual drives still work. Protection setup is incomplete Without setup, MileRecover can",
+    "copyPreview": "Protection Center Drive protection is off Turn automatic protection on to capture future drives. Manual drives still work. No successful automatic check yet — manual drives still work. Drive protection is off Turn automatic protection on to",
     "failures": []
   },
   "tracking-light": {
     "file": "tracking-light.png",
-    "copyPreview": "How you track Choose one simple mode. Advanced thresholds and Bluetooth options stay out of the way for now. Automatic protection Turn on to protect drives automatically. Free includes 40 auto trips/month. You’ll still review anything uncer",
-    "failures": []
-  },
-  "tracking-dark": {
-    "file": "tracking-dark.png",
-    "copyPreview": "How you track Choose one simple mode. Advanced thresholds and Bluetooth options stay out of the way for now. Automatic protection Turn on to protect drives automatically. Free includes 40 auto trips/month. You’ll still review anything uncer",
+    "copyPreview": "How you track Choose one simple mode. Advanced thresholds and Bluetooth options stay out of the way for now. Automatic protection Turn automatic protection on to capture future drives. Manual drives still work. 40 of 40 auto trips left this",
     "failures": []
   },
   "report-preview-light": {
@@ -124,119 +64,109 @@
     "copyPreview": "Work mileage report · 2026 year to date 2026 year to date. For your records — not tax or legal advice. Work mileage report · 2026 year to date On-device preview · not tax or legal advice Period 2026 year to date Driver Add a name in Profile",
     "failures": []
   },
-  "report-preview-dark": {
-    "file": "report-preview-dark.png",
-    "copyPreview": "Work mileage report · 2026 year to date 2026 year to date. For your records — not tax or legal advice. Work mileage report · 2026 year to date On-device preview · not tax or legal advice Period 2026 year to date Driver Add a name in Profile",
-    "failures": []
-  },
   "fixture-brand_new_install-light": {
     "file": "fixture-brand_new_install-light.png",
-    "copyPreview": "M MileRecover Protect every work mile. Recover forgotten drives and create beautiful proof — without inventing mileage. Get started",
+    "copyPreview": "MileRecover Never lose another work drive. Automatically capture possible drives, review them in seconds, and create clear mileage proof. Get started I already use a mileage app",
     "failures": []
   },
   "fixture-onboarding_welcome-light": {
     "file": "fixture-onboarding_welcome-light.png",
-    "copyPreview": "M MileRecover Protect every work mile. Recover forgotten drives and create beautiful proof — without inventing mileage. Get started",
+    "copyPreview": "MileRecover Never lose another work drive. Automatically capture possible drives, review them in seconds, and create clear mileage proof. Get started I already use a mileage app",
     "failures": []
   },
   "fixture-onboarding_purpose-light": {
     "file": "fixture-onboarding_purpose-light.png",
-    "copyPreview": "Back How do you use mileage? This sets report wording. You can change it anytime. Preferred name (optional) Employee Share clear records with work. Business Keep client and tax-ready logs. Gig Protect shifts and earnings records. Mixed More",
+    "copyPreview": "Back What do you track mileage for? This shapes report wording. You can change it anytime. Employee reimbursement Share clear records with work. Self-employed or business Keep client and tax-ready logs. Gig work Protect shifts and earnings ",
     "failures": []
   },
   "fixture-onboarding_locale_setup-light": {
     "file": "fixture-onboarding_locale_setup-light.png",
-    "copyPreview": "Back Country, units, and rate Choose how distance and value appear. Rates are your choice — not a tax guarantee. United States Suggested from your device Canada United Kingdom Australia Other country Distance unit Miles Kilometers Suggested",
+    "copyPreview": "Back Country, units, and rate Use your employer’s or business rate. You can change it anytime. United States Suggested from your device Canada United Kingdom Australia Other country Distance unit Miles Kilometers Mileage rate (¢ per mile) 7",
     "failures": []
   },
   "fixture-onboarding_protect_drives-light": {
     "file": "fixture-onboarding_protect_drives-light.png",
-    "copyPreview": "Back Protect your drives Set up drive protection so fewer work miles are missed. Manual entry always works. Location while using the app Needed for automatic capture Background location Helps catch drives when the app isn’t open Battery set",
+    "copyPreview": "Back Protect future drives Detect possible drives automatically Keep uncertain drives for your review Add a drive manually anytime We’ll ask for location so MileRecover can notice possible drives. Uncertain drives stay in Review until you d",
     "failures": []
   },
   "fixture-onboarding_ready-light": {
     "file": "fixture-onboarding_ready-light.png",
-    "copyPreview": "Back You’re ready Goal: Not set United States · Miles · 70¢/mi · USD Protection: Manual for now So future drives aren’t missed. We’ll explain each permission first. Go to Home Add a first drive",
+    "copyPreview": "Back You’re ready You can add drives manually anytime. Turn on protection later from Profile when you’re ready. Not set United States · Miles · 70¢/mi · USD Manual for now Go to Home Add my first drive",
     "failures": []
   },
   "fixture-manual_mode-light": {
     "file": "fixture-manual_mode-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Off Drive protection is paused. Turn on protection This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Recent No drives yet. Add one when you know the miles. Add ",
     "failures": []
   },
   "fixture-permission_partial-light": {
     "file": "fixture-permission_partial-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Re",
     "failures": []
   },
   "fixture-permission_granted_no_drive-light": {
     "file": "fixture-permission_granted_no_drive-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Re",
     "failures": []
   },
   "fixture-tracking_verified-light": {
     "file": "fixture-tracking_verified-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Re",
     "failures": []
   },
   "fixture-protection_degraded-light": {
     "file": "fixture-protection_degraded-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Re",
     "failures": []
   },
   "fixture-no_trips-light": {
     "file": "fixture-no_trips-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Re",
     "failures": []
   },
   "fixture-pending_review_trips-light": {
     "file": "fixture-pending_review_trips-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 1 Next Finish protection setup Possible missed drives Review suggested gaps.",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 1 Next Review 1 possible drive Recent",
     "failures": []
   },
   "fixture-confirmed_trips-light": {
     "file": "fixture-confirmed_trips-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent Report draft ready Added by you · Pend",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Preview your report Recent Rep",
     "failures": []
   },
   "fixture-recovered_trip-light": {
     "file": "fixture-recovered_trip-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 1 Next Finish protection setup Possible missed drives Review suggested gaps.",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 1 Next Review 1 possible drive Recent",
     "failures": []
   },
   "fixture-free_limit_close-light": {
     "file": "fixture-free_limit_close-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Preview your report Recent No ",
     "failures": []
   },
   "fixture-free_limit_reached-light": {
     "file": "fixture-free_limit_reached-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Preview your report Recent No ",
     "failures": []
   },
   "fixture-report_ready-light": {
     "file": "fixture-report_ready-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent Report draft ready Added by you · Pend",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Preview your report Recent Rep",
     "failures": []
   },
   "fixture-report_blocked-light": {
     "file": "fixture-report_blocked-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 1 Next Finish protection setup Possible missed drives Review suggested gaps.",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 1 Next Review 1 possible drive Recent",
     "failures": []
   },
   "fixture-offline-light": {
     "file": "fixture-offline-light.png",
-    "copyPreview": "Good morning, Sam. Needs attention No network connection This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next You’re all caught up Recent Saved offline Added by you · Pending 3 days ago Add a drive ⏷ ⏷ Home ⏷ ⏷ R",
-    "failures": []
-  },
-  "fixture-dark_mode-dark": {
-    "file": "fixture-dark_mode-dark.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs attention MileRecover is offline. Saved miles stay on this device until checks can run again. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Recent Sav",
     "failures": []
   },
   "fixture-light_mode-light": {
     "file": "fixture-light_mode-light.png",
-    "copyPreview": "Good morning, Sam. Setup incomplete Finish a short setup to protect drives automatically. This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next Finish protection setup Recent No drives yet. Add one when you know t",
+    "copyPreview": "Good afternoon, Sam. Needs permission Allow location so automatic protection can notice when a work drive starts. Allow location This week Work miles 0.0 Estimated value $0.00 Recovered 0.0 Needs review 0 Next No action needed right now. Re",
     "failures": []
   }
 }

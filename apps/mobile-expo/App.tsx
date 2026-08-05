@@ -3,7 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { colors, spacing } from '@milerecover/config';
+import { spacing } from '@milerecover/config';
 import {
   canCaptureAutomaticTrip,
   capabilitiesForEntitlement,
@@ -21,13 +21,15 @@ import { createTrackingController } from './src/services/trackingEngine';
 import { resolveLaunchState } from './src/startup/launchState';
 
 function BootSplash({ label }: { label: string }) {
+  const { palette } = useAppTheme();
+
   return (
     <SafeFillScreen>
       <View
         style={{ flex: 1, justifyContent: 'center', padding: spacing.md, gap: spacing.md }}
         accessibilityLabel="App startup status"
       >
-        <ActivityIndicator size="large" color={colors.forest[600]} accessibilityLabel="Loading" />
+        <ActivityIndicator size="large" color={palette.action.primary} accessibilityLabel="Loading" />
         <Text style={text.title} accessibilityRole="header">
           MileRecover
         </Text>
@@ -112,7 +114,6 @@ function AppRoot() {
   const { state, retryRestore, resetLocalData, finishOnboarding } = useApp();
   const { product, hydrated: productHydrated } = useProduct();
   const { setUpdatePromptBlocked } = useAppUpdates();
-  const { isDark } = useAppTheme();
 
   const appHydrated = state.startupPhase !== 'restoring';
   const launch = resolveLaunchState({
@@ -146,7 +147,7 @@ function AppRoot() {
       onConfirmReset={resetLocalData}
       launchKind={launch.kind}
     >
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       <ManualTripMigration />
       <TrackingBootstrap>
         {launch.showOnboarding ? (

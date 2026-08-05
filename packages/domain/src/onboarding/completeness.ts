@@ -116,11 +116,13 @@ export function inferDrivingPatternFromGoal(goal: MileageGoal | null): DrivingPa
 
 /**
  * Home is unlocked only after the user finishes the current onboarding version.
- * v8: goal + personalized next action + completion stamp. Pain points / vehicle optional.
+ * Requires purpose, region acknowledgement, next action, and an explicit completion stamp.
+ * Never infer COMPLETED from unrelated profile fields alone.
  */
 export function isOnboardingMinimumComplete(state: VersionedOnboardingState): boolean {
   return (
     state.primaryGoal != null &&
+    state.countryStepAcknowledged === true &&
     state.nextActionSelected != null &&
     state.completedAt != null &&
     state.completedOnboardingVersion === CURRENT_ONBOARDING_VERSION
@@ -191,7 +193,8 @@ export function nextIncompleteEssentialStep(state: VersionedOnboardingState): On
   if (!state.countryStepAcknowledged) {
     return 'locale_setup';
   }
-  if (!state.protectionEducationAcknowledged && !state.permissionsEducationAcknowledged) {
+  // Both education flags must be set (setup OR explicit manual skip) before Ready.
+  if (!state.protectionEducationAcknowledged || !state.permissionsEducationAcknowledged) {
     return 'protect_drives';
   }
   if (state.nextActionSelected == null || state.completedAt == null) return 'ready';

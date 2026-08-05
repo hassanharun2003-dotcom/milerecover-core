@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { formatActiveRateLabel } from '@milerecover/domain';
-import { ListRow, ListSection, TabScreen } from '../../design-system';
+import { ConfirmDialog, ListRow, ListSection, TabScreen } from '../../design-system';
 import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { useProduct } from '../../product/ProductContext';
@@ -14,7 +14,7 @@ import {
   selectPendingReviewCount,
   selectProtectionView,
 } from '../../product/presentation';
-import { DRIVING_PATTERN_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
+import { allowInternalPreviewTools, DRIVING_PATTERN_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
 import { useApp } from '../../store/AppContext';
 
 type ProfileNav = CompositeNavigationProp<
@@ -25,7 +25,9 @@ type ProfileNav = CompositeNavigationProp<
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
   const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable, state } = useApp();
-  const { product, setDemoScenario, setDemoModeEnabled, resetProductData, resetOnboarding } = useProduct();
+  const { product, setDemoScenario, setDemoModeEnabled, resetProductData } = useProduct();
+  const [confirmResetVisible, setConfirmResetVisible] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const displayName = product.preferredName?.trim() || 'Not set';
   const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label ?? 'Not set';
   const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
@@ -45,11 +47,18 @@ export function ProfileScreen() {
   const allowance = selectAllowance(state, product);
   const rateLabel = formatActiveRateLabel(product.localeProfile);
   const planLabel = selectEntitlementPlanLabel(product.entitlement);
-  const resetExperience = () => {
-    void (async () => {
+  const internalPreviewTools = product.showDevTools && allowInternalPreviewTools();
+  const resetExperience = async () => {
+    if (resetting) return;
+    setResetting(true);
+    setConfirmResetVisible(false);
+    try {
       await resetProductData();
       await resetLocalData();
-    })();
+      restartOnboarding();
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -65,23 +74,18 @@ export function ProfileScreen() {
         />
       </ListSection>
 
-      <ListSection title="Vehicles">
+      <ListSection title="Vehicle & mileage">
         <ListRow
           label="Vehicles"
           value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add a vehicle'}
           onPress={() => navigation.navigate('VehicleSetup')}
         />
-      </ListSection>
-
-      <ListSection title="Country">
+        <ListRow label="Mileage rate" value={rateLabel} onPress={() => navigation.navigate('EditSetup')} />
         <ListRow
           label="Country"
           value={product.localeProfile.countryDisplayName}
           onPress={() => navigation.navigate('EditSetup')}
         />
-      </ListSection>
-
-      <ListSection title="Units">
         <ListRow
           label="Distance"
           value={product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles'}
@@ -94,25 +98,18 @@ export function ProfileScreen() {
         />
       </ListSection>
 
-      <ListSection title="Rates">
-        <ListRow label="Mileage rate" value={rateLabel} onPress={() => navigation.navigate('EditSetup')} />
-      </ListSection>
-
-      <ListSection title="Protection">
+      <ListSection title="Tracking & recovery">
         <ListRow label="Status" value={protection.title} showChevron={false} />
         <ListRow
           label="Protection center"
           onPress={() => {
-            if (protection.primaryIssue?.action === 'see_plans') {
+            if (protection.primaryAction.action === 'see_plans') {
               navigation.navigate('PlanSelection', { source: 'upgrade' });
             } else {
               navigation.navigate('ProtectionAlert');
             }
           }}
         />
-      </ListSection>
-
-      <ListSection title="Tracking">
         <ListRow
           label="Tracking mode"
           value={product.trackingEnabled ? 'Automatic protection' : 'Manual'}
@@ -127,13 +124,10 @@ export function ProfileScreen() {
           }
           onPress={() => navigation.navigate('TrackingActive')}
         />
-      </ListSection>
-
-      <ListSection title="Import">
         <ListRow label="Import mileage" onPress={() => navigation.navigate('BringExistingMileage')} />
       </ListSection>
 
-      <ListSection title="Subscription">
+      <ListSection title="Plan">
         <ListRow
           label="Plan"
           value={planLabel}
@@ -145,27 +139,19 @@ export function ProfileScreen() {
         />
       </ListSection>
 
-      <ListSection title="Privacy">
+      <ListSection title="Support & privacy">
         <ListRow label="Privacy" onPress={() => navigation.navigate('Privacy')} />
-      </ListSection>
-
-      <ListSection title="Help">
         <ListRow label="Help" onPress={() => navigation.navigate('HelpSupport')} />
-      </ListSection>
-
-      <ListSection title="About">
         <ListRow label="About" onPress={() => navigation.navigate('About')} />
+        <ListRow
+          label="Review setup"
+          value="Trips stay saved"
+          onPress={() => navigation.navigate('EditSetup')}
+        />
       </ListSection>
 
-      {product.showDevTools ? (
+      {internalPreviewTools ? (
         <ListSection title="Internal preview tools">
-          <ListRow
-            label="Restart onboarding only"
-            onPress={() => {
-              resetOnboarding();
-              restartOnboarding();
-            }}
-          />
           <ListRow
             label="Demo mode"
             value={product.demoModeEnabled ? 'On' : 'Off'}
@@ -182,12 +168,22 @@ export function ProfileScreen() {
               ))
             : null}
           <ListRow
-            label="Reset app experience"
+            label="Reset app for testing"
             value="Clears setup + local data"
-            onPress={resetExperience}
+            onPress={() => setConfirmResetVisible(true)}
+            busy={resetting}
           />
         </ListSection>
       ) : null}
+      <ConfirmDialog
+        visible={confirmResetVisible}
+        title="Reset app for testing?"
+        body="This clears setup, trips, imports, and local testing data on this device. Use only for preview testing."
+        confirmLabel="Reset app"
+        cancelLabel="Keep data"
+        onConfirm={() => void resetExperience()}
+        onCancel={() => setConfirmResetVisible(false)}
+      />
     </TabScreen>
   );
 }

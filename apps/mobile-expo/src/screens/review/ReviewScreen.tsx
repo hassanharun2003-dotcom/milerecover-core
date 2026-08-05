@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -10,6 +10,7 @@ import {
   formatCurrencyCents,
   formatDistance,
   rateForTimestamp,
+  type DistanceUnit,
   type RecoveryCandidate,
   type ReviewItem,
   type TripRecord,
@@ -53,9 +54,9 @@ function decisionLabel(decision: string | null | undefined): string {
 }
 
 function provenanceForItem(kind: string): string {
-  if (kind === 'possible_missing_trip') return 'Possible missing drive';
-  if (kind === 'low_confidence_trip') return 'Not sure about this one';
-  if (kind === 'conflicted_trip') return "Details don't match";
+  if (kind === 'possible_missing_trip') return 'Possible drive. Confirm it only if this was work.';
+  if (kind === 'low_confidence_trip') return 'Low confidence. Check the details before it affects Proof.';
+  if (kind === 'conflicted_trip') return "Details don't match yet.";
   return 'Needs a quick decision';
 }
 
@@ -80,6 +81,72 @@ function captureSourceLabel(source: TripRecord['source'] | undefined): string {
     default:
       return 'Needs review';
   }
+}
+
+function compactPlace(label: string | null | undefined): string | null {
+  const trimmed = label?.trim();
+  if (!trimmed) return null;
+  return trimmed.split(',')[0]?.trim() || trimmed;
+}
+
+function sharedCity(start: string | null | undefined, end: string | null | undefined): boolean {
+  const startCity = start?.split(',').slice(-1)[0]?.trim().toLowerCase();
+  const endCity = end?.split(',').slice(-1)[0]?.trim().toLowerCase();
+  return Boolean(startCity && endCity && startCity === endCity && start?.trim() !== end?.trim());
+}
+
+function routeLabelForTrip(trip: Pick<TripRecord, 'startLabel' | 'endLabel'> | null | undefined, fallback: string): string {
+  const start = compactPlace(trip?.startLabel);
+  const end = compactPlace(trip?.endLabel);
+  if (start && end) {
+    const near = sharedCity(trip?.startLabel, trip?.endLabel) || start.toLowerCase() === end.toLowerCase();
+    return `${near ? `Near ${start}` : start} → ${near ? `Near ${end}` : end}`;
+  }
+  if (start) return `Near ${start} → Destination`;
+  if (end) return `Start → Near ${end}`;
+  return fallback;
+}
+
+function dateTimeLabel(at: number, localeTag: string): string {
+  return `${new Date(at).toLocaleDateString(localeTag, {
+    month: 'short',
+    day: 'numeric',
+  })} · ${new Date(at).toLocaleTimeString(localeTag, {
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
+}
+
+function reviewedHistoryCopy(entry: ReviewHistoryEntry, localeTag: string, distanceUnit: DistanceUnit): {
+  title: string;
+  subtitle: string;
+} {
+  if (entry.targetKind === 'trip' && isTripRecord(entry.previousSnapshot)) {
+    const trip = entry.previousSnapshot;
+    return {
+      title: routeLabelForTrip(trip, 'Drive you reviewed'),
+      subtitle: `${dateTimeLabel(trip.startAt, localeTag)} · ${formatDistance(
+        trip.distanceMiles,
+        distanceUnit,
+        localeTag,
+      )}`,
+    };
+  }
+  if (entry.targetKind === 'recovery' && isRecoveryCandidate(entry.previousSnapshot)) {
+    const candidate = entry.previousSnapshot;
+    return {
+      title: 'Possible drive you reviewed',
+      subtitle: `${dateTimeLabel(candidate.proposedStartAt, localeTag)} · ${
+        candidate.proposedDistanceMiles != null
+          ? formatDistance(candidate.proposedDistanceMiles, distanceUnit, localeTag)
+          : 'Distance needed'
+      }`,
+    };
+  }
+  return {
+    title: entry.targetKind === 'trip' ? 'Drive you reviewed' : 'Possible drive you reviewed',
+    subtitle: dateTimeLabel(entry.decidedAt, localeTag),
+  };
 }
 
 export function ReviewScreen() {
@@ -248,6 +315,10 @@ export function ReviewScreen() {
             {pending.map((item) => {
             const tripId = item.kind === 'possible_missing_trip' ? null : item.tripId;
             const trip = tripId ? state.trips.find((record) => record.id === tripId) : undefined;
+            const recovery =
+              item.kind === 'possible_missing_trip'
+                ? state.recoveryCandidates.find((candidate) => candidate.id === item.recoveryCandidateId)
+                : null;
             const vehicle = trip?.vehicleId
               ? product.vehicles.find((v) => v.id === trip.vehicleId)
               : null;
@@ -255,19 +326,23 @@ export function ReviewScreen() {
               ? vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
               : null;
             const at = trip?.startAt ?? Date.now();
-            const whenLabel = trip
-              ? `${new Date(trip.startAt).toLocaleDateString(locale.localeTag, {
-                  month: 'short',
-                  day: 'numeric',
-                })} · ${new Date(trip.startAt).toLocaleTimeString(locale.localeTag, {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}`
-              : item.subtitle;
-            const routeLabel =
-              trip?.startLabel || trip?.endLabel
-                ? `${trip?.startLabel ?? 'Start'} → ${trip?.endLabel ?? 'Destination'}`
-                : item.title;
+            const whenLabel = trip ? dateTimeLabel(trip.startAt, locale.localeTag) : item.subtitle;
+            const routeLabel = routeLabelForTrip(trip, item.title);
+            const plainReason =
+              recovery?.plainLanguageExplanation ||
+              (trip?.confidence === 'low'
+                ? trip.notes || 'Low confidence. Check the details before this drive affects Proof.'
+                : item.reason || provenanceForItem(item.kind));
+            const confidenceLabel =
+              item.kind === 'possible_missing_trip'
+                ? 'Possible drive'
+                : trip?.confidence === 'high'
+                  ? 'High confidence'
+                  : trip?.confidence === 'medium'
+                    ? 'Medium confidence'
+                    : trip?.confidence === 'low'
+                      ? 'Low confidence'
+                      : null;
             return (
               <ReviewCard
                 key={item.id}
@@ -280,16 +355,8 @@ export function ReviewScreen() {
                 }
                 estimatedValue={estimateForMiles(item.distanceMiles, at)}
                 purpose={trip?.purpose ?? null}
-                confidence={
-                  trip?.confidence === 'high'
-                    ? 'High'
-                    : trip?.confidence === 'medium'
-                      ? 'Medium'
-                      : trip?.confidence === 'low'
-                        ? 'Low'
-                        : null
-                }
-                reason={item.reason || 'Needs a quick decision before Proof'}
+                confidence={confidenceLabel}
+                reason={plainReason}
                 provenance={provenanceForItem(item.kind)}
                 evidence={trip ? captureSourceLabel(trip.source) : provenanceForItem(item.kind)}
                 vehicle={vehicleLabel}
@@ -311,7 +378,6 @@ export function ReviewScreen() {
                   }
                 }}
                 onNotSure={() => decide(item, 'not_sure')}
-                onUndo={undoItem ? () => undo(undoItem) : undefined}
               />
             );
           })}
@@ -323,15 +389,18 @@ export function ReviewScreen() {
           body="Choices you make appear here, where you can undo them if needed."
         />
       ) : (
-        reviewed.map((entry) => (
-          <ReviewedItemCard
-            key={`${entry.id}-${entry.decidedAt}`}
-            title={entry.targetKind === 'trip' ? 'Drive you reviewed' : 'Possible drive you reviewed'}
-            subtitle={new Date(entry.decidedAt).toLocaleString()}
-            decisionLabel={decisionLabel(entry.decision)}
-            onUndo={() => undo(entry)}
-          />
-        ))
+        reviewed.map((entry) => {
+          const copy = reviewedHistoryCopy(entry, locale.localeTag, locale.distanceUnit);
+          return (
+            <ReviewedItemCard
+              key={`${entry.id}-${entry.decidedAt}`}
+              title={copy.title}
+              subtitle={copy.subtitle}
+              decisionLabel={decisionLabel(entry.decision)}
+              onUndo={() => undo(entry)}
+            />
+          );
+        })
       )}
 
       {segment === 'needs' && pending.length > 0 ? (

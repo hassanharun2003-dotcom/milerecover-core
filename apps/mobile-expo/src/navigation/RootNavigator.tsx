@@ -1,6 +1,5 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { colors } from '@milerecover/config';
 import { RootTabs } from './RootTabs';
 import { BringExistingMileageScreen } from '../screens/import/BringExistingMileageScreen';
 import { ImportExceptionReviewScreen, ImportPreviewScreen } from '../screens/import/ImportPreviewScreen';
@@ -23,23 +22,26 @@ import {
   WorkLocationSetupScreen,
 } from '../screens/flows/SupportingScreens';
 import { EditSetupScreen } from '../screens/profile/EditSetupScreen';
+import { useAppTheme } from '../design-system/ThemeProvider';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const screenOptions = {
-  headerStyle: { backgroundColor: colors.header.background },
-  headerTintColor: colors.text.inverse,
-  headerTitleStyle: { fontWeight: '600' as const },
-  headerShadowVisible: false,
-  contentStyle: { backgroundColor: colors.background.canvas },
-  // Native header owns the status-bar inset; body screens pad bottom via StackScrollScreen.
-  headerTransparent: false,
-};
-
 export function RootNavigator() {
+  const { palette } = useAppTheme();
+
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: palette.header.background },
+        headerTintColor: palette.text.inverse,
+        headerTitleStyle: { fontWeight: '600' as const },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: palette.background.canvas },
+        // Native header owns the status-bar inset; body screens pad bottom via StackScrollScreen.
+        headerTransparent: false,
+      }}
+    >
       <Stack.Screen name="MainTabs" component={RootTabs} options={{ headerShown: false }} />
       <Stack.Screen name="ManualTrip" component={ManualTripScreen} options={{ title: 'Add drive' }} />
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} options={{ title: 'Trip details' }} />

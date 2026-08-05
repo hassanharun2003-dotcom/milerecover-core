@@ -17,6 +17,7 @@ import {
   type EntitlementSnapshot,
   type LocaleProfile,
   type PermissionSnapshot,
+  type ProtectionStatusView,
   type ReportPeriodKind,
   type TripRecord,
 } from '@milerecover/domain';
@@ -47,7 +48,7 @@ export function selectProtectionView(input: {
   automaticCaptureAvailable: boolean;
   pendingReviewCount: number;
   offline?: boolean;
-}) {
+}): ProtectionStatusView {
   const caps = capabilitiesForEntitlement(input.product.entitlement);
   const setupIncomplete =
     input.product.protectionSetupState === 'not_started' ||

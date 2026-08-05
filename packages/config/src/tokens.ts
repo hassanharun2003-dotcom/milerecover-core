@@ -1,211 +1,152 @@
 /**
- * Design tokens — forest green brand with semantic light/dark palettes.
+ * Design tokens — forest green brand with one canonical light palette.
  * Prefer ThemeProvider.palette in UI; static `colors` remains the light default.
  */
 
 export type SemanticPalette = {
   canvas: string;
-  elevatedCanvas: string;
   surface: string;
-  surfaceSecondary: string;
+  surfaceMuted: string;
+  surfaceSelected: string;
   textPrimary: string;
   textSecondary: string;
-  textMuted: string;
-  actionPrimary: string;
-  actionPrimaryText: string;
-  actionSecondary: string;
-  actionSecondaryText: string;
-  selectedSurface: string;
-  selectedBorder: string;
-  warningSurface: string;
-  warningText: string;
-  dangerSurface: string;
-  dangerText: string;
-  successSurface: string;
-  successText: string;
-  divider: string;
+  textTertiary: string;
+  border: string;
+  primary: string;
+  onPrimary: string;
+  success: string;
+  warning: string;
+  danger: string;
   disabledSurface: string;
   disabledText: string;
-  focusRing: string;
-  inputSurface: string;
-  inputText: string;
-  inputPlaceholder: string;
-  outlineBorder: string;
-  tabInactive: string;
-  tabActive: string;
-  tabBar: string;
+  scrim: string;
 };
 
 export const lightSemantic: SemanticPalette = {
   canvas: '#FAFAF8',
-  elevatedCanvas: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceSecondary: '#E8F3ED',
+  surfaceMuted: '#F5F5F4',
+  surfaceSelected: '#E8F3ED',
   textPrimary: '#1C1917',
   textSecondary: '#57534E',
-  textMuted: '#78716C',
-  actionPrimary: '#236B47',
-  actionPrimaryText: '#FFFFFF',
-  actionSecondary: '#E8F3ED',
-  actionSecondaryText: '#1B5538',
-  selectedSurface: '#E8F3ED',
-  selectedBorder: '#236B47',
-  warningSurface: '#FEF3C7',
-  warningText: '#B45309',
-  dangerSurface: '#FEE2E2',
-  dangerText: '#B91C1C',
-  successSurface: '#E6F5ED',
-  successText: '#1B7D4E',
-  divider: '#E7E5E4',
+  textTertiary: '#78716C',
+  border: '#E7E5E4',
+  primary: '#236B47',
+  onPrimary: '#FFFFFF',
+  success: '#1B7D4E',
+  warning: '#B45309',
+  danger: '#B91C1C',
   disabledSurface: '#F5F5F4',
   disabledText: '#A8A29E',
-  focusRing: '#2D8056',
-  inputSurface: '#FFFFFF',
-  inputText: '#1C1917',
-  inputPlaceholder: '#78716C',
-  outlineBorder: '#78716C',
-  tabInactive: '#78716C',
-  tabActive: '#236B47',
-  tabBar: '#FFFFFF',
+  scrim: 'rgba(11, 46, 31, 0.42)',
 };
 
-/**
- * Dark theme: light text on deep forest — readable headings, clear outline buttons,
- * distinct disabled vs enabled. Input cards stay light with dark text.
- */
-export const darkSemantic: SemanticPalette = {
-  canvas: '#0A1410',
-  elevatedCanvas: '#121F18',
-  surface: '#1A2B22',
-  surfaceSecondary: '#24362C',
-  textPrimary: '#F5F5F4',
-  textSecondary: '#D6D3D1',
-  textMuted: '#A8A29E',
-  actionPrimary: '#3D9B6A',
-  actionPrimaryText: '#0A1410',
-  actionSecondary: '#1F3A2C',
-  actionSecondaryText: '#B8E0C8',
-  selectedSurface: '#1F3A2C',
-  selectedBorder: '#5CB88A',
-  warningSurface: '#3A2E14',
-  warningText: '#F0C14A',
-  dangerSurface: '#3A1A1A',
-  dangerText: '#F0A0A0',
-  successSurface: '#163028',
-  successText: '#7DCEA0',
-  divider: '#2A3B32',
-  disabledSurface: '#152019',
-  disabledText: '#5C665F',
-  focusRing: '#5CB88A',
-  inputSurface: '#F5F5F4',
-  inputText: '#1C1917',
-  inputPlaceholder: '#78716C',
-  outlineBorder: '#8A9A90',
-  tabInactive: '#A8A29E',
-  tabActive: '#5CB88A',
-  tabBar: '#121F18',
-};
+function buildNestedPalette(s: SemanticPalette) {
+  const successSurface = '#E6F5ED';
+  const warningSurface = '#FEF3C7';
+  const dangerSurface = '#FEE2E2';
 
-function buildNestedPalette(s: SemanticPalette, isDark: boolean) {
   return {
     forest: {
       900: '#0B2E1F',
       800: '#13402C',
       700: '#1B5538',
-      600: '#236B47',
+      600: s.primary,
       500: '#2D8056',
-      100: isDark ? '#1F3A2C' : '#E8F3ED',
+      100: s.surfaceSelected,
     },
     protected: {
-      600: s.successText,
-      100: s.successSurface,
+      600: s.success,
+      100: successSurface,
     },
     review: {
-      600: s.warningText,
-      100: s.warningSurface,
+      600: s.warning,
+      100: warningSurface,
     },
     danger: {
-      600: s.dangerText,
-      100: s.dangerSurface,
+      600: s.danger,
+      100: dangerSurface,
     },
-    neutral: isDark
-      ? {
-          900: s.textPrimary,
-          700: s.textSecondary,
-          500: s.textMuted,
-          200: s.divider,
-          100: s.surfaceSecondary,
-          0: s.surface,
-        }
-      : {
-          900: '#1C1917',
-          700: '#44403C',
-          500: '#78716C',
-          200: '#E7E5E4',
-          100: '#F5F5F4',
-          0: '#FFFFFF',
-        },
+    neutral: {
+      900: s.textPrimary,
+      700: '#44403C',
+      500: s.textTertiary,
+      200: s.border,
+      100: s.surfaceMuted,
+      0: s.surface,
+    },
     background: {
       canvas: s.canvas,
       card: s.surface,
-      mist: s.surfaceSecondary,
+      mist: s.surfaceSelected,
     },
     text: {
       primary: s.textPrimary,
       secondary: s.textSecondary,
-      muted: s.textMuted,
-      inverse: '#FFFFFF',
-      onForest: s.actionPrimaryText,
-      onInput: s.inputText,
+      muted: s.textTertiary,
+      inverse: s.onPrimary,
+      onForest: s.onPrimary,
+      onInput: s.textPrimary,
       disabled: s.disabledText,
     },
     border: {
-      default: s.divider,
-      focus: s.focusRing,
-      outline: s.outlineBorder,
-      selected: s.selectedBorder,
+      default: s.border,
+      focus: '#2D8056',
+      outline: s.textTertiary,
+      selected: s.primary,
     },
     status: {
-      success: s.successText,
-      successBg: s.successSurface,
-      warning: s.warningText,
-      warningBg: s.warningSurface,
-      danger: s.dangerText,
-      dangerBg: s.dangerSurface,
-      info: s.actionPrimary,
-      infoBg: s.actionSecondary,
+      success: s.success,
+      successBg: successSurface,
+      warning: s.warning,
+      warningBg: warningSurface,
+      danger: s.danger,
+      dangerBg: dangerSurface,
+      info: s.primary,
+      infoBg: s.surfaceSelected,
     },
     header: {
-      background: isDark ? '#0B2E1F' : '#0B2E1F',
+      background: '#0B2E1F',
       border: '#13402C',
     },
     action: {
-      primary: s.actionPrimary,
-      primaryText: s.actionPrimaryText,
-      secondary: s.actionSecondary,
-      secondaryText: s.actionSecondaryText,
-      selectedSurface: s.selectedSurface,
-      selectedBorder: s.selectedBorder,
+      primary: s.primary,
+      primaryText: s.onPrimary,
+      secondary: s.surfaceSelected,
+      secondaryText: '#1B5538',
+      selectedSurface: s.surfaceSelected,
+      selectedBorder: s.primary,
       disabledSurface: s.disabledSurface,
       disabledText: s.disabledText,
-      outlineBorder: s.outlineBorder,
+      outlineBorder: s.textTertiary,
     },
     input: {
-      surface: s.inputSurface,
-      text: s.inputText,
-      placeholder: s.inputPlaceholder,
+      surface: s.surface,
+      text: s.textPrimary,
+      placeholder: s.textTertiary,
     },
     tab: {
-      inactive: s.tabInactive,
-      active: s.tabActive,
-      bar: s.tabBar,
+      inactive: s.textTertiary,
+      active: s.primary,
+      bar: s.surface,
     },
     semantic: s,
   } as const;
 }
 
-export const colors = buildNestedPalette(lightSemantic, false);
-export const darkColors = buildNestedPalette(darkSemantic, true);
+export const colors = buildNestedPalette(lightSemantic);
+
+/**
+ * @deprecated Dark theme is not shipped. This alias remains temporarily for
+ * older imports and resolves to the canonical light palette.
+ */
+export const darkSemantic: SemanticPalette = lightSemantic;
+
+/**
+ * @deprecated Dark theme is not shipped. Use `colors`; this alias returns the
+ * canonical light palette to prevent customer paths from entering a dark UI.
+ */
+export const darkColors = colors;
 
 export const spacing = {
   xs: 4,
@@ -304,4 +245,4 @@ export const tokens = {
 };
 
 export type ThemeTokens = typeof tokens;
-export type AppPalette = typeof colors | typeof darkColors;
+export type AppPalette = typeof colors;

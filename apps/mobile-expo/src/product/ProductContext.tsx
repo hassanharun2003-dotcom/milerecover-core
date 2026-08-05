@@ -567,6 +567,7 @@ export function ProductProvider({
                 'ready',
               ]),
               drivingPattern: pattern,
+              countryStepAcknowledged: true,
               protectionEducationAcknowledged: true,
               permissionsEducationAcknowledged: true,
               vehicleSetupState:

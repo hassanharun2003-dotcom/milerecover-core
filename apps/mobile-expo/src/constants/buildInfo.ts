@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.1.9-continuous-pass.1';
+export const APP_BUILD_LABEL = '0.2.0-product-recovery.1';
 
 /**
  * Temporary Home-screen OTA verification string.
@@ -7,8 +7,8 @@ export const APP_BUILD_LABEL = '0.1.9-continuous-pass.1';
  */
 export const PREVIEW_CHANNEL_MARKER = '';
 
-/** App store / runtime version — continuous release pass. */
-export const APP_VERSION = '0.1.9';
+/** App store / runtime version — final product recovery. */
+export const APP_VERSION = '0.2.0';
 
 /** Android applicationId / iOS bundle identifier for MileRecover product builds. */
 export const APP_PACKAGE_ID = 'com.milerecover.app';

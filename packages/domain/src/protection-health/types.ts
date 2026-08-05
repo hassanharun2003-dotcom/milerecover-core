@@ -1,6 +1,6 @@
 import type { PermissionSnapshot } from '../permissions/types';
 
-export type TrackingEngineState = 'active' | 'idle' | 'stopped' | 'unavailable';
+export type TrackingEngineState = 'active' | 'idle' | 'starting' | 'stopped' | 'unavailable' | 'unknown';
 
 export type ProtectionHealthLevel = 'protected' | 'attention' | 'at_risk' | 'limited';
 

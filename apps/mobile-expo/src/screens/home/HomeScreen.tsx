@@ -8,7 +8,7 @@ import { spacing } from '@milerecover/config';
 import {
   capabilitiesForEntitlement,
   rateForTimestamp,
-  resolveProtectionStatus,
+  type ProtectionStatusView,
 } from '@milerecover/domain';
 import {
   PrimaryButton,
@@ -18,6 +18,7 @@ import {
   SummaryCard,
   SkeletonBlock,
   TabScreen,
+  TertiaryButton,
   TimelineRow,
   text,
 } from '../../design-system';
@@ -37,78 +38,83 @@ type HomeNav = CompositeNavigationProp<
 type CompactStatus =
   | 'protected'
   | 'configured_waiting'
-  | 'setup_incomplete'
-  | 'needs_attention'
-  | 'temporarily_limited'
-  | 'paused'
+  | 'checking'
+  | 'needs_permission'
+  | 'battery_limited'
+  | 'stale'
+  | 'error'
+  | 'off'
   | 'manual_mode';
 
-function compactProtection(input: {
-  status: ReturnType<typeof resolveProtectionStatus>['status'];
-  primaryIssue: ReturnType<typeof resolveProtectionStatus>['primaryIssue'];
-}): { kind: CompactStatus; sentence: string; actionLabel: string; action: 'protection' | 'plans' | 'none' } {
-  if (input.primaryIssue?.action === 'none') {
-    return {
-      kind: 'needs_attention',
-      sentence: input.primaryIssue.what,
-      actionLabel: '',
-      action: 'none',
-    };
-  }
-  switch (input.status) {
-    case 'protected':
+function compactProtection(input: ProtectionStatusView): {
+  kind: CompactStatus;
+  sentence: string;
+  actionLabel: string;
+  action: 'protection' | 'plans' | 'none';
+} {
+  switch (input.state) {
+    case 'PROTECTED':
       return {
         kind: 'protected',
         sentence: 'Drive protection is on.',
-        actionLabel: 'View protection',
+        actionLabel: 'View',
         action: 'protection',
       };
-    case 'configured_waiting':
+    case 'CONFIGURED_WAITING':
       return {
         kind: 'configured_waiting',
-        sentence: 'Automatic capture is configured. We’ll verify it after your first drive.',
-        actionLabel: 'View protection',
+        sentence: 'Ready for your first drive. We’ll check protection after one is captured.',
+        actionLabel: 'View',
         action: 'protection',
       };
-    case 'setup_incomplete':
+    case 'CHECKING':
       return {
-        kind: 'setup_incomplete',
-        sentence: 'Finish a short setup to protect drives automatically.',
-        actionLabel: 'Finish setup',
+        kind: 'checking',
+        sentence: 'Automatic protection is checking status.',
+        actionLabel: input.primaryAction.label,
         action: 'protection',
       };
-    case 'temporarily_limited':
+    case 'BATTERY_LIMITED':
       return {
-        kind: 'temporarily_limited',
-        sentence: 'Automatic capture is temporarily limited. Manual drives still work.',
-        actionLabel: 'See plans',
-        action: 'plans',
+        kind: 'battery_limited',
+        sentence: 'Battery settings may prevent some drives from being captured.',
+        actionLabel: input.primaryAction.label,
+        action: 'protection',
       };
-    case 'tracking_paused':
+    case 'OFF':
       return {
-        kind: 'paused',
+        kind: 'off',
         sentence: 'Drive protection is paused.',
-        actionLabel: 'Turn on protection',
+        actionLabel: input.primaryAction.label,
         action: 'protection',
       };
-    case 'manual_only':
+    case 'MANUAL_ONLY':
       return {
         kind: 'manual_mode',
         sentence: 'Manual tracking is active. Set up automatic protection when you’re ready.',
-        actionLabel: input.primaryIssue?.action === 'see_plans' ? 'See plans' : 'Set up protection',
-        action: input.primaryIssue?.action === 'see_plans' ? 'plans' : 'protection',
+        actionLabel: input.primaryAction.label,
+        action: input.primaryAction.action === 'see_plans' ? 'plans' : 'none',
       };
-    case 'needs_attention':
+    case 'STALE':
+      return {
+        kind: 'stale',
+        sentence: 'Protection needs a fresh check before we call it current.',
+        actionLabel: input.primaryAction.label,
+        action: 'protection',
+      };
+    case 'ERROR':
+      return {
+        kind: 'error',
+        sentence: input.message,
+        actionLabel: input.primaryAction.action === 'none' ? '' : input.primaryAction.label,
+        action: input.primaryAction.action === 'none' ? 'none' : 'protection',
+      };
+    case 'NEEDS_PERMISSION':
     default:
       return {
-        kind: 'needs_attention',
-        sentence:
-          input.primaryIssue?.what === 'Battery restrictions may stop MileRecover'
-            ? 'Battery settings may prevent some drives from being captured.'
-            : input.primaryIssue?.what === 'Background location is off'
-              ? 'Background location is off — some drives may be missed.'
-              : input.primaryIssue?.what ?? 'Protection needs a quick fix.',
-        actionLabel: 'Fix protection',
+        kind: 'needs_permission',
+        sentence: input.message,
+        actionLabel: input.primaryAction.label,
         action: 'protection',
       };
   }
@@ -119,13 +125,15 @@ function statusVariant(kind: CompactStatus): 'success' | 'warning' | 'danger' | 
     case 'protected':
       return 'success';
     case 'configured_waiting':
+    case 'checking':
     case 'manual_mode':
-    case 'paused':
-    case 'temporarily_limited':
+    case 'off':
       return 'info';
-    case 'setup_incomplete':
+    case 'needs_permission':
+    case 'battery_limited':
+    case 'stale':
       return 'warning';
-    case 'needs_attention':
+    case 'error':
       return 'danger';
   }
 }
@@ -136,15 +144,19 @@ function statusTitle(kind: CompactStatus): string {
       return 'Protected';
     case 'configured_waiting':
       return 'Waiting for first drive';
-    case 'temporarily_limited':
-      return 'Temporarily limited';
-    case 'setup_incomplete':
-      return 'Setup incomplete';
-    case 'paused':
-      return 'Paused';
+    case 'checking':
+      return 'Checking';
+    case 'battery_limited':
+      return 'Battery limited';
+    case 'off':
+      return 'Off';
     case 'manual_mode':
       return 'Manual mode';
-    case 'needs_attention':
+    case 'needs_permission':
+      return 'Needs permission';
+    case 'stale':
+      return 'Needs check';
+    case 'error':
       return 'Needs attention';
   }
 }
@@ -210,8 +222,6 @@ export function HomeScreen() {
   const { scenario, liveMode } = experience;
   const greeting = greetingForName(product.preferredName);
   const capabilities = capabilitiesForEntitlement(product.entitlement);
-  const setupIncomplete =
-    product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
   const pendingReviewCount = selectPendingReviewCount(state, product, permissions, automaticCaptureAvailable);
   const protection = selectProtectionView({
     app: state,
@@ -222,6 +232,26 @@ export function HomeScreen() {
     offline: scenario.homeState === 'offline',
   });
   const compact = compactProtection(protection);
+  const protectionNeedsAction =
+    compact.action !== 'none' &&
+    (compact.kind === 'needs_permission' ||
+      compact.kind === 'off' ||
+      compact.kind === 'battery_limited' ||
+      compact.kind === 'stale' ||
+      compact.kind === 'error');
+  const showProtectionAction =
+    compact.kind === 'protected' ||
+    compact.kind === 'configured_waiting' ||
+    compact.kind === 'checking' ||
+    compact.action === 'plans' ||
+    protectionNeedsAction;
+  const openProtection = () => {
+    if (protectionNeedsAction) {
+      logEvent(ANALYTICS_EVENTS.protectionDegradedViewed, {});
+    }
+    if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
+    else navigation.navigate('ProtectionAlert');
+  };
 
   const confirmedCount = experience.confirmedTrips.length;
   const recoveredCount = experience.confirmedTrips.filter((trip) => trip.source === 'recovered').length;
@@ -237,30 +267,7 @@ export function HomeScreen() {
   });
 
   const nextBest = useMemo<NextBestAction>(() => {
-    // Priority: blocking tracking → classification → report correction → rate → recovery → report ready → caught up
-    if (
-      compact.action !== 'none' &&
-      (compact.kind === 'needs_attention' ||
-        compact.kind === 'paused' ||
-        compact.kind === 'setup_incomplete' ||
-        compact.kind === 'temporarily_limited')
-    ) {
-      return {
-        label:
-          compact.kind === 'paused'
-            ? 'Turn on drive protection'
-            : compact.kind === 'setup_incomplete'
-              ? 'Finish protection setup'
-              : compact.actionLabel,
-        run: () => {
-          if (compact.kind === 'needs_attention') {
-            logEvent(ANALYTICS_EVENTS.protectionDegradedViewed, {});
-          }
-          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
-          else navigation.navigate('ProtectionAlert');
-        },
-      };
-    }
+    // Keep protection repair in the status row so Home has one clear next action.
     if (pendingReviewCount > 0) {
       return {
         label:
@@ -274,12 +281,6 @@ export function HomeScreen() {
       return {
         label: 'Add a rate to calculate your value',
         run: () => navigation.navigate('EditSetup'),
-      };
-    }
-    if (setupIncomplete && capabilities.canUseAutomaticCapture) {
-      return {
-        label: 'Turn on drive protection',
-        run: () => navigation.navigate('ProtectionAlert'),
       };
     }
     if (product.importPhase !== 'idle' && product.importPhase !== 'success') {
@@ -301,14 +302,10 @@ export function HomeScreen() {
       };
     }
     return {
-      label: 'You’re all caught up',
+      label: 'No action needed right now.',
       run: null,
     };
   }, [
-    capabilities.canUseAutomaticCapture,
-    compact.action,
-    compact.actionLabel,
-    compact.kind,
     confirmedCount,
     experience.activeReviewItems,
     locale.activeRateNeedsReview,
@@ -317,7 +314,6 @@ export function HomeScreen() {
     product.importPhase,
     rateUsable,
     scenario.proofReady,
-    setupIncomplete,
   ]);
 
   useEffect(() => {
@@ -403,12 +399,35 @@ export function HomeScreen() {
         {greeting ?? 'Welcome back.'}
       </Text>
 
-      <StatusCard
-        variant={statusVariant(compact.kind)}
-        title={statusTitle(compact.kind)}
-        body={compact.sentence}
-        emphasis="subtle"
-      />
+      {protectionNeedsAction ? (
+        <StatusCard
+          variant={statusVariant(compact.kind)}
+          title={statusTitle(compact.kind)}
+          body={compact.sentence}
+          actionLabel={compact.actionLabel}
+          onAction={openProtection}
+          emphasis="subtle"
+        />
+      ) : (
+        <SoftPanel>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Text style={text.subtitle}>{statusTitle(compact.kind)}</Text>
+              <Text style={[text.body, { marginTop: spacing.xs }]}>{compact.sentence}</Text>
+              {protection.lastCheckLabel ? (
+                <Text style={[text.caption, { marginTop: spacing.xs }]}>{protection.lastCheckLabel}</Text>
+              ) : null}
+            </View>
+            {showProtectionAction ? (
+              <TertiaryButton
+                label={compact.actionLabel || 'View'}
+                onPress={openProtection}
+                accessibilityLabel="View protection status"
+              />
+            ) : null}
+          </View>
+        </SoftPanel>
+      )}
 
       <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
         {periodSummary.periodLabel}
@@ -446,15 +465,6 @@ export function HomeScreen() {
           <Text style={[text.body, { marginTop: spacing.xs }]}>{nextBest.label}</Text>
         )}
       </SoftPanel>
-
-      {experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip') ? (
-        <StatusCard
-          variant="warning"
-          title="Possible missed drives"
-          body="Review suggested gaps. Nothing is added until you confirm."
-          emphasis="subtle"
-        />
-      ) : null}
 
       <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>Recent</Text>
       {recent.length === 0 ? (

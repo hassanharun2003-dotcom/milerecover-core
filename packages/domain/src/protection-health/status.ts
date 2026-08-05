@@ -1,24 +1,22 @@
 import type { PermissionSnapshot } from '../permissions/types';
 import { permissionFixPriority } from '../permissions/types';
-import { calculateProtectionHealth } from './calculate';
-import type { ProtectionHealthInput, ProtectionHealthLevel, TrackingEngineState } from './types';
+import { STALE_CAPTURE_MS, type TrackingEngineState } from './types';
 
 /**
- * User-facing protection status for Home + Protection Center.
- *
- * Protected | Configured waiting | Needs attention | Temporarily limited | Tracking paused | Setup incomplete | Manual-only
+ * Canonical user-facing protection state for Home + Protection Center.
  */
-export type ProtectionStatus =
-  | 'protected'
-  | 'configured_waiting'
-  | 'needs_attention'
-  | 'temporarily_limited'
-  | 'tracking_paused'
-  | 'setup_incomplete'
-  | 'manual_only';
+export type ProtectionState =
+  | 'CHECKING'
+  | 'MANUAL_ONLY'
+  | 'OFF'
+  | 'NEEDS_PERMISSION'
+  | 'BATTERY_LIMITED'
+  | 'CONFIGURED_WAITING'
+  | 'PROTECTED'
+  | 'STALE'
+  | 'ERROR';
 
-/** @deprecated Prefer `manual_only` / `tracking_paused` / `setup_incomplete`. Kept for migration. */
-export type LegacyProtectionStatus = ProtectionStatus | 'off' | 'limited';
+export type ProtectionSeverity = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
 
 export type ProtectionPrimaryAction =
   | 'open_location_settings'
@@ -29,23 +27,24 @@ export type ProtectionPrimaryAction =
   | 'see_plans'
   | 'none';
 
+export interface ProtectionAction {
+  label: string;
+  action: ProtectionPrimaryAction;
+}
+
 export interface ProtectionStatusView {
-  status: ProtectionStatus;
+  state: ProtectionState;
   title: string;
-  detail: string;
+  message: string;
+  severity: ProtectionSeverity;
+  primaryAction: ProtectionAction;
+  secondaryAction: ProtectionAction | null;
+  supportingFacts: string[];
+  /** Timestamp of the last verified automatic capture check, or null when never. */
+  timestamp: number | null;
+  reasonCodes: string[];
   /** Plain-language last successful tracking check, or null when never. */
   lastCheckLabel: string | null;
-  /** Whether automatic tracking is currently dependable. */
-  automaticDependable: boolean;
-  primaryIssue: {
-    what: string;
-    why: string;
-    actionLabel: string;
-    action: ProtectionPrimaryAction;
-  } | null;
-  /** Ordered repair steps from permissionFixPriority (+ watching). */
-  repairSteps: string[];
-  level: ProtectionHealthLevel;
 }
 
 export interface ProtectionStatusInput {
@@ -59,19 +58,23 @@ export interface ProtectionStatusInput {
   /** True when protection/onboarding watching setup was never finished. */
   setupIncomplete?: boolean;
   offline?: boolean;
+  /** True when the user explicitly chose manual capture over automatic watching. */
+  manualMode?: boolean;
   now?: number;
   /** Free monthly automatic allowance reached — keep existing trips, pause new auto capture. */
   automaticAllowanceExhausted?: boolean;
 }
 
-const TITLES: Record<ProtectionStatus, string> = {
-  protected: 'Your drives are protected',
-  configured_waiting: 'Configured — waiting for first drive',
-  needs_attention: 'Needs attention',
-  temporarily_limited: 'Temporarily limited',
-  tracking_paused: 'Drive protection is paused',
-  setup_incomplete: 'Finish drive protection setup',
-  manual_only: 'Manual mode',
+const TITLES: Record<ProtectionState, string> = {
+  CHECKING: 'Checking protection',
+  MANUAL_ONLY: 'Manual tracking',
+  OFF: 'Drive protection is off',
+  NEEDS_PERMISSION: 'Protection needs permission',
+  BATTERY_LIMITED: 'Battery settings may limit protection',
+  CONFIGURED_WAITING: 'Ready for your first drive',
+  PROTECTED: 'Your drives are protected',
+  STALE: 'Protection needs a fresh check',
+  ERROR: 'Protection needs attention',
 };
 
 function formatLastCheck(lastConfirmedCaptureAt: number | null, now: number): string | null {
@@ -91,186 +94,303 @@ function formatLastCheck(lastConfirmedCaptureAt: number | null, now: number): st
   return `Tracking has not checked in since ${time}`;
 }
 
-function repairStepsFor(input: ProtectionStatusInput): string[] {
+function reasonCodesFor(input: ProtectionStatusInput): string[] {
   const steps = permissionFixPriority(input.permissions);
   if (input.setupIncomplete) steps.unshift('finish_protection_setup');
-  if (input.canUseAutomaticCapture && !input.trackingEnabled) steps.push('enable_watching');
+  if (input.canUseAutomaticCapture && !input.trackingEnabled) steps.push('tracking_off');
+  if (input.offline) steps.push('offline');
+  if (input.trackingEngineState === 'stopped' || input.trackingEngineState === 'unavailable') {
+    steps.push('engine_error');
+  }
+  if (input.automaticAllowanceExhausted) steps.push('automatic_allowance_exhausted');
+  if (input.manualMode) steps.push('manual_mode_selected');
+  if (input.lastConfirmedCaptureAt == null) steps.push('no_verified_capture');
   return steps;
+}
+
+function backgroundLocationGrantedOrNotApplicable(snapshot: PermissionSnapshot): boolean {
+  return snapshot.backgroundLocation === 'granted' || snapshot.backgroundLocation === 'not_applicable';
+}
+
+function hasPermissionGap(snapshot: PermissionSnapshot): boolean {
+  return snapshot.location !== 'granted' || !backgroundLocationGrantedOrNotApplicable(snapshot);
+}
+
+function formatPermissionFact(label: string, enabled: boolean): string {
+  return `${label}: ${enabled ? 'on' : 'off'}`;
+}
+
+function supportingFactsFor(input: ProtectionStatusInput): string[] {
+  const backgroundReady = backgroundLocationGrantedOrNotApplicable(input.permissions);
+  const facts = [
+    formatPermissionFact('Location', input.permissions.location === 'granted'),
+    input.permissions.backgroundLocation === 'not_applicable'
+      ? 'Background location: not needed on this platform'
+      : formatPermissionFact('Background location', backgroundReady),
+    `Battery restrictions: ${input.permissions.batteryOptimizationRestricted ? 'on' : 'off'}`,
+    `Automatic protection: ${input.trackingEnabled ? 'on' : 'off'}`,
+  ];
+
+  if (input.pendingReviewCount > 0) {
+    facts.push(`${input.pendingReviewCount} trip${input.pendingReviewCount === 1 ? '' : 's'} need review`);
+  }
+
+  return facts;
+}
+
+function view(input: {
+  state: ProtectionState;
+  message: string;
+  severity: ProtectionSeverity;
+  primaryAction: ProtectionAction;
+  secondaryAction?: ProtectionAction | null;
+  supportingFacts: string[];
+  timestamp: number | null;
+  reasonCodes: string[];
+  lastCheckLabel: string | null;
+}): ProtectionStatusView {
+  return {
+    state: input.state,
+    title: TITLES[input.state],
+    message: input.message,
+    severity: input.severity,
+    primaryAction: input.primaryAction,
+    secondaryAction: input.secondaryAction ?? null,
+    supportingFacts: input.supportingFacts,
+    timestamp: input.timestamp,
+    reasonCodes: Array.from(new Set(input.reasonCodes)),
+    lastCheckLabel: input.lastCheckLabel,
+  };
 }
 
 export function resolveProtectionStatus(input: ProtectionStatusInput): ProtectionStatusView {
   const now = input.now ?? Date.now();
   const lastCheckLabel = formatLastCheck(input.lastConfirmedCaptureAt, now);
-  const repairSteps = repairStepsFor(input);
+  const supportingFacts = supportingFactsFor(input);
+  const baseReasons = reasonCodesFor(input);
+  const timestamp = input.lastConfirmedCaptureAt;
+  const backgroundReady = backgroundLocationGrantedOrNotApplicable(input.permissions);
+  const configured =
+    input.trackingEnabled &&
+    input.canUseAutomaticCapture &&
+    input.permissions.location === 'granted' &&
+    backgroundReady &&
+    !input.permissions.batteryOptimizationRestricted;
+  const controllerHealthy = input.trackingEngineState === 'active' || input.trackingEngineState === 'idle';
+  const stale =
+    configured &&
+    controllerHealthy &&
+    input.lastConfirmedCaptureAt != null &&
+    now - input.lastConfirmedCaptureAt > STALE_CAPTURE_MS;
 
-  if (input.offline) {
-    return {
-      status: 'needs_attention',
-      title: TITLES.needs_attention,
-      detail: 'You’re offline. Saved miles stay on this device.',
+  if (!input.canUseAutomaticCapture || input.manualMode || input.automaticAllowanceExhausted) {
+    const allowanceLimited = input.automaticAllowanceExhausted === true;
+    return view({
+      state: 'MANUAL_ONLY',
+      message: allowanceLimited
+        ? 'Automatic capture is paused for this plan limit. Add drives manually or upgrade for more automatic trips.'
+        : 'Add drives manually anytime. Automatic capture is not available for this account or device.',
+      severity: 'neutral',
+      primaryAction: allowanceLimited
+        ? { label: 'See plans', action: 'see_plans' }
+        : { label: 'Add drives manually', action: 'none' },
+      secondaryAction: allowanceLimited ? { label: 'Add a drive manually', action: 'none' } : null,
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, allowanceLimited ? 'automatic_allowance_exhausted' : 'manual_only'],
       lastCheckLabel,
-      automaticDependable: false,
-      primaryIssue: {
-        what: 'No network connection',
-        why: 'New sync can’t run, but local miles remain safe.',
-        actionLabel: 'OK',
-        action: 'none',
-      },
-      repairSteps,
-      level: 'attention',
-    };
-  }
-
-  if (!input.canUseAutomaticCapture) {
-    return {
-      status: 'manual_only',
-      title: TITLES.manual_only,
-      detail: 'Turn it on to capture future drives automatically.',
-      lastCheckLabel,
-      automaticDependable: false,
-      primaryIssue: {
-        what: 'Automatic capture needs an upgrade',
-        why: 'You can still add drives manually anytime.',
-        actionLabel: 'See plans',
-        action: 'see_plans',
-      },
-      repairSteps,
-      level: 'limited',
-    };
-  }
-
-  if (input.automaticAllowanceExhausted) {
-    return {
-      status: 'temporarily_limited',
-      title: TITLES.temporarily_limited,
-      detail: 'Future automatic capture needs Plus, or add drives manually. Saved trips stay.',
-      lastCheckLabel,
-      automaticDependable: false,
-      primaryIssue: {
-        what: 'Free includes 40 automatic trips per month',
-        why: 'Your captured trips remain. Upgrade for unlimited automatic tracking.',
-        actionLabel: 'See plans',
-        action: 'see_plans',
-      },
-      repairSteps,
-      level: 'limited',
-    };
-  }
-
-  if (input.setupIncomplete || input.permissions.location === 'not_determined') {
-    return {
-      status: 'setup_incomplete',
-      title: TITLES.setup_incomplete,
-      detail: 'Take a short drive and MileRecover will confirm that tracking works.',
-      lastCheckLabel,
-      automaticDependable: false,
-      primaryIssue: {
-        what: 'Protection setup is incomplete',
-        why: 'Without setup, MileRecover can’t tell when you’re on a work drive.',
-        actionLabel: 'Finish setup',
-        action: 'finish_setup',
-      },
-      repairSteps,
-      level: 'limited',
-    };
+    });
   }
 
   if (!input.trackingEnabled) {
-    return {
-      status: 'tracking_paused',
-      title: TITLES.tracking_paused,
-      detail: 'Turn it on to capture future drives automatically.',
+    return view({
+      state: 'OFF',
+      message: 'Turn automatic protection on to capture future drives. Manual drives still work.',
+      severity: 'neutral',
+      primaryAction: { label: 'Turn on protection', action: 'enable_watching' },
+      secondaryAction: { label: 'Add a drive manually', action: 'none' },
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, 'tracking_off'],
       lastCheckLabel,
-      automaticDependable: false,
-      primaryIssue: {
-        what: 'Drive protection is off',
-        why: 'MileRecover won’t capture drives until you turn protection on.',
-        actionLabel: 'Turn on protection',
-        action: 'enable_watching',
+    });
+  }
+
+  if (input.offline || input.trackingEngineState === 'stopped' || input.trackingEngineState === 'unavailable') {
+    return view({
+      state: 'ERROR',
+      message: input.offline
+        ? 'MileRecover is offline. Saved miles stay on this device until checks can run again.'
+        : 'The automatic tracking engine is not healthy. Review protection before relying on automatic capture.',
+      severity: 'danger',
+      primaryAction: { label: input.offline ? 'OK' : 'Review protection', action: input.offline ? 'none' : 'finish_setup' },
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, input.offline ? 'offline' : 'engine_error'],
+      lastCheckLabel,
+    });
+  }
+
+  if (hasPermissionGap(input.permissions)) {
+    const foregroundMissing = input.permissions.location !== 'granted';
+    return view({
+      state: 'NEEDS_PERMISSION',
+      message: foregroundMissing
+        ? 'Allow location so automatic protection can notice when a work drive starts.'
+        : 'Allow background location so drives can be captured when the app is closed.',
+      severity: 'warning',
+      primaryAction: {
+        label: foregroundMissing ? 'Allow location' : 'Allow background location',
+        action: 'open_location_settings',
       },
-      repairSteps,
-      level: 'limited',
-    };
+      secondaryAction: { label: 'Continue with manual tracking', action: 'none' },
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, foregroundMissing ? 'location_missing' : 'background_location_missing'],
+      lastCheckLabel,
+    });
   }
 
-  const healthInput: ProtectionHealthInput = {
-    permissions: input.permissions,
-    trackingEngineState: input.trackingEngineState,
-    lastConfirmedCaptureAt: input.lastConfirmedCaptureAt,
-    lastSyncAt: input.lastSyncAt,
-    now,
-    pendingReviewCount: input.pendingReviewCount,
-  };
-  const health = calculateProtectionHealth(healthInput);
+  if (input.permissions.batteryOptimizationRestricted) {
+    return view({
+      state: 'BATTERY_LIMITED',
+      message: 'Battery optimization may stop MileRecover in the background, even with permissions enabled.',
+      severity: 'warning',
+      primaryAction: { label: 'Fix battery settings', action: 'open_battery_settings' },
+      secondaryAction: { label: 'Add a drive manually', action: 'none' },
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, 'battery_restricted'],
+      lastCheckLabel,
+    });
+  }
 
-  let primaryIssue: ProtectionStatusView['primaryIssue'] = null;
-  if (input.permissions.location !== 'granted') {
-    primaryIssue = {
-      what: 'Location is off',
-      why: 'Automatic tracking may miss drives without location while you use the app.',
-      actionLabel: 'Allow location',
-      action: 'open_location_settings',
-    };
-  } else if (
-    input.permissions.backgroundLocation === 'denied' ||
-    input.permissions.backgroundLocation === 'restricted'
+  if (
+    (input.trackingEngineState === 'starting' || input.trackingEngineState === 'unknown') &&
+    input.lastConfirmedCaptureAt == null
   ) {
-    primaryIssue = {
-      what: 'Background location is off',
-      why: 'Your phone may stop MileRecover when the app is closed.',
-      actionLabel: 'Allow background location',
-      action: 'open_location_settings',
-    };
-  } else if (input.permissions.batteryOptimizationRestricted) {
-    primaryIssue = {
-      what: 'Battery restrictions may stop MileRecover',
-      why: 'Some phones pause apps in the background to save power.',
-      actionLabel: 'Fix battery settings',
-      action: 'open_battery_settings',
-    };
-  } else if (health.level === 'at_risk' || health.level === 'attention') {
-    primaryIssue = {
-      what: 'Automatic tracking may miss drives',
-      why: health.userDetail || 'A recent check suggests protection needs a look.',
-      actionLabel: 'Review protection',
-      action: 'finish_setup',
-    };
-  } else if (input.pendingReviewCount > 0) {
-    primaryIssue = {
-      what: `${input.pendingReviewCount} trip${input.pendingReviewCount === 1 ? '' : 's'} need a look`,
-      why: 'Nothing uncertain enters Proof until you decide.',
-      actionLabel: 'Review trips',
-      action: 'review_trips',
-    };
+    return view({
+      state: 'CHECKING',
+      message: 'MileRecover is checking automatic protection before showing a final status.',
+      severity: 'info',
+      primaryAction: { label: 'Check again', action: 'finish_setup' },
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, 'checking_engine'],
+      lastCheckLabel,
+    });
   }
 
-  const hasBlockingIssue = primaryIssue != null && primaryIssue.action !== 'review_trips';
-  const status: ProtectionStatus = hasBlockingIssue
-    ? 'needs_attention'
-    : input.lastConfirmedCaptureAt == null
-      ? 'configured_waiting'
-      : 'protected';
-  const automaticDependable =
-    status === 'protected' &&
-    health.level === 'protected' &&
-    input.lastConfirmedCaptureAt != null &&
-    input.permissions.location === 'granted' &&
-    input.permissions.backgroundLocation === 'granted' &&
-    !input.permissions.batteryOptimizationRestricted;
+  if (stale) {
+    return view({
+      state: 'STALE',
+      message: 'Automatic capture worked before, but MileRecover has not verified a recent drive check.',
+      severity: 'warning',
+      primaryAction: { label: 'Review protection', action: 'finish_setup' },
+      secondaryAction: { label: 'Add a drive manually', action: 'none' },
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, 'health_stale'],
+      lastCheckLabel,
+    });
+  }
 
-  return {
-    status,
-    title: TITLES[status],
-    detail:
-      status === 'protected'
-        ? lastCheckLabel ?? 'Last successful check: waiting for your next drive.'
-        : status === 'configured_waiting'
-          ? 'Take a short drive and MileRecover will confirm automatic capture before calling it protected.'
-        : primaryIssue?.what ?? health.userDetail ?? health.userLabel,
+  if (configured && controllerHealthy && input.lastConfirmedCaptureAt == null) {
+    return view({
+      state: 'CONFIGURED_WAITING',
+      message: 'Take a short drive and MileRecover will confirm automatic capture after your first drive.',
+      severity: 'info',
+      primaryAction: input.setupIncomplete
+        ? { label: 'Finish setup', action: 'finish_setup' }
+        : { label: 'OK', action: 'none' },
+      secondaryAction: null,
+      supportingFacts,
+      timestamp,
+      reasonCodes: [...baseReasons, 'no_verified_capture'],
+      lastCheckLabel,
+    });
+  }
+
+  if (configured && controllerHealthy && input.lastConfirmedCaptureAt != null) {
+    return view({
+      state: 'PROTECTED',
+      message: 'Automatic capture is enabled and recently verified. Review any flagged trips when ready.',
+      severity: 'success',
+      primaryAction:
+        input.pendingReviewCount > 0
+          ? { label: 'Review trips', action: 'review_trips' }
+          : { label: 'OK', action: 'none' },
+      secondaryAction: null,
+      supportingFacts,
+      timestamp,
+      reasonCodes: input.pendingReviewCount > 0 ? [...baseReasons, 'pending_review'] : baseReasons,
+      lastCheckLabel,
+    });
+  }
+
+  return view({
+    state: 'CHECKING',
+    message: 'MileRecover is checking automatic protection before showing a final status.',
+    severity: 'info',
+    primaryAction: { label: 'Check again', action: 'finish_setup' },
+    supportingFacts,
+    timestamp,
+    reasonCodes: [...baseReasons, 'checking'],
     lastCheckLabel,
-    automaticDependable,
-    primaryIssue,
-    repairSteps,
-    level: health.level,
-  };
+  });
+}
+
+export function assertProtectionInvariants(view: ProtectionStatusView): void {
+  const states: ProtectionState[] = [
+    'CHECKING',
+    'MANUAL_ONLY',
+    'OFF',
+    'NEEDS_PERMISSION',
+    'BATTERY_LIMITED',
+    'CONFIGURED_WAITING',
+    'PROTECTED',
+    'STALE',
+    'ERROR',
+  ];
+
+  if (!states.includes(view.state)) {
+    throw new Error(`Unknown protection state: ${String(view.state)}`);
+  }
+
+  if (view.message.includes('Last successful check:')) {
+    throw new Error('Protection message must not duplicate lastCheckLabel.');
+  }
+
+  if (view.state === 'PROTECTED') {
+    const impossible = [
+      'battery_restricted',
+      'location_missing',
+      'background_location_missing',
+      'tracking_off',
+      'manual_only',
+      'automatic_allowance_exhausted',
+      'no_verified_capture',
+      'health_stale',
+      'engine_error',
+      'offline',
+    ];
+    const found = impossible.find((code) => view.reasonCodes.includes(code));
+    if (found) {
+      throw new Error(`PROTECTED cannot include ${found}.`);
+    }
+    if (view.severity !== 'success') {
+      throw new Error('PROTECTED must use success severity.');
+    }
+    if (view.timestamp == null || view.lastCheckLabel == null) {
+      throw new Error('PROTECTED requires a verified capture timestamp.');
+    }
+  }
+
+  if (view.state === 'BATTERY_LIMITED' && view.reasonCodes.includes('location_missing')) {
+    throw new Error('BATTERY_LIMITED cannot be primary while foreground location is missing.');
+  }
+
+  if (view.state === 'CONFIGURED_WAITING' && /protected/i.test(`${view.title} ${view.message}`)) {
+    throw new Error('CONFIGURED_WAITING copy must not claim protected.');
+  }
 }

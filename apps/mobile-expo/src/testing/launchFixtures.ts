@@ -34,13 +34,12 @@ export type LaunchFixtureId =
   | 'offline'
   | 'loading'
   | 'recoverable_error'
-  | 'dark_mode'
   | 'light_mode';
 
 export type LaunchFixture = {
   id: LaunchFixtureId;
   label: string;
-  theme: 'light' | 'dark' | 'system';
+  theme: 'light' | 'system';
   product: Partial<ProductUiState>;
   /** Expected customer-visible protection title fragment when applicable. */
   expectProtection?: RegExp;
@@ -326,13 +325,6 @@ export const LAUNCH_FIXTURES: LaunchFixture[] = [
     theme: 'light',
     product: createInitialProductUiState(),
     expectRoute: 'error',
-  },
-  {
-    id: 'dark_mode',
-    label: 'Dark mode',
-    theme: 'dark',
-    product: baseProduct(),
-    expectRoute: 'home',
   },
   {
     id: 'light_mode',

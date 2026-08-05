@@ -17,6 +17,7 @@ import {
   rateForTimestamp,
   reportTitleForGoal,
   resolveReportPeriod,
+  type ProofIssue,
   type ReportPeriod,
   type ReportPeriodKind,
 } from '@milerecover/domain';
@@ -28,8 +29,8 @@ import {
   PrimaryButton,
   SecondaryButton,
   SegmentedControl,
-  SimpleBarChart,
   SoftPanel,
+  SummaryCard,
   TabScreen,
   text,
 } from '../../design-system';
@@ -73,6 +74,44 @@ function vehicleLookup(vehicles: { id: string; nickname: string; make: string; m
   }, {});
 }
 
+function issueFieldLabel(issue: ProofIssue): string {
+  switch (issue.field) {
+    case 'purpose':
+      return 'purpose';
+    case 'distance':
+      return 'distance';
+    case 'route':
+      return 'route labels';
+    case 'vehicle':
+      return 'vehicle';
+    case 'rate':
+      return 'mileage rate';
+    case 'classification':
+      return 'review decision';
+    default:
+      return issue.label.toLowerCase();
+  }
+}
+
+function tripAnchor(
+  trip: { startAt: number; startLabel?: string | null; endLabel?: string | null } | undefined,
+  localeTag: string,
+): string | null {
+  if (!trip) return null;
+  const date = new Date(trip.startAt).toLocaleDateString(localeTag, { month: 'short', day: 'numeric' });
+  const route =
+    trip.startLabel || trip.endLabel
+      ? `${trip.startLabel ?? 'Start'} → ${trip.endLabel ?? 'Destination'}`
+      : 'drive';
+  return `${route} on ${date}`;
+}
+
+function readinessDetail(issue: ProofIssue | undefined, trips: { id: string; startAt: number; startLabel?: string | null; endLabel?: string | null }[], localeTag: string): string {
+  if (!issue) return 'All required report details are complete.';
+  const anchor = tripAnchor(trips.find((trip) => trip.id === issue.tripId), localeTag);
+  if (anchor) return `Needs ${issueFieldLabel(issue)} for ${anchor}.`;
+  return issue.detail;
+}
 
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
@@ -83,7 +122,6 @@ export function ProofScreen() {
       ? (state.reportingPeriod.id as ReportPeriodKind)
       : 'ytd',
   );
-  const [showReadiness, setShowReadiness] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [csvBusy, setCsvBusy] = useState(false);
@@ -135,6 +173,15 @@ export function ProofScreen() {
   const requiredCount = issues.required.length;
   const recommendedCount = issues.recommended.length;
   const exportReady = requiredCount === 0 && report.tripCount > 0;
+  const firstIssue = issues.required[0] ?? issues.recommended[0];
+  const readinessState = firstIssue ? 'NEEDS 1 DETAIL' : 'READY';
+  const readinessMessage = readinessDetail(firstIssue, confirmedWorkTrips, locale.localeTag);
+  const reportsDisabledReason =
+    report.tripCount === 0
+      ? 'No confirmed work drives in this period'
+      : requiredCount > 0
+        ? readinessMessage
+        : null;
 
   const fixTarget = useMemo(() => {
     const next = issues.required[0] ?? issues.recommended[0];
@@ -172,7 +219,6 @@ export function ProofScreen() {
     setPeriodKind(kind);
     setMessage(null);
     setError(null);
-    setShowReadiness(false);
     const next = resolveReportPeriod(kind);
     setReportingPeriod({
       id: kind,
@@ -284,129 +330,88 @@ export function ProofScreen() {
         <>
           <SoftPanel>
             <Text style={text.subtitle}>{period.label}</Text>
-            <SimpleBarChart
-              accessibilityLabel="Work distance and drive count for this period"
-              bars={[
-                { label: 'Distance', value: Math.max(report.totalMiles, 0) },
-                { label: 'Drives', value: Math.max(report.tripCount, 0) },
+            <SummaryCard
+              items={[
+                {
+                  label: 'Work distance',
+                  value: formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag),
+                },
+                {
+                  label: 'Work drives',
+                  value: String(report.tripCount),
+                },
                 {
                   label: 'Value',
-                  value: Math.max((report.estimatedValueCents ?? 0) / 100, 0),
+                  value:
+                    report.estimatedValueCents != null
+                      ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
+                      : 'Set rate',
                 },
               ]}
             />
+          </SoftPanel>
+
+          <ListSection title="Readiness">
+            <ListRow label="Status" value={readinessState} showChevron={false} />
+            <Text style={[text.body, { marginBottom: spacing.sm }]}>{readinessMessage}</Text>
             <ListRow
-              label="Work distance"
-              value={formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag)}
-              showChevron={false}
-            />
-            <ListRow
-              label="Estimated value"
-              value={
-                report.estimatedValueCents != null
-                  ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
-                  : 'Set a rate in Profile'
-              }
-              showChevron={false}
-            />
-            <ListRow label="Work drives" value={String(report.tripCount)} showChevron={false} />
-            <ListRow
-              label="Required corrections"
+              label="Required"
               value={requiredCount > 0 ? String(requiredCount) : 'None'}
               showChevron={false}
             />
             <ListRow
-              label="Optional improvements"
+              label="Optional"
               value={recommendedCount > 0 ? String(recommendedCount) : 'None'}
               showChevron={false}
             />
-            <ListRow
-              label="Report generated"
-              value={new Date(report.generatedAt).toLocaleString(locale.localeTag)}
-              showChevron={false}
-            />
-            {fixTarget ? (
-              <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
-            ) : (
-              <PrimaryButton label="Preview report" onPress={openPreview} />
-            )}
-            <SecondaryButton
-              label={showReadiness ? 'Hide readiness' : 'Show readiness'}
-              onPress={() => setShowReadiness((open) => !open)}
-            />
-          </SoftPanel>
-
-          {showReadiness ? (
-            <ListSection title="Readiness">
-              {issues.required.length > 0 ? (
-                <>
-                  <Text style={[text.subtitle, { marginBottom: spacing.xs }]}>Required</Text>
-                  {issues.required.map((issue) => (
-                    <ListRow key={issue.id} label={issue.label} value="Needs fix" showChevron={false} />
-                  ))}
-                </>
-              ) : null}
-              {issues.recommended.length > 0 ? (
-                <>
-                  <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>
-                    Recommended
-                  </Text>
-                  {issues.recommended.map((issue) => (
-                    <ListRow key={issue.id} label={issue.label} value="Optional" showChevron={false} />
-                  ))}
-                </>
-              ) : null}
-              {issues.completedIds.length > 0 ? (
-                <>
-                  <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>
-                    Complete
-                  </Text>
-                  {issues.completedIds.map((id) => (
-                    <ListRow key={id} label={id} value="Complete" showChevron={false} />
-                  ))}
-                </>
-              ) : null}
-              {fixTarget ? (
-                <View style={{ marginTop: spacing.sm }}>
-                  <Text style={[text.caption, { marginBottom: spacing.xs }]}>{fixTarget.detail}</Text>
-                  <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
-                </View>
-              ) : (
-                <Text style={[text.body, { marginTop: spacing.sm }]}>Ready to preview and export.</Text>
-              )}
-            </ListSection>
-          ) : null}
+            {fixTarget ? <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} /> : null}
+          </ListSection>
 
           <ListSection title="Reports">
             {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
             {error ? <FormError message={error} /> : null}
-            {!exportReady ? (
-              <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-                Finish required corrections before employer-ready export.
-              </Text>
-            ) : null}
-            <ListRow label="Preview" onPress={openPreview} disabled={!exportReady && report.tripCount === 0} />
             <ListRow
-              label={capabilities.canUseStandardPdf ? 'PDF' : 'PDF · Plus'}
-              onPress={() => void sharePdf()}
+              label="Preview"
+              value={reportsDisabledReason ?? 'Ready'}
+              onPress={openPreview}
+              disabled={!exportReady}
+            />
+            <ListRow
+              label="PDF"
+              value={
+                reportsDisabledReason ??
+                (capabilities.canUseStandardPdf ? 'Ready' : 'Plus required')
+              }
+              onPress={() => {
+                if (capabilities.canUseStandardPdf) void sharePdf();
+                else navigation.navigate('PlanSelection', { source: 'upgrade' });
+              }}
               busy={pdfBusy || (shareBusy && !csvBusy)}
               disabled={!exportReady || (exportBusy && !pdfBusy)}
             />
             <ListRow
               label="CSV"
-              value={csvBusy || (shareBusy && csvBusy) ? SHARE_COPY.preparingCsv : undefined}
+              value={
+                csvBusy || (shareBusy && csvBusy)
+                  ? SHARE_COPY.preparingCsv
+                  : reportsDisabledReason ?? 'Free export'
+              }
               onPress={() => void shareCsv()}
               busy={csvBusy || (shareBusy && !pdfBusy)}
               disabled={!exportReady || pdfBusy}
             />
             <ListRow
               label="Share"
+              value={reportsDisabledReason ?? 'Open report options'}
               onPress={() => navigation.navigate('ExportReport')}
               disabled={!exportReady}
             />
           </ListSection>
 
           <View style={{ marginTop: spacing.md }}>
+            <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+              Updated {new Date(report.generatedAt).toLocaleString(locale.localeTag)}
+            </Text>
             <SecondaryButton label="Add another drive" onPress={() => navigation.navigate('ManualTrip')} />
           </View>
         </>

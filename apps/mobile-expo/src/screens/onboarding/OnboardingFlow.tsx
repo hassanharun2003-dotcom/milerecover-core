@@ -17,7 +17,6 @@ import {
   type PostOnboardingRoute,
   type ProductOnboardingStep,
 } from '../../product/types';
-import { nextActionForGoal } from '../../product/copy';
 import {
   FormField,
   OnboardingScreen,
@@ -45,14 +44,20 @@ function remapStep(step: ProductOnboardingStep): ProductOnboardingStep {
   }
   if (step === 'country' || step === 'preferred_name') return 'locale_setup';
   if (step === 'permissions_education' || step === 'protection_education') return 'protect_drives';
-  if (step === 'vehicle_setup' || step === 'driving_pattern' || step === 'familiar_places' || step === 'personalize') {
+  if (
+    step === 'vehicle_setup' ||
+    step === 'driving_pattern' ||
+    step === 'familiar_places' ||
+    step === 'personalize'
+  ) {
     return 'protect_drives';
   }
   return 'welcome';
 }
 
 export function OnboardingFlow() {
-  const { finishOnboarding, requestLocationPermission, requestBackgroundPermission, permissions } = useApp();
+  const { finishOnboarding, requestLocationPermission, requestBackgroundPermission, permissions } =
+    useApp();
   const {
     product,
     advanceOnboarding,
@@ -68,6 +73,7 @@ export function OnboardingFlow() {
   } = useProduct();
 
   const [finishing, setFinishing] = useState(false);
+  const [permissionBusy, setPermissionBusy] = useState(false);
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
   const recommendedCountry = recommendCountryFromLocale(
     typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined,
@@ -85,7 +91,10 @@ export function OnboardingFlow() {
 
   const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
-  const next = nextActionForGoal(product.primaryGoal);
+  const protectionConfigured =
+    product.trackingEnabled ||
+    product.protectionSetupState === 'configured' ||
+    product.protectionSetupState === 'healthy';
 
   useEffect(() => {
     if (product.onboardingStep !== step) setOnboardingStep(step);
@@ -100,16 +109,19 @@ export function OnboardingFlow() {
   }, [step]);
 
   const saveLocale = () => {
-    const cents = Number.parseFloat(rateCents);
+    const entered = Number.parseFloat(rateCents);
+    // UI shows the active unit; domain rates are stored as cents-per-mile.
+    const centsPerMile =
+      Number.isFinite(entered) && entered > 0
+        ? Math.round(unitDraft === 'km' ? entered * 1.609344 : entered)
+        : undefined;
     const profile = localeProfileFromCountry(countryDraft, {
-      distanceUnit: countryDraft === 'OTHER' ? unitDraft : unitDraft,
+      distanceUnit: unitDraft,
       currencyCode: countryDraft === 'OTHER' ? otherCurrency : undefined,
-      centsPerMile: Number.isFinite(cents) && cents > 0 ? Math.round(cents) : undefined,
+      centsPerMile,
     });
-    if (countryDraft !== 'OTHER' && unitDraft !== profile.distanceUnit) {
-      profile.distanceUnit = unitDraft;
-    }
-    setLocaleProfile({ ...profile, activeRateNeedsReview: !(Number.isFinite(cents) && cents > 0) });
+    profile.distanceUnit = unitDraft;
+    setLocaleProfile({ ...profile, activeRateNeedsReview: centsPerMile == null });
     patchOnboarding({ countryStepAcknowledged: true });
     logEvent(ANALYTICS_EVENTS.countrySelected, { country: countryDraft });
   };
@@ -124,26 +136,50 @@ export function OnboardingFlow() {
           ? 'import_mileage'
           : route === 'MissingTripRecovery'
             ? 'begin_rescue'
-            : 'add_first_drive';
+            : route === 'ManualTrip'
+              ? 'add_first_drive'
+              : protectionConfigured
+                ? 'start_protection'
+                : 'add_first_drive';
     completeProductOnboarding(route);
-    patchOnboarding({ nextActionSelected: action });
+    patchOnboarding({
+      nextActionSelected: action,
+      countryStepAcknowledged: true,
+      protectionEducationAcknowledged: true,
+      permissionsEducationAcknowledged: true,
+    });
     logEvent(ANALYTICS_EVENTS.onboardingCompleted, { next: action });
     finishOnboarding();
   };
 
+  const rateLabel = unitDraft === 'km' ? 'Mileage rate (¢ per km)' : 'Mileage rate (¢ per mile)';
   const ratePreview = useMemo(() => {
-    const cents = Number.parseFloat(rateCents);
-    if (!Number.isFinite(cents) || cents <= 0) return 'Optional — you can set this later';
-    return unitDraft === 'km'
-      ? `About ${Math.round(cents / 1.609344)}¢ per km`
-      : `${Math.round(cents)}¢ per mile`;
+    const entered = Number.parseFloat(rateCents);
+    if (!Number.isFinite(entered) || entered <= 0) return 'Optional — you can set this later in Profile';
+    return unitDraft === 'km' ? `${Math.round(entered)}¢ per km` : `${Math.round(entered)}¢ per mile`;
   }, [rateCents, unitDraft]);
+
+  const goalLabel =
+    PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
 
   return (
     <OnboardingScreen
       footer={
         step === 'welcome' ? (
-          <PrimaryButton label="Get started" onPress={() => advanceOnboarding()} accessibilityLabel="Get started" />
+          <View style={{ gap: spacing.sm }}>
+            <PrimaryButton
+              label="Get started"
+              onPress={() => advanceOnboarding()}
+              accessibilityLabel="Get started"
+            />
+            <SecondaryButton
+              label="I already use a mileage app"
+              onPress={() => {
+                patchOnboarding({ selectedPainPoints: ['need_cleaner_reports'] });
+                advanceOnboarding();
+              }}
+            />
+          </View>
         ) : step === 'purpose' ? (
           <PrimaryButton
             label="Continue"
@@ -165,28 +201,50 @@ export function OnboardingFlow() {
             accessibilityLabel="Continue to drive protection"
           />
         ) : step === 'protect_drives' ? (
-          <View>
+          <View style={{ gap: spacing.sm }}>
             <PrimaryButton
-              label="Turn on drive protection"
+              label="Set up protection"
+              loading={permissionBusy}
               onPress={() => {
+                if (permissionBusy) return;
+                setPermissionBusy(true);
                 logEvent(ANALYTICS_EVENTS.protectionSetupStarted, {});
                 setProtectionSetupState('educated');
+                patchOnboarding({ protectionEducationAcknowledged: true });
                 void (async () => {
-                  const fg = await requestLocationPermission();
-                  if (fg.location === 'granted') {
-                    await requestBackgroundPermission();
-                    setTrackingEnabled(true);
-                    setProtectionSetupState('configured');
+                  try {
+                    const fg = await requestLocationPermission();
+                    if (fg.location === 'granted') {
+                      await requestBackgroundPermission();
+                      setTrackingEnabled(true);
+                      setProtectionSetupState('configured');
+                      patchOnboarding({
+                        protectionEducationAcknowledged: true,
+                        permissionsEducationAcknowledged: true,
+                      });
+                    } else {
+                      patchOnboarding({
+                        protectionEducationAcknowledged: true,
+                        permissionsEducationAcknowledged: true,
+                      });
+                    }
+                  } finally {
+                    setPermissionBusy(false);
+                    advanceOnboarding();
                   }
                 })();
-                advanceOnboarding();
               }}
-              accessibilityLabel="Turn on drive protection"
+              accessibilityLabel="Set up drive protection"
             />
             <TertiaryButton
-              label="Skip for now — add drives manually"
+              label="Not now — I’ll add drives manually"
               onPress={() => {
+                setTrackingEnabled(false);
                 setProtectionSetupState('not_started');
+                patchOnboarding({
+                  protectionEducationAcknowledged: true,
+                  permissionsEducationAcknowledged: true,
+                });
                 advanceOnboarding();
               }}
             />
@@ -200,28 +258,21 @@ export function OnboardingFlow() {
       ) : null}
 
       {step === 'welcome' ? (
-        <View>
-          <WelcomeHero
-            title="MileRecover"
-            body="Protect every work mile. Recover forgotten drives and create beautiful proof — without inventing mileage."
-          />
-        </View>
+        <WelcomeHero
+          title="MileRecover"
+          eyebrow="Never lose another work drive."
+          body="Automatically capture possible drives, review them in seconds, and create clear mileage proof."
+        />
       ) : null}
 
       {step === 'purpose' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            How do you use mileage?
+            What do you track mileage for?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            This sets report wording. You can change it anytime.
+            This shapes report wording. You can change it anytime.
           </Text>
-          <FormField
-            label="Preferred name (optional)"
-            value={nameDraft}
-            onChangeText={setNameDraft}
-            placeholder="First name"
-          />
           {PRIMARY_GOAL_OPTIONS.map((option) => (
             <SelectionCard
               key={option.id}
@@ -234,6 +285,16 @@ export function OnboardingFlow() {
               }}
             />
           ))}
+          {product.primaryGoal ? (
+            <View style={{ marginTop: spacing.md }}>
+              <FormField
+                label="Preferred name (optional)"
+                value={nameDraft}
+                onChangeText={setNameDraft}
+                placeholder="First name"
+              />
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -243,7 +304,7 @@ export function OnboardingFlow() {
             Country, units, and rate
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Choose how distance and value appear. Rates are your choice — not a tax guarantee.
+            Use your employer’s or business rate. You can change it anytime.
           </Text>
           {COUNTRY_OPTIONS.map((opt) => (
             <SelectionCard
@@ -256,14 +317,25 @@ export function OnboardingFlow() {
                 if (opt.id !== 'OTHER') {
                   const preset = localeProfileFromCountry(opt.id);
                   setUnitDraft(preset.distanceUnit);
-                  setRateCents(String(preset.rates[0]?.centsPerMile ?? ''));
+                  const cpm = preset.rates[0]?.centsPerMile ?? 0;
+                  setRateCents(
+                    String(
+                      preset.distanceUnit === 'km' ? Math.round(cpm / 1.609344) : cpm || '',
+                    ),
+                  );
                 }
               }}
             />
           ))}
-          <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>Distance unit</Text>
+          <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>
+            Distance unit
+          </Text>
           <SelectionCard title="Miles" selected={unitDraft === 'mi'} onPress={() => setUnitDraft('mi')} />
-          <SelectionCard title="Kilometers" selected={unitDraft === 'km'} onPress={() => setUnitDraft('km')} />
+          <SelectionCard
+            title="Kilometers"
+            selected={unitDraft === 'km'}
+            onPress={() => setUnitDraft('km')}
+          />
           {countryDraft === 'OTHER' ? (
             <FormField
               label="Currency code"
@@ -280,12 +352,12 @@ export function OnboardingFlow() {
             />
           ) : null}
           <FormField
-            label={unitDraft === 'km' ? 'Suggested rate (¢ per mile equivalent)' : 'Suggested rate (¢ per mile)'}
+            label={rateLabel}
             value={rateCents}
             onChangeText={setRateCents}
             placeholder="67"
             keyboardType="numeric"
-            accessibilityLabel="Suggested mileage rate"
+            accessibilityLabel="Mileage rate"
           />
           <Text style={[text.caption, { marginTop: spacing.xs }]}>{ratePreview}</Text>
         </View>
@@ -294,29 +366,24 @@ export function OnboardingFlow() {
       {step === 'protect_drives' ? (
         <View>
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Protect your drives
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Set up drive protection so fewer work miles are missed. Manual entry always works.
+            Protect future drives
           </Text>
           <SoftPanel>
-            <Text style={text.body}>Location while using the app</Text>
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>
-              {permissions.location === 'granted' ? 'Allowed' : 'Needed for automatic capture'}
+            <Text style={text.body}>Detect possible drives automatically</Text>
+            <Text style={[text.body, { marginTop: spacing.sm }]}>
+              Keep uncertain drives for your review
             </Text>
-            <Text style={[text.body, { marginTop: spacing.md }]}>Background location</Text>
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>
-              {permissions.backgroundLocation === 'granted'
-                ? 'Allowed'
-                : 'Helps catch drives when the app isn’t open'}
-            </Text>
-            <Text style={[text.body, { marginTop: spacing.md }]}>Battery settings</Text>
-            <Text style={[text.caption, { marginTop: spacing.xs }]}>
-              Some phones pause apps — we’ll help you check if needed.
-            </Text>
+            <Text style={[text.body, { marginTop: spacing.sm }]}>Add a drive manually anytime</Text>
           </SoftPanel>
+          <Text style={[text.body, { marginTop: spacing.md }]}>
+            We’ll ask for location so MileRecover can notice possible drives. Uncertain drives stay in
+            Review until you decide. We don’t invent mileage.
+          </Text>
           <Text style={[text.caption, { marginTop: spacing.sm }]}>
-            Skip for now if you prefer adding drives yourself.
+            Location: {permissions.location === 'granted' ? 'Allowed' : 'Not yet'}
+            {' · '}
+            Background:{' '}
+            {permissions.backgroundLocation === 'granted' ? 'Allowed' : 'Not yet'}
           </Text>
         </View>
       ) : null}
@@ -326,25 +393,36 @@ export function OnboardingFlow() {
           <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
             You’re ready
           </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            {protectionConfigured
+              ? 'Automatic protection is ready. We’ll place uncertain drives in Review before they affect your records.'
+              : 'You can add drives manually anytime. Turn on protection later from Profile when you’re ready.'}
+          </Text>
           <SoftPanel>
-            <Text style={text.body}>
-              Goal: {PRIMARY_GOAL_OPTIONS.find((o) => o.id === product.primaryGoal)?.label ?? 'Not set'}
-            </Text>
+            <Text style={text.subtitle}>{goalLabel}</Text>
             <Text style={[text.body, { marginTop: spacing.xs }]}>
               {product.localeProfile.countryDisplayName} ·{' '}
               {product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles'} ·{' '}
               {formatActiveRateLabel(product.localeProfile)}
             </Text>
             <Text style={[text.body, { marginTop: spacing.xs }]}>
-              Protection:{' '}
-              {product.trackingEnabled || product.protectionSetupState === 'configured'
-                ? 'On or ready to confirm'
-                : 'Manual for now'}
+              {protectionConfigured ? 'Protection ready' : 'Manual for now'}
             </Text>
           </SoftPanel>
-          <Text style={[text.body, { marginTop: spacing.md, marginBottom: spacing.md }]}>{next.body}</Text>
-          <PrimaryButton label="Go to Home" onPress={() => finish(next.route)} accessibilityLabel="Go to Home" />
-          <SecondaryButton label="Add a first drive" onPress={() => finish('ManualTrip')} />
+          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+            <PrimaryButton
+              label="Go to Home"
+              onPress={() => finish(null)}
+              disabled={finishing}
+              loading={finishing}
+              accessibilityLabel="Go to Home"
+            />
+            <SecondaryButton
+              label="Add my first drive"
+              onPress={() => finish('ManualTrip')}
+              disabled={finishing}
+            />
+          </View>
         </View>
       ) : null}
     </OnboardingScreen>

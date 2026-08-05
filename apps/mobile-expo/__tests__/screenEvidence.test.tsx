@@ -24,10 +24,16 @@ describe('Screen render evidence', () => {
       expect(copy.length).toBeGreaterThan(20);
     }
     expect(manifest['onboarding-welcome']).toMatch(/MileRecover|Protect every work mile/i);
-    expect(manifest['onboarding-purpose']).toMatch(/Employee|Business|Gig|Mixed|How do you use mileage/i);
+    expect(manifest['onboarding-purpose']).toMatch(
+      /Employee|Business|Gig|Mixed|What do you track mileage for|How do you use mileage/i,
+    );
     expect(manifest['onboarding-locale_setup']).toMatch(/Country|units|rate|Miles|Kilometers/i);
-    expect(manifest['onboarding-protect_drives']).toMatch(/Protect your drives|Set up drive protection|Skip for now/i);
-    expect(manifest['onboarding-ready']).toMatch(/You’re ready|You're ready|Add a first drive|Go to Home/i);
+    expect(manifest['onboarding-protect_drives']).toMatch(
+      /Protect future drives|Protect your drives|Set up protection|Set up drive protection|Not now|Skip for now/i,
+    );
+    expect(manifest['onboarding-ready']).toMatch(
+      /You’re ready|You're ready|Add my first drive|Add a first drive|Go to Home/i,
+    );
 
     for (const goal of ['employee_reimbursement', 'gig_delivery', 'self_employed_business', 'mixed'] as const) {
       const { copy } = await renderOnboarding('ready', { primaryGoal: goal });
@@ -47,7 +53,7 @@ describe('Screen render evidence', () => {
       preferredName: null,
     });
     manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
-    expect(liveHome.copy).toMatch(/Manual mode|Protected|Setup incomplete|Needs attention|Paused/i);
+    expect(liveHome.copy).toMatch(/Manual mode|Protected|Ready for your first drive|Needs attention|Paused/i);
     expect(liveHome.copy).toMatch(/Add a drive|protection|Next/i);
     expect(liveHome.copy).not.toContain('Alex Johnson');
     expect(liveHome.copy).not.toContain('87.6');
@@ -99,7 +105,7 @@ describe('Screen render evidence', () => {
     }
     expect(manifest['manual-trip']).toMatch(/Add drive|Work|Personal|Decide later|Distance|Save/i);
     expect(manifest['tracking-active']).toMatch(/How you track|Automatic protection|Manual trip/i);
-    expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help/i);
+    expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help|Review setup/i);
     expect(manifest['report-preview']).toMatch(/report|preview|work drive/i);
     expect(manifest['plan-selection']).toMatch(/Protect every work drive/i);
     expect(manifest['plan-selection']).toMatch(/Plus|Pro/i);
@@ -126,14 +132,14 @@ describe('Screen render evidence', () => {
 
     const proofReady = await renderTab('proof_ready', 'Proof', { demoModeEnabled: true });
     expect(proofReady.copy).toMatch(
-      /Create report|Estimated value|checks complete|Preview|Mileage reimbursement|Work mileage|Business mileage/i,
+      /READY|Readiness|Reports|Preview|CSV|Free export|Mileage reimbursement|Work mileage|Business mileage/i,
     );
 
     const proofBlocked = await renderTab('proof_blocked', 'Proof');
-    expect(proofBlocked.copy).toMatch(/Fix|Review|checks|Create report|needs/i);
+    expect(proofBlocked.copy).toMatch(/NEEDS 1 DETAIL|Fix|Review|Needs/i);
 
     const review = await renderTab('recovery_available', 'Review');
-    expect(review.copy).toMatch(/Needs you|You’re caught up|You're caught up|About 14\.2|Work|Personal/i);
+    expect(review.copy).toMatch(/Needs you|Possible drive|About 14\.2|Work|Personal|Not sure|Details/i);
 
     const profile = await renderTab('new_user', 'Profile', {
       demoModeEnabled: false,
@@ -143,7 +149,9 @@ describe('Screen render evidence', () => {
       showDevTools: true,
     });
     expect(profile.copy).toContain('Vehicles');
-    expect(profile.copy).toMatch(/Profile|Vehicles|Country|Units|Rates|Protection|Tracking|Import|Subscription|Privacy|Help|About/i);
+    expect(profile.copy).toMatch(
+      /PROFILE|VEHICLE & MILEAGE|TRACKING & RECOVERY|PLAN|SUPPORT & PRIVACY|Review setup|Reset app for testing/i,
+    );
     expect(profile.copy).not.toContain('Alex Johnson');
     expect(profile.copy).not.toContain('alex@example.com');
     expect(profile.copy).toMatch(/Not set|Free|About/i);

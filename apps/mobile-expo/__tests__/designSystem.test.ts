@@ -15,12 +15,32 @@ describe('Locked forest-green design tokens', () => {
     expect(colors.background.canvas).toBe('#FAFAF8');
   });
 
-  it('exports semantic light and dark palettes for themed UI', () => {
+  it('exports only the canonical light semantic palette for shipped UI', () => {
+    expect(Object.keys(lightSemantic)).toEqual([
+      'canvas',
+      'surface',
+      'surfaceMuted',
+      'surfaceSelected',
+      'textPrimary',
+      'textSecondary',
+      'textTertiary',
+      'border',
+      'primary',
+      'onPrimary',
+      'success',
+      'warning',
+      'danger',
+      'disabledSurface',
+      'disabledText',
+      'scrim',
+    ]);
     expect(lightSemantic.textPrimary).toBe(colors.text.primary);
-    expect(darkSemantic.textPrimary).toBe(darkColors.text.primary);
-    expect(darkColors.action.outlineBorder).toBe(darkSemantic.outlineBorder);
-    expect(darkColors.input.surface).toBe('#F5F5F4');
-    expect(darkColors.input.text).toBe('#1C1917');
+    expect(lightSemantic.primary).toBe(colors.action.primary);
+    expect(lightSemantic.onPrimary).toBe(colors.action.primaryText);
+    expect(lightSemantic.border).toBe(colors.border.default);
+    expect(lightSemantic.surfaceSelected).toBe(colors.action.selectedSurface);
+    expect(darkSemantic).toBe(lightSemantic);
+    expect(darkColors).toBe(colors);
   });
 
   it('exposes spacing steps used by the design system', () => {
