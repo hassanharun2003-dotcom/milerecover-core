@@ -1,4 +1,5 @@
 import type { TripRecord } from '../trips/types';
+import { haversineMeters, hasVisibleRouteGap, isImpossibleJump } from './gpsQuality';
 
 export interface LocationSample {
   latitude: number;
@@ -19,6 +20,10 @@ export interface TrackingConfig {
   maxSpeedMps: number;
   /** Ignore samples with worse accuracy (default 80m). */
   maxAccuracyMeters: number;
+  /** Speed above which a sample counts as moving (default 1.5 m/s). */
+  movingSpeedMps: number;
+  /** Minimum meters between samples to infer movement when speed is null. */
+  movingDistanceMeters: number;
 }
 
 export const DEFAULT_TRACKING_CONFIG: TrackingConfig = {
@@ -27,20 +32,9 @@ export const DEFAULT_TRACKING_CONFIG: TrackingConfig = {
   stopQuietMs: 180_000,
   maxSpeedMps: 50,
   maxAccuracyMeters: 80,
+  movingSpeedMps: 1.5,
+  movingDistanceMeters: 20,
 };
-
-function haversineMeters(a: LocationSample, b: LocationSample): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.latitude - a.latitude);
-  const dLon = toRad(b.longitude - a.longitude);
-  const lat1 = toRad(a.latitude);
-  const lat2 = toRad(b.latitude);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
 
 export function filterSample(sample: LocationSample, config = DEFAULT_TRACKING_CONFIG): boolean {
   if (sample.accuracyMeters != null && sample.accuracyMeters > config.maxAccuracyMeters) {
@@ -52,9 +46,30 @@ export function filterSample(sample: LocationSample, config = DEFAULT_TRACKING_C
   return true;
 }
 
+/**
+ * Conservative movement signal — never treats missing speed as movement by itself.
+ * When speed is null, require a real displacement from the previous accepted sample.
+ */
+export function sampleIndicatesMovement(
+  sample: LocationSample,
+  previous: LocationSample | null,
+  config = DEFAULT_TRACKING_CONFIG,
+): boolean {
+  if (sample.speedMps != null) {
+    return sample.speedMps >= config.movingSpeedMps;
+  }
+  if (!previous) return false;
+  if (isImpossibleJump(previous, sample, { maxSpeedMps: config.maxSpeedMps })) return false;
+  const meters = haversineMeters(previous, sample);
+  const dtSec = (sample.timestamp - previous.timestamp) / 1000;
+  if (dtSec <= 0) return false;
+  return meters >= config.movingDistanceMeters && meters / dtSec >= 0.8;
+}
+
 export function pathDistanceMeters(samples: LocationSample[]): number {
   let sum = 0;
   for (let i = 1; i < samples.length; i += 1) {
+    if (isImpossibleJump(samples[i - 1], samples[i])) continue;
     sum += haversineMeters(samples[i - 1], samples[i]);
   }
   return sum;
@@ -78,28 +93,38 @@ export function downsampleRoutePreview(
   return out;
 }
 
+export type SampleBufferEvaluation =
+  | { action: 'wait' }
+  | { action: 'close'; trip: TripRecord; consumedUntil: number }
+  | { action: 'discard'; consumedUntil: number; reason: 'insufficient_evidence' };
+
 /**
- * Segment an open buffer into a completed trip candidate when quiet time elapsed.
- * Never invents coordinates — returns null when evidence is insufficient.
+ * Evaluate an open buffer after samples arrive.
+ * Quiet + insufficient evidence discards the quiet window so noise cannot merge into a later drive.
+ * Never invents coordinates.
  */
-export function maybeCloseTripFromSamples(
+export function evaluateSampleBuffer(
   samples: LocationSample[],
   now = Date.now(),
   config = DEFAULT_TRACKING_CONFIG,
-): { trip: TripRecord; consumedUntil: number } | null {
-  const clean = samples.filter((s) => filterSample(s, config)).sort((a, b) => a.timestamp - b.timestamp);
-  if (clean.length < 2) return null;
+): SampleBufferEvaluation {
+  const clean = samples
+    .filter((s) => filterSample(s, config))
+    .sort((a, b) => a.timestamp - b.timestamp);
+  if (clean.length < 2) return { action: 'wait' };
   const first = clean[0];
   const last = clean[clean.length - 1];
-  if (now - last.timestamp < config.stopQuietMs) return null;
+  if (now - last.timestamp < config.stopQuietMs) return { action: 'wait' };
+
   const duration = last.timestamp - first.timestamp;
   const meters = pathDistanceMeters(clean);
   if (duration < config.minTripDurationMs || meters < config.minTripDistanceMeters) {
-    return null;
+    return { action: 'discard', consumedUntil: last.timestamp, reason: 'insufficient_evidence' };
   }
+
   const miles = meters / 1609.344;
   const hasGap =
-    clean.some((s, i) => i > 0 && s.timestamp - clean[i - 1].timestamp > 120_000) ||
+    hasVisibleRouteGap(clean, 120_000) ||
     clean.some((s) => s.accuracyMeters != null && s.accuracyMeters > 40);
 
   const routePreview = downsampleRoutePreview(clean);
@@ -125,7 +150,21 @@ export function maybeCloseTripFromSamples(
     createdAt: now,
     updatedAt: now,
   };
-  return { trip, consumedUntil: last.timestamp };
+  return { action: 'close', trip, consumedUntil: last.timestamp };
+}
+
+/**
+ * Segment an open buffer into a completed trip candidate when quiet time elapsed.
+ * @deprecated Prefer evaluateSampleBuffer — this wrapper returns null for wait/discard.
+ */
+export function maybeCloseTripFromSamples(
+  samples: LocationSample[],
+  now = Date.now(),
+  config = DEFAULT_TRACKING_CONFIG,
+): { trip: TripRecord; consumedUntil: number } | null {
+  const result = evaluateSampleBuffer(samples, now, config);
+  if (result.action !== 'close') return null;
+  return { trip: result.trip, consumedUntil: result.consumedUntil };
 }
 
 export function isDuplicateAutoTrip(candidate: TripRecord, existing: TripRecord[]): boolean {
@@ -136,4 +175,13 @@ export function isDuplicateAutoTrip(candidate: TripRecord, existing: TripRecord[
       Math.abs(t.endAt - candidate.endAt) < 120_000 &&
       Math.abs(t.distanceMiles - candidate.distanceMiles) < 0.3,
   );
+}
+
+/** Prevent overlapping auto sessions (start inside another auto trip window). */
+export function overlapsExistingAutoTrip(candidate: TripRecord, existing: TripRecord[]): boolean {
+  return existing.some((t) => {
+    if (t.source !== 'auto_detected') return false;
+    if (t.status === 'rejected') return false;
+    return candidate.startAt < t.endAt && candidate.endAt > t.startAt;
+  });
 }

@@ -40,14 +40,17 @@ export function formatReportRouteSummary(
   distanceMiles: number,
   startLabel?: string | null,
   endLabel?: string | null,
+  locale?: Pick<LocaleProfile, 'distanceUnit' | 'localeTag'> | null,
 ): string {
-  const miles = `${distanceMiles.toFixed(1)} mi`;
+  const distance = locale
+    ? formatDistance(distanceMiles, locale.distanceUnit, locale.localeTag, 1)
+    : `${distanceMiles.toFixed(1)} mi`;
   const start = startLabel?.trim() ?? '';
   const end = endLabel?.trim() ?? '';
-  if (!start && !end) return `${miles} · Route not added`;
-  if (start && end) return `${miles} · ${start} to ${end}`;
-  if (start) return `${miles} · From ${start}`;
-  return `${miles} · To ${end}`;
+  if (!start && !end) return `${distance} · Route not added`;
+  if (start && end) return `${distance} · ${start} to ${end}`;
+  if (start) return `${distance} · From ${start}`;
+  return `${distance} · To ${end}`;
 }
 
 export function displayPlaceOrRouteMissing(label?: string | null): string {

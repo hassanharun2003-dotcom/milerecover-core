@@ -2,18 +2,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import {
+  evaluateSampleBuffer,
   filterSample,
   isDuplicateAutoTrip,
   isImpossibleJump,
-  maybeCloseTripFromSamples,
+  overlapsExistingAutoTrip,
+  sampleIndicatesMovement,
   transitionTripMachine,
   type LocationSample,
   type TripMachineState,
   type TripRecord,
 } from '@milerecover/domain';
+import { enrichTripEndpoints } from './geocode';
 
 export const TRACKING_SAMPLE_STORAGE_KEY = '@milerecover/tracking/samples/v1';
 export const TRACKING_MACHINE_STORAGE_KEY = '@milerecover/tracking/machine/v1';
+export const TRACKING_PENDING_TRIPS_KEY = '@milerecover/tracking/pending-trips/v1';
 export const TASK_NAME = 'milerecover-tracking';
 const MAX_BUFFERED_SAMPLES = 2000;
 
@@ -52,6 +56,7 @@ interface TrackingControllerOptions {
   isAllowed: () => boolean;
   onEngineStateChange?: (state: EngineState, lastSampleAt: number | null) => void;
   getExistingTrips?: () => TripRecord[];
+  getPrimaryVehicleId?: () => string | null;
 }
 
 let sampleBuffer: LocationSample[] = [];
@@ -94,6 +99,60 @@ async function persistSampleBuffer(): Promise<void> {
   await AsyncStorage.setItem(TRACKING_SAMPLE_STORAGE_KEY, JSON.stringify(sampleBuffer.slice(-MAX_BUFFERED_SAMPLES)));
 }
 
+async function loadPendingTrips(): Promise<TripRecord[]> {
+  try {
+    const raw = await AsyncStorage.getItem(TRACKING_PENDING_TRIPS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as TripRecord[]) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function persistPendingTrips(trips: TripRecord[]): Promise<void> {
+  await AsyncStorage.setItem(TRACKING_PENDING_TRIPS_KEY, JSON.stringify(trips.slice(0, 50)));
+}
+
+async function enqueuePendingTrip(trip: TripRecord): Promise<void> {
+  const pending = await loadPendingTrips();
+  if (isDuplicateAutoTrip(trip, pending) || overlapsExistingAutoTrip(trip, pending)) return;
+  await persistPendingTrips([trip, ...pending]);
+}
+
+async function flushPendingTrips(emit: (trip: TripRecord) => void): Promise<void> {
+  const pending = await loadPendingTrips();
+  if (pending.length === 0) return;
+  await persistPendingTrips([]);
+  for (const trip of pending.reverse()) {
+    emit(trip);
+  }
+}
+
+async function applyBufferEvaluation(): Promise<void> {
+  const evaluation = evaluateSampleBuffer(sampleBuffer);
+  if (evaluation.action === 'wait') return;
+
+  if (evaluation.action === 'discard') {
+    activeController?.advanceMachine({ type: 'QUIET_ELAPSED' });
+    activeController?.advanceMachine({ type: 'EVIDENCE_INSUFFICIENT' });
+    sampleBuffer = sampleBuffer.filter((sample) => sample.timestamp > evaluation.consumedUntil);
+    activeController?.advanceMachine({ type: 'RESET' });
+    await persistSampleBuffer();
+    return;
+  }
+
+  activeController?.advanceMachine({ type: 'QUIET_ELAPSED' });
+  activeController?.advanceMachine({ type: 'EVIDENCE_SUFFICIENT' });
+  sampleBuffer = sampleBuffer.filter((sample) => sample.timestamp > evaluation.consumedUntil);
+  if (activeController) {
+    await activeController.handleClosedTrip(evaluation.trip);
+  } else {
+    await enqueuePendingTrip(evaluation.trip);
+  }
+  activeController?.advanceMachine({ type: 'RESET' });
+  await persistSampleBuffer();
+}
+
 async function appendSamples(locations: Location.LocationObject[]): Promise<void> {
   const candidates = locations
     .map(toSample)
@@ -113,23 +172,19 @@ async function appendSamples(locations: Location.LocationObject[]): Promise<void
   }
   if (accepted.length === 0) return;
 
+  const previousForMotion = sampleBuffer[sampleBuffer.length - 1] ?? null;
   sampleBuffer = [...sampleBuffer, ...accepted]
     .sort((a, b) => a.timestamp - b.timestamp)
     .slice(-MAX_BUFFERED_SAMPLES);
 
-  const moving = accepted.some((s) => (s.speedMps != null ? s.speedMps > 1.5 : true));
+  const moving = accepted.some((sample, index) => {
+    const prev =
+      index === 0 ? previousForMotion : accepted[index - 1] ?? previousForMotion;
+    return sampleIndicatesMovement(sample, prev);
+  });
   activeController?.advanceMachine({ type: 'SAMPLE_ACCEPTED', moving });
 
-  const closed = maybeCloseTripFromSamples(sampleBuffer);
-  if (closed && activeController) {
-    activeController.advanceMachine({ type: 'QUIET_ELAPSED' });
-    activeController.advanceMachine({ type: 'EVIDENCE_SUFFICIENT' });
-    sampleBuffer = sampleBuffer.filter((sample) => sample.timestamp > closed.consumedUntil);
-    activeController.handleClosedTrip(closed.trip);
-    activeController.advanceMachine({ type: 'RESET' });
-  }
-
-  await persistSampleBuffer();
+  await applyBufferEvaluation();
   activeController?.markLastSample(accepted[accepted.length - 1].timestamp);
 }
 
@@ -201,6 +256,9 @@ class TrackingControllerImpl implements TrackingController {
     this.setEngineState('starting');
     this.backgroundLimitedReason = null;
     await loadSampleBuffer();
+    await flushPendingTrips((trip) => {
+      void this.handleClosedTrip(trip);
+    });
 
     try {
       const saved = await AsyncStorage.getItem(TRACKING_MACHINE_STORAGE_KEY);
@@ -241,15 +299,7 @@ class TrackingControllerImpl implements TrackingController {
     const backgroundStarted = await this.tryStartBackgroundUpdates();
     this.setEngineState(backgroundStarted ? 'foreground_background' : 'foreground');
 
-    const closed = maybeCloseTripFromSamples(sampleBuffer);
-    if (closed) {
-      this.advanceMachine({ type: 'QUIET_ELAPSED' });
-      this.advanceMachine({ type: 'EVIDENCE_SUFFICIENT' });
-      sampleBuffer = sampleBuffer.filter((sample) => sample.timestamp > closed.consumedUntil);
-      this.handleClosedTrip(closed.trip);
-      this.advanceMachine({ type: 'RESET' });
-      await persistSampleBuffer();
-    }
+    await applyBufferEvaluation();
   }
 
   async stopTracking(): Promise<void> {
@@ -308,14 +358,37 @@ class TrackingControllerImpl implements TrackingController {
     };
   }
 
-  handleClosedTrip(trip: TripRecord): void {
+  async handleClosedTrip(trip: TripRecord): Promise<void> {
+    const primaryVehicleId = this.options.getPrimaryVehicleId?.() ?? null;
+    let nextTrip: TripRecord = {
+      ...trip,
+      vehicleId: trip.vehicleId ?? primaryVehicleId,
+    };
+
     const existing = [
       ...this.closedTrips,
       ...(this.options.getExistingTrips?.() ?? []),
     ];
-    if (isDuplicateAutoTrip(trip, existing)) return;
-    this.closedTrips = [trip, ...this.closedTrips].slice(0, 50);
-    this.options.onTripClosed(trip);
+    if (isDuplicateAutoTrip(nextTrip, existing) || overlapsExistingAutoTrip(nextTrip, existing)) {
+      return;
+    }
+
+    const start = nextTrip.routePreview?.[0] ?? null;
+    const end = nextTrip.routePreview?.[nextTrip.routePreview.length - 1] ?? null;
+    // Emit immediately so Review is not blocked by network geocoding.
+    this.closedTrips = [nextTrip, ...this.closedTrips].slice(0, 50);
+    this.options.onTripClosed(nextTrip);
+
+    void enrichTripEndpoints({ start, end }).then(({ startLabel, endLabel }) => {
+      if (!startLabel && !endLabel) return;
+      const enriched: TripRecord = {
+        ...nextTrip,
+        startLabel: startLabel ?? nextTrip.startLabel,
+        endLabel: endLabel ?? nextTrip.endLabel,
+        updatedAt: Date.now(),
+      };
+      this.options.onTripClosed(enriched);
+    });
   }
 
   markLastSample(timestamp: number): void {
@@ -355,11 +428,14 @@ class TrackingControllerImpl implements TrackingController {
           accuracy: Location.Accuracy.Balanced,
           timeInterval: 5000,
           distanceInterval: 25,
+          deferredUpdatesInterval: 10000,
           pausesUpdatesAutomatically: true,
-          showsBackgroundLocationIndicator: false,
+          activityType: Location.LocationActivityType.AutomotiveNavigation,
+          showsBackgroundLocationIndicator: true,
           foregroundService: {
             notificationTitle: 'MileRecover is protecting drives',
             notificationBody: 'Automatic capture is active. Turn off protection anytime in the app.',
+            notificationColor: '#1B5538',
           },
         });
       }

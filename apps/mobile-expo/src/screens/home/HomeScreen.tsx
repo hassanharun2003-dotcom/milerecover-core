@@ -6,14 +6,9 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
-  canCaptureAutomaticTrip,
   capabilitiesForEntitlement,
-  estimatedValueCents,
-  formatCurrencyCents,
-  formatDistance,
   rateForTimestamp,
   resolveProtectionStatus,
-  sumEstimatedValueCents,
 } from '@milerecover/domain';
 import {
   OfflineBanner,
@@ -27,6 +22,7 @@ import {
   text,
 } from '../../design-system';
 import { greetingForName, tripSourceLabel } from '../../product/copy';
+import { selectHomePeriodSummary, selectProtectionView } from '../../product/presentation';
 import { selectProductExperience } from '../../product/selectors';
 import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
@@ -44,6 +40,14 @@ function compactProtection(input: {
   status: ReturnType<typeof resolveProtectionStatus>['status'];
   primaryIssue: ReturnType<typeof resolveProtectionStatus>['primaryIssue'];
 }): { kind: CompactStatus; sentence: string; actionLabel: string; action: 'protection' | 'plans' | 'none' } {
+  if (input.primaryIssue?.action === 'see_plans') {
+    return {
+      kind: 'needs_attention',
+      sentence: input.primaryIssue.what,
+      actionLabel: 'See plans',
+      action: 'plans',
+    };
+  }
   switch (input.status) {
     case 'protected':
       return {
@@ -71,7 +75,7 @@ function compactProtection(input: {
         kind: 'manual_mode',
         sentence: 'Manual tracking is active. Set up automatic protection when you’re ready.',
         actionLabel: 'Set up protection',
-        action: 'plans',
+        action: 'protection',
       };
     case 'needs_attention':
     default:
@@ -129,18 +133,14 @@ export function HomeScreen() {
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const setupIncomplete =
     product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
-  const allowanceOk = canCaptureAutomaticTrip(product.entitlement, state.trips);
-  const protection = resolveProtectionStatus({
+  const pendingReviewCount = experience.activeReviewItems.length;
+  const protection = selectProtectionView({
+    app: state,
+    product,
     permissions,
-    trackingEnabled: product.trackingEnabled,
-    canUseAutomaticCapture: capabilities.canUseAutomaticCapture && automaticCaptureAvailable,
-    trackingEngineState: state.trackingEngineState,
-    lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
-    lastSyncAt: state.lastSyncAt,
-    pendingReviewCount: experience.activeReviewItems.length,
-    setupIncomplete,
+    automaticCaptureAvailable,
+    pendingReviewCount,
     offline: scenario.homeState === 'offline',
-    automaticAllowanceExhausted: capabilities.canUseAutomaticCapture && !allowanceOk,
   });
   const compact = compactProtection(protection);
 
@@ -149,15 +149,13 @@ export function HomeScreen() {
   const locale = product.localeProfile;
   const currentRate = rateForTimestamp(locale.rates, Date.now());
   const rateUsable = currentRate != null && !locale.activeRateNeedsReview;
-  const protectedMiles = scenario.weekSummary.milesProtected;
-  const snapshotTotal = sumEstimatedValueCents(experience.confirmedTrips, locale);
-  const estimatedProtected =
-    snapshotTotal ??
-    (rateUsable && currentRate != null
-      ? estimatedValueCents(protectedMiles, currentRate.centsPerMile)
-      : null);
-  const recoveredMiles = scenario.weekSummary.recoveredMiles;
-  const pendingReviewCount = experience.activeReviewItems.length;
+  const periodSummary = selectHomePeriodSummary({
+    trips: experience.confirmedTrips,
+    locale,
+    preferredName: product.preferredName,
+    primaryGoal: product.primaryGoal,
+    periodKind: 'this_week',
+  });
 
   const nextBest = useMemo(() => {
     // Priority: blocking tracking → classification → report correction → rate → recovery → report ready → caught up
@@ -335,31 +333,22 @@ export function HomeScreen() {
         emphasis="subtle"
       />
 
-      <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>This period</Text>
+      <Text style={[text.subtitle, { marginBottom: spacing.xs, marginTop: spacing.sm }]}>
+        {periodSummary.periodLabel}
+      </Text>
       <SummaryCard
         items={[
           {
             label: locale.distanceUnit === 'km' ? 'Work distance' : 'Work miles',
-            value: formatDistance(protectedMiles, locale.distanceUnit, locale.localeTag, 1).replace(
-              ` ${locale.distanceUnit}`,
-              '',
-            ),
+            value: periodSummary.workDistanceLabel.replace(` ${locale.distanceUnit}`, ''),
           },
           {
             label: 'Estimated value',
-            value:
-              estimatedProtected != null
-                ? formatCurrencyCents(estimatedProtected, locale.currencyCode, locale.localeTag)
-                : locale.activeRateNeedsReview
-                  ? 'Review rate'
-                  : '—',
+            value: periodSummary.estimatedValueLabel,
           },
           {
             label: 'Recovered',
-            value: formatDistance(recoveredMiles, locale.distanceUnit, locale.localeTag, 1).replace(
-              ` ${locale.distanceUnit}`,
-              '',
-            ),
+            value: periodSummary.recoveredDistanceLabel.replace(` ${locale.distanceUnit}`, ''),
           },
           {
             label: 'Needs review',

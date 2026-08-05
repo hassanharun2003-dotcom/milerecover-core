@@ -320,6 +320,11 @@ export function ProofScreen() {
               value={recommendedCount > 0 ? String(recommendedCount) : 'None'}
               showChevron={false}
             />
+            <ListRow
+              label="Report generated"
+              value={new Date(report.generatedAt).toLocaleString(locale.localeTag)}
+              showChevron={false}
+            />
             {fixTarget ? (
               <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
             ) : (

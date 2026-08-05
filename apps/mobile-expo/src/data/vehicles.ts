@@ -64,3 +64,14 @@ export function searchModels(make: string, q: string): string[] {
   if (!query) return [...models];
   return models.filter((model) => matchesQuery(model, query));
 }
+
+/** True when model is empty, Other, custom free-text, or listed under make. */
+export function isModelCompatibleWithMake(make: string, model: string): boolean {
+  const m = make.trim();
+  const modelName = model.trim();
+  if (!m || !modelName) return true;
+  if (m === 'Other' || modelName === 'Other') return true;
+  const known = MODELS_BY_MAKE[m];
+  if (!known) return true; // unknown make → allow typed model
+  return known.some((entry) => entry.toLowerCase() === modelName.toLowerCase());
+}

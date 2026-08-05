@@ -65,6 +65,10 @@ function TrackingBootstrap({ children }: { children: React.ReactNode }) {
           setTrackingEngineState(mapEngineRuntimeToShell(runtime), lastSampleAt);
         },
         getExistingTrips: () => tripsRef.current,
+        getPrimaryVehicleId: () =>
+          productRef.current.vehicles.find((vehicle) => vehicle.isPrimary)?.id ??
+          productRef.current.vehicles[0]?.id ??
+          null,
       }),
     [setTrackingEngineState, upsertTrip],
   );

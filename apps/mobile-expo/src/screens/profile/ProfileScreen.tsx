@@ -3,11 +3,17 @@ import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { capabilitiesForEntitlement, formatActiveRateLabel, resolveProtectionStatus } from '@milerecover/domain';
+import { formatActiveRateLabel } from '@milerecover/domain';
 import { ListRow, ListSection, TabScreen } from '../../design-system';
 import { DEMO_SCENARIO_LIST } from '../../fixtures/scenarios';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { useProduct } from '../../product/ProductContext';
+import {
+  selectAllowance,
+  selectEntitlementPlanLabel,
+  selectPendingReviewCount,
+  selectProtectionView,
+} from '../../product/presentation';
 import { DRIVING_PATTERN_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
 import { useApp } from '../../store/AppContext';
 
@@ -23,26 +29,22 @@ export function ProfileScreen() {
   const displayName = product.preferredName?.trim() || 'Not set';
   const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label ?? 'Not set';
   const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
-  const capabilities = capabilitiesForEntitlement(product.entitlement);
-  const setupIncomplete =
-    product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
-  const protection = resolveProtectionStatus({
+  const pendingReviewCount = selectPendingReviewCount(
+    state,
+    product,
     permissions,
-    trackingEnabled: product.trackingEnabled,
-    canUseAutomaticCapture: capabilities.canUseAutomaticCapture && automaticCaptureAvailable,
-    trackingEngineState: state.trackingEngineState,
-    lastConfirmedCaptureAt: state.lastConfirmedCaptureAt,
-    lastSyncAt: state.lastSyncAt,
-    pendingReviewCount: state.reviewItems.length,
-    setupIncomplete,
+    automaticCaptureAvailable,
+  );
+  const protection = selectProtectionView({
+    app: state,
+    product,
+    permissions,
+    automaticCaptureAvailable,
+    pendingReviewCount,
   });
+  const allowance = selectAllowance(state, product);
   const rateLabel = formatActiveRateLabel(product.localeProfile);
-  const planLabel =
-    product.entitlement.planId === 'free'
-      ? 'Free'
-      : product.entitlement.status === 'trialActive'
-        ? `${product.entitlement.planId.toUpperCase()} trial`
-        : product.entitlement.planId.toUpperCase();
+  const planLabel = selectEntitlementPlanLabel(product.entitlement);
 
   return (
     <TabScreen>
@@ -108,6 +110,15 @@ export function ProfileScreen() {
         <ListRow
           label="Tracking mode"
           value={product.trackingEnabled ? 'Automatic protection' : 'Manual'}
+          onPress={() => navigation.navigate('TrackingActive')}
+        />
+        <ListRow
+          label="Auto trips this month"
+          value={
+            allowance.limit == null
+              ? `${allowance.used} · Unlimited`
+              : `${allowance.used} of ${allowance.limit}`
+          }
           onPress={() => navigation.navigate('TrackingActive')}
         />
       </ListSection>

@@ -29,6 +29,9 @@ import {
   resolveTripEstimatedValue,
   shouldOfferTrial,
   validateManualTripInput,
+  applyVehicleFieldUpdate,
+  describeAutomaticAllowance,
+  suggestedNickname,
   vehicleDisplaySubtitle,
   vehicleDisplayTitle,
   type MileageReportData,
@@ -59,7 +62,7 @@ import {
   TertiaryButton,
   text,
 } from '../../design-system';
-import { searchMakes, searchModels } from '../../data/vehicles';
+import { isModelCompatibleWithMake, searchMakes, searchModels } from '../../data/vehicles';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
 import { nextActionForGoal, voiceForDrivingType } from '../../product/copy';
@@ -1340,9 +1343,11 @@ export function ProtectionAlertScreen() {
 
 export function TrackingActiveScreen() {
   const navigation = useNavigation<Nav>();
-  const { permissions } = useApp();
+  const { permissions, state } = useApp();
   const { product, setTrackingEnabled } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const allowance = describeAutomaticAllowance(product.entitlement, state.trips);
+  const allowanceOk = allowance.remaining == null || allowance.remaining > 0;
   const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
 
   const refreshDiagnostics = () => {
@@ -1353,10 +1358,21 @@ export function TrackingActiveScreen() {
     refreshDiagnostics();
   }, [product.trackingEnabled]);
 
-  const canStart = capabilities.canUseAutomaticCapture;
+  const canStart = capabilities.canUseAutomaticCapture && allowanceOk;
   const automaticOn = product.trackingEnabled && canStart;
+  const automaticBody = !capabilities.canUseAutomaticCapture
+    ? 'Automatic capture needs a paid plan. Manual trips stay free.'
+    : !allowanceOk
+      ? `Free includes ${allowance.limit ?? 40} automatic trips this month — limit reached. Manual trips stay free.`
+      : automaticOn
+        ? `On — protecting drives when permissions allow.${
+            allowance.remaining != null ? ` ${allowance.remaining} of ${allowance.limit} auto trips left this month.` : ''
+          }`
+        : `Turn on to protect drives automatically.${
+            allowance.remaining != null ? ` Free includes ${allowance.limit} auto trips/month.` : ''
+          } You’ll still review anything uncertain.`;
   const start = () => {
-    if (!canStart) {
+    if (!capabilities.canUseAutomaticCapture || !allowanceOk) {
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
@@ -1378,13 +1394,7 @@ export function TrackingActiveScreen() {
       </Text>
       <SelectionCard
         title="Automatic protection"
-        body={
-          canStart
-            ? automaticOn
-              ? 'On — MileRecover watches for drives in the background when permissions allow.'
-              : 'Turn on to protect drives automatically. You’ll still review anything uncertain.'
-            : 'Available with Plus after a real store trial or purchase. Manual trips stay free.'
-        }
+        body={automaticBody}
         selected={automaticOn}
         onPress={start}
       />
@@ -1399,6 +1409,14 @@ export function TrackingActiveScreen() {
       />
       <ListSection title="Current status">
         <EvidenceRow label="Automatic protection" value={automaticOn ? 'On' : 'Off'} />
+        <EvidenceRow
+          label="Auto trips this month"
+          value={
+            allowance.limit == null
+              ? `${allowance.used} · Unlimited`
+              : `${allowance.used} of ${allowance.limit}`
+          }
+        />
         <EvidenceRow label="While using the app" value={permissions.location === 'granted' ? 'On' : 'Off'} />
         <EvidenceRow label="In the background" value={permissions.backgroundLocation === 'granted' ? 'On' : 'Off'} />
         <EvidenceRow
@@ -1435,12 +1453,13 @@ export function TrackingActiveScreen() {
 
 export function VehicleSetupScreen() {
   const navigation = useNavigation<Nav>();
-  const { product, upsertVehicle } = useProduct();
+  const { product, upsertVehicle, deleteVehicle } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const primary = product.vehicles.find((v) => v.isPrimary) ?? product.vehicles[0];
   const [editingId, setEditingId] = useState<string | null>(primary?.id ?? null);
   const editing = product.vehicles.find((v) => v.id === editingId) ?? null;
   const [nickname, setNickname] = useState(editing?.nickname ?? '');
+  const [nicknameUserSet, setNicknameUserSet] = useState(editing?.nicknameUserSet === true);
   const [year, setYear] = useState(editing?.year ?? '');
   const [make, setMake] = useState(editing?.make ?? '');
   const [model, setModel] = useState(editing?.model ?? '');
@@ -1451,6 +1470,7 @@ export function VehicleSetupScreen() {
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [saved, setSaved] = useState(false);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const isNew = editingId == null;
   const atFreeLimit = isNew && product.vehicles.length >= capabilities.maxVehicles;
   const makeMatches = useMemo(() => searchMakes(makeQuery || make).slice(0, 8), [make, makeQuery]);
@@ -1469,10 +1489,32 @@ export function VehicleSetupScreen() {
     );
   }, [product.vehicles, vehicleSearch]);
 
+  const applyMakeChange = (nextMake: string) => {
+    const previous = {
+      id: editing?.id ?? 'draft',
+      nickname,
+      year,
+      make,
+      model,
+      plate,
+      isPrimary,
+      nicknameUserSet,
+    };
+    const next = applyVehicleFieldUpdate(previous, { make: nextMake, model: '' });
+    setMake(nextMake);
+    setMakeQuery(nextMake);
+    setModel('');
+    setModelQuery('');
+    if (!nicknameUserSet) setNickname(suggestedNickname({ year, make: nextMake, model: '' }));
+    setValidationMessage(null);
+    void next;
+  };
+
   const loadVehicle = (vehicleId: string | null) => {
     const vehicle = vehicleId ? product.vehicles.find((item) => item.id === vehicleId) : null;
     setEditingId(vehicleId);
     setNickname(vehicle?.nickname ?? '');
+    setNicknameUserSet(vehicle?.nicknameUserSet === true);
     setYear(vehicle?.year ?? '');
     setMake(vehicle?.make ?? '');
     setModel(vehicle?.model ?? '');
@@ -1481,6 +1523,7 @@ export function VehicleSetupScreen() {
     setModelQuery(vehicle?.model ?? '');
     setIsPrimary(vehicle?.isPrimary ?? product.vehicles.length === 0);
     setSaved(false);
+    setValidationMessage(null);
   };
 
   const save = () => {
@@ -1491,9 +1534,25 @@ export function VehicleSetupScreen() {
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
+    if (!isModelCompatibleWithMake(make, model)) {
+      setValidationMessage('That model doesn’t match the selected make. Choose a model from the list or Other.');
+      return;
+    }
     const composed = [year.trim(), make.trim(), model.trim()].filter(Boolean).join(' ');
     const nick = nickname.trim();
     const id = editing?.id ?? localId('vehicle');
+    const duplicate = product.vehicles.some(
+      (vehicle) =>
+        vehicle.id !== id &&
+        vehicle.year.trim() === year.trim() &&
+        vehicle.make.trim().toLowerCase() === make.trim().toLowerCase() &&
+        vehicle.model.trim().toLowerCase() === model.trim().toLowerCase() &&
+        vehicle.plate.trim().toLowerCase() === plate.trim().toLowerCase(),
+    );
+    if (duplicate) {
+      setValidationMessage('A matching vehicle is already saved. Edit that one instead.');
+      return;
+    }
     upsertVehicle({
       id,
       nickname: nick || composed || 'My vehicle',
@@ -1503,11 +1562,12 @@ export function VehicleSetupScreen() {
       plate: plate.trim(),
       isPrimary,
       createdAt: editing?.createdAt,
-      nicknameUserSet: Boolean(nick) && nick !== composed,
+      nicknameUserSet: nicknameUserSet || (Boolean(nick) && nick !== composed),
     });
     setEditingId(id);
     setSaved(true);
     setLimitMessage(null);
+    setValidationMessage(null);
   };
 
   return (
@@ -1519,6 +1579,9 @@ export function VehicleSetupScreen() {
         emphasis="subtle"
       />
       {limitMessage ? <StatusCard variant="warning" title="Vehicle limit" body={limitMessage} emphasis="subtle" /> : null}
+      {validationMessage ? (
+        <StatusCard variant="warning" title="Check vehicle details" body={validationMessage} emphasis="subtle" />
+      ) : null}
       {product.vehicles.length > 0 ? (
         <ListSection title="Your vehicles">
           <FormField
@@ -1532,11 +1595,12 @@ export function VehicleSetupScreen() {
             <SelectionCard
               key={vehicle.id}
               title={vehicleDisplayTitle(vehicle)}
-              body={
-                vehicle.isPrimary
-                  ? 'Primary · tap to edit'
-                  : vehicleDisplaySubtitle(vehicle) ?? 'Tap to edit'
-              }
+              body={[
+                vehicle.isPrimary ? 'Primary' : null,
+                vehicleDisplaySubtitle(vehicle),
+              ]
+                .filter(Boolean)
+                .join(' · ') || 'Tap to edit'}
               selected={editingId === vehicle.id}
               onPress={() => loadVehicle(vehicle.id)}
             />
@@ -1547,7 +1611,10 @@ export function VehicleSetupScreen() {
       <FormField
         label="Year"
         value={year}
-        onChangeText={setYear}
+        onChangeText={(value) => {
+          setYear(value);
+          if (!nicknameUserSet) setNickname(suggestedNickname({ year: value, make, model }));
+        }}
         placeholder="2022"
         keyboardType="numeric"
         accessibilityLabel="Vehicle year"
@@ -1557,7 +1624,7 @@ export function VehicleSetupScreen() {
         value={makeQuery}
         onChangeText={(value) => {
           setMakeQuery(value);
-          setMake(value);
+          applyMakeChange(value);
         }}
         placeholder="Honda, Toyota…"
         accessibilityLabel="Search vehicle make"
@@ -1567,21 +1634,13 @@ export function VehicleSetupScreen() {
           key={choice}
           title={choice}
           selected={make === choice}
-          onPress={() => {
-            setMake(choice);
-            setMakeQuery(choice);
-            setModel('');
-            setModelQuery('');
-          }}
+          onPress={() => applyMakeChange(choice)}
         />
       ))}
       <SelectionCard
         title="Other"
         selected={make === 'Other'}
-        onPress={() => {
-          setMake('Other');
-          setMakeQuery('Other');
-        }}
+        onPress={() => applyMakeChange('Other')}
       />
       <FormField
         label="Search model"
@@ -1589,6 +1648,7 @@ export function VehicleSetupScreen() {
         onChangeText={(value) => {
           setModelQuery(value);
           setModel(value);
+          if (!nicknameUserSet) setNickname(suggestedNickname({ year, make, model: value }));
         }}
         placeholder="Civic, Camry, or Other"
         accessibilityLabel="Search vehicle model"
@@ -1601,13 +1661,17 @@ export function VehicleSetupScreen() {
           onPress={() => {
             setModel(choice);
             setModelQuery(choice);
+            if (!nicknameUserSet) setNickname(suggestedNickname({ year, make, model: choice }));
           }}
         />
       ))}
       <FormField
         label="Nickname (optional)"
         value={nickname}
-        onChangeText={setNickname}
+        onChangeText={(value) => {
+          setNickname(value);
+          setNicknameUserSet(true);
+        }}
         placeholder="Work sedan"
       />
       <FormField label="License plate (optional)" value={plate} onChangeText={setPlate} placeholder="Optional" />
@@ -1622,6 +1686,24 @@ export function VehicleSetupScreen() {
         onPress={save}
         disabled={!nickname.trim() && !make.trim() && !model.trim() && !year.trim()}
       />
+      {!isNew && editingId ? (
+        <DestructiveButton
+          label="Delete vehicle"
+          onPress={() => {
+            Alert.alert('Delete this vehicle?', 'Drives keep their history. New automatic drives will use your next primary vehicle.', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: () => {
+                  deleteVehicle(editingId);
+                  loadVehicle(null);
+                },
+              },
+            ]);
+          }}
+        />
+      ) : null}
       {saved ? <StatusCard variant="success" title="Saved" body="Vehicle details are stored locally." emphasis="subtle" /> : null}
     </ScrollScreen>
   );
@@ -2069,7 +2151,18 @@ export function ReportPreviewScreen() {
         <EvidenceRow label="Period" value={report.period.label} />
         <EvidenceRow label="Driver" value={report.userName ?? 'Add a name in Profile'} />
         <EvidenceRow label="Work drives" value={String(report.tripCount)} />
-        <EvidenceRow label="Total miles" value={`${report.totalMiles.toFixed(1)} mi`} />
+        <EvidenceRow
+          label={product.localeProfile.distanceUnit === 'km' ? 'Work distance' : 'Total miles'}
+          value={formatDistance(
+            report.totalMiles,
+            product.localeProfile.distanceUnit,
+            product.localeProfile.localeTag,
+          )}
+        />
+        <EvidenceRow
+          label="Generated"
+          value={new Date(report.generatedAt).toLocaleString(product.localeProfile.localeTag)}
+        />
         <EvidenceRow
           label="Open items left out"
           value={report.unresolvedCount === 0 ? '0 · all reviewed' : String(report.unresolvedCount)}

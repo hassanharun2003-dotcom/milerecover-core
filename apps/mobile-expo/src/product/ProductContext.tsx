@@ -8,8 +8,10 @@ import React, {
   useState,
 } from 'react';
 import {
+  applyVehicleFieldUpdate,
   calendarPeriodKey,
   canRunMissingScan,
+  capabilitiesForEntitlement,
   createEmptyOnboardingState,
   createFreeEntitlement,
   CURRENT_ONBOARDING_VERSION,
@@ -115,6 +117,8 @@ interface ProductContextValue {
   pushReviewHistory: (entry: ReviewHistoryEntry) => void;
   markReviewHistoryUndone: (entryId: string) => void;
   upsertVehicle: (vehicle: VehicleUpsert) => void;
+  /** Returns false when Free vehicle limit would be exceeded for a new vehicle. */
+  deleteVehicle: (vehicleId: string) => void;
   upsertWorkLocation: (location: WorkLocationUpsert) => void;
   setNotificationPreferences: (partial: Partial<ProductUiState['notificationPreferences']>) => void;
   setImportPhase: (phase: ImportFlowPhase, fileLabel?: string | null, csvText?: string | null) => void;
@@ -616,20 +620,44 @@ export function ProductProvider({
       upsertVehicle: (vehicle) =>
         persist((prev) => {
           const now = Date.now();
+          const exists = prev.vehicles.some((item) => item.id === vehicle.id);
+          const caps = capabilitiesForEntitlement(prev.entitlement);
+          if (!exists && prev.vehicles.length >= caps.maxVehicles) {
+            return prev;
+          }
+          const previous = prev.vehicles.find((item) => item.id === vehicle.id);
           const makePrimary = vehicle.isPrimary ?? prev.vehicles.length === 0;
+          const base = previous
+            ? applyVehicleFieldUpdate(
+                previous,
+                {
+                  year: vehicle.year,
+                  make: vehicle.make,
+                  model: vehicle.model,
+                  plate: vehicle.plate,
+                  nickname: vehicle.nickname,
+                  isPrimary: makePrimary,
+                },
+                { nicknameEdited: vehicle.nicknameUserSet === true },
+              )
+            : {
+                id: vehicle.id,
+                nickname: vehicle.nickname?.trim() || 'My vehicle',
+                year: vehicle.year?.trim() ?? '',
+                make: vehicle.make?.trim() ?? '',
+                model: vehicle.model?.trim() ?? '',
+                plate: vehicle.plate?.trim() ?? '',
+                isPrimary: makePrimary,
+                nicknameUserSet: vehicle.nicknameUserSet === true,
+              };
           const nextVehicle: VehicleDraft = {
-            ...vehicle,
-            nickname: vehicle.nickname?.trim() || 'My vehicle',
-            year: vehicle.year?.trim() ?? '',
-            make: vehicle.make?.trim() ?? '',
-            model: vehicle.model?.trim() ?? '',
-            plate: vehicle.plate?.trim() ?? '',
-            isPrimary: makePrimary,
-            nicknameUserSet: vehicle.nicknameUserSet === true,
-            createdAt: vehicle.createdAt ?? now,
+            ...base,
+            plate: base.plate ?? '',
+            isPrimary: base.isPrimary === true,
+            nicknameUserSet: base.nicknameUserSet === true,
+            createdAt: vehicle.createdAt ?? previous?.createdAt ?? now,
             updatedAt: now,
           };
-          const exists = prev.vehicles.some((item) => item.id === nextVehicle.id);
           let vehicles = exists
             ? prev.vehicles.map((item) => (item.id === nextVehicle.id ? nextVehicle : item))
             : [...prev.vehicles, nextVehicle];
@@ -647,6 +675,19 @@ export function ProductProvider({
               vehicleSetupState,
               completedSteps: uniqueSteps([...prev.onboarding.completedSteps, 'vehicle_setup']),
             },
+          );
+        }),
+      deleteVehicle: (vehicleId) =>
+        persist((prev) => {
+          const vehicles = prev.vehicles.filter((item) => item.id !== vehicleId);
+          if (vehicles.length > 0 && !vehicles.some((item) => item.isPrimary)) {
+            vehicles[0] = { ...vehicles[0], isPrimary: true, updatedAt: Date.now() };
+          }
+          const vehicleSetupState =
+            vehicles.length === 0 ? 'not_started' : vehicles.length > 1 ? 'multi' : 'added';
+          return patchOnboardingState(
+            { ...prev, vehicles },
+            { vehicleSetupState },
           );
         }),
       upsertWorkLocation: (location) =>
