@@ -62,7 +62,8 @@ describe('Entitlements', () => {
   it('keeps Free usable and never grants Plus from UI alone', () => {
     const free = createFreeEntitlement();
     const caps = capabilitiesForEntitlement(free);
-    expect(caps.canUseAutomaticCapture).toBe(false);
+    expect(caps.canUseAutomaticCapture).toBe(true);
+    expect(caps.automaticTripLimit).toBe(40);
     expect(caps.canUseStandardPdf).toBe(false);
     expect(caps.maxVehicles).toBe(1);
   });
@@ -90,7 +91,8 @@ describe('Entitlements', () => {
     const expired = expireTrialIfNeeded(active, Date.now());
     expect(expired.status).toBe('expired');
     expect(expired.planId).toBe('free');
-    expect(capabilitiesForEntitlement(expired).canUseAutomaticCapture).toBe(false);
+    // Expired trial returns to Free-tier capped automatic capture, not Plus unlimited.
+    expect(capabilitiesForEntitlement(expired).automaticTripLimit).toBe(40);
   });
 
   it('caps trial offers', () => {

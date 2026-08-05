@@ -4,16 +4,20 @@ import * as TaskManager from 'expo-task-manager';
 import {
   filterSample,
   isDuplicateAutoTrip,
+  isImpossibleJump,
   maybeCloseTripFromSamples,
+  transitionTripMachine,
   type LocationSample,
+  type TripMachineState,
   type TripRecord,
 } from '@milerecover/domain';
 
 export const TRACKING_SAMPLE_STORAGE_KEY = '@milerecover/tracking/samples/v1';
+export const TRACKING_MACHINE_STORAGE_KEY = '@milerecover/tracking/machine/v1';
 export const TASK_NAME = 'milerecover-tracking';
 const MAX_BUFFERED_SAMPLES = 2000;
 
-type EngineState =
+export type EngineState =
   | 'idle'
   | 'starting'
   | 'foreground'
@@ -33,6 +37,7 @@ export interface TrackingDiagnostics {
   lastSampleAt: number | null;
   sampleCount: number;
   engineState: EngineState;
+  tripMachineState: TripMachineState;
   automaticCaptureAvailable: boolean;
 }
 
@@ -45,6 +50,8 @@ export interface TrackingController {
 interface TrackingControllerOptions {
   onTripClosed: (trip: TripRecord) => void;
   isAllowed: () => boolean;
+  onEngineStateChange?: (state: EngineState, lastSampleAt: number | null) => void;
+  getExistingTrips?: () => TripRecord[];
 }
 
 let sampleBuffer: LocationSample[] = [];
@@ -88,21 +95,38 @@ async function persistSampleBuffer(): Promise<void> {
 }
 
 async function appendSamples(locations: Location.LocationObject[]): Promise<void> {
-  const accepted = locations
+  const candidates = locations
     .map(toSample)
     .filter((sample): sample is LocationSample => sample != null && filterSample(sample));
 
-  if (accepted.length === 0) return;
+  if (candidates.length === 0) return;
 
   await loadSampleBuffer();
+  const accepted: LocationSample[] = [];
+  for (const sample of candidates) {
+    const previous = sampleBuffer[sampleBuffer.length - 1] ?? accepted[accepted.length - 1] ?? null;
+    if (previous && isImpossibleJump(previous, sample)) {
+      activeController?.noteRejectedSample('impossible_jump');
+      continue;
+    }
+    accepted.push(sample);
+  }
+  if (accepted.length === 0) return;
+
   sampleBuffer = [...sampleBuffer, ...accepted]
     .sort((a, b) => a.timestamp - b.timestamp)
     .slice(-MAX_BUFFERED_SAMPLES);
 
+  const moving = accepted.some((s) => (s.speedMps != null ? s.speedMps > 1.5 : true));
+  activeController?.advanceMachine({ type: 'SAMPLE_ACCEPTED', moving });
+
   const closed = maybeCloseTripFromSamples(sampleBuffer);
   if (closed && activeController) {
+    activeController.advanceMachine({ type: 'QUIET_ELAPSED' });
+    activeController.advanceMachine({ type: 'EVIDENCE_SUFFICIENT' });
     sampleBuffer = sampleBuffer.filter((sample) => sample.timestamp > closed.consumedUntil);
     activeController.handleClosedTrip(closed.trip);
+    activeController.advanceMachine({ type: 'RESET' });
   }
 
   await persistSampleBuffer();
@@ -116,6 +140,7 @@ function defineBackgroundTask(): boolean {
       TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
         if (error) {
           activeController?.markBackgroundLimited(error.message);
+          activeController?.advanceMachine({ type: 'ENGINE_ERROR', recoverable: true });
           return;
         }
         const locations = (data as { locations?: Location.LocationObject[] } | undefined)?.locations ?? [];
@@ -137,6 +162,7 @@ defineBackgroundTask();
 class TrackingControllerImpl implements TrackingController {
   private foregroundSubscription: Location.LocationSubscription | null = null;
   private engineState: EngineState = 'idle';
+  private tripMachineState: TripMachineState = 'IDLE';
   private lastSampleAt: number | null = null;
   private backgroundLimitedReason: string | null = null;
   private closedTrips: TripRecord[] = [];
@@ -147,21 +173,52 @@ class TrackingControllerImpl implements TrackingController {
     this.options = options;
   }
 
+  private setEngineState(next: EngineState): void {
+    this.engineState = next;
+    this.options.onEngineStateChange?.(next, this.lastSampleAt);
+  }
+
+  advanceMachine(event: Parameters<typeof transitionTripMachine>[1]): void {
+    const result = transitionTripMachine(this.tripMachineState, event);
+    if (result.changed) {
+      this.tripMachineState = result.next;
+      void AsyncStorage.setItem(TRACKING_MACHINE_STORAGE_KEY, result.next);
+    }
+  }
+
+  noteRejectedSample(_reason: string): void {
+    this.advanceMachine({ type: 'SAMPLE_REJECTED' });
+  }
+
   async startTracking(): Promise<void> {
     if (!this.options.isAllowed()) {
-      this.engineState = 'not_allowed';
+      this.setEngineState('not_allowed');
       return;
     }
     if (this.foregroundSubscription) return;
 
     activeController = this;
-    this.engineState = 'starting';
+    this.setEngineState('starting');
     this.backgroundLimitedReason = null;
     await loadSampleBuffer();
 
+    try {
+      const saved = await AsyncStorage.getItem(TRACKING_MACHINE_STORAGE_KEY);
+      if (
+        saved === 'TRACKING' ||
+        saved === 'POSSIBLE_STOP' ||
+        saved === 'POSSIBLE_MOVEMENT' ||
+        saved === 'FINALIZING'
+      ) {
+        this.tripMachineState = saved;
+      }
+    } catch {
+      // ignore
+    }
+
     const foreground = await this.ensureForegroundPermission();
     if (foreground !== Location.PermissionStatus.GRANTED) {
-      this.engineState = 'permission_denied';
+      this.setEngineState('permission_denied');
       return;
     }
 
@@ -175,18 +232,22 @@ class TrackingControllerImpl implements TrackingController {
         void appendSamples([location]);
       },
       (reason) => {
-        this.engineState = 'error';
+        this.setEngineState('error');
         this.backgroundLimitedReason = reason;
+        this.advanceMachine({ type: 'ENGINE_ERROR', recoverable: true });
       },
     );
 
     const backgroundStarted = await this.tryStartBackgroundUpdates();
-    this.engineState = backgroundStarted ? 'foreground_background' : 'foreground';
+    this.setEngineState(backgroundStarted ? 'foreground_background' : 'foreground');
 
     const closed = maybeCloseTripFromSamples(sampleBuffer);
     if (closed) {
+      this.advanceMachine({ type: 'QUIET_ELAPSED' });
+      this.advanceMachine({ type: 'EVIDENCE_SUFFICIENT' });
       sampleBuffer = sampleBuffer.filter((sample) => sample.timestamp > closed.consumedUntil);
       this.handleClosedTrip(closed.trip);
+      this.advanceMachine({ type: 'RESET' });
       await persistSampleBuffer();
     }
   }
@@ -205,7 +266,10 @@ class TrackingControllerImpl implements TrackingController {
     }
 
     if (activeController === this) activeController = null;
-    this.engineState = 'stopped';
+    this.advanceMachine({ type: 'PROTECTION_OFF' });
+    this.tripMachineState = 'IDLE';
+    void AsyncStorage.setItem(TRACKING_MACHINE_STORAGE_KEY, 'IDLE');
+    this.setEngineState('stopped');
   }
 
   async getDiagnostics(): Promise<TrackingDiagnostics> {
@@ -239,18 +303,24 @@ class TrackingControllerImpl implements TrackingController {
       lastSampleAt: this.lastSampleAt ?? sampleBuffer.at(-1)?.timestamp ?? null,
       sampleCount: sampleBuffer.length,
       engineState: this.engineState,
+      tripMachineState: this.tripMachineState,
       automaticCaptureAvailable,
     };
   }
 
   handleClosedTrip(trip: TripRecord): void {
-    if (isDuplicateAutoTrip(trip, this.closedTrips)) return;
+    const existing = [
+      ...this.closedTrips,
+      ...(this.options.getExistingTrips?.() ?? []),
+    ];
+    if (isDuplicateAutoTrip(trip, existing)) return;
     this.closedTrips = [trip, ...this.closedTrips].slice(0, 50);
     this.options.onTripClosed(trip);
   }
 
   markLastSample(timestamp: number): void {
     this.lastSampleAt = timestamp;
+    this.options.onEngineStateChange?.(this.engineState, timestamp);
   }
 
   markBackgroundLimited(reason: string): void {
@@ -288,8 +358,8 @@ class TrackingControllerImpl implements TrackingController {
           pausesUpdatesAutomatically: true,
           showsBackgroundLocationIndicator: false,
           foregroundService: {
-            notificationTitle: 'MileRecover is watching for work drives',
-            notificationBody: 'Automatic capture is active while tracking is enabled.',
+            notificationTitle: 'MileRecover is protecting drives',
+            notificationBody: 'Automatic capture is active. Turn off protection anytime in the app.',
           },
         });
       }

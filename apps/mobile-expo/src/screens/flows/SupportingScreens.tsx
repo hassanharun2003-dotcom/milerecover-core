@@ -26,8 +26,11 @@ import {
   rateForTimestamp,
   reportHasExportableTrips,
   resolveProtectionStatus,
+  resolveTripEstimatedValue,
   shouldOfferTrial,
   validateManualTripInput,
+  vehicleDisplaySubtitle,
+  vehicleDisplayTitle,
   type MileageReportData,
   type ReportPeriod,
   type TripEvidenceMethod,
@@ -777,9 +780,9 @@ export function TripDetailsScreen() {
   const vehicleName = vehicle
     ? vehicle.nickname || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
     : 'Not set';
-  const rate = rateForTimestamp(locale.rates, trip.startAt);
-  const estimate =
-    rate != null ? estimatedValueCents(trip.distanceMiles, rate.centsPerMile) : null;
+  const tripValue = resolveTripEstimatedValue(trip, locale);
+  const estimate = tripValue.estimatedValueCents;
+  const rateMissing = tripValue.missingHistoricalRate;
   const classificationLabel =
     trip.classification === 'business'
       ? 'Work'
@@ -798,7 +801,13 @@ export function TripDetailsScreen() {
           : 'Manual entry';
 
   const classify = (decision: Exclude<ReviewDecision, null>) => {
-    classifyTrip(trip.id, decision);
+    classifyTrip(
+      trip.id,
+      decision,
+      decision === 'work'
+        ? { rateSnapshot: createTripRateSnapshot(product.localeProfile, trip.startAt) }
+        : undefined,
+    );
     pushReviewHistory({
       id: `review-trip-${trip.id}`,
       targetId: trip.id,
@@ -852,7 +861,9 @@ export function TripDetailsScreen() {
           value={
             estimate != null
               ? formatCurrencyCents(estimate, locale.currencyCode, locale.localeTag)
-              : 'Set a rate in Profile'
+              : rateMissing
+                ? 'Missing historical rate'
+                : 'Set a rate in Profile'
           }
         />
       </ListSection>
@@ -1262,19 +1273,7 @@ export function ProtectionAlertScreen() {
           No successful automatic check yet — manual drives still work.
         </Text>
       )}
-      <SoftPanel>
-        <Text style={text.subtitle}>
-          {protection.automaticDependable
-            ? 'Automatic tracking is dependable'
-            : 'Automatic tracking is not dependable yet'}
-        </Text>
-        <Text style={[text.body, { marginTop: spacing.xs }]}>
-          {protection.automaticDependable
-            ? 'MileRecover can protect work drives in the background when you travel.'
-            : 'You can keep using manual tracking while we fix one thing at a time.'}
-        </Text>
-      </SoftPanel>
-      {issue ? (
+      {issue && protection.status !== 'protected' ? (
         <SoftPanel>
           <Text style={text.subtitle}>{issue.what}</Text>
           <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>{issue.why}</Text>
@@ -1284,6 +1283,12 @@ export function ProtectionAlertScreen() {
             accessibilityLabel={issue.actionLabel}
           />
         </SoftPanel>
+      ) : protection.status === 'protected' ? (
+        <PrimaryButton
+          label="View tracking health"
+          onPress={() => navigation.navigate('TrackingActive')}
+          accessibilityLabel="View tracking health"
+        />
       ) : null}
       <SoftPanel>
         <EvidenceRow label="While using the app" value={foregroundReady ? 'On' : 'Off'} />
@@ -1404,19 +1409,13 @@ export function TrackingActiveScreen() {
         <SecondaryButton label="Pause automatic protection" onPress={stop} accessibilityLabel="Pause automatic protection" />
       ) : (
         <PrimaryButton
-          label={canStart ? 'Turn on automatic protection' : 'See Plus for automatic protection'}
+          label={canStart ? 'Turn on automatic protection' : 'Automatic capture unavailable'}
           onPress={start}
-          accessibilityLabel={canStart ? 'Turn on automatic protection' : 'See Plus plans'}
+          accessibilityLabel={canStart ? 'Turn on automatic protection' : 'Automatic capture unavailable'}
         />
       )}
       <SecondaryButton label="Open Protection Center" onPress={() => navigation.navigate('ProtectionAlert')} />
       <SecondaryButton label="Refresh status" onPress={refreshDiagnostics} />
-      <StatusCard
-        variant="neutral"
-        title="Manual trips always work"
-        body="Add drives by hand, import history, review, and share CSV anytime — even when automatic protection is off."
-        emphasis="subtle"
-      />
     </ScrollScreen>
   );
 }
@@ -1443,15 +1442,18 @@ export function VehicleSetupScreen() {
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
+    const composed = [year.trim(), make.trim(), model.trim()].filter(Boolean).join(' ');
+    const nick = nickname.trim();
     upsertVehicle({
       id: primary?.id ?? localId('vehicle'),
-      nickname: nickname.trim() || [year.trim(), make.trim(), model.trim()].filter(Boolean).join(' ') || 'My vehicle',
+      nickname: nick || composed || 'My vehicle',
       year: year.trim(),
       make: make.trim(),
       model: model.trim() || (make === 'Other' ? 'Other' : ''),
       plate: plate.trim(),
       isPrimary: primary?.isPrimary ?? product.vehicles.length === 0,
       createdAt: primary?.createdAt,
+      nicknameUserSet: Boolean(nick) && nick !== composed,
     });
     setSaved(true);
     setLimitMessage(null);
@@ -1462,46 +1464,51 @@ export function VehicleSetupScreen() {
       <StatusCard
         variant="info"
         title="Which vehicle carries your work miles?"
-        body="Tap year and make first. Nickname and plate are optional. Nothing is invented."
+        body="Choose year, make, and model. Nickname and plate are optional."
         emphasis="subtle"
       />
       {limitMessage ? <StatusCard variant="warning" title="Vehicle limit" body={limitMessage} emphasis="subtle" /> : null}
-      <ListSection title="Year">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {VEHICLE_YEAR_CHOICES.slice(0, 8).map((choice) => (
-            <SecondaryButton key={choice} label={choice} onPress={() => setYear(choice)} />
-          ))}
-        </View>
-        {year ? <EvidenceRow label="Selected year" value={year} /> : null}
-      </ListSection>
-      <ListSection title="Make">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {COMMON_MAKES.map((choice) => (
-            <SecondaryButton key={choice} label={choice} onPress={() => setMake(choice)} />
-          ))}
-        </View>
-        {make ? <EvidenceRow label="Selected make" value={make} /> : null}
-        {!COMMON_MAKES.includes(make) || make === 'Other' ? (
-          <FormField
-            label="Custom make"
-            value={make === 'Other' ? '' : make}
-            onChangeText={(value) => setMake(value.trim() ? value : 'Other')}
-            placeholder="Enter make"
-          />
-        ) : null}
-      </ListSection>
-      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Camry or Other" />
-      <FormField label="Nickname (optional)" value={nickname} onChangeText={setNickname} placeholder="Work sedan" />
+      <FormField
+        label="Year"
+        value={year}
+        onChangeText={setYear}
+        placeholder="2022"
+        keyboardType="numeric"
+        accessibilityLabel="Vehicle year"
+      />
+      <FormField
+        label="Make"
+        value={make}
+        onChangeText={setMake}
+        placeholder="Search or type make"
+        accessibilityLabel="Vehicle make"
+      />
+      <ChipRow>
+        {COMMON_MAKES.slice(0, 6).map((choice) => (
+          <Chip key={choice} label={choice} selected={make === choice} onPress={() => setMake(choice)} />
+        ))}
+      </ChipRow>
+      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Civic or Other" />
+      <FormField
+        label="Nickname (optional)"
+        value={nickname}
+        onChangeText={setNickname}
+        placeholder="Work sedan"
+      />
       <FormField label="License plate (optional)" value={plate} onChangeText={setPlate} placeholder="Optional" />
-      <PrimaryButton label="Save vehicle" onPress={save} disabled={!nickname.trim() && !make.trim() && !model.trim() && !year.trim()} />
+      <PrimaryButton
+        label="Save vehicle"
+        onPress={save}
+        disabled={!nickname.trim() && !make.trim() && !model.trim() && !year.trim()}
+      />
       {saved ? <StatusCard variant="success" title="Saved" body="Vehicle details are stored locally." emphasis="subtle" /> : null}
       {product.vehicles.length > 0 ? (
         <ListSection title="Saved vehicles">
           {product.vehicles.map((vehicle) => (
             <EvidenceRow
               key={vehicle.id}
-              label={vehicleLabel(vehicle)}
-              value={[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'No make/model'}
+              label={vehicleDisplayTitle(vehicle)}
+              value={vehicleDisplaySubtitle(vehicle) ?? (vehicle.isPrimary ? 'Primary' : 'Saved')}
             />
           ))}
         </ListSection>
@@ -2099,10 +2106,7 @@ export function PlanSelectionScreen() {
             onChange={(value) => setAnnual(value === 'annual')}
             options={[
               { label: 'Monthly', value: 'monthly' },
-              {
-                label: annual && plusFixture.annualSavingsLabel ? `Annual · ${plusFixture.annualSavingsLabel}` : 'Annual',
-                value: 'annual',
-              },
+              { label: 'Annual — Save 17%', value: 'annual' },
             ]}
           />
         </View>
@@ -2110,8 +2114,9 @@ export function PlanSelectionScreen() {
     >
       {!billingAvailable && isPreviewBillingBuild() ? (
         <StatusCard variant="info" title="Preview" body={PREVIEW_BILLING_NOTICE} emphasis="subtle" />
+      ) : notice && !(isPreviewBillingBuild() && notice === STORE_UNAVAILABLE_MESSAGE) ? (
+        <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" />
       ) : null}
-      {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
 
       <PlanCard
         name={plusFixture.name}
@@ -2248,9 +2253,10 @@ export function RescueProductsScreen() {
         Catch up on older mileage without a subscription. Purchases are processed through your app store.
       </Text>
       {!billingAvailable && isPreviewBillingBuild() ? (
-        <StatusCard variant="info" title="Preview notice" body={PREVIEW_BILLING_NOTICE} emphasis="subtle" />
+        <StatusCard variant="info" title="Preview" body={PREVIEW_BILLING_NOTICE} emphasis="subtle" />
+      ) : notice && !(isPreviewBillingBuild() && notice === STORE_UNAVAILABLE_MESSAGE) ? (
+        <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" />
       ) : null}
-      {notice ? <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" /> : null}
       {RESCUE_OPTIONS.map((option) => (
         <SelectionCard
           key={option.id}

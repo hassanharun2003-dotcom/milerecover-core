@@ -56,11 +56,9 @@ function buildLiveScenario(
   let proofBlockReason: string | null = null;
 
   if (trackingDegraded) {
-    homeTitle = 'Watching needs a quick fix';
-    homeDetail = capabilities.canUseAutomaticCapture
-      ? 'Location isn’t fully allowed, so some drives may be missed. Your saved miles stay put.'
-      : 'Watching is on, but automatic capture needs Plus. Your saved miles stay put.';
-    primaryAction = 'Fix watching';
+    homeTitle = 'Protection needs a quick fix';
+    homeDetail = 'Location isn’t fully allowed, so some drives may be missed. Your saved miles stay put.';
+    primaryAction = 'Fix protection';
     primaryActionRoute = 'ProtectionAlert';
     homeState = 'protection_limited';
     proofBlockReason = pending.length ? 'Review one item before sharing.' : null;
@@ -100,7 +98,7 @@ function buildLiveScenario(
     homeTitle = 'Ready when you are';
     homeDetail = capabilities.canUseAutomaticCapture
       ? 'Add a drive anytime, or turn on watching when you want automatic coverage.'
-      : `Add a ${voice.workNoun} drive anytime. Automatic watching comes with Plus.`;
+      : `Add a ${voice.workNoun} drive anytime.`;
     primaryAction = 'Add a drive';
     primaryActionRoute = 'ManualTrip' as ScenarioPresentation['primaryActionRoute'];
     homeState = 'healthy';

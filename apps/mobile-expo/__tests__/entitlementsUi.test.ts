@@ -31,15 +31,17 @@ describe('Entitlements UI smoke', () => {
     ).toBe(false);
   });
 
-  it('keeps Free manual records usable while Plus unlocks automatic capture only when verified', () => {
+  it('keeps Free useful forever with capped automatic capture; Plus unlocks unlimited when verified', () => {
     const free = capabilitiesForEntitlement(createFreeEntitlement());
-    expect(free.canUseAutomaticCapture).toBe(false);
+    expect(free.canUseAutomaticCapture).toBe(true);
+    expect(free.automaticTripLimit).toBe(40);
+    expect(free.missingScanLimit).toBe(1);
     expect(free.canUseStandardPdf).toBe(false);
     expect(free.canUseGapDetection).toBe(true);
     expect(free.canAddVehicle).toBe(true);
     expect(free.maxVehicles).toBe(1);
     expect(free.maxWorkplaces).toBe(2);
-    // Free CSV remains usable in product policy even though PDF is Plus-gated.
+    expect(free.csvExportEnabled).toBe(true);
 
     const plus: EntitlementSnapshot = {
       ...createFreeEntitlement(),
@@ -51,6 +53,7 @@ describe('Entitlements UI smoke', () => {
     };
     const plusCaps = capabilitiesForEntitlement(plus);
     expect(plusCaps.canUseAutomaticCapture).toBe(true);
+    expect(plusCaps.automaticTripLimit).toBeNull();
     expect(plusCaps.canUseStandardPdf).toBe(true);
     expect(plusCaps.canUseGapDetection).toBe(true);
 
@@ -59,6 +62,9 @@ describe('Entitlements UI smoke', () => {
       storeVerified: false,
       source: 'cache',
     };
-    expect(capabilitiesForEntitlement(unverifiedPlus).canUseAutomaticCapture).toBe(false);
+    // Unverified Plus cache falls back to Free-tier automatic capture (capped), not unlimited.
+    const unverifiedCaps = capabilitiesForEntitlement(unverifiedPlus);
+    expect(unverifiedCaps.canUseAutomaticCapture).toBe(true);
+    expect(unverifiedCaps.automaticTripLimit).toBe(40);
   });
 });

@@ -171,8 +171,17 @@ export function buildMileageReportData(input: {
 
   let estimatedTotal: number | null = null;
   const lineItems = exportable.map((t) => {
-    const rate = locale ? rateForTimestamp(locale.rates, t.startAt) : null;
-    const estimate = rate ? estimatedValueCents(t.distanceMiles, rate.centsPerMile) : null;
+    // Prefer immutable rateSnapshot — never silently rewrite accepted history.
+    const snap = t.rateSnapshot;
+    const liveRate = locale ? rateForTimestamp(locale.rates, t.startAt) : null;
+    const centsPerMile =
+      snap?.centsPerMile != null && snap.centsPerMile > 0
+        ? snap.centsPerMile
+        : snap == null
+          ? liveRate?.centsPerMile ?? null
+          : null;
+    const estimate =
+      centsPerMile != null ? estimatedValueCents(t.distanceMiles, centsPerMile) : null;
     if (estimate != null) {
       estimatedTotal = (estimatedTotal ?? 0) + estimate;
     }
@@ -187,8 +196,8 @@ export function buildMileageReportData(input: {
         ? formatDistance(t.distanceMiles, locale.distanceUnit, locale.localeTag)
         : `${t.distanceMiles.toFixed(1)} mi`,
       estimatedValueCents: estimate,
-      rateCentsPerMile: rate?.centsPerMile ?? null,
-      rateSource: rate?.source ?? null,
+      rateCentsPerMile: centsPerMile,
+      rateSource: snap != null ? ('snapshot' as const) : liveRate?.source ?? null,
       source: t.source,
       evidence: t.evidenceMethod ?? '—',
       notes: t.notes ?? '',

@@ -15,6 +15,7 @@ import {
   buildReviewItemsFromDocument,
   createEmptyPersistedDocument,
   documentFromAppSlice,
+  isDuplicateAutoTrip,
   rejectTrip,
   resolveStartupFromLoad,
   runUnifiedRecoveryScan,
@@ -23,6 +24,7 @@ import {
   type PersistedAppDocument,
   type PersistenceRepository,
   type RecoveryCandidate,
+  type TrackingEngineState,
   type TripClassification,
   type TripRecord,
 } from '@milerecover/domain';
@@ -30,6 +32,7 @@ import { createProductionPersistenceRepository } from '../persistence/AsyncStora
 import {
   AUTOMATIC_CAPTURE_AVAILABLE,
   openAppSettings,
+  openBatteryOptimizationSettings,
   readLocationPermissionSnapshot,
   requestBackgroundLocation,
   requestForegroundLocation,
@@ -50,7 +53,13 @@ interface AppContextValue {
   upsertTrip: (trip: TripRecord) => void;
   deleteTrip: (tripId: string) => TripRecord | null;
   restoreTrip: (trip: TripRecord) => void;
-  classifyTrip: (tripId: string, action: ClassifyAction) => TripRecord | null;
+  classifyTrip: (
+    tripId: string,
+    action: ClassifyAction,
+    options?: {
+      rateSnapshot?: TripRecord['rateSnapshot'];
+    },
+  ) => TripRecord | null;
   upsertRecovery: (candidate: RecoveryCandidate) => void;
   rejectRecovery: (candidateId: string) => void;
   confirmRecovery: (
@@ -60,10 +69,12 @@ interface AppContextValue {
   ) => TripRecord | null;
   refreshRecoverySuggestions: (workPlaces?: { id: string; label: string }[]) => void;
   setReportingPeriod: (period: MileRecoverAppState['reportingPeriod']) => void;
+  setTrackingEngineState: (engineState: TrackingEngineState, lastSampleAt?: number | null) => void;
   refreshPermissions: () => Promise<PermissionSnapshot>;
   requestLocationPermission: () => Promise<PermissionSnapshot>;
   requestBackgroundPermission: () => Promise<PermissionSnapshot>;
   openSystemSettings: () => Promise<void>;
+  openBatterySettings: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -235,11 +246,27 @@ export function AppProvider({ children, repository }: AppProviderProps) {
       },
       upsertTrip: (trip) => {
         commit((prev) => {
+          if (
+            trip.source === 'auto_detected' &&
+            !prev.trips.some((t) => t.id === trip.id) &&
+            isDuplicateAutoTrip(trip, prev.trips)
+          ) {
+            return prev;
+          }
           const exists = prev.trips.some((t) => t.id === trip.id);
           const trips = exists
             ? prev.trips.map((t) => (t.id === trip.id ? trip : t))
             : [trip, ...prev.trips];
-          return { ...prev, trips };
+          const lastConfirmedCaptureAt =
+            trip.source === 'auto_detected'
+              ? Math.max(prev.lastConfirmedCaptureAt ?? 0, trip.endAt)
+              : prev.lastConfirmedCaptureAt;
+          return {
+            ...prev,
+            trips,
+            lastConfirmedCaptureAt:
+              lastConfirmedCaptureAt === 0 ? prev.lastConfirmedCaptureAt : lastConfirmedCaptureAt,
+          };
         });
       },
       deleteTrip: (tripId) => {
@@ -256,10 +283,10 @@ export function AppProvider({ children, repository }: AppProviderProps) {
           return { ...prev, trips: [trip, ...prev.trips] };
         });
       },
-      classifyTrip: (tripId, action) => {
+      classifyTrip: (tripId, action, options) => {
         const current = state.trips.find((t) => t.id === tripId);
         if (!current) return null;
-        const updated =
+        let updated =
           action === 'not_drive'
             ? rejectTrip(current)
             : action === 'not_sure'
@@ -271,6 +298,13 @@ export function AppProvider({ children, repository }: AppProviderProps) {
                   updatedAt: Date.now(),
                 }
               : applyClassification(current, action === 'work' ? 'business' : 'personal');
+        // Stamp immutable rate snapshot at accept time when provided.
+        if (action === 'work' && updated.status === 'confirmed' && options?.rateSnapshot) {
+          updated = {
+            ...updated,
+            rateSnapshot: current.rateSnapshot ?? options.rateSnapshot,
+          };
+        }
         commit((prev) => ({
           ...prev,
           trips: prev.trips.map((t) => (t.id === tripId ? updated : t)),
@@ -347,6 +381,13 @@ export function AppProvider({ children, repository }: AppProviderProps) {
       setReportingPeriod: (period) => {
         commit((prev) => ({ ...prev, reportingPeriod: period }));
       },
+      setTrackingEngineState: (engineState, lastSampleAt) => {
+        commit((prev) => ({
+          ...prev,
+          trackingEngineState: engineState,
+          lastSyncAt: lastSampleAt ?? prev.lastSyncAt,
+        }));
+      },
       refreshPermissions: async () => {
         const next = await readLocationPermissionSnapshot(permissions);
         setPermissions(next);
@@ -366,6 +407,7 @@ export function AppProvider({ children, repository }: AppProviderProps) {
         return next;
       },
       openSystemSettings: () => openAppSettings(),
+      openBatterySettings: () => openBatteryOptimizationSettings(),
     }),
     [state, permissions, commit, restore],
   );

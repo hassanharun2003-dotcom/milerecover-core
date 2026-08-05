@@ -29,9 +29,9 @@ export const PLAN_FIXTURES: PlanFixture[] = [
     monthlyPrice: '$0',
     annualPrice: '$0',
     features: [
-      'Manual work-drive logging',
-      'Basic review',
-      'CSV export — existing saved records remain accessible',
+      'Unlimited manual trips',
+      '40 automatic trips per month',
+      'One vehicle · CSV export · tracking health',
     ],
   },
   {
@@ -40,12 +40,12 @@ export const PLAN_FIXTURES: PlanFixture[] = [
     tagline: 'Never lose another reimbursable mile.',
     monthlyPrice: '$8.99',
     annualPrice: '$89.99',
-    annualSavingsLabel: 'Save about $18/year vs monthly',
+    annualSavingsLabel: 'Save 17%',
     highlighted: true,
     features: [
-      'Automatic coverage for future drives',
-      'Review possible missed drives',
-      'Create share-ready PDF reports',
+      'Unlimited automatic tracking',
+      'Missed-drive review',
+      'Share-ready PDF reports',
     ],
   },
   {

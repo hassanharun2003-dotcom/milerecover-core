@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.1.6-mvp.4';
+export const APP_BUILD_LABEL = '0.1.7-final.1';
 
 /**
  * Temporary Home-screen OTA verification string.
@@ -7,8 +7,8 @@ export const APP_BUILD_LABEL = '0.1.6-mvp.4';
  */
 export const PREVIEW_CHANNEL_MARKER = '';
 
-/** App store / runtime version — bumped for native auth/billing modules. */
-export const APP_VERSION = '0.1.6';
+/** App store / runtime version — bumped for native tracking foundation. */
+export const APP_VERSION = '0.1.7';
 
 /** Android applicationId / iOS bundle identifier for MileRecover product builds. */
 export const APP_PACKAGE_ID = 'com.milerecover.app';

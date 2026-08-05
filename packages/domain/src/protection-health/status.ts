@@ -58,14 +58,16 @@ export interface ProtectionStatusInput {
   setupIncomplete?: boolean;
   offline?: boolean;
   now?: number;
+  /** Free monthly automatic allowance reached — keep existing trips, pause new auto capture. */
+  automaticAllowanceExhausted?: boolean;
 }
 
 const TITLES: Record<ProtectionStatus, string> = {
-  protected: 'Protected',
-  needs_attention: 'Needs attention',
-  tracking_paused: 'Tracking paused',
-  setup_incomplete: 'Setup incomplete',
-  manual_only: 'Manual-only',
+  protected: 'Your drives are protected',
+  needs_attention: 'One setting needs attention',
+  tracking_paused: 'Drive protection is off',
+  setup_incomplete: 'Finish drive protection setup',
+  manual_only: 'Drive protection is off',
 };
 
 function formatLastCheck(lastConfirmedCaptureAt: number | null, now: number): string | null {
@@ -119,13 +121,31 @@ export function resolveProtectionStatus(input: ProtectionStatusInput): Protectio
     return {
       status: 'manual_only',
       title: TITLES.manual_only,
-      detail: 'Manual tracking is active. Set up automatic protection when you’re ready.',
+      detail: 'Turn it on to capture future drives automatically.',
       lastCheckLabel,
       automaticDependable: false,
       primaryIssue: {
-        what: 'Manual tracking is active',
-        why: 'Automatic protection is available with Plus. Manual drives always work on Free.',
-        actionLabel: 'Set up protection',
+        what: 'Automatic capture needs an upgrade',
+        why: 'You can still add drives manually anytime.',
+        actionLabel: 'See plans',
+        action: 'see_plans',
+      },
+      repairSteps,
+      level: 'limited',
+    };
+  }
+
+  if (input.automaticAllowanceExhausted) {
+    return {
+      status: 'tracking_paused',
+      title: 'Monthly automatic limit reached',
+      detail: 'Future automatic capture needs Plus, or add drives manually. Saved trips stay.',
+      lastCheckLabel,
+      automaticDependable: false,
+      primaryIssue: {
+        what: 'Free includes 40 automatic trips per month',
+        why: 'Your captured trips remain. Upgrade for unlimited automatic tracking.',
+        actionLabel: 'See plans',
         action: 'see_plans',
       },
       repairSteps,
@@ -137,7 +157,7 @@ export function resolveProtectionStatus(input: ProtectionStatusInput): Protectio
     return {
       status: 'setup_incomplete',
       title: TITLES.setup_incomplete,
-      detail: 'Finish a short setup so MileRecover can protect drives automatically.',
+      detail: 'Take a short drive and MileRecover will confirm that tracking works.',
       lastCheckLabel,
       automaticDependable: false,
       primaryIssue: {
@@ -155,11 +175,11 @@ export function resolveProtectionStatus(input: ProtectionStatusInput): Protectio
     return {
       status: 'tracking_paused',
       title: TITLES.tracking_paused,
-      detail: 'Automatic protection is paused. Turn it on when you want coverage.',
+      detail: 'Turn it on to capture future drives automatically.',
       lastCheckLabel,
       automaticDependable: false,
       primaryIssue: {
-        what: 'Tracking is paused',
+        what: 'Drive protection is off',
         why: 'MileRecover won’t capture drives until you turn protection on.',
         actionLabel: 'Turn on protection',
         action: 'enable_watching',
@@ -230,11 +250,11 @@ export function resolveProtectionStatus(input: ProtectionStatusInput): Protectio
 
   return {
     status,
-    title: TITLES[status],
+    title: status === 'protected' ? TITLES.protected : TITLES.needs_attention,
     detail:
       status === 'protected'
-        ? health.userDetail || 'Automatic protection looks dependable right now.'
-        : primaryIssue?.why || health.userDetail || health.userLabel,
+        ? lastCheckLabel ?? 'Last successful check: waiting for your next drive.'
+        : primaryIssue?.what ?? health.userDetail ?? health.userLabel,
     lastCheckLabel,
     automaticDependable,
     primaryIssue,

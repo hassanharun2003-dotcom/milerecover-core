@@ -31,7 +31,7 @@ describe('Protection status model', () => {
   it('reports Protected when watching and permissions are healthy', () => {
     const view = resolveProtectionStatus(base());
     expect(view.status).toBe('protected');
-    expect(view.title).toBe('Protected');
+    expect(view.title).toMatch(/protected/i);
     expect(view.automaticDependable).toBe(true);
     expect(view.lastCheckLabel).toMatch(/Last successful check/);
   });
@@ -45,7 +45,7 @@ describe('Protection status model', () => {
   it('reports Manual-only when automatic capture is unavailable', () => {
     const view = resolveProtectionStatus(base({ canUseAutomaticCapture: false }));
     expect(view.status).toBe('manual_only');
-    expect(view.detail).toMatch(/Manual tracking is active/i);
+    expect(view.detail).toMatch(/automatically/i);
     expect(view.primaryIssue?.action).toBe('see_plans');
   });
 
@@ -103,7 +103,7 @@ describe('Protection status model', () => {
       base({ canUseAutomaticCapture: false, trackingEnabled: false }),
     );
     expect(view.status).toBe('manual_only');
-    expect(view.detail).toMatch(/Manual tracking is active/i);
+    expect(view.detail).toMatch(/automatically/i);
   });
 
   it('does not claim protected merely because permission was requested', () => {

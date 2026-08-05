@@ -8,17 +8,17 @@ import { spacing } from '@milerecover/config';
 import {
   buildMileageCsv,
   buildMileageReportData,
+  buildProofIssues,
   capabilitiesForEntitlement,
   csvFilename,
   formatCurrencyCents,
   formatDistance,
-  proofReadinessForTrip,
+  proofFixCtaLabel,
   rateForTimestamp,
   reportTitleForGoal,
   resolveReportPeriod,
   type ReportPeriod,
   type ReportPeriodKind,
-  type TripRecord,
 } from '@milerecover/domain';
 import {
   EmptyState,
@@ -32,6 +32,7 @@ import {
   TabScreen,
   text,
 } from '../../design-system';
+// SecondaryButton used for checklist toggle
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
 import { useProduct } from '../../product/ProductContext';
@@ -71,80 +72,6 @@ function vehicleLookup(vehicles: { id: string; nickname: string; make: string; m
   }, {});
 }
 
-type ProofCheckId = 'purpose' | 'route' | 'vehicle' | 'rate' | 'unresolved';
-
-interface ProofCheck {
-  id: ProofCheckId;
-  label: string;
-  pass: boolean;
-  detail: string;
-}
-
-function buildProofChecks(input: {
-  confirmedWorkTrips: TripRecord[];
-  vehiclesExist: boolean;
-  valueRequested: boolean;
-  rateOk: boolean;
-  unresolvedCount: number;
-}): ProofCheck[] {
-  const missingPurpose = input.confirmedWorkTrips.filter((trip) => !trip.purpose?.trim());
-  const missingRoute = input.confirmedWorkTrips.filter(
-    (trip) => !trip.startLabel?.trim() && !trip.endLabel?.trim(),
-  );
-  const missingVehicle = input.vehiclesExist
-    ? input.confirmedWorkTrips.filter((trip) => !trip.vehicleId)
-    : [];
-
-  return [
-    {
-      id: 'purpose',
-      label: 'Purpose on every drive',
-      pass: missingPurpose.length === 0,
-      detail:
-        missingPurpose.length === 0
-          ? 'Each work drive has a purpose.'
-          : `${missingPurpose.length} drive${missingPurpose.length === 1 ? '' : 's'} need a purpose.`,
-    },
-    {
-      id: 'route',
-      label: 'Route or place labels',
-      pass: missingRoute.length === 0,
-      detail:
-        missingRoute.length === 0
-          ? 'Start or end labels are recorded.'
-          : `${missingRoute.length} drive${missingRoute.length === 1 ? '' : 's'} need route labels.`,
-    },
-    {
-      id: 'vehicle',
-      label: 'Vehicle assigned',
-      pass: !input.vehiclesExist || missingVehicle.length === 0,
-      detail: !input.vehiclesExist
-        ? 'No vehicles saved — optional.'
-        : missingVehicle.length === 0
-          ? 'Each drive is linked to a vehicle.'
-          : `${missingVehicle.length} drive${missingVehicle.length === 1 ? '' : 's'} need a vehicle.`,
-    },
-    {
-      id: 'rate',
-      label: 'Mileage rate',
-      pass: !input.valueRequested || input.rateOk,
-      detail: !input.valueRequested
-        ? 'Value estimate not required for your goal.'
-        : input.rateOk
-          ? 'Rate is set for this period.'
-          : 'Review or set your mileage rate.',
-    },
-    {
-      id: 'unresolved',
-      label: 'Uncertain drives resolved',
-      pass: input.unresolvedCount === 0,
-      detail:
-        input.unresolvedCount === 0
-          ? 'Nothing waiting in Review.'
-          : `${input.unresolvedCount} uncertain drive${input.unresolvedCount === 1 ? '' : 's'} still in Review.`,
-    },
-  ];
-}
 
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
@@ -188,24 +115,13 @@ export function ProofScreen() {
     [tripsForProof],
   );
 
-  const needsAttention = useMemo(() => {
-    let count = 0;
-    for (const trip of confirmedWorkTrips) {
-      const status = proofReadinessForTrip(trip);
-      if (status !== 'ready' && status !== 'recovered' && status !== 'imported' && status !== 'user_corrected') {
-        count += 1;
-      }
-    }
-    return count;
-  }, [confirmedWorkTrips]);
-
   const currentRate = rateForTimestamp(locale.rates, Date.now());
   const valueRequested = product.primaryGoal != null;
   const rateOk = Boolean(currentRate?.centsPerMile && currentRate.centsPerMile > 0 && !locale.activeRateNeedsReview);
 
-  const checks = useMemo(
+  const issues = useMemo(
     () =>
-      buildProofChecks({
+      buildProofIssues({
         confirmedWorkTrips,
         vehiclesExist: product.vehicles.length > 0,
         valueRequested,
@@ -215,63 +131,41 @@ export function ProofScreen() {
     [confirmedWorkTrips, product.vehicles.length, rateOk, report.unresolvedCount, valueRequested],
   );
 
-  const checksComplete = checks.filter((check) => check.pass).length;
-  const exportReady = checksComplete >= 4 && report.tripCount > 0;
+  const requiredCount = issues.required.length;
+  const recommendedCount = issues.recommended.length;
+  const exportReady = requiredCount === 0 && report.tripCount > 0;
 
   const fixTarget = useMemo(() => {
-    const failing = checks.find((check) => !check.pass);
-    if (!failing) return null;
-
-    switch (failing.id) {
-      case 'purpose': {
-        const trip = confirmedWorkTrips.find((item) => !item.purpose?.trim());
-        if (!trip) return null;
+    const next = issues.required[0] ?? issues.recommended[0];
+    if (!next) return null;
+    const label = proofFixCtaLabel(requiredCount, recommendedCount);
+    const goTrip = (tripId?: string, fallback: 'Review' | 'EditSetup' | 'VehicleSetup' = 'Review') => {
+      if (tripId) navigation.navigate('TripDetails', { tripId });
+      else if (fallback === 'EditSetup') navigation.navigate('EditSetup');
+      else if (fallback === 'VehicleSetup') navigation.navigate('VehicleSetup');
+      else navigation.navigate('Review');
+    };
+    switch (next.id) {
+      case 'purpose':
+        return { label, detail: next.detail, onPress: () => goTrip(next.tripId) };
+      case 'distance':
+        return { label, detail: next.detail, onPress: () => goTrip(next.tripId) };
+      case 'route':
+        return { label, detail: next.detail, onPress: () => goTrip(next.tripId) };
+      case 'vehicle':
         return {
-          label: 'Fix 1 issue',
-          detail: 'Add purpose to a work drive',
-          onPress: () => navigation.navigate('TripDetails', { tripId: trip.id }),
+          label,
+          detail: next.detail,
+          onPress: () => goTrip(next.tripId, next.tripId ? 'Review' : 'VehicleSetup'),
         };
-      }
-      case 'route': {
-        const trip = confirmedWorkTrips.find((item) => !item.startLabel?.trim() && !item.endLabel?.trim());
-        if (!trip) return null;
-        return {
-          label: 'Fix 1 issue',
-          detail: 'Add route labels to a work drive',
-          onPress: () => navigation.navigate('TripDetails', { tripId: trip.id }),
-        };
-      }
-      case 'vehicle': {
-        const trip = confirmedWorkTrips.find((item) => !item.vehicleId);
-        if (trip) {
-          return {
-            label: 'Fix 1 issue',
-            detail: 'Assign a vehicle to a work drive',
-            onPress: () => navigation.navigate('TripDetails', { tripId: trip.id }),
-          };
-        }
-        return {
-          label: 'Fix 1 issue',
-          detail: 'Set up a vehicle',
-          onPress: () => navigation.navigate('VehicleSetup'),
-        };
-      }
       case 'rate':
-        return {
-          label: 'Fix 1 issue',
-          detail: 'Review your mileage rate',
-          onPress: () => navigation.navigate('EditSetup'),
-        };
+        return { label, detail: next.detail, onPress: () => goTrip(undefined, 'EditSetup') };
       case 'unresolved':
-        return {
-          label: 'Fix 1 issue',
-          detail: 'Resolve uncertain drives in Review',
-          onPress: () => navigation.navigate('Review'),
-        };
+        return { label, detail: next.detail, onPress: () => goTrip(undefined, 'Review') };
       default:
-        return null;
+        return { label, detail: next.detail, onPress: () => navigation.navigate('Review') };
     }
-  }, [checks, confirmedWorkTrips, navigation]);
+  }, [issues.recommended, issues.required, navigation, recommendedCount, requiredCount]);
 
   const choosePeriod = (kind: ReportPeriodKind) => {
     setPeriodKind(kind);
@@ -405,30 +299,56 @@ export function ProofScreen() {
             />
             <ListRow label="Work drives" value={String(report.tripCount)} showChevron={false} />
             <ListRow
-              label="Needs attention"
-              value={needsAttention > 0 ? String(needsAttention) : 'None'}
+              label="Required corrections"
+              value={requiredCount > 0 ? String(requiredCount) : 'None'}
               showChevron={false}
             />
-            <PrimaryButton
-              label={showReadiness ? 'Hide readiness' : 'Create report'}
+            <ListRow
+              label="Optional improvements"
+              value={recommendedCount > 0 ? String(recommendedCount) : 'None'}
+              showChevron={false}
+            />
+            {fixTarget ? (
+              <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
+            ) : (
+              <PrimaryButton label="Preview report" onPress={openPreview} />
+            )}
+            <SecondaryButton
+              label={showReadiness ? 'Hide checklist' : 'Show checklist'}
               onPress={() => setShowReadiness((open) => !open)}
-              accessibilityLabel={showReadiness ? 'Hide readiness checklist' : 'Create report and show readiness'}
             />
           </SoftPanel>
 
           {showReadiness ? (
             <ListSection title="Readiness">
-              <Text style={[text.body, { marginBottom: spacing.sm }]}>
-                {checksComplete} of 5 checks complete
-              </Text>
-              {checks.map((check) => (
-                <ListRow
-                  key={check.id}
-                  label={check.label}
-                  value={check.pass ? 'Complete' : 'Needs fix'}
-                  showChevron={false}
-                />
-              ))}
+              {issues.required.length > 0 ? (
+                <>
+                  <Text style={[text.subtitle, { marginBottom: spacing.xs }]}>Required</Text>
+                  {issues.required.map((issue) => (
+                    <ListRow key={issue.id} label={issue.label} value="Needs fix" showChevron={false} />
+                  ))}
+                </>
+              ) : null}
+              {issues.recommended.length > 0 ? (
+                <>
+                  <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>
+                    Recommended
+                  </Text>
+                  {issues.recommended.map((issue) => (
+                    <ListRow key={issue.id} label={issue.label} value="Optional" showChevron={false} />
+                  ))}
+                </>
+              ) : null}
+              {issues.completedIds.length > 0 ? (
+                <>
+                  <Text style={[text.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>
+                    Complete
+                  </Text>
+                  {issues.completedIds.map((id) => (
+                    <ListRow key={id} label={id} value="Complete" showChevron={false} />
+                  ))}
+                </>
+              ) : null}
               {fixTarget ? (
                 <View style={{ marginTop: spacing.sm }}>
                   <Text style={[text.caption, { marginBottom: spacing.xs }]}>{fixTarget.detail}</Text>
@@ -440,7 +360,7 @@ export function ProofScreen() {
             </ListSection>
           ) : null}
 
-          {exportReady || (showReadiness && checksComplete === 5) ? (
+          {exportReady ? (
             <ListSection title="Export">
               {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
               {error ? <FormError message={error} /> : null}

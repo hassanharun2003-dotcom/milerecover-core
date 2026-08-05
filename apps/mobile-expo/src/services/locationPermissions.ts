@@ -10,16 +10,37 @@ function mapExpoStatus(status: Location.PermissionStatus, canAskAgain: boolean):
   return 'not_determined';
 }
 
+/**
+ * Best-effort battery optimization detection.
+ * Expo does not expose a first-class API; we keep false unless a native probe is available.
+ * Deep-link still helps users open the right settings screen.
+ */
+async function probeBatteryOptimizationRestricted(): Promise<boolean> {
+  // Without a dedicated native module, do not invent a restriction.
+  // Android education + deep-link remains available via openBatteryOptimizationSettings.
+  return false;
+}
+
 export async function readLocationPermissionSnapshot(
   previous: PermissionSnapshot,
 ): Promise<PermissionSnapshot> {
   try {
     const foreground = await Location.getForegroundPermissionsAsync();
     const background = await Location.getBackgroundPermissionsAsync();
+    const batteryOptimizationRestricted = await probeBatteryOptimizationRestricted();
+    let locationServicesEnabled = true;
+    try {
+      locationServicesEnabled = await Location.hasServicesEnabledAsync();
+    } catch {
+      locationServicesEnabled = true;
+    }
     return {
       ...previous,
-      location: mapExpoStatus(foreground.status, foreground.canAskAgain),
+      location: locationServicesEnabled
+        ? mapExpoStatus(foreground.status, foreground.canAskAgain)
+        : 'denied',
       backgroundLocation: mapExpoStatus(background.status, background.canAskAgain),
+      batteryOptimizationRestricted,
     };
   } catch {
     return previous;
@@ -67,8 +88,27 @@ export async function openAppSettings(): Promise<void> {
   await Linking.openSettings();
 }
 
+/** Android: open battery optimization / app details so the user can exempt MileRecover. */
+export async function openBatteryOptimizationSettings(): Promise<void> {
+  if (Platform.OS === 'android') {
+    try {
+      await Linking.sendIntent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS');
+      return;
+    } catch {
+      // fall through
+    }
+    try {
+      await Linking.sendIntent('android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS');
+      return;
+    } catch {
+      // fall through to generic settings
+    }
+  }
+  await Linking.openSettings();
+}
+
 /**
  * Automatic capture is implemented via expo-location + expo-task-manager.
- * Capability still requires Plus/trial entitlement before the engine may run.
+ * Free includes up to 40 auto trips/month; Plus/Pro are unlimited when entitled.
  */
 export const AUTOMATIC_CAPTURE_AVAILABLE = true;

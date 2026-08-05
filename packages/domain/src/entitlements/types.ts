@@ -40,9 +40,23 @@ export interface EntitlementSnapshot {
   source: 'store' | 'cache' | 'default' | 'demo';
 }
 
+/** Locked Free automatic capture allowance per calendar month. */
+export const FREE_AUTOMATIC_TRIP_LIMIT = 40;
+/** Locked Free missing-trip scans per calendar month. */
+export const FREE_MISSING_SCAN_LIMIT = 1;
+
 export interface CapabilitySet {
+  /**
+   * Whether automatic capture may run at all for this plan.
+   * Free: true (subject to FREE_AUTOMATIC_TRIP_LIMIT).
+   * Plus/Pro/trial: true when store-verified (or demo).
+   */
   canUseAutomaticCapture: boolean;
+  /** null = unlimited (Plus/Pro). Free = 40/calendar month. */
+  automaticTripLimit: number | null;
   canUseGapDetection: boolean;
+  /** null = unlimited recurring scans (Plus+). Free = 1/calendar month. */
+  missingScanLimit: number | null;
   canUseStandardPdf: boolean;
   canUseAdvancedReports: boolean;
   canUseAdvancedRecovery: boolean;
@@ -50,6 +64,8 @@ export interface CapabilitySet {
   canAddWorkplace: boolean;
   canUseCustomReimbursement: boolean;
   canUseProfessionalShare: boolean;
+  csvExportEnabled: boolean;
+  pdfExportEnabled: boolean;
   maxVehicles: number;
   maxWorkplaces: number;
 }
@@ -83,11 +99,18 @@ export function capabilitiesForEntitlement(entitlement: EntitlementSnapshot): Ca
 
   // Demo entitlements can preview paid UX but must be marked source:'demo'
   const paid = plusLike && (entitlement.storeVerified || entitlement.source === 'demo');
+  const isFree = !paid;
 
   return {
-    canUseAutomaticCapture: paid,
-    /** Basic gap recovery stays free — core MileRecover differentiator. */
+    /**
+     * Free includes automatic capture up to FREE_AUTOMATIC_TRIP_LIMIT/month.
+     * Paid plans are unlimited. Unverified Plus cache does not unlock unlimited auto.
+     */
+    canUseAutomaticCapture: isFree || paid,
+    automaticTripLimit: paid ? null : FREE_AUTOMATIC_TRIP_LIMIT,
+    /** Basic gap recovery stays free — one scan/month on Free. */
     canUseGapDetection: true,
+    missingScanLimit: paid ? null : FREE_MISSING_SCAN_LIMIT,
     canUseStandardPdf: paid,
     canUseAdvancedReports: proLike && (entitlement.storeVerified || entitlement.source === 'demo'),
     canUseAdvancedRecovery: proLike && (entitlement.storeVerified || entitlement.source === 'demo'),
@@ -95,6 +118,8 @@ export function capabilitiesForEntitlement(entitlement: EntitlementSnapshot): Ca
     canAddWorkplace: true,
     canUseCustomReimbursement: proLike && (entitlement.storeVerified || entitlement.source === 'demo'),
     canUseProfessionalShare: proLike && (entitlement.storeVerified || entitlement.source === 'demo'),
+    csvExportEnabled: true,
+    pdfExportEnabled: paid,
     maxVehicles: paid ? 20 : 1,
     maxWorkplaces: paid ? 50 : 2,
   };

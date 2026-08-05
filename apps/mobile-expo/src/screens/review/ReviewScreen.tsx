@@ -5,6 +5,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { motion } from '@milerecover/config';
 import {
+  createTripRateSnapshot,
   estimatedValueCents,
   formatCurrencyCents,
   formatDistance,
@@ -96,7 +97,13 @@ export function ReviewScreen() {
     upsertRecovery,
     refreshRecoverySuggestions,
   } = useApp();
-  const { product, pushReviewHistory, markReviewHistoryUndone, markFirstMissingTripSeen } = useProduct();
+  const {
+    product,
+    pushReviewHistory,
+    markReviewHistoryUndone,
+    markFirstMissingTripSeen,
+    consumeMissingScan,
+  } = useProduct();
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const [segment, setSegment] = useState<'needs' | 'reviewed'>('needs');
   const [undoItem, setUndoItem] = useState<ReviewHistoryEntry | null>(null);
@@ -172,7 +179,13 @@ export function ReviewScreen() {
 
     const trip = state.trips.find((record) => record.id === item.tripId);
     if (!trip) return;
-    classifyTrip(trip.id, decision);
+    classifyTrip(
+      trip.id,
+      decision,
+      decision === 'work'
+        ? { rateSnapshot: createTripRateSnapshot(product.localeProfile, trip.startAt) }
+        : undefined,
+    );
     pushDecision(item, decision, trip, trip.id, 'trip');
   };
 
@@ -198,6 +211,14 @@ export function ReviewScreen() {
   };
 
   const checkMissedDrives = () => {
+    if (!consumeMissingScan()) {
+      Alert.alert(
+        'Monthly scan used',
+        'Free includes one missing-trip scan per month. Upgrade for recurring missed-drive review, or add drives manually.',
+      );
+      return;
+    }
+    markFirstMissingTripSeen();
     refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
   };
 
@@ -246,7 +267,7 @@ export function ReviewScreen() {
           <>
             <EmptyState
               title="You’re caught up"
-              body="All confirmed work drives are ready for Proof."
+              body="No drives need classification."
             />
             <SecondaryButton
               label="Add a known work drive"

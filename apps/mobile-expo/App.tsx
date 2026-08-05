@@ -1,10 +1,14 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors, spacing } from '@milerecover/config';
-import { capabilitiesForEntitlement } from '@milerecover/domain';
+import {
+  canCaptureAutomaticTrip,
+  capabilitiesForEntitlement,
+  mapEngineRuntimeToShell,
+} from '@milerecover/domain';
 import { AppProvider, useApp } from './src/store/AppContext';
 import { ProductProvider, useProduct } from './src/product/ProductContext';
 import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
@@ -34,17 +38,35 @@ function BootSplash({ label }: { label: string }) {
 }
 
 function TrackingBootstrap({ children }: { children: React.ReactNode }) {
-  const { upsertTrip } = useApp();
+  const { upsertTrip, setTrackingEngineState, state } = useApp();
   const { product } = useProduct();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
-  const trackingAllowed = product.trackingEnabled && capabilities.canUseAutomaticCapture;
+  const allowanceOk = canCaptureAutomaticTrip(product.entitlement, state.trips);
+  const trackingAllowed =
+    product.trackingEnabled && capabilities.canUseAutomaticCapture && allowanceOk;
+  const tripsRef = useRef(state.trips);
+  tripsRef.current = state.trips;
+  const productRef = useRef(product);
+  productRef.current = product;
+
   const controller = useMemo(
     () =>
       createTrackingController({
         onTripClosed: upsertTrip,
-        isAllowed: () => trackingAllowed,
+        isAllowed: () => {
+          const caps = capabilitiesForEntitlement(productRef.current.entitlement);
+          return (
+            productRef.current.trackingEnabled &&
+            caps.canUseAutomaticCapture &&
+            canCaptureAutomaticTrip(productRef.current.entitlement, tripsRef.current)
+          );
+        },
+        onEngineStateChange: (runtime, lastSampleAt) => {
+          setTrackingEngineState(mapEngineRuntimeToShell(runtime), lastSampleAt);
+        },
+        getExistingTrips: () => tripsRef.current,
       }),
-    [trackingAllowed, upsertTrip],
+    [setTrackingEngineState, upsertTrip],
   );
 
   useEffect(() => {
@@ -52,11 +74,32 @@ function TrackingBootstrap({ children }: { children: React.ReactNode }) {
       void controller.startTracking();
     } else {
       void controller.stopTracking();
+      setTrackingEngineState('idle');
     }
     return () => {
       void controller.stopTracking();
     };
-  }, [controller, trackingAllowed]);
+  }, [controller, setTrackingEngineState, trackingAllowed]);
+
+  // Process-death / resume: refresh diagnostics into AppContext while protection is on.
+  useEffect(() => {
+    if (!trackingAllowed) return;
+    let cancelled = false;
+    const tick = async () => {
+      const diagnostics = await controller.getDiagnostics();
+      if (cancelled) return;
+      setTrackingEngineState(
+        mapEngineRuntimeToShell(diagnostics.engineState),
+        diagnostics.lastSampleAt,
+      );
+    };
+    void tick();
+    const id = setInterval(() => void tick(), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [controller, setTrackingEngineState, trackingAllowed]);
 
   return <>{children}</>;
 }

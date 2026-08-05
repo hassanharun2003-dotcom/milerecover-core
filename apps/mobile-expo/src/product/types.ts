@@ -76,6 +76,8 @@ export interface VehicleDraft {
   model: string;
   plate: string;
   isPrimary: boolean;
+  /** Once true, nickname no longer auto-follows year/make/model. */
+  nicknameUserSet?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -164,6 +166,12 @@ export interface ProductUiState {
   celebratedFirstRecoveryAt: number | null;
   /** Dismissed "Finish setup" card on Home. */
   finishSetupDismissedAt: number | null;
+  /** Calendar period key (YYYY-MM) for Free missing-scan allowance. */
+  missingScanPeriodKey: string | null;
+  /** Scans used in missingScanPeriodKey. */
+  missingScansUsedThisPeriod: number;
+  /** When the Free 7-day import preview started (null = not started). */
+  importPreviewStartedAt: number | null;
 }
 
 export const PRODUCT_UI_STORAGE_KEY = '@milerecover/product-ui/v4';
@@ -228,6 +236,9 @@ export function createInitialProductUiState(): ProductUiState {
     celebratedFirstReportAt: null,
     celebratedFirstRecoveryAt: null,
     finishSetupDismissedAt: null,
+    missingScanPeriodKey: null,
+    missingScansUsedThisPeriod: 0,
+    importPreviewStartedAt: null,
   };
 }
 

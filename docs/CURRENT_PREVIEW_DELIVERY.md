@@ -1,50 +1,28 @@
-# Current preview delivery (deferred verification)
+# Current preview delivery — final production pass
 
-**Branch:** `cursor/physical-device-ux-fix-29cb`  
-**Latest product commit:** see tip of `cursor/physical-device-ux-fix-29cb` (10× product upgrade is JS/domain; no new APK required).  
-**APK baseline commit (embedded in published APK):** `11253c6d075f81feb155ca6183551cfcfc262a3a`
+**Branch:** `cursor/final-production-pass-29cb`  
+**App version / runtime:** `0.1.7`  
+**Build label:** `0.1.7-final.1`  
+**Channel:** `preview`
 
-## Direct APK download (phone-friendly)
+## Why a new APK is required
 
-https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.6/MileRecover-preview-0.1.6.apk
+Native tracking foundation changes (engine → AppContext sync, trip state machine persistence, FGS copy, Free 40-trip allowance gating, battery settings deep-link). Runtime policy is `appVersion`, so OTAs for `0.1.7` only install on `0.1.7` binaries.
 
-Latest alias (same release):
+## Install
 
-https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.6/MileRecover-preview-latest.apk
+Publish via EAS preview profile, then attach the APK to a GitHub prerelease:
 
-Release page:
+- Tag pattern: `android-preview-0.1.7`
+- Assets: `MileRecover-preview-0.1.7.apk` and `MileRecover-preview-latest.apk`
 
-https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.1.6
+Until the EAS build URL is published, use the EAS dashboard build artifact for account `milerecover` / project `milerecover`.
 
-| Field | Value |
-|---|---|
-| Package | `com.milerecover.app` |
-| versionName / runtime | `0.1.6` |
-| versionCode | `16` |
-| Channel | `preview` |
-| Build label | `0.1.6-mvp.4` |
-| Embedded commit | `11253c6d075f81feb155ca6183551cfcfc262a3a` |
-| SHA-256 | `4a509da59ad67ce04e86ae01434c6361b9837dacb5251280d42e495239e6e836` |
+## Prior baseline (superseded for native)
 
-## Expo / EAS Update
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.6/MileRecover-preview-0.1.6.apk  
+(versionCode 16 — JS OTAs only for runtime `0.1.6`)
 
-- Updates URL: `https://u.expo.dev/c61d0a3c-ba3d-40e1-9764-5118fa2429f3`
-- Channel / branch: `preview`
-- Project: `@milerecover/milerecover`
-- Runtime: `0.1.6`
-- Latest product OTA (10× upgrade — JS/domain):
-  - Group: `019a4f50-8950-4a28-bc6a-346d7d95d8b5`
-  - Android update ID: `019fcea0-e68c-7e2e-9ac1-414155c55c24`
-  - iOS update ID: `019fcea0-e68c-7fb2-af03-4e96ae4ccd3b`
-  - Dashboard: https://expo.dev/accounts/milerecover/projects/milerecover/updates/019a4f50-8950-4a28-bc6a-346d7d95d8b5
-  - Message: `10x product upgrade: Protection Center, Review, Proof, Profile (APP_VARIANT=preview)`
-- Prior post-install marker OTA (superseded on channel by product OTA above):
-  - Group: `cb4c45b9-1ad5-4c86-9956-488ce33bdd76`
-  - Android update ID: `019fce54-0ce2-7d30-ba73-b7429b322b45`
-  - Marker: `OTA VERIFIED — BUILD 0.1.6 — 2026-08-04T19:40:00Z`
+## Validation
 
-## Deferred / non-blocking
-
-Emulator cold-start apply of the post-install OTA, additional package-manager reinstall loops, and further screenshot capture are **deferred and non-blocking**. Soft-emulator hangs (no KVM) blocked the last apply cycle after About verification already succeeded once.
-
-Product work continues on JS/domain without waiting on emulator or a new APK unless native config changes.
+See `docs/release/FINAL_RELEASE_AUDIT.md` and `ui-evidence/final-production/`.

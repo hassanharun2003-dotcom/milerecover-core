@@ -8,6 +8,8 @@ import React, {
   useState,
 } from 'react';
 import {
+  calendarPeriodKey,
+  canRunMissingScan,
   createEmptyOnboardingState,
   createFreeEntitlement,
   CURRENT_ONBOARDING_VERSION,
@@ -51,6 +53,7 @@ type VehicleUpsert = {
   model?: string;
   plate?: string;
   isPrimary?: boolean;
+  nicknameUserSet?: boolean;
   createdAt?: number;
   updatedAt?: number;
 };
@@ -97,6 +100,8 @@ interface ProductContextValue {
   markFirstRecoverySeen: () => void;
   markFirstExport: () => void;
   markFirstMissingTripSeen: () => void;
+  /** Returns false when Free monthly scan allowance is exhausted. */
+  consumeMissingScan: () => boolean;
   markFirstRecoveredDrive: () => void;
   markCelebratedFirstDrive: () => void;
   markCelebratedFirstReport: () => void;
@@ -480,6 +485,23 @@ export function ProductProvider({
           ...prev,
           firstMissingTripSeenAt: prev.firstMissingTripSeenAt ?? Date.now(),
         })),
+      consumeMissingScan: () => {
+        const period = calendarPeriodKey();
+        const used =
+          product.missingScanPeriodKey === period ? product.missingScansUsedThisPeriod : 0;
+        if (!canRunMissingScan(product.entitlement, used)) return false;
+        persist((prev) => {
+          const prevUsed =
+            prev.missingScanPeriodKey === period ? prev.missingScansUsedThisPeriod : 0;
+          if (!canRunMissingScan(prev.entitlement, prevUsed)) return prev;
+          return {
+            ...prev,
+            missingScanPeriodKey: period,
+            missingScansUsedThisPeriod: prevUsed + 1,
+          };
+        });
+        return true;
+      },
       markFirstRecoveredDrive: () =>
         persist((prev) => ({
           ...prev,
@@ -597,6 +619,7 @@ export function ProductProvider({
             model: vehicle.model?.trim() ?? '',
             plate: vehicle.plate?.trim() ?? '',
             isPrimary: vehicle.isPrimary ?? prev.vehicles.length === 0,
+            nicknameUserSet: vehicle.nicknameUserSet === true,
             createdAt: vehicle.createdAt ?? now,
             updatedAt: now,
           };

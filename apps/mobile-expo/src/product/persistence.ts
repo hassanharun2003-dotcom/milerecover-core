@@ -10,6 +10,7 @@ import {
   mapLegacyGoal,
   mapLegacyPattern,
   migrateLocaleProfile,
+  migrateVehicleIdentity,
   rateForTimestamp,
   type VersionedOnboardingState,
 } from '@milerecover/domain';
@@ -32,16 +33,26 @@ function normalizeVehicle(raw: unknown): VehicleDraft | null {
     (typeof v.nickname === 'string' && v.nickname) ||
     (typeof v.label === 'string' && v.label) ||
     '';
-  if (!nickname || nickname === 'Primary vehicle') return null;
+  const year = typeof v.year === 'string' ? v.year : '';
+  const make = typeof v.make === 'string' ? v.make : '';
+  const model = typeof v.model === 'string' ? v.model : '';
+  if (!nickname && !year && !make && !model) return null;
+  if (nickname === 'Primary vehicle' && !make && !model) return null;
   const now = Date.now();
-  return {
+  const migrated = migrateVehicleIdentity({
     id: typeof v.id === 'string' ? v.id : `vehicle-${now}`,
     nickname,
-    year: typeof v.year === 'string' ? v.year : '',
-    make: typeof v.make === 'string' ? v.make : '',
-    model: typeof v.model === 'string' ? v.model : '',
+    year,
+    make,
+    model,
     plate: typeof v.plate === 'string' ? v.plate : '',
     isPrimary: v.isPrimary !== false,
+    nicknameUserSet: v.nicknameUserSet === true,
+  });
+  return {
+    ...migrated,
+    plate: migrated.plate ?? '',
+    isPrimary: migrated.isPrimary !== false,
     createdAt: typeof v.createdAt === 'number' ? v.createdAt : now,
     updatedAt: typeof v.updatedAt === 'number' ? v.updatedAt : now,
   };
@@ -246,9 +257,29 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
         : rateForTimestamp(migrateLocaleProfile(parsed.localeProfile, now).rates, now)?.centsPerMile ??
           null,
   };
+  merged.missingScanPeriodKey =
+    typeof parsed.missingScanPeriodKey === 'string' ? parsed.missingScanPeriodKey : null;
+  merged.missingScansUsedThisPeriod =
+    typeof parsed.missingScansUsedThisPeriod === 'number' ? parsed.missingScansUsedThisPeriod : 0;
+  merged.importPreviewStartedAt =
+    typeof parsed.importPreviewStartedAt === 'number' ? parsed.importPreviewStartedAt : null;
+
+  // Preserve store-verified (or cached) entitlements across restart.
+  // Only wipe invented paid access that was not store/demo verified.
   if (!merged.demoModeEnabled) {
-    merged.entitlement = createFreeEntitlement(now);
-    merged.selectedPlan = 'free';
+    const ent = merged.entitlement;
+    const keep =
+      ent &&
+      (ent.source === 'store' || ent.source === 'cache') &&
+      ent.storeVerified &&
+      ent.planId !== 'free';
+    if (!keep && ent?.source !== 'demo') {
+      // Keep Free; do not invent Plus from local UI selection alone.
+      if (!ent?.storeVerified || ent.planId === 'free') {
+        merged.entitlement = createFreeEntitlement(now);
+        merged.selectedPlan = 'free';
+      }
+    }
   }
   return merged;
 }

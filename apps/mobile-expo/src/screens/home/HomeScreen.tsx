@@ -6,12 +6,14 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { spacing } from '@milerecover/config';
 import {
+  canCaptureAutomaticTrip,
   capabilitiesForEntitlement,
   estimatedValueCents,
   formatCurrencyCents,
   formatDistance,
   rateForTimestamp,
   resolveProtectionStatus,
+  sumEstimatedValueCents,
 } from '@milerecover/domain';
 import {
   OfflineBanner,
@@ -133,6 +135,7 @@ export function HomeScreen() {
   const capabilities = capabilitiesForEntitlement(product.entitlement);
   const setupIncomplete =
     product.protectionSetupState === 'not_started' || product.protectionSetupState === 'educated';
+  const allowanceOk = canCaptureAutomaticTrip(product.entitlement, state.trips);
   const protection = resolveProtectionStatus({
     permissions,
     trackingEnabled: product.trackingEnabled,
@@ -143,6 +146,7 @@ export function HomeScreen() {
     pendingReviewCount: experience.activeReviewItems.length,
     setupIncomplete,
     offline: scenario.homeState === 'offline',
+    automaticAllowanceExhausted: capabilities.canUseAutomaticCapture && !allowanceOk,
   });
   const compact = compactProtection(protection);
 
@@ -152,10 +156,12 @@ export function HomeScreen() {
   const currentRate = rateForTimestamp(locale.rates, Date.now());
   const rateUsable = currentRate != null && !locale.activeRateNeedsReview;
   const protectedMiles = scenario.weekSummary.milesProtected;
+  const snapshotTotal = sumEstimatedValueCents(experience.confirmedTrips, locale);
   const estimatedProtected =
-    rateUsable && currentRate != null
+    snapshotTotal ??
+    (rateUsable && currentRate != null
       ? estimatedValueCents(protectedMiles, currentRate.centsPerMile)
-      : null;
+      : null);
   const recoveredMiles = scenario.weekSummary.recoveredMiles;
   const pendingReviewCount = experience.activeReviewItems.length;
   const trialMoment = earnedTrialMoment(product, confirmedCount);
@@ -164,15 +170,15 @@ export function HomeScreen() {
     isWithinFirstWeek(product.firstConfirmedWorkDriveAt);
 
   const nextBest = useMemo(() => {
-    if (pendingReviewCount > 0) {
-      return {
-        label: pendingReviewCount === 1 ? 'Review 1 drive' : `Review ${pendingReviewCount} drives`,
-        run: () => navigation.navigate('Review'),
-      };
-    }
+    // Priority: blocking tracking → classification → report correction → rate → recovery → report ready → caught up
     if (compact.kind === 'needs_attention' || compact.kind === 'paused' || compact.kind === 'setup_incomplete') {
       return {
-        label: compact.actionLabel,
+        label:
+          compact.kind === 'paused'
+            ? 'Turn on drive protection'
+            : compact.kind === 'setup_incomplete'
+              ? 'Finish protection setup'
+              : compact.actionLabel,
         run: () => {
           if (compact.kind === 'needs_attention') {
             logEvent(ANALYTICS_EVENTS.protectionDegradedViewed, {});
@@ -182,16 +188,31 @@ export function HomeScreen() {
         },
       };
     }
-    if (locale.activeRateNeedsReview) {
+    if (pendingReviewCount > 0) {
       return {
-        label: 'Review mileage rate',
+        label:
+          pendingReviewCount === 1
+            ? 'Review 1 possible drive'
+            : `Review ${pendingReviewCount} possible drives`,
+        run: () => navigation.navigate('Review'),
+      };
+    }
+    if (locale.activeRateNeedsReview || !rateUsable) {
+      return {
+        label: 'Add a rate to calculate your value',
         run: () => navigation.navigate('EditSetup'),
       };
     }
     if (setupIncomplete && capabilities.canUseAutomaticCapture) {
       return {
-        label: 'Finish protection setup',
+        label: 'Turn on drive protection',
         run: () => navigation.navigate('ProtectionAlert'),
+      };
+    }
+    if (product.importPhase !== 'idle' && product.importPhase !== 'success') {
+      return {
+        label: 'Finish your import',
+        run: () => navigation.navigate('BringExistingMileage'),
       };
     }
     if (experience.activeReviewItems.some((item) => item.kind === 'possible_missing_trip')) {
@@ -202,12 +223,12 @@ export function HomeScreen() {
     }
     if (scenario.proofReady && confirmedCount > 0) {
       return {
-        label: 'Preview report',
+        label: 'Preview your report',
         run: () => navigation.navigate('Proof'),
       };
     }
     return {
-      label: 'Add a drive',
+      label: 'You’re all caught up',
       run: () => navigation.navigate('ManualTrip'),
     };
   }, [
@@ -220,6 +241,8 @@ export function HomeScreen() {
     locale.activeRateNeedsReview,
     navigation,
     pendingReviewCount,
+    product.importPhase,
+    rateUsable,
     scenario.proofReady,
     setupIncomplete,
   ]);

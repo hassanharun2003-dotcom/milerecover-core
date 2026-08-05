@@ -181,6 +181,10 @@ export function importRowsToTrips(
   rows: ParsedImportRow[],
   existing: TripRecord[],
   now = Date.now(),
+  options?: {
+    /** Resolve imported vehicle label → existing vehicle id. Never invents vehicles. */
+    resolveVehicleId?: (label: string) => string | null;
+  },
 ): { trips: TripRecord[]; duplicatesSkipped: number } {
   const trips: TripRecord[] = [];
   let duplicatesSkipped = 0;
@@ -202,6 +206,13 @@ export function importRowsToTrips(
       continue;
     }
     const uncertain = !row.purpose || row.purpose === 'Imported drive';
+    const vehicleId =
+      row.vehicle && options?.resolveVehicleId
+        ? options.resolveVehicleId(row.vehicle)
+        : null;
+    const notesParts = [row.notes || null, row.vehicle && !vehicleId ? `Vehicle label: ${row.vehicle}` : null].filter(
+      Boolean,
+    );
     trips.push({
       id: `trip-import-${now}-${row.rowNumber}`,
       source: 'imported',
@@ -211,12 +222,12 @@ export function importRowsToTrips(
       endAt: row.endAt,
       distanceMiles: row.distanceMiles,
       purpose: row.purpose,
-      notes: row.notes || null,
+      notes: notesParts.length > 0 ? notesParts.join(' · ') : null,
       hasRouteCoordinates: false,
       confidence: uncertain ? 'low' : 'medium',
       startLabel: row.startLabel || null,
       endLabel: row.endLabel || null,
-      vehicleId: null,
+      vehicleId,
       evidenceMethod: 'user_estimate' as TripEvidenceMethod,
       createdAt: now,
       updatedAt: now,
