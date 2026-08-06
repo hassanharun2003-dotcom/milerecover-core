@@ -318,13 +318,11 @@ function applyCompletionStamp(
   };
 }
 
-export async function saveOnboardingCompletionStamp(
-  onboarding: VersionedOnboardingState,
-): Promise<void> {
-  if (!isOnboardingMinimumComplete(onboarding)) return;
-  if (onboarding.primaryGoal == null || onboarding.nextActionSelected == null) return;
-  if (onboarding.completedAt == null || onboarding.completedOnboardingVersion == null) return;
-  const stamp: OnboardingCompletionStamp = {
+function stampFromOnboarding(onboarding: VersionedOnboardingState): OnboardingCompletionStamp | null {
+  if (!isOnboardingMinimumComplete(onboarding)) return null;
+  if (onboarding.primaryGoal == null || onboarding.nextActionSelected == null) return null;
+  if (onboarding.completedAt == null || onboarding.completedOnboardingVersion == null) return null;
+  return {
     completedAt: onboarding.completedAt,
     completedOnboardingVersion: onboarding.completedOnboardingVersion,
     primaryGoal: onboarding.primaryGoal,
@@ -334,7 +332,61 @@ export async function saveOnboardingCompletionStamp(
     protectionEducationAcknowledged: true,
     permissionsEducationAcknowledged: true,
   };
+}
+
+export async function saveOnboardingCompletionStamp(
+  onboarding: VersionedOnboardingState,
+): Promise<boolean> {
+  const stamp = stampFromOnboarding(onboarding);
+  if (!stamp) return false;
   await AsyncStorage.setItem(ONBOARDING_COMPLETION_KEY, JSON.stringify(stamp));
+  return true;
+}
+
+/**
+ * Atomically persist completion stamp + product blob, then read back.
+ * Used at the end of onboarding so Home unlock survives force-stop.
+ */
+export async function persistVerifiedOnboardingCompletion(state: ProductUiState): Promise<void> {
+  const stamp = stampFromOnboarding(state.onboarding);
+  if (!stamp) {
+    throw new Error('ONBOARDING_INCOMPLETE_FOR_PERSIST');
+  }
+  const { showDevTools: _showDevTools, ...persisted } = state;
+  void _showDevTools;
+  const blob = JSON.stringify(persisted);
+  const stampJson = JSON.stringify(stamp);
+
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      // Flush any in-flight latest-wins writes so they cannot finish after us.
+      productWriteLatest = null;
+      await flushProductUiSaves();
+      await AsyncStorage.multiSet([
+        [ONBOARDING_COMPLETION_KEY, stampJson],
+        [PRODUCT_UI_STORAGE_KEY, blob],
+      ]);
+      const [stampRaw, productRaw] = await AsyncStorage.multiGet([
+        ONBOARDING_COMPLETION_KEY,
+        PRODUCT_UI_STORAGE_KEY,
+      ]);
+      if (stampRaw[1] !== stampJson) {
+        throw new Error('ONBOARDING_STAMP_VERIFY_FAILED');
+      }
+      if (!productRaw[1]) {
+        throw new Error('ONBOARDING_BLOB_VERIFY_FAILED');
+      }
+      const parsed = JSON.parse(productRaw[1]) as { onboarding?: VersionedOnboardingState };
+      if (!isOnboardingMinimumComplete(parsed.onboarding as VersionedOnboardingState)) {
+        throw new Error('ONBOARDING_BLOB_INCOMPLETE_AFTER_WRITE');
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('ONBOARDING_PERSIST_FAILED');
 }
 
 export async function loadOnboardingCompletionStamp(): Promise<OnboardingCompletionStamp | null> {
@@ -360,7 +412,19 @@ export async function loadOnboardingCompletionStamp(): Promise<OnboardingComplet
   }
 }
 
-export async function loadProductUiState(): Promise<ProductUiState> {
+export type ProductUiLoadResult = {
+  state: ProductUiState;
+  /** Storage key the blob was read from (null when empty / stamp-only). */
+  sourceKey: string | null;
+  /** True when caller should write v4 (legacy key migrate or stamp merge). */
+  needsPersist: boolean;
+};
+
+/**
+ * Read product UI state. Does NOT write storage — in-flight loads must not
+ * clobber newer onboarding taps (Strict Mode / remount races).
+ */
+export async function readProductUiState(): Promise<ProductUiLoadResult> {
   try {
     for (const key of [
       PRODUCT_UI_STORAGE_KEY,
@@ -372,25 +436,38 @@ export async function loadProductUiState(): Promise<ProductUiState> {
       if (!raw) continue;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       let migrated = migrateRaw(parsed);
+      let needsPersist = key !== PRODUCT_UI_STORAGE_KEY;
       const stamp = await loadOnboardingCompletionStamp();
       if (stamp && !isOnboardingMinimumComplete(migrated.onboarding)) {
         migrated = applyCompletionStamp(migrated, stamp);
+        needsPersist = true;
       }
-      await AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(migrated));
-      if (key !== PRODUCT_UI_STORAGE_KEY) {
-        await AsyncStorage.removeItem(key);
-      }
-      return migrated;
+      return { state: migrated, sourceKey: key, needsPersist };
     }
-    // No product blob — still honor a valid completion stamp (rare recovery path).
     const stamp = await loadOnboardingCompletionStamp();
     if (stamp) {
-      return applyCompletionStamp(createInitialProductUiState(), stamp);
+      return {
+        state: applyCompletionStamp(createInitialProductUiState(), stamp),
+        sourceKey: null,
+        needsPersist: true,
+      };
     }
   } catch {
     // fall through
   }
-  return createInitialProductUiState();
+  return { state: createInitialProductUiState(), sourceKey: null, needsPersist: false };
+}
+
+export async function loadProductUiState(): Promise<ProductUiState> {
+  const { state, sourceKey, needsPersist } = await readProductUiState();
+  // Tests and non-UI callers still get a durable migration write.
+  if (needsPersist) {
+    await saveProductUiState(state);
+    if (sourceKey && sourceKey !== PRODUCT_UI_STORAGE_KEY) {
+      await AsyncStorage.removeItem(sourceKey);
+    }
+  }
+  return state;
 }
 
 export async function saveProductUiState(state: ProductUiState): Promise<void> {
@@ -403,25 +480,37 @@ export async function saveProductUiState(state: ProductUiState): Promise<void> {
  * Serialize product-ui writes so rapid onboarding taps cannot let an older
  * in-flight AsyncStorage.setItem finish after a newer one (stale disk state).
  * Always persists the latest enqueued snapshot (latest-wins).
+ * Single scheduled worker — avoids stacking an unbounded .then chain.
  */
 let productWriteChain: Promise<void> = Promise.resolve();
 let productWriteLatest: ProductUiState | null = null;
+let productWriteScheduled = false;
 
 /** Enqueue a durable save of the latest product UI state. Safe to call rapidly. */
 export function enqueueProductUiSave(state: ProductUiState): Promise<void> {
   productWriteLatest = state;
-  productWriteChain = productWriteChain
-    .then(async () => {
-      // Drain until no newer snapshot arrived while awaiting setItem.
-      while (productWriteLatest) {
-        const snapshot = productWriteLatest;
-        productWriteLatest = null;
-        await saveProductUiState(snapshot);
-      }
-    })
-    .catch(() => {
-      // Keep the chain alive after a failed write so later saves still run.
-    });
+  if (!productWriteScheduled) {
+    productWriteScheduled = true;
+    productWriteChain = productWriteChain
+      .then(async () => {
+        try {
+          while (productWriteLatest) {
+            const snapshot = productWriteLatest;
+            productWriteLatest = null;
+            await saveProductUiState(snapshot);
+          }
+        } finally {
+          productWriteScheduled = false;
+          // A save arrived after we cleared the flag but before exit — schedule again.
+          if (productWriteLatest) {
+            void enqueueProductUiSave(productWriteLatest);
+          }
+        }
+      })
+      .catch(() => {
+        productWriteScheduled = false;
+      });
+  }
   return productWriteChain;
 }
 

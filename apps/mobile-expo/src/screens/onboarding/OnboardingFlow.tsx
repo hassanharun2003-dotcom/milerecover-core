@@ -194,9 +194,12 @@ export function OnboardingFlow() {
     }
   };
 
+  const [persistError, setPersistError] = useState<string | null>(null);
+
   const finish = (route: PostOnboardingRoute) => {
     if (finishing) return;
     setFinishing(true);
+    setPersistError(null);
     const action: NextActionId =
       route === 'ManualTrip'
         ? 'add_first_drive'
@@ -207,7 +210,8 @@ export function OnboardingFlow() {
             : 'add_first_drive';
     void (async () => {
       try {
-        await completeProductOnboarding(route);
+        // Ensure acknowledgements + next action are on productRef before the
+        // verified completion write (stamp requires nextActionSelected).
         patchOnboarding({
           nextActionSelected: action,
           accountStepAcknowledged: true,
@@ -215,12 +219,13 @@ export function OnboardingFlow() {
           protectionEducationAcknowledged: true,
           permissionsEducationAcknowledged: true,
         });
+        await completeProductOnboarding(route);
         await flushProductPersistence();
-      } catch {
-        // In-memory completion still unlocks Home; disk flush is best-effort.
-      } finally {
         logEvent(ANALYTICS_EVENTS.onboardingCompleted, { next: action });
         finishOnboarding();
+      } catch {
+        setPersistError('Couldn’t save your setup. Check storage and try again.');
+        setFinishing(false);
       }
     })();
   };
@@ -694,6 +699,14 @@ export function OnboardingFlow() {
               ? 'Protection is waiting for your first drive. Uncertain drives go to Review before they affect your records.'
               : 'You can add drives manually anytime. Turn on protection later from Profile when you’re ready.'}
           </Text>
+          {persistError ? (
+            <Text
+              style={[text.body, { color: palette.status.danger, marginBottom: spacing.sm, textAlign: 'center' }]}
+              accessibilityLabel="Onboarding save error"
+            >
+              {persistError}
+            </Text>
+          ) : null}
           <View style={{ width: '100%', gap: spacing.sm }}>
             <MRPrimaryButton
               label="Go to Home"

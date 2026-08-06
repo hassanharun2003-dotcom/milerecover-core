@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { buildMileageCsv, type PersistenceRepository, type TripRecord } from '@milerecover/domain';
-import { loadProductUiState } from '../product/persistence';
+import { loadProductUiState, ONBOARDING_COMPLETION_KEY } from '../product/persistence';
 import { PRODUCT_UI_STORAGE_KEYS } from '../product/types';
 import { APP_STATE_STORAGE_KEYS } from '../persistence/AsyncStoragePersistenceRepository';
 import { AUTH_SESSION_STORAGE_KEY } from './auth';
@@ -17,6 +17,7 @@ export const LAST_MANUAL_VEHICLE_STORAGE_KEY = '@milerecover/last-manual-vehicle
 
 export const LOCAL_EXPERIENCE_STORAGE_KEYS = [
   ...PRODUCT_UI_STORAGE_KEYS,
+  ONBOARDING_COMPLETION_KEY,
   ...APP_STATE_STORAGE_KEYS,
   TRACKING_SAMPLE_STORAGE_KEY,
   TRACKING_MACHINE_STORAGE_KEY,

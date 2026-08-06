@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.2.7-startup.5';
+export const APP_BUILD_LABEL = '0.2.7-startup.6';
 
 /**
  * Temporary Home-screen OTA verification string.

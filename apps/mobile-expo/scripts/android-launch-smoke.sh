@@ -101,23 +101,31 @@ def tap(label):
     time.sleep(4)
     return True
 
-tap('Get started →') or tap('Get started')
+def tap_sub(*labels):
+    for label in labels:
+        if tap(label):
+            return True
+    return False
+
+tap_sub('Get started →', 'Get started')
 time.sleep(3)
-tap('Continue without an account')
+tap_sub('Continue without an account')
 time.sleep(4)
 if any('Employee' in t for t in texts()):
-    tap('Employee reimbursement')
+    tap_sub('Employee reimbursement')
     time.sleep(1)
-tap('Continue →')
+tap_sub('Continue →')
 time.sleep(4)
-tap('Continue →')
+tap_sub('Continue →')
 time.sleep(4)
-if 'Not now' in texts():
-    tap('Not now')
-    time.sleep(4)
-if 'Go to Home' in texts():
-    tap('Go to Home')
-    time.sleep(8)
+# Copy is "Not now — I'll add drives manually" — match substring via tap().
+if not tap_sub('Not now', 'add drives manually'):
+    print('WARN: protect skip not found', texts()[:20])
+time.sleep(5)
+if not tap_sub('Go to Home'):
+    print('WARN: Go to Home not found', texts()[:20])
+    raise SystemExit('Go to Home not visible')
+time.sleep(10)
 t=texts()
 print('AFTER_ONBOARD', t[:25])
 p=subprocess.run([*ADB,'exec-out','screencap','-p'], capture_output=True, timeout=90)
@@ -125,13 +133,31 @@ p=subprocess.run([*ADB,'exec-out','screencap','-p'], capture_output=True, timeou
 if not any(x in t for x in ['Home','Add a drive','Good morning',"You've protected"]):
     raise SystemExit('Home not visible after onboarding')
 print('OK: Home visible')
+
+# Durability proof before reopen
+import json
+subprocess.run([*ADB,'shell','am','force-stop','com.milerecover.app'], check=False)
+time.sleep(2)
+db='/data/data/com.milerecover.app/databases/RKStorage'
+def q(sql):
+    return subprocess.run([*ADB,'shell','sqlite3',db,sql], capture_output=True, text=True, timeout=30).stdout.strip()
+stamp=q("SELECT value FROM catalystLocalStorage WHERE key='@milerecover/onboarding-complete/v1';")
+prod=q("SELECT value FROM catalystLocalStorage WHERE key='@milerecover/product-ui/v4';")
+print('STAMP', stamp[:180] if stamp else None)
+if not stamp:
+    raise SystemExit('FAIL: onboarding completion stamp missing on disk')
+if prod:
+    ob=json.loads(prod).get('onboarding',{})
+    print('PRODUCT_GOAL', ob.get('primaryGoal'), 'COMPLETED', ob.get('completedAt'))
+    if not ob.get('primaryGoal'):
+        raise SystemExit('FAIL: primaryGoal missing from durable product-ui')
 PY
 
 # Force-stop and reopen
 "$ADB" shell am force-stop "$PACKAGE"
 sleep 2
 "$ADB" shell am start -n "$ACTIVITY"
-sleep 20
+sleep 25
 pid=$("$ADB" shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)
 if [[ -z "${pid:-}" ]]; then
   echo "FAIL: dead after reopen" | tee "$OUT_DIR/result.txt"
@@ -140,8 +166,14 @@ fi
 "$ADB" exec-out screencap -p > "$OUT_DIR/03-reopen.png"
 "$ADB" shell uiautomator dump /sdcard/ui-smoke.xml >/dev/null
 "$ADB" pull /sdcard/ui-smoke.xml "$OUT_DIR/ui-reopen.xml" >/dev/null
-if ! rg -q "Home|Good morning|You've protected|Add a drive" "$OUT_DIR/ui-reopen.xml"; then
+# Dump twice — first a11y tree can be stale after cold start.
+sleep 5
+"$ADB" shell uiautomator dump /sdcard/ui-smoke2.xml >/dev/null
+"$ADB" pull /sdcard/ui-smoke2.xml "$OUT_DIR/ui-reopen-2.xml" >/dev/null
+if ! rg -q "Home|Good morning|You've protected|Add a drive" "$OUT_DIR/ui-reopen.xml" \
+  && ! rg -q "Home|Good morning|You've protected|Add a drive" "$OUT_DIR/ui-reopen-2.xml"; then
   echo "FAIL: Home not visible after reopen" | tee "$OUT_DIR/result.txt"
+  rg -o 'text="[^"]+"' "$OUT_DIR/ui-reopen-2.xml" | head -40 || true
   exit 1
 fi
 

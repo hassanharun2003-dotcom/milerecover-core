@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   applyVehicleFieldUpdate,
   calendarPeriodKey,
@@ -31,7 +32,8 @@ import { resetAppExperience } from '../services/dataPrivacy';
 import {
   enqueueProductUiSave,
   flushProductUiSaves,
-  loadProductUiState,
+  persistVerifiedOnboardingCompletion,
+  readProductUiState,
   saveOnboardingCompletionStamp,
   saveProductUiState,
 } from './persistence';
@@ -39,6 +41,7 @@ import {
   allowInternalPreviewTools,
   createInitialProductUiState,
   ONBOARDING_STEP_ORDER,
+  PRODUCT_UI_STORAGE_KEY,
   type DrivingType,
   type ImportBatchSummary,
   type ImportFlowPhase,
@@ -240,12 +243,24 @@ export function ProductProvider({
     }
     let cancelled = false;
     void (async () => {
-      const loaded = await loadProductUiState();
+      // Read-only load: never write inside the async read, or a cancelled
+      // Strict-Mode/remount load can clobber newer onboarding taps.
+      const { state: loaded, sourceKey, needsPersist } = await readProductUiState();
       if (cancelled) return;
       productRef.current = loaded;
       setProduct(loaded);
       hydratedRef.current = true;
       setHydrated(true);
+      if (needsPersist) {
+        try {
+          await saveProductUiState(loaded);
+          if (sourceKey && sourceKey !== PRODUCT_UI_STORAGE_KEY) {
+            await AsyncStorage.removeItem(sourceKey);
+          }
+        } catch {
+          // Migration write is best-effort; in-memory state remains usable.
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -560,8 +575,8 @@ export function ProductProvider({
         return route;
       },
       completeProductOnboarding: async (route = null) => {
+        const now = Date.now();
         persist((prev) => {
-          const now = Date.now();
           const nextAction = nextActionForRoute(route, prev);
           const protection =
             prev.protectionSetupState === 'not_started' ? 'educated' : prev.protectionSetupState;
@@ -601,14 +616,21 @@ export function ProductProvider({
             now,
           );
         });
-        // Launch-critical: small stamp write + full blob, both awaited.
-        await saveOnboardingCompletionStamp(productRef.current.onboarding);
-        await saveProductUiState(productRef.current);
-        await flushProductUiSaves();
+        const snapshot = productRef.current;
+        if (!isOnboardingMinimumComplete(snapshot.onboarding)) {
+          throw new Error('ONBOARDING_INCOMPLETE_FOR_PERSIST');
+        }
+        // Launch-critical: verified stamp + blob before Home unlock.
+        await persistVerifiedOnboardingCompletion(snapshot);
       },
       flushProductPersistence: async () => {
-        await saveOnboardingCompletionStamp(productRef.current.onboarding);
-        await saveProductUiState(productRef.current);
+        const snapshot = productRef.current;
+        if (isOnboardingMinimumComplete(snapshot.onboarding)) {
+          await persistVerifiedOnboardingCompletion(snapshot);
+          return;
+        }
+        await saveOnboardingCompletionStamp(snapshot.onboarding);
+        await saveProductUiState(snapshot);
         await flushProductUiSaves();
       },
       setReviewDecision: (itemId, decision) =>
