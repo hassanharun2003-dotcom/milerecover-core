@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
@@ -11,14 +11,19 @@ import {
 } from '@milerecover/domain';
 import { AppProvider, useApp } from './src/store/AppContext';
 import { ProductProvider, useProduct } from './src/product/ProductContext';
-import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
-import { RootNavigator } from './src/navigation/RootNavigator';
 import { StartupGate } from './src/components/StartupGate';
 import { ManualTripMigration } from './src/components/ManualTripMigration';
+import { StartupErrorBoundary } from './src/components/StartupErrorBoundary';
 import { UpdateProvider, useAppUpdates } from './src/updates/UpdateProvider';
 import { SafeFillScreen, text, ThemeProvider, useAppTheme } from './src/design-system';
-import { createTrackingController } from './src/services/trackingEngine';
 import { resolveLaunchState } from './src/startup/launchState';
+
+const OnboardingFlow = lazy(() =>
+  import('./src/screens/onboarding/OnboardingFlow').then((m) => ({ default: m.OnboardingFlow })),
+);
+const RootNavigator = lazy(() =>
+  import('./src/navigation/RootNavigator').then((m) => ({ default: m.RootNavigator })),
+);
 
 function BootSplash({ label }: { label: string }) {
   const { palette } = useAppTheme();
@@ -50,32 +55,44 @@ function TrackingBootstrap({ children }: { children: React.ReactNode }) {
   tripsRef.current = state.trips;
   const productRef = useRef(product);
   productRef.current = product;
+  const [controller, setController] = useState<
+    Awaited<ReturnType<typeof import('./src/services/trackingEngine').createTrackingController>> | null
+  >(null);
 
-  const controller = useMemo(
-    () =>
-      createTrackingController({
-        onTripClosed: upsertTrip,
-        isAllowed: () => {
-          const caps = capabilitiesForEntitlement(productRef.current.entitlement);
-          return (
-            productRef.current.trackingEnabled &&
-            caps.canUseAutomaticCapture &&
-            canCaptureAutomaticTrip(productRef.current.entitlement, tripsRef.current)
-          );
-        },
-        onEngineStateChange: (runtime, lastSampleAt) => {
-          setTrackingEngineState(mapEngineRuntimeToShell(runtime), lastSampleAt);
-        },
-        getExistingTrips: () => tripsRef.current,
-        getPrimaryVehicleId: () =>
-          productRef.current.vehicles.find((vehicle) => vehicle.isPrimary)?.id ??
-          productRef.current.vehicles[0]?.id ??
-          null,
-      }),
-    [setTrackingEngineState, upsertTrip],
-  );
+  // Defer native tracking module import until after first paint / Home unlock path.
+  useEffect(() => {
+    let cancelled = false;
+    void import('./src/services/trackingEngine').then(({ createTrackingController }) => {
+      if (cancelled) return;
+      setController(
+        createTrackingController({
+          onTripClosed: upsertTrip,
+          isAllowed: () => {
+            const caps = capabilitiesForEntitlement(productRef.current.entitlement);
+            return (
+              productRef.current.trackingEnabled &&
+              caps.canUseAutomaticCapture &&
+              canCaptureAutomaticTrip(productRef.current.entitlement, tripsRef.current)
+            );
+          },
+          onEngineStateChange: (runtime, lastSampleAt) => {
+            setTrackingEngineState(mapEngineRuntimeToShell(runtime), lastSampleAt);
+          },
+          getExistingTrips: () => tripsRef.current,
+          getPrimaryVehicleId: () =>
+            productRef.current.vehicles.find((vehicle) => vehicle.isPrimary)?.id ??
+            productRef.current.vehicles[0]?.id ??
+            null,
+        }),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [setTrackingEngineState, upsertTrip]);
 
   useEffect(() => {
+    if (!controller) return;
     if (trackingAllowed) {
       void controller.startTracking();
     } else {
@@ -87,9 +104,8 @@ function TrackingBootstrap({ children }: { children: React.ReactNode }) {
     };
   }, [controller, setTrackingEngineState, trackingAllowed]);
 
-  // Process-death / resume: refresh diagnostics into AppContext while protection is on.
   useEffect(() => {
-    if (!trackingAllowed) return;
+    if (!controller || !trackingAllowed) return;
     let cancelled = false;
     const tick = async () => {
       const diagnostics = await controller.getDiagnostics();
@@ -110,7 +126,7 @@ function TrackingBootstrap({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AppRoot() {
+function AppRoot({ remountKey }: { remountKey: number }) {
   const { state, retryRestore, resetLocalData, finishOnboarding } = useApp();
   const { product, hydrated: productHydrated } = useProduct();
   const { setUpdatePromptBlocked } = useAppUpdates();
@@ -150,17 +166,46 @@ function AppRoot() {
       <StatusBar style="dark" />
       <ManualTripMigration />
       <TrackingBootstrap>
-        {launch.showOnboarding ? (
-          <OnboardingFlow />
-        ) : launch.allowHome ? (
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        ) : (
-          <BootSplash label="Preparing MileRecover…" />
-        )}
+        <Suspense fallback={<BootSplash label="Preparing MileRecover…" />} key={remountKey}>
+          {launch.showOnboarding ? (
+            <OnboardingFlow />
+          ) : launch.allowHome ? (
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+          ) : (
+            <BootSplash label="Preparing MileRecover…" />
+          )}
+        </Suspense>
       </TrackingBootstrap>
     </StartupGate>
+  );
+}
+
+function AppShell() {
+  const [remountKey, setRemountKey] = useState(0);
+  const { resetLocalData, restartOnboarding } = useApp();
+  const { resetProductData, resetOnboarding } = useProduct();
+
+  return (
+    <StartupErrorBoundary
+      onRetry={() => setRemountKey((value) => value + 1)}
+      onResetPreviewState={async () => {
+        try {
+          await resetProductData();
+          await resetLocalData();
+          resetOnboarding();
+          restartOnboarding();
+        } catch {
+          // Boundary must stay up even if reset fails.
+        }
+        setRemountKey((value) => value + 1);
+      }}
+    >
+      <UpdateProvider>
+        <AppRoot remountKey={remountKey} />
+      </UpdateProvider>
+    </StartupErrorBoundary>
   );
 }
 
@@ -170,9 +215,7 @@ export default function App() {
       <ThemeProvider>
         <AppProvider>
           <ProductProvider>
-            <UpdateProvider>
-              <AppRoot />
-            </UpdateProvider>
+            <AppShell />
           </ProductProvider>
         </AppProvider>
       </ThemeProvider>

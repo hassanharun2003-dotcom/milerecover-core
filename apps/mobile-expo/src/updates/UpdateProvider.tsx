@@ -12,7 +12,7 @@ import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing } from '@milerecover/config';
 import { SecondaryButton, StatusCard } from '../design-system';
-import { isStandaloneBuild } from '../constants/buildInfo';
+import { isStandaloneBuild, isStandaloneUpdateChannel } from '../constants/buildInfo';
 import { isShareInFlight } from '../services/fileShare';
 import * as Updates from 'expo-updates';
 import { applyPendingUpdate, checkAndDownloadUpdate, updatesEnabled } from './appUpdates';
@@ -43,25 +43,38 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [lastCheckError, setLastCheckError] = useState<string | null>(null);
   const checkedOnLaunch = useRef(false);
   const variant = Constants.expoConfig?.extra?.appVariant as string | undefined;
-  // Native channel is authoritative. A mis-published OTA can embed appVariant=development
-  // while the APK still listens on preview/production — treat those as standalone.
-  const channel = Updates.channel ?? null;
-  const standalone =
-    isStandaloneBuild(variant) || channel === 'preview' || channel === 'production';
+  // Native channel is authoritative. Foundation channels (preview-foundation-*) are standalone.
+  const channel = (() => {
+    try {
+      return Updates.channel ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  const standalone = isStandaloneBuild(variant) || isStandaloneUpdateChannel(channel);
 
   const runCheck = useCallback(async () => {
-    const result = await checkAndDownloadUpdate();
-    if (result.error) setLastCheckError(result.error);
-    else setLastCheckError(null);
-    if (result.downloaded) setUpdateReady(true);
-    return result.downloaded;
+    try {
+      const result = await checkAndDownloadUpdate();
+      if (result.error) setLastCheckError(result.error);
+      else setLastCheckError(null);
+      if (result.downloaded) setUpdateReady(true);
+      return result.downloaded;
+    } catch (error) {
+      setLastCheckError(error instanceof Error ? error.message : 'Update check failed');
+      return false;
+    }
   }, []);
 
   useEffect(() => {
-    // Defer launch check until the prompt is unblocked (after onboarding / boot).
+    // Native checkAutomatically is NEVER — JS owns post-paint checks only.
+    // Wait until Home is unlocked so OTA never blocks Welcome/onboarding.
     if (!standalone || !updatesEnabled() || checkedOnLaunch.current || blocked) return;
     checkedOnLaunch.current = true;
-    void runCheck();
+    const timer = setTimeout(() => {
+      void runCheck();
+    }, 2500);
+    return () => clearTimeout(timer);
   }, [standalone, runCheck, blocked]);
 
   const applyUpdate = useCallback(async () => {

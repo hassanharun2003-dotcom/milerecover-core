@@ -19,7 +19,7 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  '0.2.6 foundation reset: single light image-locked presentation layer; isolated runtime/channel so prior OTAs cannot restore the obsolete UI.';
+  '0.2.7 startup fix: Expo Updates no longer blocks cold launch; ErrorBoundary + deferred tracking; preserves image-locked UI.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();

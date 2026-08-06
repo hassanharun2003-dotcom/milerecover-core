@@ -36,7 +36,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.6',
+  version: '0.2.7',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -110,17 +110,18 @@ const config = {
       },
     ],
   ],
-  // Explicit runtime — isolates foundation APK from prior 0.2.5 preview OTA.
-  runtimeVersion: '0.2.6',
+  // Explicit runtime — isolates 0.2.7 from prior 0.2.6 foundation OTA/runtime.
+  runtimeVersion: '0.2.7',
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
-    // Standalone preview/production binaries and their OTAs must keep updates on.
+    // Standalone preview/production binaries keep updates enabled.
     // Dev-client builds set APP_VARIANT=development and disable OTA intentionally.
     // Channel headers are embedded by the EAS build profile (eas.json → expo-channel-name).
     enabled: !IS_DEV_CLIENT,
-    checkAutomatically: 'ON_LOAD',
-    // 0 = paint cached JS immediately; native still downloads in background.
-    // A second cold start (or Restart now) is required to launch a newly fetched update.
+    // CRITICAL: NEVER on native startup. ON_LOAD blocked React Native until the remote
+    // update check finished/failed (DNS/network), which caused 15–32s delayed first paint
+    // and open-and-close behavior on Samsung. JS checks run after first screen via UpdateProvider.
+    checkAutomatically: 'NEVER',
     fallbackToCacheTimeout: 0,
   },
   extra: {
@@ -133,9 +134,9 @@ const config = {
       process.env.EAS_BUILD_CREATED_AT ??
       process.env.EXPO_PUBLIC_BUILD_TIMESTAMP ??
       new Date().toISOString(),
-    runtimeVersion: '0.2.6',
+    runtimeVersion: '0.2.7',
     updateChannel: process.env.EAS_BUILD_PROFILE === 'preview' || process.env.APP_VARIANT === 'preview'
-      ? 'preview-foundation-0.2.6'
+      ? 'preview-foundation-0.2.7'
       : process.env.APP_VARIANT === 'production'
         ? 'production'
         : 'development',

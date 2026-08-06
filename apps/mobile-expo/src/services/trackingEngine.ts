@@ -271,7 +271,10 @@ function defineBackgroundTask(): boolean {
   }
 }
 
-defineBackgroundTask();
+/** Define background task lazily — never at module import during cold start. */
+export function ensureBackgroundTaskDefined(): boolean {
+  return defineBackgroundTask();
+}
 
 class TrackingControllerImpl implements TrackingController {
   private foregroundSubscription: Location.LocationSubscription | null = null;
@@ -337,6 +340,7 @@ class TrackingControllerImpl implements TrackingController {
     activeController = this;
     this.setEngineState('starting');
     this.backgroundLimitedReason = null;
+    ensureBackgroundTaskDefined();
     await loadSampleBuffer();
     await flushPendingTrips((trip) => {
       void this.handleClosedTrip(trip);
