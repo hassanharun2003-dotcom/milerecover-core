@@ -5,7 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { spacing } from '@milerecover/config';
+import { colors, layout, radii, spacing, typography } from '@milerecover/config';
 import {
   buildMileageCsv,
   buildMileageReportData,
@@ -40,7 +40,6 @@ import {
   type TripRecord,
 } from '@milerecover/domain';
 import {
-  ChecklistRow,
   Chip,
   ChipRow,
   DestructiveButton,
@@ -50,16 +49,21 @@ import {
   FormField,
   ListSection,
   LoadingState,
-  PlanCard,
+  MRCard,
+  MRFormField,
+  MRHeroCard,
+  MRIconCircle,
+  MRPrimaryButton,
+  MRSecondaryButton,
+  MRSegmentedControl,
+  MRStatusPanel,
+  MRTertiaryButton,
   PrimaryButton,
-  PrivacyNote,
-  ProtectionHero,
   RouteMapPreview,
   ScrollScreen,
   SecondaryButton,
   SectionHeader,
   SelectionCard,
-  SegmentedControl,
   SoftPanel,
   StatusCard,
   TertiaryButton,
@@ -91,7 +95,6 @@ import {
   getPurchasePort,
   PREVIEW_BILLING_NOTICE,
   STORE_UNAVAILABLE_MESSAGE,
-  trialRenewalCopy,
   type PurchasePeriod,
   type PurchaseProduct,
 } from '../../services/purchases';
@@ -148,6 +151,287 @@ function vehicleLookup(vehicles: VehicleDraft[]): Record<string, string> {
 }
 
 const LONG_DRIVE_THRESHOLD_MILES = 300 / KM_PER_MILE;
+
+const flowStyles = StyleSheet.create({
+  lockedTitle: {
+    color: colors.text.primary,
+    fontSize: typography.size.headline,
+    lineHeight: typography.lineHeight.headline,
+    fontWeight: '700',
+  },
+  lockedBody: {
+    color: colors.text.secondary,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+  },
+  missingIllustration: {
+    height: 180,
+    borderRadius: radii.xl,
+    backgroundColor: colors.background.mist,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  missingMapLine: {
+    position: 'absolute',
+    width: 250,
+    height: 92,
+    borderRadius: radii.pill,
+    borderWidth: 12,
+    borderColor: '#B7E1C7',
+    transform: [{ rotate: '-12deg' }],
+  },
+  missingCar: {
+    width: 116,
+    height: 54,
+    borderRadius: radii.lg,
+    backgroundColor: colors.forest[700],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  missingCarWindow: {
+    width: 48,
+    height: 20,
+    borderRadius: radii.sm,
+    backgroundColor: colors.background.card,
+    opacity: 0.9,
+  },
+  missingPin: {
+    position: 'absolute',
+    right: 74,
+    top: 38,
+    width: 42,
+    height: 42,
+    borderRadius: radii.pill,
+    backgroundColor: colors.forest[900],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  missingPinGlyph: {
+    color: colors.text.inverse,
+    fontSize: typography.size.bodyLarge,
+    fontWeight: '700',
+  },
+  trustStack: {
+    gap: spacing.smMd,
+    marginBottom: spacing.lg,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.smMd,
+  },
+  trustText: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+    fontWeight: '500',
+  },
+  centerCaption: {
+    color: colors.text.muted,
+    fontSize: typography.size.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  heroKicker: {
+    color: colors.text.inverse,
+    opacity: 0.78,
+    fontSize: typography.size.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  heroTitle: {
+    color: colors.text.inverse,
+    fontSize: typography.size.headline,
+    lineHeight: typography.lineHeight.headline,
+    fontWeight: '700',
+    marginTop: spacing.xs,
+  },
+  heroBody: {
+    color: colors.text.inverse,
+    opacity: 0.9,
+    fontSize: typography.size.body,
+    lineHeight: typography.lineHeight.body,
+    marginTop: spacing.sm,
+  },
+  cardStack: {
+    gap: spacing.sm,
+    marginVertical: spacing.md,
+  },
+  diagnosticCard: {
+    minHeight: 64,
+    paddingVertical: spacing.smMd,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  diagnosticLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.smMd,
+  },
+  diagnosticLabel: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+    fontWeight: '600',
+  },
+  statusPill: {
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.smMd,
+    paddingVertical: spacing.xs,
+    fontSize: typography.size.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: '700',
+    overflow: 'hidden',
+    textAlign: 'center',
+  },
+  statusPillOk: {
+    color: colors.forest[700],
+    backgroundColor: colors.background.mist,
+  },
+  statusPillAttention: {
+    color: colors.status.warning,
+    backgroundColor: colors.status.warningBg,
+  },
+  formStack: {
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  fieldGroupLabel: {
+    color: colors.text.primary,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  fieldLabel: {
+    color: colors.text.secondary,
+    fontSize: typography.size.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: '500',
+    marginBottom: spacing.xs,
+  },
+  fieldCard: {
+    minHeight: layout.fieldH,
+    justifyContent: 'center',
+    paddingVertical: spacing.smMd,
+  },
+  fieldValue: {
+    color: colors.text.primary,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+  },
+  privacyCaption: {
+    color: colors.text.muted,
+    fontSize: typography.size.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  proCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  proBadge: {
+    color: colors.forest[900],
+    backgroundColor: colors.background.card,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.smMd,
+    paddingVertical: spacing.xs,
+    fontSize: typography.size.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: '700',
+    overflow: 'hidden',
+  },
+  proPlanName: {
+    color: colors.text.inverse,
+    fontSize: typography.size.title,
+    lineHeight: typography.lineHeight.title,
+    fontWeight: '700',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  proPrice: {
+    color: colors.text.inverse,
+    fontSize: typography.size.display,
+    lineHeight: typography.lineHeight.display,
+    fontWeight: '700',
+  },
+  proPeriod: {
+    color: colors.text.inverse,
+    opacity: 0.82,
+    fontSize: typography.size.body,
+    lineHeight: typography.lineHeight.body,
+    marginBottom: 3,
+  },
+  featureStack: {
+    gap: spacing.sm,
+  },
+  inverseFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  inverseCheck: {
+    color: colors.text.inverse,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+    fontWeight: '700',
+  },
+  inverseFeatureText: {
+    flex: 1,
+    color: colors.text.inverse,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+  },
+  planName: {
+    color: colors.text.primary,
+    fontSize: typography.size.title,
+    lineHeight: typography.lineHeight.title,
+    fontWeight: '700',
+  },
+  planPrice: {
+    color: colors.text.secondary,
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  checkText: {
+    color: colors.forest[700],
+    fontSize: typography.size.bodyLarge,
+    lineHeight: typography.lineHeight.bodyLarge,
+    fontWeight: '700',
+  },
+  featureText: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: typography.size.body,
+    lineHeight: typography.lineHeight.body,
+  },
+});
 
 function parseLocalizedDecimal(raw: string, localeTag: string): number {
   const compact = raw.trim().replace(/\s/g, '');
@@ -288,12 +572,6 @@ export function ManualTripScreen() {
     }
   })();
   const customPurpose = purpose.length > 0 && !purposeChips.includes(purpose) && purpose !== 'Other';
-  const placeChips = [
-    ...product.workLocations.map((location) => location.label),
-    'Home',
-    'Work',
-  ].filter((label, index, all) => label && all.indexOf(label) === index);
-
   const closeDatePicker = useCallback((revert = false) => {
     if (revert && datePickerSnapshotRef.current) {
       setDriveDate(datePickerSnapshotRef.current);
@@ -390,15 +668,6 @@ export function ManualTripScreen() {
     );
     return next.getTime();
   };
-
-  const saveLabel =
-    classification === 'personal'
-      ? 'Save personal drive'
-      : classification === 'later'
-        ? 'Save for review'
-        : classification === 'work'
-          ? 'Save work drive'
-          : 'Save drive';
 
   const parsedMiles = useMemo(() => {
     const trimmed = distance.trim();
@@ -611,60 +880,55 @@ export function ManualTripScreen() {
       footer={
         <View>
           {error ? <FormError message={error} /> : null}
-          <PrimaryButton
-            label={existing ? 'Save changes' : saveLabel}
-            onPress={save}
+          <MRPrimaryButton
+            label={existing ? 'Save changes' : 'Save drive'}
+            onPress={() => save()}
             disabled={!canSave}
             loading={saving}
           />
           {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
-          <PrivacyNote />
+          <Text style={flowStyles.privacyCaption}>Your data stays private and secure</Text>
         </View>
       }
     >
-      <Text style={text.title} accessibilityRole="header">
-        {existing ? 'Edit drive' : 'Add drive'}
-      </Text>
-      <Text style={[text.body, { marginBottom: spacing.md }]}>
-        Save the details you know. We never invent a route.
-      </Text>
-
-      <Text style={[text.caption, { marginBottom: spacing.xs }]}>1 · Work or personal</Text>
-      <ChipRow>
-        <Chip label="Work" selected={classification === 'work'} onPress={() => setClassification('work')} />
-        <Chip
-          label="Personal"
-          selected={classification === 'personal'}
-          onPress={() => setClassification('personal')}
-        />
-        <Chip
-          label="Decide later"
-          selected={classification === 'later'}
-          onPress={() => setClassification('later')}
-        />
-      </ChipRow>
-      {classification === 'later' ? (
-        <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-          Goes to Review and stays out of reports until you confirm.
-        </Text>
-      ) : (
-        <View style={{ height: spacing.sm }} />
-      )}
-
-      <Text style={[text.caption, { marginBottom: spacing.xs }]}>2 · Date</Text>
-      <ChipRow>
-        <Chip label="Today" selected={false} onPress={() => applyDateOffset(0)} />
-        <Chip label="Yesterday" selected={false} onPress={() => applyDateOffset(1)} />
-        <Chip
-          label="Choose date"
-          selected={showDatePicker}
-          onPress={() => {
-            if (showDatePicker) closeDatePicker(true);
-            else openDatePicker();
+      <View style={flowStyles.formStack}>
+        <MRSegmentedControl
+          value="manual"
+          onChange={(value) => {
+            if (value === 'import') navigation.navigate('BringExistingMileage');
           }}
+          options={[
+            { label: 'Manual entry', value: 'manual' },
+            { label: 'From other app', value: 'import' },
+          ]}
         />
-      </ChipRow>
-      <EvidenceRow label="Selected" value={formatDateLocal(driveDate.getTime())} />
+
+        <View>
+          <Text style={flowStyles.fieldGroupLabel}>Work or personal?</Text>
+          <MRSegmentedControl
+            value={classification === 'personal' ? 'personal' : 'work'}
+            onChange={(value) => setClassification(value)}
+            options={[
+              { label: 'Work', value: 'work' },
+              { label: 'Personal', value: 'personal' },
+            ]}
+          />
+        </View>
+
+        <View>
+          <Text style={flowStyles.fieldLabel}>Date</Text>
+          <MRCard
+            onPress={() => {
+              if (showDatePicker) closeDatePicker(true);
+              else openDatePicker();
+            }}
+            style={flowStyles.fieldCard}
+            accessibilityLabel="Choose drive date"
+          >
+            <Text style={flowStyles.fieldValue}>{formatDateLocal(driveDate.getTime())}</Text>
+          </MRCard>
+        </View>
+      </View>
       {showDatePicker ? (
         <View>
           {Platform.OS === 'ios' ? (
@@ -709,94 +973,40 @@ export function ManualTripScreen() {
           />
         </View>
       ) : null}
-
-      <Text style={[text.caption, { marginTop: spacing.sm, marginBottom: spacing.xs }]}>3 · Distance</Text>
-      <SegmentedControl
-        value={routeMode}
-        onChange={setRouteMode}
-        options={[
-          { label: 'Enter distance', value: 'distance' },
-          { label: 'Start & end', value: 'places' },
-        ]}
+      <MRFormField
+        label="Start location"
+        value={startLabel}
+        onChangeText={(value) => {
+          setStartLabel(value);
+          setRouteMode('places');
+        }}
+        placeholder="Where you started"
+        autoCapitalize="words"
       />
-      {routeMode === 'distance' ? (
-        <>
-          <FormField
-            label={unit === 'km' ? 'Distance (km)' : 'Distance (miles)'}
-            value={distance}
-            onChangeText={(value) => {
-              setDistance(value);
-              if (distanceError) setDistanceError(validateDistanceField(value));
-            }}
-            placeholder="0.0"
-            keyboardType="decimal-pad"
-            compact
-            autoFocus={!existing}
-            accessibilityLabel={unit === 'km' ? 'Distance in kilometers' : 'Distance in miles'}
-          />
-          {distanceError ? <FormError message={distanceError} /> : null}
-        </>
-      ) : null}
+      <MRFormField
+        label="End location"
+        value={endLabel}
+        onChangeText={(value) => {
+          setEndLabel(value);
+          setRouteMode('places');
+        }}
+        placeholder="Where you finished"
+        autoCapitalize="words"
+      />
+      <MRFormField
+        label={unit === 'km' ? 'Distance (km)' : 'Distance (mi)'}
+        value={distance}
+        onChangeText={(value) => {
+          setDistance(value);
+          if (distanceError) setDistanceError(validateDistanceField(value));
+        }}
+        placeholder="0.0"
+        keyboardType="decimal-pad"
+        accessibilityLabel={unit === 'km' ? 'Distance in kilometers' : 'Distance in miles'}
+      />
+      {distanceError ? <FormError message={distanceError} /> : null}
       {savedFlash ? (
-        <StatusCard variant="success" title="Saved" body="Your drive is on this device." emphasis="subtle" />
-      ) : null}
-      {routeMode === 'places' ? (
-        <>
-          <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-            Start and end add context. Enter a known distance below — we never invent a route.
-          </Text>
-          <FormField
-            label="Start (optional)"
-            value={startLabel}
-            onChangeText={setStartLabel}
-            placeholder="Where you started"
-            compact
-          />
-          <ChipRow>
-            {placeChips.map((chip) => (
-              <Chip
-                key={`start-${chip}`}
-                label={chip}
-                selected={startLabel === chip}
-                onPress={() => setStartLabel(chip)}
-                accessibilityLabel={`Start at ${chip}`}
-              />
-            ))}
-          </ChipRow>
-          <FormField
-            label="End (optional)"
-            value={endLabel}
-            onChangeText={setEndLabel}
-            placeholder="Where you finished"
-            compact
-          />
-          <ChipRow>
-            {placeChips.map((chip) => (
-              <Chip
-                key={`end-${chip}`}
-                label={chip}
-                selected={endLabel === chip}
-                onPress={() => setEndLabel(chip)}
-                accessibilityLabel={`End at ${chip}`}
-              />
-            ))}
-          </ChipRow>
-          <FormField
-            label={unit === 'km' ? 'Known distance (km)' : 'Known distance (miles)'}
-            value={distance}
-            onChangeText={(value) => {
-              setDistance(value);
-              if (distanceError) setDistanceError(validateDistanceField(value));
-            }}
-            placeholder="0.0"
-            keyboardType="decimal-pad"
-            compact
-            accessibilityLabel={
-              unit === 'km' ? 'Known distance in kilometers' : 'Known distance in miles'
-            }
-          />
-          {distanceError ? <FormError message={distanceError} /> : null}
-        </>
+        <MRStatusPanel message="Saved. Your drive is on this device." />
       ) : null}
 
       <SelectionCard
@@ -822,6 +1032,11 @@ export function ManualTripScreen() {
               })
             }
           />
+          <Text style={[text.caption, { marginBottom: spacing.xs }]}>Date shortcuts</Text>
+          <ChipRow>
+            <Chip label="Today" selected={false} onPress={() => applyDateOffset(0)} />
+            <Chip label="Yesterday" selected={false} onPress={() => applyDateOffset(1)} />
+          </ChipRow>
           {addTime ? (
             <>
               <EvidenceRow label="Start time" value={formatTimeLocal(startTime.getTime())} />
@@ -1138,29 +1353,40 @@ export function MissingDrivesIntroScreen() {
 
   return (
     <ScrollScreen>
-      <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
+      <View style={flowStyles.missingIllustration} accessibilityRole="image" accessibilityLabel="Car finding missed drives">
+        <View style={flowStyles.missingMapLine} />
+        <View style={flowStyles.missingCar}>
+          <View style={flowStyles.missingCarWindow} />
+        </View>
+        <View style={flowStyles.missingPin}>
+          <Text style={flowStyles.missingPinGlyph}>✓</Text>
+        </View>
+      </View>
+      <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
         Find the miles you missed
       </Text>
-      <Text style={[text.body, { marginBottom: spacing.md }]}>
-        MileRecover can suggest likely work drives from location history on this device. You confirm
-        what to keep — nothing is added without your review.
+      <Text style={[flowStyles.lockedBody, { marginBottom: spacing.md }]}>
+        MileRecover scans for gaps in your driving history and suggests miles you may have missed.
       </Text>
-      <SoftPanel>
-        <ChecklistRow label="Uses location evidence already on this device" status="ready" />
-        <ChecklistRow label="You confirm every suggestion before it counts" status="ready" />
-        <ChecklistRow label="Nothing is invented or added without consent" status="ready" />
-      </SoftPanel>
-      <PrimaryButton
-        label={busy ? 'Checking…' : 'Run check now'}
+      <View style={flowStyles.trustStack}>
+        {[
+          'Uses your existing location data',
+          'Nothing is added without you',
+          'Takes about 1 minute',
+        ].map((item) => (
+          <View key={item} style={flowStyles.trustRow}>
+            <MRIconCircle glyph="✓" accessibilityLabel="Included" />
+            <Text style={flowStyles.trustText}>{item}</Text>
+          </View>
+        ))}
+      </View>
+      <MRPrimaryButton
+        label="Run check now"
         loading={busy}
         onPress={runCheck}
         accessibilityLabel="Run check for missed drives"
       />
-      <SecondaryButton label="Review pending drives" onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })} />
-      <Text style={[text.caption, { marginTop: spacing.md }]}>
-        Suggested drives are not confirmed until you review them. Free includes limited missing-drive
-        scans each month.
-      </Text>
+      <Text style={flowStyles.centerCaption}>Takes about 1 minute</Text>
     </ScrollScreen>
   );
 }
@@ -1314,17 +1540,38 @@ export function ProtectionAlertScreen() {
   const backgroundReady =
     permissions.backgroundLocation === 'granted' || permissions.backgroundLocation === 'not_applicable';
   const primaryAction = protection.primaryAction;
-  const lastCheckValue = protection.lastCheckLabel
-    ? protection.lastCheckLabel.replace(/^Last successful check:\s*/i, '')
-    : 'Not yet';
-  const backgroundValue =
-    permissions.backgroundLocation === 'not_applicable'
-      ? 'Allowed'
-      : backgroundReady
-        ? 'Allowed'
-        : 'Needs attention';
-  const batteryValue = permissions.batteryOptimizationRestricted ? 'Needs attention' : 'Allowed';
-  const automaticValue = product.trackingEnabled && capabilities.canUseAutomaticCapture ? 'On' : 'Needs attention';
+  const overviewHeroTitle = protection.state === 'PROTECTED' ? "You're protected" : protection.title;
+  const overviewHeroBody =
+    protection.state === 'PROTECTED'
+      ? 'MileRecover is actively tracking and watching for work drives.'
+      : protection.message;
+  const overviewDiagnosticRows = [
+    {
+      label: 'Background tracking',
+      value: product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady ? 'On' : 'Needs attention',
+      glyph: '↻',
+    },
+    {
+      label: 'Location access',
+      value: foregroundReady ? 'On' : 'Needs attention',
+      glyph: '⌖',
+    },
+    {
+      label: 'Battery optimized',
+      value: permissions.batteryOptimizationRestricted ? 'Needs attention' : 'Up to date',
+      glyph: '⚡',
+    },
+    {
+      label: 'Motion detection',
+      value: automaticCaptureAvailable ? 'Active' : 'Needs attention',
+      glyph: '◌',
+    },
+    {
+      label: 'Data sync',
+      value: protection.state === 'PROTECTED' || protection.lastCheckLabel ? 'Up to date' : 'Needs attention',
+      glyph: '✓',
+    },
+  ];
   const [guideStep, setGuideStep] = useState<
     'overview' | 'explain_fg' | 'ask_fg' | 'explain_bg' | 'ask_bg' | 'verify' | 'success'
   >('overview');
@@ -1538,35 +1785,39 @@ export function ProtectionAlertScreen() {
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Protection Center" />
-      <ProtectionHero
-        title={protection.state === 'PROTECTED' ? "You're protected" : protection.title}
-        valueLabel={null}
-        supporting={protection.message}
-        onPress={primaryAction.action !== 'none' ? runPrimaryAction : undefined}
+      <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.md }]} accessibilityRole="header">
+        Protection Center
+      </Text>
+      <MRHeroCard accessibilityLabel={overviewHeroTitle}>
+        <Text style={flowStyles.heroKicker}>Protection</Text>
+        <Text style={flowStyles.heroTitle}>{overviewHeroTitle}</Text>
+        <Text style={flowStyles.heroBody}>{overviewHeroBody}</Text>
+      </MRHeroCard>
+      <View style={flowStyles.cardStack}>
+        {overviewDiagnosticRows.map((row) => (
+          <MRCard key={row.label} style={flowStyles.diagnosticCard}>
+            <View style={flowStyles.diagnosticLeft}>
+              <MRIconCircle glyph={row.glyph} accessibilityLabel={row.label} />
+              <Text style={flowStyles.diagnosticLabel}>{row.label}</Text>
+            </View>
+            <Text
+              style={[
+                flowStyles.statusPill,
+                row.value === 'Needs attention' ? flowStyles.statusPillAttention : flowStyles.statusPillOk,
+              ]}
+            >
+              {row.value}
+            </Text>
+          </MRCard>
+        ))}
+      </View>
+      <MRPrimaryButton
+        label="Run diagnostics"
+        onPress={primaryAction.action !== 'none' ? runPrimaryAction : startGuidedRepair}
+        accessibilityLabel="Run diagnostics"
       />
-      <SoftPanel>
-        <EvidenceRow label="Background tracking" value={backgroundValue} />
-        <EvidenceRow label="Location access" value={foregroundReady ? 'Allowed' : 'Needs attention'} />
-        <EvidenceRow label="Battery optimization" value={batteryValue} />
-        <EvidenceRow label="Automatic protection" value={automaticValue} />
-        <EvidenceRow label="Last successful check" value={lastCheckValue} />
-      </SoftPanel>
-      {primaryAction.action !== 'none' ? (
-        <PrimaryButton
-          label={primaryAction.label}
-          onPress={runPrimaryAction}
-          accessibilityLabel={primaryAction.label}
-        />
-      ) : (
-        <PrimaryButton
-          label="Run diagnostics"
-          onPress={() => void refreshPermissions()}
-          accessibilityLabel="Run diagnostics"
-        />
-      )}
-      <SecondaryButton label="Tracking details" onPress={() => navigation.navigate('TrackingActive')} />
-      <Text style={[text.caption, { marginTop: spacing.md }]}>Manual entry is always available.</Text>
+      <MRSecondaryButton label="Tracking details" onPress={() => navigation.navigate('TrackingActive')} />
+      <Text style={flowStyles.centerCaption}>Manual entry is always available.</Text>
     </ScrollScreen>
   );
 }
@@ -1612,6 +1863,7 @@ export function TrackingActiveScreen() {
   });
   const [diagnostics, setDiagnostics] = useState<TrackingDiagnostics | null>(null);
   const [diagnosticsBusy, setDiagnosticsBusy] = useState(false);
+  const [showDiagnosticsDetails, setShowDiagnosticsDetails] = useState(false);
 
   const refreshDiagnostics = () => {
     void getTrackingDiagnostics().then(setDiagnostics);
@@ -1656,73 +1908,96 @@ export function TrackingActiveScreen() {
   const topBody = systemsOk
     ? `${allowanceLabel} Repair actions live in Protection Center.`
     : `${allowanceLabel} Open Protection Center to repair anything that needs attention.`;
+  const trackingRows = [
+    { label: 'Location access', value: allowedLabel(foregroundAllowed), glyph: '⌖' },
+    { label: 'Background permission', value: allowedLabel(backgroundAllowed), glyph: '↻' },
+    {
+      label: 'Battery optimized',
+      value: allowedLabel(!permissions.batteryOptimizationRestricted),
+      glyph: '⚡',
+    },
+    { label: 'Automatic protection', value: onLabel(automaticReady), glyph: '✓' },
+    { label: 'Last location check', value: lastCheckValue, glyph: '◌' },
+    {
+      label: 'Last verified capture',
+      value: diagnosticTimeLabel(diagnostics?.lastSuccessfulAutomaticTripAt),
+      glyph: '✓',
+    },
+  ];
 
   return (
     <ScrollScreen>
-      <SectionHeader title="Tracking health" />
-      <Text style={[text.body, { marginBottom: spacing.md }]}>
-        Diagnostics for automatic capture. Protection status and repair actions are in Protection Center.
+      <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
+        Tracking health
       </Text>
-      <StatusCard
-        variant={systemsOk ? 'success' : 'warning'}
-        title={topTitle}
-        body={topBody}
-        emphasis="subtle"
-      />
-      <ListSection title="System checks">
-        <EvidenceRow label="Location access" value={allowedLabel(foregroundAllowed)} />
-        <EvidenceRow label="Background permission" value={allowedLabel(backgroundAllowed)} />
-        <EvidenceRow
-          label="Battery optimization"
-          value={allowedLabel(!permissions.batteryOptimizationRestricted)}
-        />
-        <EvidenceRow label="Automatic protection" value={onLabel(automaticReady)} />
-        <EvidenceRow label="Last location check" value={lastCheckValue} />
-        <EvidenceRow
-          label="Last verified capture"
-          value={diagnosticTimeLabel(diagnostics?.lastSuccessfulAutomaticTripAt)}
-        />
-      </ListSection>
-      <PrimaryButton
-        label={diagnosticsBusy ? 'Running diagnostics…' : 'Run diagnostics'}
+      <Text style={[flowStyles.lockedBody, { marginBottom: spacing.md }]}>
+        Automatic capture status is summarized here. Repair actions live in Protection Center.
+      </Text>
+      <MRStatusPanel message={`${topTitle}. ${topBody}`} tone={systemsOk ? 'ok' : 'attention'} />
+      <View style={flowStyles.cardStack}>
+        {trackingRows.map((row) => (
+          <MRCard key={row.label} style={flowStyles.diagnosticCard}>
+            <View style={flowStyles.diagnosticLeft}>
+              <MRIconCircle glyph={row.glyph} accessibilityLabel={row.label} />
+              <Text style={flowStyles.diagnosticLabel}>{row.label}</Text>
+            </View>
+            <Text
+              style={[
+                flowStyles.statusPill,
+                row.value === 'Needs attention' ? flowStyles.statusPillAttention : flowStyles.statusPillOk,
+              ]}
+            >
+              {row.value}
+            </Text>
+          </MRCard>
+        ))}
+      </View>
+      <MRPrimaryButton
+        label="Run diagnostics"
         onPress={runDiagnostics}
         loading={diagnosticsBusy}
         accessibilityLabel="Run tracking diagnostics"
       />
-      <SecondaryButton label="Open Protection Center" onPress={() => navigation.navigate('ProtectionAlert')} />
+      <MRSecondaryButton label="Open Protection Center" onPress={() => navigation.navigate('ProtectionAlert')} />
       {showDevDiagnostics ? (
-        <ListSection title="Dev diagnostics">
-          <EvidenceRow label="Engine state" value={diagnostics?.engineState ?? 'Unknown'} />
-          <EvidenceRow label="Trip state" value={diagnostics?.activeTripState ?? 'Unknown'} />
-          <EvidenceRow label="Permissions" value={diagnostics?.permissionState ?? 'Unknown'} />
-          <EvidenceRow label="Pending queue" value={String(diagnostics?.queueLength ?? 0)} />
-          <EvidenceRow
-            label="Background callback"
-            value={diagnosticTimeLabel(diagnostics?.lastBackgroundCallbackAt)}
+        <>
+          <MRTertiaryButton
+            label={showDiagnosticsDetails ? 'Hide dev diagnostics' : 'Show dev diagnostics'}
+            onPress={() => setShowDiagnosticsDetails((value) => !value)}
           />
-          <EvidenceRow
-            label="Last accepted sample"
-            value={diagnosticSampleLabel(diagnostics?.lastAcceptedSample ?? null)}
-          />
-          <EvidenceRow
-            label="Last rejected sample"
-            value={diagnosticRejectedSampleLabel(diagnostics?.lastRejectedSample ?? null)}
-          />
-          <EvidenceRow
-            label="Battery restriction"
-            value={diagnostics?.batteryRestrictionState ?? 'unknown'}
-          />
-        </ListSection>
+          {showDiagnosticsDetails ? (
+            <ListSection title="Dev diagnostics">
+              <EvidenceRow label="Engine state" value={diagnostics?.engineState ?? 'Unknown'} />
+              <EvidenceRow label="Trip state" value={diagnostics?.activeTripState ?? 'Unknown'} />
+              <EvidenceRow label="Permissions" value={diagnostics?.permissionState ?? 'Unknown'} />
+              <EvidenceRow label="Pending queue" value={String(diagnostics?.queueLength ?? 0)} />
+              <EvidenceRow
+                label="Background callback"
+                value={diagnosticTimeLabel(diagnostics?.lastBackgroundCallbackAt)}
+              />
+              <EvidenceRow
+                label="Last accepted sample"
+                value={diagnosticSampleLabel(diagnostics?.lastAcceptedSample ?? null)}
+              />
+              <EvidenceRow
+                label="Last rejected sample"
+                value={diagnosticRejectedSampleLabel(diagnostics?.lastRejectedSample ?? null)}
+              />
+              <EvidenceRow
+                label="Battery restriction"
+                value={diagnostics?.batteryRestrictionState ?? 'unknown'}
+              />
+            </ListSection>
+          ) : null}
+        </>
       ) : null}
       {diagnostics?.backgroundLimited && automaticReady ? (
-        <StatusCard
-          variant="warning"
-          title="Background capture may be limited"
-          body="Some drives may be missed when the app isn’t open. Use Protection Center to repair permissions."
-          emphasis="subtle"
+        <MRStatusPanel
+          tone="attention"
+          message="Background capture may be limited. Some drives may be missed when the app isn’t open."
         />
       ) : null}
-      <Text style={[text.caption, { marginTop: spacing.md }]}>Manual entry is always available.</Text>
+      <Text style={flowStyles.centerCaption}>Manual entry is always available.</Text>
     </ScrollScreen>
   );
 }
@@ -2503,21 +2778,6 @@ export function ReportPreviewScreen() {
   );
 }
 
-function paywallSubtitle(goal: import('../../product/types').ProductUiState['primaryGoal']): string {
-  switch (goal) {
-    case 'employee_reimbursement':
-      return 'Turn confirmed work miles into reimbursement-ready records.';
-    case 'gig_delivery':
-      return 'Keep every delivery mile organized for earnings.';
-    case 'self_employed_business':
-      return 'Business mileage protection that stands up to review.';
-    case 'mixed':
-      return 'One place to protect and prove all your work driving.';
-    default:
-      return 'Automatic protection and share-ready reports when you need them.';
-  }
-}
-
 type PaidPlanId = 'plus' | 'pro';
 
 function paidStoreProduct(
@@ -2533,6 +2793,7 @@ export function PlanSelectionScreen() {
   const { state } = useApp();
   const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [billingAvailable, setBillingAvailable] = useState(false);
@@ -2569,10 +2830,8 @@ export function PlanSelectionScreen() {
   const planPrice = (planId: PaidPlanId, planPeriod: PurchasePeriod): string => {
     const storeProduct = paidStoreProduct(storeProducts, planId, planPeriod);
     if (storeProduct) return storeProduct.priceLocalized;
-    if (previewFixture) {
-      const fixture = planId === 'plus' ? plusFixture : proFixture;
-      return planPeriod === 'annual' ? fixture.annualPrice : fixture.monthlyPrice;
-    }
+    const fixture = planId === 'plus' ? plusFixture : proFixture;
+    if (!billingAvailable) return planPeriod === 'annual' ? fixture.annualPrice : fixture.monthlyPrice;
     if (entitlement.planId === planId) {
       const entitlementPrice =
         planPeriod === 'annual' ? entitlement.annualPriceLocalized : entitlement.monthlyPriceLocalized;
@@ -2580,9 +2839,6 @@ export function PlanSelectionScreen() {
     }
     return 'Store price unavailable';
   };
-  const plusMonthlyPrice =
-    paidStoreProduct(storeProducts, 'plus', 'monthly')?.priceLocalized ??
-    (previewFixture ? plusFixture.monthlyPrice : entitlement.planId === 'plus' ? entitlement.monthlyPriceLocalized : null);
   const plusPrice = planPrice('plus', plusPeriod);
   const proPrice = planPrice('pro', period);
   const plusFeatures = [
@@ -2590,17 +2846,19 @@ export function PlanSelectionScreen() {
     'Unlimited missing scans',
     'PDF reports and more vehicles',
   ];
-  const proFeatures = [
-    'Everything in Plus',
-    'Advanced recovery and reports',
-    'Custom reimbursement and professional sharing',
-  ];
   const freeFeatures = [
     '40 automatic trips/month',
     '1 vehicle',
     '1 missing scan/month',
     'Unlimited manual trips',
     'Basic CSV export',
+  ];
+  const proMarketingFeatures = [
+    'Unlimited automatic tracking',
+    'Missing drive recovery',
+    'Advanced PDF reports',
+    'Multiple vehicles',
+    'Priority support',
   ];
 
   useEffect(() => {
@@ -2662,26 +2920,26 @@ export function PlanSelectionScreen() {
     setNotice("You're on Free. Your existing records stay available.");
   };
   const plusCta = trialEligible ? 'Start 7-day free trial' : 'Continue with Plus';
-  const proCta = 'Continue with Pro';
+  const proCta = trialEligible ? 'Start Free 7-Day Trial' : 'Continue with Pro';
 
   return (
     <FixedHeaderScrollScreen
       scrollKey={annual ? 'annual' : 'monthly'}
       header={
         <View>
-          <Text style={text.title}>{trialEligible ? '7 days free' : 'Protect every work drive'}</Text>
-          <Text style={[text.body, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            {trialEligible ? 'Try Plus features. Cancel anytime.' : paywallSubtitle(product.primaryGoal)}
+          <Text style={flowStyles.lockedTitle}>Go Pro</Text>
+          <Text style={[flowStyles.lockedBody, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            Recover more miles. Save more money.
           </Text>
           {valueProof ? (
             <Text style={[text.caption, { marginBottom: spacing.sm }]}>{valueProof}</Text>
           ) : null}
-          <SegmentedControl
+          <MRSegmentedControl
             value={annual ? 'annual' : 'monthly'}
             onChange={(value) => setAnnual(value === 'annual')}
             options={[
               { label: 'Monthly', value: 'monthly' },
-              { label: 'Annual — Save 17%', value: 'annual' },
+              { label: 'Yearly (Save 20%)', value: 'annual' },
             ]}
           />
         </View>
@@ -2700,61 +2958,82 @@ export function PlanSelectionScreen() {
         emphasis="subtle"
       />
 
-      <SoftPanel>
-        <Text style={text.subtitle}>{freeFixture.name}</Text>
-        <Text style={[text.body, { marginTop: spacing.xs }]}>{freeFixture.monthlyPrice} / month</Text>
-        {freeFeatures.map((feature) => (
-          <Text key={feature} style={[text.body, { marginTop: spacing.xs }]}>
-            • {feature}
-          </Text>
-        ))}
-        <View style={{ marginTop: spacing.md }}>
-          <SecondaryButton label="Continue with Free" onPress={selectFree} />
+      <MRHeroCard accessibilityLabel={`Pro plan ${proPrice}`}>
+        <View style={flowStyles.proCardHeader}>
+          <Text style={flowStyles.proBadge}>Most Popular</Text>
         </View>
-      </SoftPanel>
+        <Text style={flowStyles.proPlanName}>Pro</Text>
+        <View style={flowStyles.priceRow}>
+          <Text style={flowStyles.proPrice}>{proPrice}</Text>
+          <Text style={flowStyles.proPeriod}>/{annual ? 'year' : 'month'}</Text>
+        </View>
+        <View style={flowStyles.featureStack}>
+          {proMarketingFeatures.map((feature) => (
+            <View key={feature} style={flowStyles.inverseFeatureRow}>
+              <Text style={flowStyles.inverseCheck}>✓</Text>
+              <Text style={flowStyles.inverseFeatureText}>{feature}</Text>
+            </View>
+          ))}
+        </View>
+      </MRHeroCard>
 
-      <PlanCard
-        name={plusFixture.name}
-        tagline="Best for most drivers"
-        price={plusPrice}
-        period={plusPeriod === 'annual' ? 'year' : 'month'}
-        features={plusFeatures}
-        highlighted
-        current={entitlement.planId === 'plus'}
-        savingsLabel={!trialEligible && annual ? plusFixture.annualSavingsLabel : undefined}
-        purchaseDisabled={purchaseBusy}
-        priceNote={trialEligible ? trialRenewalCopy(plusMonthlyPrice, null) : undefined}
-        selectLabel={plusCta}
-        onSelect={() =>
-          void handlePurchase('plus', () =>
-            trialEligible
-              ? purchasePort.purchasePlusTrial('monthly')
-              : purchasePort.purchasePlus(period),
-          )
-        }
+      <MRPrimaryButton
+        label={proCta}
+        loading={purchaseBusy}
+        disabled={purchaseBusy}
+        onPress={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
+        accessibilityLabel={proCta}
       />
 
-      <PlanCard
-        name={proFixture.name}
-        tagline={proFixture.tagline}
-        price={proPrice}
-        period={annual ? 'year' : 'month'}
-        features={proFeatures}
-        highlighted={false}
-        current={entitlement.planId === 'pro'}
-        savingsLabel={annual ? proFixture.annualSavingsLabel : undefined}
-        purchaseDisabled={purchaseBusy}
-        selectLabel={proCta}
-        onSelect={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
+      <MRTertiaryButton
+        label={showCompare ? 'Hide plan comparison' : 'Compare all plans'}
+        onPress={() => setShowCompare((value) => !value)}
       />
 
-      <TertiaryButton
+      {showCompare ? (
+        <View style={flowStyles.cardStack}>
+          <MRCard selected={entitlement.planId === 'plus'}>
+            <Text style={flowStyles.planName}>{plusFixture.name}</Text>
+            <Text style={flowStyles.planPrice}>{plusPrice} / {plusPeriod === 'annual' ? 'year' : 'month'}</Text>
+            {plusFeatures.map((feature) => (
+              <View key={feature} style={flowStyles.featureRow}>
+                <Text style={flowStyles.checkText}>✓</Text>
+                <Text style={flowStyles.featureText}>{feature}</Text>
+              </View>
+            ))}
+            <MRSecondaryButton
+              label={plusCta}
+              disabled={purchaseBusy}
+              onPress={() =>
+                void handlePurchase('plus', () =>
+                  trialEligible
+                    ? purchasePort.purchasePlusTrial('monthly')
+                    : purchasePort.purchasePlus(period),
+                )
+              }
+            />
+          </MRCard>
+          <MRCard selected={entitlement.planId === 'free'}>
+            <Text style={flowStyles.planName}>{freeFixture.name}</Text>
+            <Text style={flowStyles.planPrice}>{freeFixture.monthlyPrice} / month</Text>
+            {freeFeatures.map((feature) => (
+              <View key={feature} style={flowStyles.featureRow}>
+                <Text style={flowStyles.checkText}>✓</Text>
+                <Text style={flowStyles.featureText}>{feature}</Text>
+              </View>
+            ))}
+            <MRSecondaryButton label="Continue with Free" onPress={selectFree} />
+          </MRCard>
+        </View>
+      ) : null}
+
+      <MRTertiaryButton
         label="Need to recover older mileage instead?"
         onPress={() => navigation.navigate('RescueProducts')}
       />
 
       <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-        <TertiaryButton
+        <MRTertiaryButton
           label="Restore purchases"
           onPress={() => {
             if (!billingAvailable || purchaseBusy) {
