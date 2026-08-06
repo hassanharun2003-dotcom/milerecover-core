@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Re-sign a release APK with v1+v2+v3 and a proper certificate DN.
+# Strips any prior META-INF signatures via unpack/repack, jarsigner (v1),
+# zipalign -f -v 4, then apksigner (v1+v2+v3).
 # Usage: IN_APK=... OUT_APK=... bash scripts/sign-android-apk.sh
 set -euo pipefail
 
@@ -22,13 +24,50 @@ if [[ ! -f "$KEYSTORE" ]]; then
   echo "Missing keystore: $KEYSTORE" >&2
   exit 2
 fi
+if ! command -v jarsigner >/dev/null 2>&1; then
+  echo "jarsigner not found on PATH" >&2
+  exit 2
+fi
+if ! command -v unzip >/dev/null 2>&1 || ! command -v zip >/dev/null 2>&1; then
+  echo "unzip/zip required" >&2
+  exit 2
+fi
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
+WORK="$TMP_DIR/work"
+UNSIGNED="$TMP_DIR/stripped.apk"
+V1_SIGNED="$TMP_DIR/v1-signed.apk"
 ALIGNED="$TMP_DIR/aligned.apk"
 
-# Align uncompressed native libs for 16KB pages before signing.
-"$ZIPALIGN" -f -p 16 4 "$IN_APK" "$ALIGNED"
+mkdir -p "$WORK"
+# Strip META-INF (and any prior APK Signing Block) by unpack/repack so
+# jarsigner/apksigner own the certificate.
+unzip -q "$IN_APK" -d "$WORK"
+rm -rf "$WORK/META-INF"
+(
+  cd "$WORK"
+  # -X strips extra file attributes that confuse JAR signing.
+  zip -q -r -X -9 "$UNSIGNED" .
+)
+
+# JAR / v1 signing with SHA-256
+jarsigner \
+  -keystore "$KEYSTORE" \
+  -storepass "$STORE_PASS" \
+  -keypass "$KEY_PASS" \
+  -sigalg SHA256withRSA \
+  -digestalg SHA-256 \
+  -signedjar "$V1_SIGNED" \
+  "$UNSIGNED" \
+  "$KEY_ALIAS"
+
+# 4-byte zip alignment after v1 signing and before apksigner.
+# With useLegacyPackaging, .so files are compressed so 16KB page-align (-P)
+# does not apply; use zipalign -f -v 4 (not incompatible -p / -P 16).
+# Note: zipalign after jarsigner invalidates v1 digests; apksigner below
+# regenerates a valid v1 (+ v2 + v3) signature.
+"$ZIPALIGN" -f -v 4 "$V1_SIGNED" "$ALIGNED"
 
 "$APKSIGNER" sign \
   --ks "$KEYSTORE" \
@@ -41,6 +80,40 @@ ALIGNED="$TMP_DIR/aligned.apk"
   --out "$OUT_APK" \
   "$ALIGNED"
 
-"$APKSIGNER" verify --verbose --print-certs "$OUT_APK" | tee /tmp/milerecover-apksigner-verify.txt
-"$ZIPALIGN" -c -P 16 -v 4 "$OUT_APK" >/tmp/milerecover-zipalign-verify.txt
+# Default verify uses the APK minSdk (24+): v1 is present but unused for that
+# range when v2/v3 cover it. Force min-sdk 21 so v1 is reported.
+"$APKSIGNER" verify --verbose --min-sdk-version 21 --print-certs "$OUT_APK" \
+  | tee /tmp/milerecover-apksigner-verify.txt
+"$ZIPALIGN" -c -v 4 "$OUT_APK" >/tmp/milerecover-zipalign-verify.txt
+# If any .so is Stored, also enforce 16KB page alignment.
+if unzip -v "$OUT_APK" | rg -q 'Stored .+ lib/.+\.so'; then
+  "$ZIPALIGN" -c -P 16 -v 4 "$OUT_APK" >>/tmp/milerecover-zipalign-verify.txt
+fi
+
+# Require META-INF JAR signature artifacts for Samsung PackageInstaller.
+unzip -l "$OUT_APK" | rg -q 'META-INF/.+\.RSA' || {
+  echo "Missing META-INF *.RSA after signing" >&2
+  exit 3
+}
+unzip -l "$OUT_APK" | rg -q 'META-INF/.+\.SF' || {
+  echo "Missing META-INF *.SF after signing" >&2
+  exit 3
+}
+rg -q "Verified using v1 scheme \(JAR signing\): true" /tmp/milerecover-apksigner-verify.txt || {
+  echo "v1 signing missing (checked with --min-sdk-version 21)" >&2
+  exit 3
+}
+rg -q "Verified using v2 scheme \(APK Signature Scheme v2\): true" /tmp/milerecover-apksigner-verify.txt || {
+  echo "v2 signing missing" >&2
+  exit 3
+}
+rg -q "Verified using v3 scheme \(APK Signature Scheme v3\): true" /tmp/milerecover-apksigner-verify.txt || {
+  echo "v3 signing missing" >&2
+  exit 3
+}
+rg -q "Signer #1 certificate DN: CN=.+" /tmp/milerecover-apksigner-verify.txt || {
+  echo "certificate DN empty/missing" >&2
+  exit 3
+}
+
 echo "Signed OK -> $OUT_APK"

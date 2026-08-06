@@ -33,16 +33,24 @@ ok "sha256=$SHA"
 unzip -t "$APK" >"$OUT_DIR/unzip-t.txt" 2>&1 || fail "unzip integrity"
 ok "unzip integrity"
 
-"$ZIPALIGN" -c -P 16 -v 4 "$APK" >"$OUT_DIR/zipalign.txt" 2>&1 || fail "zipalign 16KB"
+"$ZIPALIGN" -c -v 4 "$APK" >"$OUT_DIR/zipalign.txt" 2>&1 || fail "zipalign"
+if unzip -v "$APK" | rg -q 'Stored .+ lib/.+\.so'; then
+  "$ZIPALIGN" -c -P 16 -v 4 "$APK" >>"$OUT_DIR/zipalign.txt" 2>&1 || fail "zipalign 16KB for Stored .so"
+fi
 ok "zipalign"
 
-"$APKSIGNER" verify --verbose --print-certs "$APK" >"$OUT_DIR/apksigner.txt" 2>&1 || fail "apksigner"
+# minSdk 24+ apps report v1=false on default verify even when JAR sigs are
+# valid; force --min-sdk-version 21 so v1 is evaluated for sideload/Samsung.
+"$APKSIGNER" verify --verbose --min-sdk-version 21 --print-certs "$APK" >"$OUT_DIR/apksigner.txt" 2>&1 || fail "apksigner"
 rg -q "Verified using v1 scheme \(JAR signing\): true" "$OUT_DIR/apksigner.txt" || fail "v1 signing missing"
 rg -q "Verified using v2 scheme \(APK Signature Scheme v2\): true" "$OUT_DIR/apksigner.txt" || fail "v2 signing missing"
+rg -q "Verified using v3 scheme \(APK Signature Scheme v3\): true" "$OUT_DIR/apksigner.txt" || fail "v3 signing missing"
 # Reject empty DN certificates that Samsung prep can choke on.
 rg -q "Signer #1 certificate DN: CN=.+" "$OUT_DIR/apksigner.txt" || fail "certificate DN empty/missing"
 ! rg -q "Signer #1 certificate DN: CN=, OU=, O=, L=, ST=, C=" "$OUT_DIR/apksigner.txt" || fail "empty certificate DN"
-ok "apksigner v1+v2 + non-empty DN"
+unzip -l "$APK" | rg -q 'META-INF/.+\.RSA' || fail "META-INF *.RSA missing"
+unzip -l "$APK" | rg -q 'META-INF/.+\.SF' || fail "META-INF *.SF missing"
+ok "apksigner v1+v2+v3 + non-empty DN + META-INF"
 
 "$AAPT" dump badging "$APK" >"$OUT_DIR/badging.txt" 2>&1 || fail "aapt badging"
 rg -q "package: name='${EXPECT_PACKAGE}'" "$OUT_DIR/badging.txt" || fail "package mismatch"
