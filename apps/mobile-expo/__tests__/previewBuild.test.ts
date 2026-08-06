@@ -20,7 +20,13 @@ function readJson(fileName: string): Record<string, unknown> {
 describe('Production MVP build configuration', () => {
   const appConfigSource = fs.readFileSync(path.join(root, 'app.config.ts'), 'utf8');
   const packageJson = readJson('package.json') as {
-    scripts?: { 'eas-build-pre-install'?: string; 'update:preview'?: string; 'update:production'?: string };
+    scripts?: {
+      'eas-build-pre-install'?: string;
+      'update:preview'?: string;
+      'update:production'?: string;
+      'gate:android-apk'?: string;
+      'sign:android-apk'?: string;
+    };
   };
   const eas = readJson('eas.json') as {
     build: {
@@ -32,19 +38,20 @@ describe('Production MVP build configuration', () => {
     };
   };
 
-  it('ships package com.milerecover.app and isolated runtime 0.2.7', () => {
+  it('ships package com.milerecover.app and isolated runtime 0.2.8', () => {
     expect(APP_PACKAGE_ID).toBe('com.milerecover.app');
-    expect(APP_VERSION).toBe('0.2.7');
-    expect(APP_RUNTIME_VERSION).toBe('0.2.7');
-    expect(APP_BUILD_LABEL).toBe('0.2.7-startup.8');
-    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.7');
+    expect(APP_VERSION).toBe('0.2.8');
+    expect(APP_RUNTIME_VERSION).toBe('0.2.8');
+    expect(APP_BUILD_LABEL).toBe('0.2.8-install.1');
+    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.8');
     expect(appConfigSource).toContain("package: 'com.milerecover.app'");
     expect(appConfigSource).toContain("bundleIdentifier: 'com.milerecover.app'");
-    expect(appConfigSource).toContain("version: '0.2.7'");
-    expect(appConfigSource).toContain("runtimeVersion: '0.2.7'");
+    expect(appConfigSource).toContain("version: '0.2.8'");
+    expect(appConfigSource).toContain("runtimeVersion: '0.2.8'");
     expect(appConfigSource).not.toContain("policy: 'appVersion'");
     expect(appConfigSource).toContain("checkAutomatically: 'NEVER'");
     expect(appConfigSource).not.toContain("checkAutomatically: 'ON_LOAD'");
+    expect(appConfigSource).toContain('useLegacyPackaging: true');
     expect(appConfigSource).toContain('expo-location');
     expect(appConfigSource).toContain('@react-native-community/datetimepicker');
     expect(appConfigSource).toContain('@react-native-google-signin/google-signin');
@@ -53,20 +60,27 @@ describe('Production MVP build configuration', () => {
 
   it('uses isolated preview-foundation channel so prior OTAs cannot replace UI', () => {
     expect(eas.build.preview.autoIncrement).toBe(true);
-    expect(eas.build.preview.channel).toBe('preview-foundation-0.2.7');
+    expect(eas.build.preview.channel).toBe('preview-foundation-0.2.8');
     expect(eas.build.preview.env?.APP_VARIANT).toBe('preview');
     expect(isStandaloneBuild('preview')).toBe(true);
-    expect(isStandaloneUpdateChannel('preview-foundation-0.2.7')).toBe(true);
+    expect(isStandaloneUpdateChannel('preview-foundation-0.2.8')).toBe(true);
     expect(isStandaloneUpdateChannel('preview')).toBe(true);
     expect(isStandaloneUpdateChannel('development')).toBe(false);
     expect(appConfigSource).toContain("'expo-dev-client'");
     expect(appConfigSource).toContain('enabled: !IS_DEV_CLIENT');
-    expect(packageJson.scripts?.['update:preview']).toContain('preview-foundation-0.2.7');
+    expect(packageJson.scripts?.['update:preview']).toContain('preview-foundation-0.2.8');
   });
 
   it('forces APP_VARIANT when publishing OTA so preview updates stay standalone', () => {
     expect(packageJson.scripts?.['update:preview']).toContain('APP_VARIANT=preview');
     expect(packageJson.scripts?.['update:production']).toContain('APP_VARIANT=production');
+  });
+
+  it('requires android APK sign + release gate scripts', () => {
+    expect(packageJson.scripts?.['gate:android-apk']).toContain('android-apk-release-gate.sh');
+    expect(packageJson.scripts?.['sign:android-apk']).toContain('sign-android-apk.sh');
+    expect(fs.existsSync(path.join(root, 'scripts/android-apk-release-gate.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'scripts/sign-android-apk.sh'))).toBe(true);
   });
 
   it('excludes expo-dev-client native modules from autolinking for standalone variants', () => {

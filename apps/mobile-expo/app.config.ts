@@ -36,7 +36,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.7',
+  version: '0.2.8',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -79,6 +79,9 @@ const config = {
       {
         android: {
           minSdkVersion: 24,
+          // Extract .so files on install — more compatible with Samsung PackageInstaller
+          // sideload ("Preparing app…") than uncompressed-in-APK packing alone.
+          useLegacyPackaging: true,
         },
       },
     ],
@@ -110,8 +113,8 @@ const config = {
       },
     ],
   ],
-  // Explicit runtime — isolates 0.2.7 from prior 0.2.6 foundation OTA/runtime.
-  runtimeVersion: '0.2.7',
+  // Explicit runtime — isolates 0.2.8 from prior 0.2.7 foundation OTA/runtime.
+  runtimeVersion: '0.2.8',
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
     // Standalone preview/production binaries keep updates enabled.
@@ -134,9 +137,9 @@ const config = {
       process.env.EAS_BUILD_CREATED_AT ??
       process.env.EXPO_PUBLIC_BUILD_TIMESTAMP ??
       new Date().toISOString(),
-    runtimeVersion: '0.2.7',
+    runtimeVersion: '0.2.8',
     updateChannel: process.env.EAS_BUILD_PROFILE === 'preview' || process.env.APP_VARIANT === 'preview'
-      ? 'preview-foundation-0.2.7'
+      ? 'preview-foundation-0.2.8'
       : process.env.APP_VARIANT === 'production'
         ? 'production'
         : 'development',
