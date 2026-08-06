@@ -24,6 +24,7 @@ import {
   WorkLocationSetupScreen,
 } from '../screens/flows/SupportingScreens';
 import { EditSetupScreen } from '../screens/profile/EditSetupScreen';
+import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
 import { useAppTheme } from '../design-system/ThemeProvider';
 import type { RootStackParamList } from './types';
 
@@ -64,6 +65,7 @@ export function RootNavigator() {
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
       <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms' }} />
       <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: 'Help' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="About" component={AboutScreen} options={{ title: 'About' }} />
       <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: 'Diagnostics' }} />
       <Stack.Screen name="RescueProducts" component={RescueProductsScreen} options={{ title: 'Rescue' }} />

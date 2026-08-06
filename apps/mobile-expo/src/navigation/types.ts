@@ -19,6 +19,7 @@ export const SUPPORTING_STACK_ROUTES = [
   'Privacy',
   'Terms',
   'HelpSupport',
+  'Notifications',
   'About',
   'Diagnostics',
   'RescueProducts',
@@ -65,6 +66,7 @@ export type RootStackParamList = {
   Privacy: undefined;
   Terms: undefined;
   HelpSupport: undefined;
+  Notifications: undefined;
   About: undefined;
   Diagnostics: undefined;
   RescueProducts: undefined;

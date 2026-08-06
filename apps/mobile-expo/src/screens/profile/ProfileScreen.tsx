@@ -233,10 +233,26 @@ export function ProfileScreen() {
         onPress={() => navigation.navigate('ExportReport')}
       />
       <SettingsRow
+        icon="notifications-outline"
+        label="Notifications"
+        value={product.notificationPreferences.enabled ? 'On' : 'Off'}
+        onPress={() => navigation.navigate('Notifications')}
+      />
+      <SettingsRow
         icon="diamond-outline"
         label="Plan / subscription"
         value={product.selectedPlan === 'free' ? 'Free' : product.selectedPlan}
         onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
+      />
+      <SettingsRow
+        icon="shield-outline"
+        label="Privacy"
+        onPress={() => navigation.navigate('Privacy')}
+      />
+      <SettingsRow
+        icon="document-text-outline"
+        label="Terms"
+        onPress={() => navigation.navigate('Terms')}
       />
       {authSession ? (
         <SettingsRow

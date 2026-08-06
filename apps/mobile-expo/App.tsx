@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
+import type { NavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { spacing } from '@milerecover/config';
 import {
@@ -14,9 +15,12 @@ import { ProductProvider, useProduct } from './src/product/ProductContext';
 import { StartupGate } from './src/components/StartupGate';
 import { ManualTripMigration } from './src/components/ManualTripMigration';
 import { StartupErrorBoundary } from './src/components/StartupErrorBoundary';
+import { NotificationBootstrap } from './src/components/NotificationBootstrap';
 import { UpdateProvider, useAppUpdates } from './src/updates/UpdateProvider';
 import { SafeFillScreen, text, ThemeProvider, useAppTheme } from './src/design-system';
 import { resolveLaunchState } from './src/startup/launchState';
+import { setNotificationNavigationRef } from './src/services/notificationRouter';
+import type { RootStackParamList } from './src/navigation/types';
 
 const OnboardingFlow = lazy(() =>
   import('./src/screens/onboarding/OnboardingFlow').then((m) => ({ default: m.OnboardingFlow })),
@@ -166,17 +170,23 @@ function AppRoot({ remountKey }: { remountKey: number }) {
       <StatusBar style="dark" />
       <ManualTripMigration />
       <TrackingBootstrap>
-        <Suspense fallback={<BootSplash label="Preparing MileRecover…" />} key={remountKey}>
-          {launch.showOnboarding ? (
-            <OnboardingFlow />
-          ) : launch.allowHome ? (
-            <NavigationContainer>
-              <RootNavigator />
-            </NavigationContainer>
-          ) : (
-            <BootSplash label="Preparing MileRecover…" />
-          )}
-        </Suspense>
+        <NotificationBootstrap>
+          <Suspense fallback={<BootSplash label="Preparing MileRecover…" />} key={remountKey}>
+            {launch.showOnboarding ? (
+              <OnboardingFlow />
+            ) : launch.allowHome ? (
+              <NavigationContainer
+                ref={(ref: NavigationContainerRef<RootStackParamList> | null) => {
+                  setNotificationNavigationRef(ref);
+                }}
+              >
+                <RootNavigator />
+              </NavigationContainer>
+            ) : (
+              <BootSplash label="Preparing MileRecover…" />
+            )}
+          </Suspense>
+        </NotificationBootstrap>
       </TrackingBootstrap>
     </StartupGate>
   );

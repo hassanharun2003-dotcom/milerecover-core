@@ -412,9 +412,9 @@ export function HomeScreen() {
         }
         right={
           <Pressable
-            onPress={() => navigation.navigate('HelpSupport')}
+            onPress={() => navigation.navigate('Notifications')}
             accessibilityRole="button"
-            accessibilityLabel="Notifications and help"
+            accessibilityLabel="Notifications"
             style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
             hitSlop={8}
           >

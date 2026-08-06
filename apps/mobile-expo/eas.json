@@ -20,7 +20,7 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview-foundation-0.2.9",
+      "channel": "preview-foundation-0.2.10",
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
@@ -38,7 +38,7 @@
     },
     "previewFoundation": {
       "distribution": "internal",
-      "channel": "preview-foundation-0.2.9",
+      "channel": "preview-foundation-0.2.10",
       "autoIncrement": true,
       "android": {
         "buildType": "apk"

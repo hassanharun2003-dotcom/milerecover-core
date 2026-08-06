@@ -47,19 +47,19 @@ import {
 
 const WELCOME_BENEFITS = [
   {
-    glyph: '✓',
+    glyph: '↻',
     label: 'Recover forgotten miles',
-    body: 'Find miles you may have missed.',
+    body: 'Find work miles you may have missed.',
   },
   {
-    glyph: '✓',
+    glyph: '☰',
     label: 'Tax & employer ready',
-    body: 'Create clean professional reports.',
+    body: 'Create clean professional mileage records.',
   },
   {
-    glyph: '✓',
-    label: 'Automatic tracking',
-    body: 'Works quietly in the background.',
+    glyph: '◉',
+    label: 'Automatic protection',
+    body: 'MileRecover quietly watches for eligible drives.',
   },
 ] as const;
 
@@ -73,8 +73,8 @@ const PURPOSE_ICONS: Record<string, string> = {
 const PROTECTION_BENEFITS = [
   'Detects possible drives',
   'Works in the background',
-  'Battery-aware tracking',
-  'You confirm what counts',
+  'Battery-aware',
+  'You decide what counts',
 ] as const;
 
 const KM_PER_MILE = 1.609344;
@@ -636,9 +636,14 @@ export function OnboardingFlow() {
               backgroundColor: palette.background.card,
             }}
           >
-            <Text style={{ color: palette.text.primary, fontSize: typography.size.bodyLarge }}>
-              {countryLabel}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Text style={{ fontSize: 22 }} accessibilityLabel="">
+                {COUNTRY_OPTIONS.find((option) => option.id === countryDraft)?.flagEmoji ?? '🌍'}
+              </Text>
+              <Text style={{ color: palette.text.primary, fontSize: typography.size.bodyLarge }}>
+                {countryLabel}
+              </Text>
+            </View>
             <Text style={{ color: palette.text.secondary }}>▾</Text>
           </Pressable>
 
@@ -730,7 +735,7 @@ export function OnboardingFlow() {
             {COUNTRY_OPTIONS.map((opt) => (
               <SelectionCard
                 key={opt.id}
-                title={opt.label}
+                title={`${opt.flagEmoji}  ${opt.label}`}
                 body={opt.id === recommendedCountry ? 'Suggested from your device' : undefined}
                 selected={countryDraft === opt.id}
                 onPress={() => applyCountry(opt.id)}

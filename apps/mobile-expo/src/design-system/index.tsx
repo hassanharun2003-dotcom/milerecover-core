@@ -1560,6 +1560,16 @@ function tryNativeRouteMap(
 ): React.ReactElement | null {
   try {
     // Optional native maps — requires EXPO_PUBLIC_GOOGLE_MAPS_API_KEY at native build time.
+    // Without a key, keep the recorded-point polyline (never invent geometry).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Constants = require('expo-constants') as {
+      default?: { expoConfig?: { extra?: { googleMapsApiKey?: string } } };
+      expoConfig?: { extra?: { googleMapsApiKey?: string } };
+    };
+    const expoConfig = Constants.expoConfig ?? Constants.default?.expoConfig;
+    const mapsKey =
+      process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || expoConfig?.extra?.googleMapsApiKey || '';
+    if (!String(mapsKey).trim()) return null;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const maps = require('react-native-maps') as {
       default: React.ComponentType<Record<string, unknown>>;

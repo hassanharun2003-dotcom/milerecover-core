@@ -186,10 +186,11 @@ export const PRODUCT_UI_STORAGE_KEYS = [
 ] as const;
 
 export function allowInternalPreviewTools(variant?: string): boolean {
-  // Customer-facing preview/production APKs must not expose reset/dev tooling.
-  // Keep tools in local __DEV__ only.
-  void variant;
-  return Boolean(__DEV__);
+  // Preview + development may expose “Reset App To Brand New User”.
+  // Production customer builds must never show it.
+  const v = variant ?? (typeof process !== 'undefined' ? process.env.APP_VARIANT : undefined);
+  if (v === 'production') return false;
+  return Boolean(__DEV__ || v === 'preview' || v === 'development');
 }
 
 export function createInitialProductUiState(): ProductUiState {
@@ -262,12 +263,13 @@ export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'ready',
 ];
 
+/** UI country catalog — flags/currency come from domain COUNTRY_PRESETS. */
 export const COUNTRY_OPTIONS = [
-  { id: 'US' as const, label: 'United States' },
-  { id: 'CA' as const, label: 'Canada' },
-  { id: 'GB' as const, label: 'United Kingdom' },
-  { id: 'AU' as const, label: 'Australia' },
-  { id: 'OTHER' as const, label: 'Other country' },
+  { id: 'US' as const, label: 'United States', flagEmoji: '🇺🇸' },
+  { id: 'CA' as const, label: 'Canada', flagEmoji: '🇨🇦' },
+  { id: 'GB' as const, label: 'United Kingdom', flagEmoji: '🇬🇧' },
+  { id: 'AU' as const, label: 'Australia', flagEmoji: '🇦🇺' },
+  { id: 'OTHER' as const, label: 'Other country', flagEmoji: '🌍' },
 ];
 
 export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: string }[] = [

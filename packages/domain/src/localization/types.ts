@@ -45,7 +45,12 @@ export interface LocaleProfile {
 
 export interface CountryPreset {
   countryCode: Exclude<CountryCode, 'OTHER'>;
+  /** ISO 3166-1 alpha-2 (same as countryCode for supported presets). */
+  isoCode: Exclude<CountryCode, 'OTHER'>;
   countryDisplayName: string;
+  /** Unicode regional-indicator flag for UI (not a primary brand icon). */
+  flagEmoji: string;
+  currencySymbol: string;
   distanceUnit: DistanceUnit;
   currencyCode: CurrencyCode;
   localeTag: string;
@@ -53,55 +58,100 @@ export interface CountryPreset {
   /** Default cents-per-mile preset (user-editable; not legal advice). */
   defaultCentsPerMile: number;
   defaultRateLabel: string;
+  supportStatus: 'supported' | 'generic';
 }
 
 export const COUNTRY_PRESETS: CountryPreset[] = [
   {
     countryCode: 'US',
+    isoCode: 'US',
     countryDisplayName: 'United States',
+    flagEmoji: '🇺🇸',
+    currencySymbol: '$',
     distanceUnit: 'mi',
     currencyCode: 'USD',
     localeTag: 'en-US',
     reportTone: 'us_tax_record',
     defaultCentsPerMile: 70,
     defaultRateLabel: 'Custom mileage rate',
+    supportStatus: 'supported',
   },
   {
     countryCode: 'CA',
+    isoCode: 'CA',
     countryDisplayName: 'Canada',
+    flagEmoji: '🇨🇦',
+    currencySymbol: '$',
     distanceUnit: 'km',
     currencyCode: 'CAD',
     localeTag: 'en-CA',
     reportTone: 'reimbursement_record',
     defaultCentsPerMile: 43, // ≈ CAD/km converted at setup; stored as ¢/mi
     defaultRateLabel: 'Custom reimbursement rate',
+    supportStatus: 'supported',
   },
   {
     countryCode: 'GB',
+    isoCode: 'GB',
     countryDisplayName: 'United Kingdom',
+    flagEmoji: '🇬🇧',
+    currencySymbol: '£',
     distanceUnit: 'mi',
     currencyCode: 'GBP',
     localeTag: 'en-GB',
     reportTone: 'reimbursement_record',
     defaultCentsPerMile: 45,
     defaultRateLabel: 'Custom reimbursement rate',
+    supportStatus: 'supported',
   },
   {
     countryCode: 'AU',
+    isoCode: 'AU',
     countryDisplayName: 'Australia',
+    flagEmoji: '🇦🇺',
+    currencySymbol: '$',
     distanceUnit: 'km',
     currencyCode: 'AUD',
     localeTag: 'en-AU',
     reportTone: 'reimbursement_record',
     defaultCentsPerMile: 55,
     defaultRateLabel: 'Custom reimbursement rate',
+    supportStatus: 'supported',
   },
 ];
 
 export const OTHER_COUNTRY_OPTION = {
   countryCode: 'OTHER' as const,
+  isoCode: 'OTHER' as const,
   countryDisplayName: 'Other country',
+  flagEmoji: '🌍',
+  currencySymbol: '',
+  supportStatus: 'generic' as const,
 };
+
+export function countryFlagEmoji(code: CountryCode): string {
+  if (code === 'OTHER') return OTHER_COUNTRY_OPTION.flagEmoji;
+  return COUNTRY_PRESETS.find((preset) => preset.countryCode === code)?.flagEmoji ?? '🌍';
+}
+
+export function countryCurrencySymbol(code: CountryCode | CurrencyCode): string {
+  const fromPreset = COUNTRY_PRESETS.find(
+    (preset) => preset.countryCode === code || preset.currencyCode === code,
+  );
+  if (fromPreset) return fromPreset.currencySymbol;
+  switch (code) {
+    case 'GBP':
+      return '£';
+    case 'EUR':
+      return '€';
+    case 'USD':
+    case 'CAD':
+    case 'AUD':
+      return '$';
+    default:
+      return '$';
+  }
+}
 
 /** Miles ↔ km at display boundary only. */
 export const KM_PER_MILE = 1.609344;

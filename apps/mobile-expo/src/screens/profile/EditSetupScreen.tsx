@@ -252,7 +252,12 @@ export function EditSetupScreen() {
           backgroundColor: palette.background.card,
         }}
       >
-        <Text style={text.body}>{currentCountryLabel}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Text style={{ fontSize: 20 }}>
+            {COUNTRY_OPTIONS.find((option) => option.id === country)?.flagEmoji ?? '🌍'}
+          </Text>
+          <Text style={text.body}>{currentCountryLabel}</Text>
+        </View>
         <Text style={{ color: palette.text.secondary }}>{countryOpen ? '▴' : '▾'}</Text>
       </Pressable>
 
@@ -268,7 +273,7 @@ export function EditSetupScreen() {
           {filteredCountries.map((option) => (
             <SelectionCard
               key={option.id}
-              title={option.label}
+              title={`${option.flagEmoji}  ${option.label}`}
               body={option.id === 'OTHER' ? 'Custom units — no local tax rules claimed' : undefined}
               selected={country === option.id}
               onPress={() => {

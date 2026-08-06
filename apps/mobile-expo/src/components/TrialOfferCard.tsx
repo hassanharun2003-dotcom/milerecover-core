@@ -38,9 +38,17 @@ export function TrialOfferCard({
     }
   }, [eligible, markTrialOfferShown, shownThisSession]);
 
-  if (!offer || moment == null || capabilities.canUseAutomaticCapture) {
+  // Free includes limited automatic capture — still offer Plus trial for
+  // unlimited automation / advanced proof. Never auto-start trial; only show.
+  const alreadyPaid =
+    product.entitlement.planId !== 'free' ||
+    product.entitlement.status === 'trialActive' ||
+    product.entitlement.status === 'plusActive' ||
+    product.entitlement.status === 'proActive';
+  if (!offer || moment == null || alreadyPaid) {
     return null;
   }
+  void capabilities;
 
   return (
     <View

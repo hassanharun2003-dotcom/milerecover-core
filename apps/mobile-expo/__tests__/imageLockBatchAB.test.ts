@@ -59,9 +59,10 @@ describe('Image lock Batch A/B foundations', () => {
     expect(PRIMARY_GOAL_OPTIONS.find((o) => o.label === 'Personal / mixed use')?.id).toBe('mixed');
   });
 
-  it('keeps reset onboarding behind __DEV__ only (hidden in customer preview APKs)', () => {
-    expect(allowInternalPreviewTools('preview')).toBe(Boolean(__DEV__));
-    expect(allowInternalPreviewTools('production')).toBe(Boolean(__DEV__));
+  it('keeps Reset App preview-only (never in production)', () => {
+    expect(allowInternalPreviewTools('preview')).toBe(true);
+    expect(allowInternalPreviewTools('development')).toBe(true);
+    expect(allowInternalPreviewTools('production')).toBe(false);
     const profile = fs.readFileSync(
       path.join(__dirname, '../src/screens/profile/ProfileScreen.tsx'),
       'utf8',
