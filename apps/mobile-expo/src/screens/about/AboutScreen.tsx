@@ -18,9 +18,6 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
-const RELEASE_NOTES =
-  '0.2.7 startup.5: Updates NEVER on load; onboarding completion stamp + durable product-ui writes so Home survives force-stop.';
-
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();
   const { updatesActive, checkForUpdates, applyUpdate, updateReady } = useAppUpdates();
@@ -65,7 +62,6 @@ export function AboutScreen() {
           <ListRow label="Version" value={APP_VERSION} showChevron={false} />
         </Pressable>
         <ListRow label="Build" value={APP_BUILD_LABEL} showChevron={false} />
-        <ListRow label="Release notes" value={RELEASE_NOTES} showChevron={false} />
       </ListSection>
 
       {updatesActive ? (
@@ -81,11 +77,7 @@ export function AboutScreen() {
           ) : null}
           {statusMessage ? <Text style={text.body}>{statusMessage}</Text> : null}
         </View>
-      ) : (
-        <Text style={[text.caption, { marginBottom: spacing.md }]}>
-          Updates are managed through your development tools in this build.
-        </Text>
-      )}
+      ) : null}
 
       <ListSection title="Support and legal">
         <ListRow label="Support" onPress={() => navigation.navigate('HelpSupport')} />

@@ -186,8 +186,10 @@ export const PRODUCT_UI_STORAGE_KEYS = [
 ] as const;
 
 export function allowInternalPreviewTools(variant?: string): boolean {
-  const v = variant ?? (typeof process !== 'undefined' ? process.env.APP_VARIANT : undefined);
-  return Boolean(__DEV__ || v === 'preview' || v === 'development');
+  // Customer-facing preview/production APKs must not expose reset/dev tooling.
+  // Keep tools in local __DEV__ only.
+  void variant;
+  return Boolean(__DEV__);
 }
 
 export function createInitialProductUiState(): ProductUiState {
@@ -286,7 +288,7 @@ export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: strin
   },
   {
     id: 'mixed',
-    label: 'Personal',
+    label: 'Personal / mixed use',
     body: 'Track personal or mixed driving.',
   },
 ];

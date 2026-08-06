@@ -16,9 +16,13 @@ import { isStandaloneBuild, type AppVariant } from '../constants/buildInfo';
  * identity provider response.
  *
  * Required config (app.config extra / EAS secrets):
- * - extra.googleWebClientId / googleIosClientId / googleAndroidClientId
+ * - EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (Web OAuth client — required for idToken)
+ * - EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID (Android OAuth client for package + SHA-1)
+ * - EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID + GOOGLE_IOS_URL_SCHEME (iOS)
  * - Apple capability on the iOS App ID
  * - Backend session verifier before AUTH_BACKEND_CONNECTED = true
+ *
+ * See docs/qa/GOOGLE_SIGNIN_0.2.9.md for the exact external credential steps.
  */
 
 export type AuthProviderId = 'google' | 'apple' | 'email';
@@ -38,6 +42,7 @@ export type AuthResult =
       userId: string;
       email: string | null;
       displayName: string | null;
+      photoUrl: string | null;
       provider: AuthProviderId;
       backendLinked: boolean;
     }
@@ -51,6 +56,7 @@ export interface AuthSession {
   userId: string;
   email: string | null;
   displayName: string | null;
+  photoUrl: string | null;
   provider: AuthProviderId;
   backendLinked: boolean;
 }
@@ -64,11 +70,26 @@ export interface AuthPort {
 
 export const AUTH_SESSION_STORAGE_KEY = '@milerecover/auth-session/v1';
 
-export const AUTH_UNAVAILABLE_MESSAGE =
-  'Sign-in isn’t configured for this build yet. You can continue without an account — your miles stay on this device.';
+/** User-facing copy — never mention build configuration or engineering internals. */
+export const AUTH_GENERIC_FAILURE_MESSAGE =
+  'Google sign-in didn’t complete. Please try again, or continue without an account.';
+
+export const AUTH_NETWORK_MESSAGE =
+  'You’re offline. Try Google sign-in again when connected.';
+
+export const AUTH_CANCELLED_MESSAGE = 'Sign-in was cancelled.';
+
+export const AUTH_NO_ACCOUNT_MESSAGE =
+  'No Google account is available on this device. Add one in Android Settings, or continue without an account.';
+
+export const AUTH_PLAY_SERVICES_MESSAGE =
+  'Google Play Services is required for Google sign-in. Update Play Services, or continue without an account.';
+
+/** @deprecated Use AUTH_GENERIC_FAILURE_MESSAGE — kept for tests that import the old name. */
+export const AUTH_UNAVAILABLE_MESSAGE = AUTH_GENERIC_FAILURE_MESSAGE;
 
 export const AUTH_EMAIL_PENDING_MESSAGE =
-  'Email sign-in needs the MileRecover account service. Continue without an account for now.';
+  'Email sign-in isn’t available yet. Continue without an account for now.';
 
 /** Flip only when a secure session verifier backend is live. */
 export const AUTH_BACKEND_CONNECTED = false;
@@ -92,6 +113,8 @@ function authExtra(): AuthExtra {
 function googleConfigured(): boolean {
   const extra = authExtra();
   if (Platform.OS === 'ios') return Boolean(extra.googleIosClientId || extra.googleWebClientId);
+  // Android native picker needs a Web client ID for token exchange, or an Android client ID
+  // registered for this package + signing certificate SHA-1.
   return Boolean(extra.googleWebClientId || extra.googleAndroidClientId);
 }
 
@@ -118,7 +141,10 @@ async function readSession(): Promise<AuthSession | null> {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AuthSession;
     if (!parsed?.userId || !parsed?.provider) return null;
-    return parsed;
+    return {
+      ...parsed,
+      photoUrl: parsed.photoUrl ?? null,
+    };
   } catch {
     return null;
   }
@@ -142,7 +168,7 @@ export class ProductionAuthPort implements AuthPort {
     if (provider === 'email') {
       return { ok: false, reason: 'not_configured', message: AUTH_EMAIL_PENDING_MESSAGE };
     }
-    return { ok: false, reason: 'unavailable', message: AUTH_UNAVAILABLE_MESSAGE };
+    return { ok: false, reason: 'unavailable', message: AUTH_GENERIC_FAILURE_MESSAGE };
   }
 
   async signOut(): Promise<void> {
@@ -160,7 +186,7 @@ export class ProductionAuthPort implements AuthPort {
 
   private async signInGoogle(): Promise<AuthResult> {
     if (!googleConfigured()) {
-      return { ok: false, reason: 'not_configured', message: AUTH_UNAVAILABLE_MESSAGE };
+      return { ok: false, reason: 'not_configured', message: AUTH_GENERIC_FAILURE_MESSAGE };
     }
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -171,16 +197,30 @@ export class ProductionAuthPort implements AuthPort {
           signIn: () => Promise<{
             type?: string;
             data?: {
-              user?: { id?: string; email?: string | null; name?: string | null };
+              user?: {
+                id?: string;
+                email?: string | null;
+                name?: string | null;
+                photo?: string | null;
+              };
               idToken?: string | null;
             };
-            user?: { id?: string; email?: string | null; name?: string | null };
+            user?: {
+              id?: string;
+              email?: string | null;
+              name?: string | null;
+              photo?: string | null;
+            };
           }>;
           getTokens?: () => Promise<{ idToken?: string | null; accessToken?: string | null }>;
         };
-        statusCodes: { SIGN_IN_CANCELLED?: string; IN_PROGRESS?: string };
+        statusCodes: {
+          SIGN_IN_CANCELLED?: string;
+          IN_PROGRESS?: string;
+          PLAY_SERVICES_NOT_AVAILABLE?: string;
+        };
       };
-      const { GoogleSignin } = mod;
+      const { GoogleSignin, statusCodes } = mod;
       const extra = authExtra();
       // Opens the native Google account picker on Android / iOS.
       GoogleSignin.configure({
@@ -190,17 +230,20 @@ export class ProductionAuthPort implements AuthPort {
         forceCodeForRefreshToken: false,
       });
       if (Platform.OS === 'android') {
-        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        try {
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        } catch {
+          return { ok: false, reason: 'unavailable', message: AUTH_PLAY_SERVICES_MESSAGE };
+        }
       }
       const response = await GoogleSignin.signIn();
       if (response?.type === 'cancelled') {
-        return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+        return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };
       }
       const user = response?.data?.user ?? response?.user;
       if (!user?.id) {
-        return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+        return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };
       }
-      // Prefer a real provider token when available; never invent identity.
       try {
         await GoogleSignin.getTokens?.();
       } catch {
@@ -210,6 +253,7 @@ export class ProductionAuthPort implements AuthPort {
         userId: `google:${user.id}`,
         email: user.email ?? null,
         displayName: user.name ?? null,
+        photoUrl: user.photo ?? null,
         provider: 'google',
         backendLinked: AUTH_BACKEND_CONNECTED,
       };
@@ -217,32 +261,44 @@ export class ProductionAuthPort implements AuthPort {
       return { ok: true, ...session };
     } catch (error) {
       const code = String((error as { code?: string } | undefined)?.code ?? '');
+      const message = String((error as { message?: string } | undefined)?.message ?? error ?? '');
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       let cancelledCode = 'SIGN_IN_CANCELLED';
+      let playServicesCode = 'PLAY_SERVICES_NOT_AVAILABLE';
       try {
-        cancelledCode =
-          (
-            require('@react-native-google-signin/google-signin') as {
-              statusCodes?: { SIGN_IN_CANCELLED?: string };
-            }
-          ).statusCodes?.SIGN_IN_CANCELLED ?? cancelledCode;
+        const codes = (
+          require('@react-native-google-signin/google-signin') as {
+            statusCodes?: { SIGN_IN_CANCELLED?: string; PLAY_SERVICES_NOT_AVAILABLE?: string };
+          }
+        ).statusCodes;
+        cancelledCode = codes?.SIGN_IN_CANCELLED ?? cancelledCode;
+        playServicesCode = codes?.PLAY_SERVICES_NOT_AVAILABLE ?? playServicesCode;
       } catch {
-        // keep default
+        // keep defaults
       }
-      if (code === cancelledCode || /cancel/i.test(code) || /cancel/i.test(String(error))) {
-        return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+      if (code === cancelledCode || /cancel/i.test(code) || /cancel/i.test(message)) {
+        return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };
       }
-      if (/NETWORK|network/i.test(code)) {
+      if (code === playServicesCode || /PLAY_SERVICES/i.test(code)) {
+        return { ok: false, reason: 'unavailable', message: AUTH_PLAY_SERVICES_MESSAGE };
+      }
+      if (/NETWORK|network/i.test(code) || /network/i.test(message)) {
+        return { ok: false, reason: 'network', message: AUTH_NETWORK_MESSAGE };
+      }
+      if (/DEVELOPER_ERROR|10\b/.test(code) || /DEVELOPER_ERROR/.test(message)) {
         return {
           ok: false,
-          reason: 'network',
-          message: 'You’re offline. Try Google sign-in again when connected.',
+          reason: 'failed',
+          message: AUTH_GENERIC_FAILURE_MESSAGE,
         };
+      }
+      if (/no.*account|ACCOUNT/i.test(message)) {
+        return { ok: false, reason: 'unavailable', message: AUTH_NO_ACCOUNT_MESSAGE };
       }
       return {
         ok: false,
         reason: 'failed',
-        message: AUTH_UNAVAILABLE_MESSAGE,
+        message: AUTH_GENERIC_FAILURE_MESSAGE,
       };
     }
   }
@@ -265,7 +321,7 @@ export class ProductionAuthPort implements AuthPort {
         ],
       });
       if (!credential.user) {
-        return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+        return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };
       }
       const displayName = [credential.fullName?.givenName, credential.fullName?.familyName]
         .filter(Boolean)
@@ -275,6 +331,7 @@ export class ProductionAuthPort implements AuthPort {
         userId: `apple:${credential.user}`,
         email: credential.email ?? null,
         displayName: displayName || null,
+        photoUrl: null,
         provider: 'apple',
         backendLinked: AUTH_BACKEND_CONNECTED,
       };
@@ -283,9 +340,9 @@ export class ProductionAuthPort implements AuthPort {
     } catch (error) {
       const code = (error as { code?: string })?.code;
       if (code === 'ERR_REQUEST_CANCELED' || code === 'ERR_CANCELED') {
-        return { ok: false, reason: 'cancelled', message: 'Sign-in was cancelled.' };
+        return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };
       }
-      return { ok: false, reason: 'failed', message: AUTH_UNAVAILABLE_MESSAGE };
+      return { ok: false, reason: 'failed', message: AUTH_GENERIC_FAILURE_MESSAGE };
     }
   }
 }

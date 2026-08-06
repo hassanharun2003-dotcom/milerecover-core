@@ -283,7 +283,7 @@ export function ReviewScreen() {
     if (!rate) return null;
     const cents = estimatedValueCents(miles, rate.centsPerMile);
     if (cents == null) return null;
-    return `Estimated value ${formatCurrencyCents(cents, locale.currencyCode, locale.localeTag)}`;
+    return formatCurrencyCents(cents, locale.currencyCode, locale.localeTag);
   };
 
   const checkMissedDrives = () => {

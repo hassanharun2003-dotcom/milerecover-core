@@ -13,7 +13,7 @@
     "deps:validate": "npx expo install --check",
     "config:validate": "expo config --type public",
     "export:validate": "expo export --platform android --output-dir .expo-export-check",
-    "update:preview": "APP_VARIANT=preview npx --yes eas-cli@latest update --channel preview-foundation-0.2.8 --environment preview --message \"preview OTA (APP_VARIANT=preview)\" --non-interactive",
+    "update:preview": "APP_VARIANT=preview npx --yes eas-cli@latest update --channel preview-foundation-0.2.9 --environment preview --message \"preview OTA (APP_VARIANT=preview)\" --non-interactive",
     "smoke:android-launch": "bash ./scripts/android-launch-smoke.sh",
     "gate:android-apk": "bash ./scripts/android-apk-release-gate.sh",
     "sign:android-apk": "bash ./scripts/sign-android-apk.sh",
@@ -52,6 +52,7 @@
     "expo-web-browser": "~57.0.2",
     "react": "19.2.3",
     "react-native": "0.86.2",
+    "react-native-maps": "1.29.0",
     "react-native-purchases": "10.6.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0"

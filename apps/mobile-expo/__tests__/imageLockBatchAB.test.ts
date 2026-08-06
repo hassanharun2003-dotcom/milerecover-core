@@ -54,13 +54,13 @@ describe('Image lock Batch A/B foundations', () => {
       'Employee reimbursement',
       'Self-employed / Business',
       'Delivery or gig work',
-      'Personal',
+      'Personal / mixed use',
     ]);
-    expect(PRIMARY_GOAL_OPTIONS.find((o) => o.label === 'Personal')?.id).toBe('mixed');
+    expect(PRIMARY_GOAL_OPTIONS.find((o) => o.label === 'Personal / mixed use')?.id).toBe('mixed');
   });
 
-  it('exposes preview-only reset onboarding in Profile', () => {
-    expect(allowInternalPreviewTools('preview')).toBe(true);
+  it('keeps reset onboarding behind __DEV__ only (hidden in customer preview APKs)', () => {
+    expect(allowInternalPreviewTools('preview')).toBe(Boolean(__DEV__));
     expect(allowInternalPreviewTools('production')).toBe(Boolean(__DEV__));
     const profile = fs.readFileSync(
       path.join(__dirname, '../src/screens/profile/ProfileScreen.tsx'),

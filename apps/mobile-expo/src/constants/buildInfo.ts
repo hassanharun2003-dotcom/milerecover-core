@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.2.8-install.1';
+export const APP_BUILD_LABEL = '0.2.9-product.1';
 
 /**
  * Temporary Home-screen OTA verification string.
@@ -7,17 +7,17 @@ export const APP_BUILD_LABEL = '0.2.8-install.1';
  */
 export const PREVIEW_CHANNEL_MARKER = '';
 
-/** App store / runtime version — sideload install fix (isolated from 0.2.7). */
-export const APP_VERSION = '0.2.8';
+/** App store / runtime version — product + image-lock completion on 0.2.8 install foundation. */
+export const APP_VERSION = '0.2.9';
 
 /**
  * Explicit Expo Updates runtime — MUST stay equal to APP_VERSION for this release.
  * Isolates this binary from any prior preview-channel OTA bundles.
  */
-export const APP_RUNTIME_VERSION = '0.2.8';
+export const APP_RUNTIME_VERSION = '0.2.9';
 
-/** Preview EAS channel for this install-fix APK only. */
-export const APP_UPDATE_CHANNEL = 'preview-foundation-0.2.8';
+/** Preview EAS channel for this product APK only. */
+export const APP_UPDATE_CHANNEL = 'preview-foundation-0.2.9';
 
 /** ISO timestamp stamped at native build time when EAS sets EAS_BUILD_*. */
 export const APP_BUILD_TIMESTAMP =

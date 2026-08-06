@@ -359,12 +359,15 @@ export function HomeScreen() {
 
   if (!homeReady) return <HomeSkeleton />;
 
-  /** Collage hero always shows money + “this year.”; $0.00 is truthful when empty + rate set. */
+  /** Never show “You’ve protected $0.00” for a brand-new user — use a readiness state. */
   const showHeroMoney =
-    yearSummary.estimatedValueCents != null && yearSummary.estimatedValueLabel !== 'Review rate';
+    confirmedCount > 0 &&
+    yearSummary.estimatedValueCents != null &&
+    yearSummary.estimatedValueCents > 0 &&
+    yearSummary.estimatedValueLabel !== 'Review rate';
   const heroSupporting =
     confirmedCount === 0
-      ? 'Start tracking to see the value of your work miles.'
+      ? 'Ready to protect your first drive'
       : yearSummary.estimatedValueLabel === 'Review rate'
         ? 'Add or confirm a mileage rate to estimate value.'
         : compact.sentence;

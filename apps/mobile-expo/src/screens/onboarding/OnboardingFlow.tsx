@@ -40,16 +40,44 @@ import { useApp } from '../../store/AppContext';
 import { useProduct } from '../../product/ProductContext';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import {
-  AUTH_UNAVAILABLE_MESSAGE,
+  AUTH_GENERIC_FAILURE_MESSAGE,
   getAuthPort,
   type AuthProviderId,
 } from '../../services/auth';
 
 const WELCOME_BENEFITS = [
-  { glyph: '✓', label: 'Recover forgotten miles' },
-  { glyph: '✓', label: 'Tax & employer ready' },
-  { glyph: '✓', label: 'Automatic tracking' },
+  {
+    glyph: '✓',
+    label: 'Recover forgotten miles',
+    body: 'Find miles you may have missed.',
+  },
+  {
+    glyph: '✓',
+    label: 'Tax & employer ready',
+    body: 'Create clean professional reports.',
+  },
+  {
+    glyph: '✓',
+    label: 'Automatic tracking',
+    body: 'Works quietly in the background.',
+  },
 ] as const;
+
+const PURPOSE_ICONS: Record<string, string> = {
+  employee_reimbursement: 'E',
+  self_employed_business: 'B',
+  gig_delivery: 'D',
+  mixed: 'P',
+};
+
+const PROTECTION_BENEFITS = [
+  'Detects possible drives',
+  'Works in the background',
+  'Battery-aware tracking',
+  'You confirm what counts',
+] as const;
+
+const KM_PER_MILE = 1.609344;
 
 function inOrder(step: ProductOnboardingStep): boolean {
   return ONBOARDING_STEP_ORDER.includes(step);
@@ -73,16 +101,37 @@ function remapStep(step: ProductOnboardingStep): ProductOnboardingStep {
   return 'welcome';
 }
 
-function formatDisplayRate(centsPerUnit: number, unit: DistanceUnit): string {
-  if (!(centsPerUnit > 0)) return 'Not set';
-  const dollars = (centsPerUnit / 100).toFixed(2);
-  return unit === 'km' ? `$${dollars} per km` : `$${dollars} per mile`;
+function centsPerMileToDisplayDollars(centsPerMile: number, unit: DistanceUnit): string {
+  if (!(centsPerMile > 0)) return '';
+  const centsPerUnit = unit === 'km' ? centsPerMile / KM_PER_MILE : centsPerMile;
+  return (centsPerUnit / 100).toFixed(2);
+}
+
+function displayDollarsToCentsPerMile(dollarsText: string, unit: DistanceUnit): number | undefined {
+  const dollars = Number.parseFloat(dollarsText);
+  if (!Number.isFinite(dollars) || dollars <= 0) return undefined;
+  const centsPerUnit = Math.round(dollars * 100);
+  return unit === 'km' ? Math.round(centsPerUnit * KM_PER_MILE) : centsPerUnit;
+}
+
+function convertDisplayRate(dollarsText: string, from: DistanceUnit, to: DistanceUnit): string {
+  if (from === to) return dollarsText;
+  const dollars = Number.parseFloat(dollarsText);
+  if (!Number.isFinite(dollars) || dollars <= 0) return dollarsText;
+  // Preserve economic rate: $1.80/mi ↔ ≈ $1.12/km
+  const next = from === 'mi' && to === 'km' ? dollars / KM_PER_MILE : dollars * KM_PER_MILE;
+  return next.toFixed(2);
+}
+
+function formatDisplayRate(dollarsText: string, unit: DistanceUnit): string {
+  const dollars = Number.parseFloat(dollarsText);
+  if (!(Number.isFinite(dollars) && dollars > 0)) return 'Not set';
+  return unit === 'km' ? `$${dollars.toFixed(2)} / km` : `$${dollars.toFixed(2)} / mile`;
 }
 
 export function OnboardingFlow() {
   const { palette } = useAppTheme();
-  const { finishOnboarding, requestLocationPermission, requestBackgroundPermission, permissions } =
-    useApp();
+  const { finishOnboarding, requestLocationPermission, requestBackgroundPermission } = useApp();
   const {
     product,
     advanceOnboarding,
@@ -96,10 +145,11 @@ export function OnboardingFlow() {
     patchOnboarding,
     completeProductOnboarding,
     flushProductPersistence,
-    setPendingPostOnboardingRoute,
   } = useProduct();
 
   const authPort = getAuthPort();
+  const googleAvailable = authPort.isProviderAvailable('google');
+  const appleAvailable = Platform.OS === 'ios' && authPort.isProviderAvailable('apple');
   const [finishing, setFinishing] = useState(false);
   const [permissionBusy, setPermissionBusy] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
@@ -117,8 +167,11 @@ export function OnboardingFlow() {
   const [otherCurrency, setOtherCurrency] = useState<CurrencyCode>(
     product.localeProfile.currencyCode === 'OTHER' ? 'OTHER' : product.localeProfile.currencyCode,
   );
-  const [rateCents, setRateCents] = useState(
-    String(product.localeProfile.rates[0]?.centsPerMile ?? ''),
+  const [rateDollars, setRateDollars] = useState(
+    centsPerMileToDisplayDollars(
+      product.localeProfile.rates[0]?.centsPerMile ?? 0,
+      product.localeProfile.distanceUnit,
+    ) || '1.80',
   );
 
   const step = remapStep(product.onboardingStep);
@@ -147,11 +200,7 @@ export function OnboardingFlow() {
   }, [step]);
 
   const saveLocale = () => {
-    const entered = Number.parseFloat(rateCents);
-    const centsPerMile =
-      Number.isFinite(entered) && entered > 0
-        ? Math.round(unitDraft === 'km' ? entered * 1.609344 : entered)
-        : undefined;
+    const centsPerMile = displayDollarsToCentsPerMile(rateDollars, unitDraft);
     const profile = localeProfileFromCountry(countryDraft, {
       distanceUnit: unitDraft,
       currencyCode: countryDraft === 'OTHER' ? otherCurrency : undefined,
@@ -170,17 +219,20 @@ export function OnboardingFlow() {
 
   const tryAuth = async (provider: AuthProviderId) => {
     if (authBusy) return;
+    if (!authPort.isProviderAvailable(provider)) {
+      // Never show a silent no-op button — callers hide unavailable providers.
+      return;
+    }
     setAuthBusy(true);
     setAuthNotice(null);
     try {
-      if (!authPort.isProviderAvailable(provider)) {
-        setAuthNotice(AUTH_UNAVAILABLE_MESSAGE);
-        return;
-      }
       const result = await authPort.signIn(provider);
       if (result.ok) {
-        if (result.displayName) setPreferredName(result.displayName);
-        setAuthNotice(result.email ? `Signed in as ${result.email}.` : 'Signed in.');
+        if (result.displayName) {
+          const first = result.displayName.trim().split(/\s+/)[0] ?? result.displayName;
+          setPreferredName(first);
+          setNameDraft(first);
+        }
         acknowledgeAccountAndContinue();
         return;
       }
@@ -188,7 +240,7 @@ export function OnboardingFlow() {
         setAuthNotice(null);
         return;
       }
-      setAuthNotice(result.message || AUTH_UNAVAILABLE_MESSAGE);
+      setAuthNotice(result.message || AUTH_GENERIC_FAILURE_MESSAGE);
     } finally {
       setAuthBusy(false);
     }
@@ -210,8 +262,6 @@ export function OnboardingFlow() {
             : 'add_first_drive';
     void (async () => {
       try {
-        // Ensure acknowledgements + next action are on productRef before the
-        // verified completion write (stamp requires nextActionSelected).
         patchOnboarding({
           nextActionSelected: action,
           accountStepAcknowledged: true,
@@ -231,16 +281,16 @@ export function OnboardingFlow() {
   };
 
   const displayRate = useMemo(() => {
-    const entered = Number.parseFloat(rateCents);
-    if (Number.isFinite(entered) && entered > 0) {
-      return formatDisplayRate(Math.round(entered), unitDraft);
-    }
+    const formatted = formatDisplayRate(rateDollars, unitDraft);
+    if (formatted !== 'Not set') return formatted;
     return formatActiveRateLabel({
       ...product.localeProfile,
       distanceUnit: unitDraft,
       activeRateNeedsReview: false,
-    }).replace('¢/mi', '¢ per mile').replace('¢/km', '¢ per km');
-  }, [product.localeProfile, rateCents, unitDraft]);
+    })
+      .replace('¢/mi', ' / mile')
+      .replace('¢/km', ' / km');
+  }, [product.localeProfile, rateDollars, unitDraft]);
 
   const countryLabel =
     COUNTRY_OPTIONS.find((option) => option.id === countryDraft)?.label ?? countryDraft;
@@ -252,10 +302,18 @@ export function OnboardingFlow() {
       const preset = localeProfileFromCountry(id);
       setUnitDraft(preset.distanceUnit);
       const cpm = preset.rates[0]?.centsPerMile ?? 0;
-      setRateCents(String(preset.distanceUnit === 'km' ? Math.round(cpm / 1.609344) : cpm || ''));
+      setRateDollars(centsPerMileToDisplayDollars(cpm, preset.distanceUnit) || rateDollars);
     }
   };
 
+  const changeUnit = (next: DistanceUnit) => {
+    if (next === unitDraft) return;
+    setRateDollars((prev) => convertDisplayRate(prev, unitDraft, next));
+    setUnitDraft(next);
+  };
+
+  const purposeLabel =
+    PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
   const showProgress = step !== 'welcome' && step !== 'ready';
   const showBack = stepIndex > 0 && step !== 'ready';
 
@@ -273,14 +331,16 @@ export function OnboardingFlow() {
           </View>
         ) : step === 'account' ? (
           <View style={{ gap: spacing.sm }}>
-            <MRPrimaryButton
-              label={authBusy ? 'Signing in…' : 'Continue with Google'}
-              onPress={() => void tryAuth('google')}
-              disabled={authBusy}
-              loading={authBusy}
-              accessibilityLabel="Continue with Google"
-            />
-            {Platform.OS === 'ios' ? (
+            {googleAvailable ? (
+              <MRPrimaryButton
+                label={authBusy ? 'Signing in…' : 'Continue with Google'}
+                onPress={() => void tryAuth('google')}
+                disabled={authBusy}
+                loading={authBusy}
+                accessibilityLabel="Continue with Google"
+              />
+            ) : null}
+            {appleAvailable ? (
               <MRSecondaryButton
                 label="Continue with Apple"
                 onPress={() => void tryAuth('apple')}
@@ -354,7 +414,7 @@ export function OnboardingFlow() {
               accessibilityLabel="Turn on drive protection"
             />
             <MRTertiaryButton
-              label="Not now — I’ll add drives manually"
+              label="I’ll add drives manually"
               onPress={() => {
                 setTrackingEnabled(false);
                 setProtectionSetupState('not_started');
@@ -419,30 +479,53 @@ export function OnboardingFlow() {
               fontWeight: '700',
               color: palette.action.primary,
               textAlign: 'center',
-              marginBottom: spacing.lg,
+              marginBottom: spacing.sm,
             }}
             accessibilityRole="header"
           >
             Welcome to MileRecover
           </Text>
+          <Text
+            style={{
+              fontSize: typography.size.body,
+              lineHeight: typography.lineHeight.body,
+              color: palette.text.secondary,
+              textAlign: 'center',
+              marginBottom: spacing.lg,
+              paddingHorizontal: spacing.md,
+            }}
+          >
+            Protect your miles. Protect your money.
+          </Text>
           <View style={{ width: '100%', gap: layout.section, paddingHorizontal: spacing.sm }}>
             {WELCOME_BENEFITS.map((benefit) => (
               <View
                 key={benefit.label}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.smMd }}
+                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.smMd }}
               >
                 <MRIconCircle glyph={benefit.glyph} accessibilityLabel={benefit.label} />
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: typography.size.bodyLarge,
-                    lineHeight: typography.lineHeight.bodyLarge,
-                    fontWeight: '500',
-                    color: palette.text.primary,
-                  }}
-                >
-                  {benefit.label}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: typography.size.bodyLarge,
+                      lineHeight: typography.lineHeight.bodyLarge,
+                      fontWeight: '600',
+                      color: palette.text.primary,
+                    }}
+                  >
+                    {benefit.label}
+                  </Text>
+                  <Text
+                    style={{
+                      marginTop: 2,
+                      fontSize: typography.size.caption,
+                      lineHeight: typography.lineHeight.caption,
+                      color: palette.text.secondary,
+                    }}
+                  >
+                    {benefit.body}
+                  </Text>
+                </View>
               </View>
             ))}
           </View>
@@ -452,11 +535,11 @@ export function OnboardingFlow() {
       {step === 'account' ? (
         <View>
           <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Save your progress (optional)
+            Save your progress
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Sign in to restore preferences later, or continue without an account. Your miles stay on
-            this device.
+            Sign in so your preferences are easier to restore later — or continue without an account.
+            Your miles stay on this device.
           </Text>
           {authNotice ? (
             <Text
@@ -464,14 +547,6 @@ export function OnboardingFlow() {
               accessibilityRole="text"
             >
               {authNotice}
-            </Text>
-          ) : !authPort.isProviderAvailable('google') &&
-            !(Platform.OS === 'ios' && authPort.isProviderAvailable('apple')) ? (
-            <Text
-              style={[text.caption, { color: palette.text.secondary, marginBottom: spacing.sm }]}
-              accessibilityRole="text"
-            >
-              {AUTH_UNAVAILABLE_MESSAGE}
             </Text>
           ) : null}
         </View>
@@ -497,23 +572,37 @@ export function OnboardingFlow() {
                 }}
                 accessibilityLabel={option.label}
                 style={{
-                  minHeight: 56,
+                  minHeight: 64,
                   paddingVertical: spacing.smMd,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
+                  gap: spacing.sm,
                 }}
               >
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: typography.size.bodyLarge,
-                    fontWeight: '600',
-                    color: palette.text.primary,
-                  }}
-                >
-                  {option.label}
-                </Text>
+                <MRIconCircle
+                  glyph={PURPOSE_ICONS[option.id] ?? '•'}
+                  accessibilityLabel={option.label}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: typography.size.bodyLarge,
+                      fontWeight: '600',
+                      color: palette.text.primary,
+                    }}
+                  >
+                    {option.label}
+                  </Text>
+                  <Text
+                    style={{
+                      marginTop: 2,
+                      fontSize: typography.size.caption,
+                      color: palette.text.secondary,
+                    }}
+                  >
+                    {option.body}
+                  </Text>
+                </View>
                 {selected ? (
                   <Text style={{ color: palette.action.primary, fontWeight: '700', fontSize: 18 }}>✓</Text>
                 ) : null}
@@ -570,14 +659,14 @@ export function OnboardingFlow() {
               backgroundColor: palette.background.card,
             }}
           >
-            <Text style={{ color: palette.text.primary, fontWeight: '700', fontSize: typography.size.bodyLarge }}>
-              {displayRate.includes('Review') || displayRate === 'Not set'
-                ? unitDraft === 'km'
-                  ? 'Set a rate'
-                  : 'Set a rate'
-                : displayRate.startsWith('$')
-                  ? displayRate
-                  : displayRate}
+            <Text
+              style={{
+                color: palette.text.primary,
+                fontWeight: '700',
+                fontSize: typography.size.bodyLarge,
+              }}
+            >
+              {displayRate === 'Not set' ? 'Set a rate' : displayRate}
             </Text>
             <Pressable
               onPress={() => setRateEditing((open) => !open)}
@@ -593,7 +682,7 @@ export function OnboardingFlow() {
               <Text style={[text.caption, { marginBottom: spacing.xs }]}>Distance unit</Text>
               <MRSegmentedControl
                 value={unitDraft}
-                onChange={setUnitDraft}
+                onChange={changeUnit}
                 options={[
                   { label: 'Miles', value: 'mi' },
                   { label: 'Kilometres', value: 'km' },
@@ -615,13 +704,16 @@ export function OnboardingFlow() {
                 />
               ) : null}
               <MRFormField
-                label={unitDraft === 'km' ? 'Rate (¢ per km)' : 'Rate (¢ per mile)'}
-                value={rateCents}
-                onChangeText={setRateCents}
-                placeholder="70"
-                keyboardType="numeric"
-                accessibilityLabel="Mileage rate"
+                label={unitDraft === 'km' ? 'Mileage rate ($ per km)' : 'Mileage rate ($ per mile)'}
+                value={rateDollars}
+                onChangeText={setRateDollars}
+                placeholder="1.80"
+                keyboardType="decimal-pad"
+                accessibilityLabel="Mileage rate in dollars"
               />
+              <Text style={[text.caption, { marginTop: spacing.xs }]}>
+                Enter a normal amount like 1.80 — not cents.
+              </Text>
             </View>
           ) : null}
 
@@ -651,23 +743,19 @@ export function OnboardingFlow() {
       {step === 'protect_drives' ? (
         <View>
           <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Keep your drives protected
+            Protect your drives automatically
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            MileRecover can capture drives automatically, even when the app is not open.
+            MileRecover can capture possible drives in the background. You always confirm what
+            counts as work.
           </Text>
           <View style={{ gap: spacing.sm }}>
-            <ChecklistRow label="Automatic detection — finds possible drives for you" status="ready" />
-            <ChecklistRow label="Background tracking — works when your screen is off" status="ready" />
-            <ChecklistRow label="Battery-aware — uses location carefully" status="ready" />
-            <ChecklistRow label="Privacy control — you decide which drives count as work" status="ready" />
+            {PROTECTION_BENEFITS.map((label) => (
+              <ChecklistRow key={label} label={label} status="ready" />
+            ))}
           </View>
           <Text style={[text.caption, { marginTop: spacing.md }]}>
-            We’ll ask for location next. If you decline, manual entry still works.
-            {'\n'}
-            Location: {permissions.location === 'granted' ? 'Allowed' : 'Not yet'}
-            {' · '}
-            Background: {permissions.backgroundLocation === 'granted' ? 'Allowed' : 'Not yet'}
+            We’ll ask for location permission next. If you decline, manual entry still works.
           </Text>
         </View>
       ) : null}
@@ -694,14 +782,36 @@ export function OnboardingFlow() {
           >
             You’re all set
           </Text>
-          <Text style={[text.body, { marginBottom: spacing.lg, textAlign: 'center' }]}>
-            {protectionConfigured
-              ? 'Protection is waiting for your first drive. Uncertain drives go to Review before they affect your records.'
-              : 'You can add drives manually anytime. Turn on protection later from Profile when you’re ready.'}
-          </Text>
+          <View
+            style={{
+              width: '100%',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: palette.border.default,
+              backgroundColor: palette.background.card,
+              padding: spacing.md,
+              marginBottom: spacing.lg,
+              gap: spacing.sm,
+            }}
+          >
+            <Text style={[text.caption, { color: palette.text.secondary }]}>Your setup</Text>
+            <Text style={[text.body, { color: palette.text.primary }]}>Purpose · {purposeLabel}</Text>
+            <Text style={[text.body, { color: palette.text.primary }]}>
+              Region · {countryLabel} · {unitDraft === 'km' ? 'Kilometres' : 'Miles'}
+            </Text>
+            <Text style={[text.body, { color: palette.text.primary }]}>
+              Rate · {formatDisplayRate(rateDollars, unitDraft)}
+            </Text>
+            <Text style={[text.body, { color: palette.text.primary }]}>
+              Protection · {protectionConfigured ? 'On' : 'Manual for now'}
+            </Text>
+          </View>
           {persistError ? (
             <Text
-              style={[text.body, { color: palette.status.danger, marginBottom: spacing.sm, textAlign: 'center' }]}
+              style={[
+                text.body,
+                { color: palette.status.danger, marginBottom: spacing.sm, textAlign: 'center' },
+              ]}
               accessibilityLabel="Onboarding save error"
             >
               {persistError}

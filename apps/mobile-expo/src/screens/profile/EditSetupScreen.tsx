@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { spacing } from '@milerecover/config';
 import {
   formatActiveRateLabel,
@@ -19,6 +19,7 @@ import {
   StatusCard,
   TertiaryButton,
   text,
+  useAppTheme,
 } from '../../design-system';
 import { useProduct } from '../../product/ProductContext';
 import {
@@ -29,7 +30,23 @@ import {
   type PainPoint,
 } from '../../product/types';
 
+const KM_PER_MILE = 1.609344;
+
+function centsPerMileToDollars(centsPerMile: number, unit: DistanceUnit): string {
+  if (!(centsPerMile > 0)) return '';
+  const centsPerUnit = unit === 'km' ? centsPerMile / KM_PER_MILE : centsPerMile;
+  return (centsPerUnit / 100).toFixed(2);
+}
+
+function dollarsToCentsPerMile(dollarsText: string, unit: DistanceUnit): number | undefined {
+  const dollars = Number.parseFloat(dollarsText);
+  if (!Number.isFinite(dollars) || dollars <= 0) return undefined;
+  const centsPerUnit = Math.round(dollars * 100);
+  return unit === 'km' ? Math.round(centsPerUnit * KM_PER_MILE) : centsPerUnit;
+}
+
 export function EditSetupScreen() {
+  const { palette } = useAppTheme();
   const {
     product,
     setPreferredName,
@@ -41,9 +58,11 @@ export function EditSetupScreen() {
   const [name, setName] = useState(product.preferredName ?? '');
   const [savedName, setSavedName] = useState(false);
   const [country, setCountry] = useState<CountryCode>(product.localeProfile.countryCode);
+  const [countryOpen, setCountryOpen] = useState(false);
   const [countryQuery, setCountryQuery] = useState('');
   const [unit, setUnit] = useState<DistanceUnit>(product.localeProfile.distanceUnit);
   const [currency, setCurrency] = useState<CurrencyCode>(product.localeProfile.currencyCode);
+  const [moreOpen, setMoreOpen] = useState(false);
   const filteredCountries = useMemo(() => {
     const q = countryQuery.trim().toLowerCase();
     if (!q) return COUNTRY_OPTIONS;
@@ -53,7 +72,9 @@ export function EditSetupScreen() {
     COUNTRY_OPTIONS.find((option) => option.id === country)?.label ?? 'Other country';
   const currentRate = rateForTimestamp(product.localeProfile.rates, Date.now());
   const [rateDraft, setRateDraft] = useState(
-    currentRate?.centsPerMile != null ? String(currentRate.centsPerMile) : '',
+    currentRate?.centsPerMile != null
+      ? centsPerMileToDollars(currentRate.centsPerMile, product.localeProfile.distanceUnit)
+      : '',
   );
   const [savedLocale, setSavedLocale] = useState(false);
   const activeRateLabel = formatActiveRateLabel(product.localeProfile);
@@ -105,12 +126,12 @@ export function EditSetupScreen() {
   };
 
   const saveLocale = () => {
-    const cents = Number.parseFloat(rateDraft);
+    const cents = dollarsToCentsPerMile(rateDraft, unit);
     const now = Date.now();
     const base = localeProfileFromCountry(country, {
       distanceUnit: country === 'OTHER' ? unit : undefined,
       currencyCode: country === 'OTHER' ? currency : undefined,
-      centsPerMile: Number.isFinite(cents) && cents > 0 ? cents : undefined,
+      centsPerMile: cents,
       now,
     });
     const localeChanged = rateNeedsReviewAfterLocaleChange(product.localeProfile, {
@@ -119,7 +140,7 @@ export function EditSetupScreen() {
       currencyCode: country === 'OTHER' ? currency : base.currencyCode,
     });
     applyLocaleProfile(base, {
-      centsPerMile: Number.isFinite(cents) && cents > 0 ? cents : undefined,
+      centsPerMile: cents,
       activeRateNeedsReview: localeChanged ? true : false,
     });
   };
@@ -130,7 +151,7 @@ export function EditSetupScreen() {
       currencyCode: country === 'OTHER' ? currency : undefined,
     });
     const cents = recommended.rates[0]?.centsPerMile;
-    if (cents != null) setRateDraft(String(cents));
+    if (cents != null) setRateDraft(centsPerMileToDollars(cents, recommended.distanceUnit));
     applyLocaleProfile(recommended, {
       centsPerMile: cents,
       activeRateNeedsReview: false,
@@ -138,8 +159,8 @@ export function EditSetupScreen() {
   };
 
   const saveCustomRate = () => {
-    const cents = Number.parseFloat(rateDraft);
-    if (!Number.isFinite(cents) || cents <= 0) return;
+    const cents = dollarsToCentsPerMile(rateDraft, unit);
+    if (cents == null) return;
     const base = localeProfileFromCountry(country, {
       distanceUnit: country === 'OTHER' ? unit : undefined,
       currencyCode: country === 'OTHER' ? currency : undefined,
@@ -168,16 +189,20 @@ export function EditSetupScreen() {
     setSavedLocale(true);
   };
 
+  const changeUnit = (next: DistanceUnit) => {
+    if (next === unit) return;
+    const dollars = Number.parseFloat(rateDraft);
+    if (Number.isFinite(dollars) && dollars > 0) {
+      const converted = next === 'km' ? dollars / KM_PER_MILE : dollars * KM_PER_MILE;
+      setRateDraft(converted.toFixed(2));
+    }
+    setUnit(next);
+    setSavedLocale(false);
+  };
+
   return (
     <StackScrollScreen>
-      <StatusCard
-        variant="info"
-        title="Update your answers"
-        body="This only changes how MileRecover talks to you — your drives stay. Changing today's rate does not rewrite older accepted values."
-        emphasis="subtle"
-      />
-
-      <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Preferred name</Text>
+      <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Personalization</Text>
       <FormField label="Preferred name" value={name} onChangeText={setName} placeholder="First name" />
       <PrimaryButton
         label={savedName ? 'Name saved' : 'Save name'}
@@ -188,7 +213,7 @@ export function EditSetupScreen() {
       />
 
       <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>
-        Country and units
+        Region & rate
       </Text>
       <SoftPanel>
         <Text style={text.caption}>Active mileage rate</Text>
@@ -209,41 +234,71 @@ export function EditSetupScreen() {
           <TertiaryButton label="Clear value estimate" onPress={clearValueEstimate} />
         </View>
       ) : null}
-      <SoftPanel>
-        <Text style={text.caption}>Current selection</Text>
-        <Text style={[text.subtitle, { marginTop: spacing.xs }]}>{currentCountryLabel}</Text>
-      </SoftPanel>
-      <FormField
-        label="Search countries"
-        value={countryQuery}
-        onChangeText={setCountryQuery}
-        placeholder="Search United States, Canada…"
-        accessibilityLabel="Search countries"
-      />
-      {filteredCountries.map((option) => (
-        <SelectionCard
-          key={option.id}
-          title={option.label}
-          body={option.id === 'OTHER' ? 'Custom units — no local tax rules claimed' : undefined}
-          selected={country === option.id}
-          onPress={() => {
-            setCountry(option.id);
-            setSavedLocale(false);
-            if (option.id !== 'OTHER') {
-              const preset = localeProfileFromCountry(option.id);
-              setUnit(preset.distanceUnit);
-              setCurrency(preset.currencyCode);
-              if (preset.rates[0]?.centsPerMile != null) {
-                setRateDraft(String(preset.rates[0].centsPerMile));
-              }
-            }
-          }}
-        />
-      ))}
+
+      <Pressable
+        onPress={() => setCountryOpen((open) => !open)}
+        accessibilityRole="button"
+        accessibilityLabel={`Country ${currentCountryLabel}`}
+        style={{
+          minHeight: 52,
+          borderWidth: 1,
+          borderColor: palette.border.default,
+          borderRadius: 12,
+          paddingHorizontal: spacing.md,
+          marginBottom: spacing.sm,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: palette.background.card,
+        }}
+      >
+        <Text style={text.body}>{currentCountryLabel}</Text>
+        <Text style={{ color: palette.text.secondary }}>{countryOpen ? '▴' : '▾'}</Text>
+      </Pressable>
+
+      {countryOpen ? (
+        <>
+          <FormField
+            label="Search countries"
+            value={countryQuery}
+            onChangeText={setCountryQuery}
+            placeholder="Search United States, Canada…"
+            accessibilityLabel="Search countries"
+          />
+          {filteredCountries.map((option) => (
+            <SelectionCard
+              key={option.id}
+              title={option.label}
+              body={option.id === 'OTHER' ? 'Custom units — no local tax rules claimed' : undefined}
+              selected={country === option.id}
+              onPress={() => {
+                setCountry(option.id);
+                setSavedLocale(false);
+                setCountryOpen(false);
+                if (option.id !== 'OTHER') {
+                  const preset = localeProfileFromCountry(option.id);
+                  setUnit(preset.distanceUnit);
+                  setCurrency(preset.currencyCode);
+                  if (preset.rates[0]?.centsPerMile != null) {
+                    setRateDraft(
+                      centsPerMileToDollars(preset.rates[0].centsPerMile, preset.distanceUnit),
+                    );
+                  }
+                }
+              }}
+            />
+          ))}
+        </>
+      ) : null}
+
       {country === 'OTHER' ? (
         <SoftPanel>
-          <SelectionCard title="Miles" selected={unit === 'mi'} onPress={() => setUnit('mi')} />
-          <SelectionCard title="Kilometers" selected={unit === 'km'} onPress={() => setUnit('km')} />
+          <SelectionCard title="Miles" selected={unit === 'mi'} onPress={() => changeUnit('mi')} />
+          <SelectionCard
+            title="Kilometers"
+            selected={unit === 'km'}
+            onPress={() => changeUnit('km')}
+          />
           <FormField
             label="Currency code"
             value={currency === 'OTHER' ? '' : currency}
@@ -259,26 +314,26 @@ export function EditSetupScreen() {
           />
         </SoftPanel>
       ) : null}
+
       <FormField
-        label={
-          unit === 'km'
-            ? 'Custom rate (stored as cents per mile internally)'
-            : 'Reimbursement rate (cents per mile)'
-        }
+        label={unit === 'km' ? 'Mileage rate ($ per km)' : 'Mileage rate ($ per mile)'}
         value={rateDraft}
         onChangeText={(value) => {
           setRateDraft(value);
           setSavedLocale(false);
         }}
-        placeholder="e.g. 70"
+        placeholder="1.80"
         keyboardType="decimal-pad"
       />
+      <Text style={[text.caption, { marginBottom: spacing.sm }]}>
+        Enter a normal amount like 1.80 — not cents.
+      </Text>
       <PrimaryButton
-        label={savedLocale ? 'Country settings saved' : 'Save country settings'}
+        label={savedLocale ? 'Region settings saved' : 'Save region settings'}
         onPress={saveLocale}
       />
 
-      <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>Primary goal</Text>
+      <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>Work type</Text>
       {PRIMARY_GOAL_OPTIONS.map((option) => (
         <SelectionCard
           key={option.id}
@@ -289,28 +344,40 @@ export function EditSetupScreen() {
         />
       ))}
 
-      <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>What gets in the way</Text>
-      <Text style={[text.body, { marginBottom: spacing.sm }]}>Change these anytime.</Text>
-      {PAIN_POINT_OPTIONS.map((option) => (
-        <SelectionCard
-          key={option.id}
-          title={option.label}
-          selected={product.selectedPainPoints.includes(option.id)}
-          onPress={() => togglePain(option.id)}
-        />
-      ))}
+      <TertiaryButton
+        label={moreOpen ? 'Hide recovery preferences' : 'More setup (optional)'}
+        onPress={() => setMoreOpen((open) => !open)}
+      />
 
-      <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>Driving pattern</Text>
-      <View style={{ marginBottom: spacing.lg }}>
-        {DRIVING_PATTERN_OPTIONS.map((option) => (
-          <SelectionCard
-            key={option.id}
-            title={option.label}
-            selected={product.drivingType === option.id}
-            onPress={() => setDrivingType(option.id)}
-          />
-        ))}
-      </View>
+      {moreOpen ? (
+        <>
+          <Text style={[text.subtitle, { marginTop: spacing.md, marginBottom: spacing.sm }]}>
+            What gets in the way
+          </Text>
+          {PAIN_POINT_OPTIONS.map((option) => (
+            <SelectionCard
+              key={option.id}
+              title={option.label}
+              selected={product.selectedPainPoints.includes(option.id)}
+              onPress={() => togglePain(option.id)}
+            />
+          ))}
+
+          <Text style={[text.subtitle, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+            Driving pattern
+          </Text>
+          <View style={{ marginBottom: spacing.lg }}>
+            {DRIVING_PATTERN_OPTIONS.map((option) => (
+              <SelectionCard
+                key={option.id}
+                title={option.label}
+                selected={product.drivingType === option.id}
+                onPress={() => setDrivingType(option.id)}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
     </StackScrollScreen>
   );
 }

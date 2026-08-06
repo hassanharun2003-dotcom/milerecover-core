@@ -721,7 +721,7 @@ export function ReviewCard({
         }}
       >
         {routePreview && routePreview.length >= 2 ? (
-          <RouteMapPreview points={routePreview} />
+          <RouteMapPreview points={routePreview} height={120} width={320} />
         ) : (
           <Text style={{ color: palette.forest[700], fontWeight: '600' }}>Route preview</Text>
         )}
@@ -738,9 +738,9 @@ export function ReviewCard({
         </Text>
       </View>
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        {chip('Work', false, onWork)}
-        {chip('Personal', false, onPersonal)}
-        {onNotSure ? chip('Not sure', false, onNotSure) : null}
+        {chip('Work', purpose === 'work' || purpose === 'Work', onWork)}
+        {chip('Personal', purpose === 'personal' || purpose === 'Personal', onPersonal)}
+        {onNotSure ? chip('Not sure', purpose === 'unsure' || purpose === 'Not sure', onNotSure) : null}
       </View>
       {confidence || reason ? (
         <Text
@@ -1550,9 +1550,57 @@ export function MapPlaceholder() {
   return <RouteMapPreview points={null} />;
 }
 
+type LatLng = { latitude: number; longitude: number };
+
+function tryNativeRouteMap(
+  usable: LatLng[],
+  height: number,
+  width: number,
+  primaryColor: string,
+): React.ReactElement | null {
+  try {
+    // Optional native maps — requires EXPO_PUBLIC_GOOGLE_MAPS_API_KEY at native build time.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const maps = require('react-native-maps') as {
+      default: React.ComponentType<Record<string, unknown>>;
+      Marker: React.ComponentType<Record<string, unknown>>;
+      Polyline: React.ComponentType<Record<string, unknown>>;
+    };
+    const MapView = maps.default;
+    const { Marker, Polyline } = maps;
+    if (!MapView || !Polyline || !Marker) return null;
+    const lats = usable.map((p) => p.latitude);
+    const lngs = usable.map((p) => p.longitude);
+    const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const midLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    const latDelta = Math.max(0.01, (Math.max(...lats) - Math.min(...lats)) * 1.6);
+    const lngDelta = Math.max(0.01, (Math.max(...lngs) - Math.min(...lngs)) * 1.6);
+    return (
+      <MapView
+        style={{ height, width }}
+        initialRegion={{
+          latitude: midLat,
+          longitude: midLng,
+          latitudeDelta: latDelta,
+          longitudeDelta: lngDelta,
+        }}
+        pointerEvents="none"
+        accessibilityLabel={`Route with ${usable.length} recorded points`}
+      >
+        <Polyline coordinates={usable} strokeColor={primaryColor} strokeWidth={3} />
+        <Marker coordinate={usable[0]} title="Start" pinColor={primaryColor} />
+        <Marker coordinate={usable[usable.length - 1]} title="End" pinColor="#16A34A" />
+      </MapView>
+    );
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Observed-route preview. Draws only provided points — never invents a path.
- * Pure React Native (no native map SDK) for OTA-safe rendering on all devices.
+ * Prefers react-native-maps when the native module is present; otherwise a
+ * recorded-point polyline fallback. Never fabricates geometry.
  */
 export function RouteMapPreview({
   points,
@@ -1583,6 +1631,12 @@ export function RouteMapPreview({
       >
         <Text style={[styles.mapPlaceholderText, themedText(palette, 'action')]}>Route unavailable</Text>
       </View>
+    );
+  }
+  const nativeMap = tryNativeRouteMap(usable, height, width, palette.action.primary);
+  if (nativeMap) {
+    return (
+      <View style={{ height, width, borderRadius: radii.md, overflow: 'hidden' }}>{nativeMap}</View>
     );
   }
   const lats = usable.map((p) => p.latitude);
@@ -1705,7 +1759,7 @@ export function SimpleBarChart({
 }) {
   const { palette } = useAppTheme();
   const max = Math.max(...bars.map((b) => b.value), 0.0001);
-  const trackHeight = 72;
+  const trackHeight = 140;
   return (
     <View style={styles.barChart} accessibilityRole="summary" accessibilityLabel={accessibilityLabel}>
       {bars.map((bar) => {

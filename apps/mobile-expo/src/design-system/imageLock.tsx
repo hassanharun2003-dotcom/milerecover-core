@@ -246,18 +246,27 @@ export function MRSecondaryButton({
 export function MRIconCircle({
   glyph,
   accessibilityLabel,
+  tone = 'ok',
 }: {
   glyph: string;
   accessibilityLabel?: string;
+  tone?: 'ok' | 'attention' | 'info';
 }) {
   const { palette } = useAppTheme();
+  const backgroundColor =
+    tone === 'attention'
+      ? '#FEF3C7'
+      : tone === 'info'
+        ? palette.background.mist
+        : palette.background.mist;
+  const color = tone === 'attention' ? '#B45309' : palette.action.primary;
   return (
     <View
-      style={[styles.iconCircle, { backgroundColor: palette.background.mist }]}
+      style={[styles.iconCircle, { backgroundColor }]}
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel ?? glyph}
     >
-      <Text style={[styles.iconGlyph, { color: palette.action.primary }]}>{glyph}</Text>
+      <Text style={[styles.iconGlyph, { color }]}>{glyph}</Text>
     </View>
   );
 }

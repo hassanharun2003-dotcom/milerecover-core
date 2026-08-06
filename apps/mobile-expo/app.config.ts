@@ -36,7 +36,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.8',
+  version: '0.2.9',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -71,6 +71,11 @@ const config = {
       'FOREGROUND_SERVICE',
       'FOREGROUND_SERVICE_LOCATION',
     ],
+    config: {
+      googleMaps: {
+        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+      },
+    },
   },
   plugins: [
     ...(IS_DEV_CLIENT ? ['expo-dev-client'] : []),
@@ -113,8 +118,8 @@ const config = {
       },
     ],
   ],
-  // Explicit runtime — isolates 0.2.8 from prior 0.2.7 foundation OTA/runtime.
-  runtimeVersion: '0.2.8',
+  // Explicit runtime — isolates 0.2.9 from prior 0.2.8 install foundation OTA/runtime.
+  runtimeVersion: '0.2.9',
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
     // Standalone preview/production binaries keep updates enabled.
@@ -137,9 +142,9 @@ const config = {
       process.env.EAS_BUILD_CREATED_AT ??
       process.env.EXPO_PUBLIC_BUILD_TIMESTAMP ??
       new Date().toISOString(),
-    runtimeVersion: '0.2.8',
+    runtimeVersion: '0.2.9',
     updateChannel: process.env.EAS_BUILD_PROFILE === 'preview' || process.env.APP_VARIANT === 'preview'
-      ? 'preview-foundation-0.2.8'
+      ? 'preview-foundation-0.2.9'
       : process.env.APP_VARIANT === 'production'
         ? 'production'
         : 'development',
@@ -148,6 +153,8 @@ const config = {
     googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
     googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
     googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
+    /** Google Maps SDK key for native route maps (Android/iOS). Empty = polyline fallback. */
+    googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
     revenueCatAppleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY ?? '',
     revenueCatGoogleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY ?? '',
     /** Production flips this when store products + RevenueCat keys are live. */

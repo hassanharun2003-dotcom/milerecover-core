@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -19,6 +19,7 @@ import {
 } from '../../product/presentation';
 import { allowInternalPreviewTools, PRIMARY_GOAL_OPTIONS } from '../../product/types';
 import { useApp } from '../../store/AppContext';
+import { getAuthPort, type AuthSession } from '../../services/auth';
 
 type ProfileNav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Profile'>,
@@ -81,11 +82,22 @@ export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
   const { palette } = useAppTheme();
   const { resetLocalData, restartOnboarding, permissions, automaticCaptureAvailable, state } = useApp();
-  const { product, resetProductData, resetOnboarding } = useProduct();
+  const { product, resetProductData, resetOnboarding, setPreferredName } = useProduct();
   const [confirmResetVisible, setConfirmResetVisible] = useState(false);
   const [confirmResetOnboardingVisible, setConfirmResetOnboardingVisible] = useState(false);
+  const [confirmSignOutVisible, setConfirmSignOutVisible] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const displayName = product.preferredName?.trim() || 'Your profile';
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  useEffect(() => {
+    void getAuthPort()
+      .getSession()
+      .then(setAuthSession)
+      .catch(() => setAuthSession(null));
+  }, []);
+  const displayName =
+    product.preferredName?.trim() ||
+    authSession?.displayName?.trim() ||
+    'Your profile';
   const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
   const pendingReviewCount = selectPendingReviewCount(
     state,
@@ -221,6 +233,20 @@ export function ProfileScreen() {
         onPress={() => navigation.navigate('ExportReport')}
       />
       <SettingsRow
+        icon="diamond-outline"
+        label="Plan / subscription"
+        value={product.selectedPlan === 'free' ? 'Free' : product.selectedPlan}
+        onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
+      />
+      {authSession ? (
+        <SettingsRow
+          icon="log-out-outline"
+          label="Sign out"
+          value={authSession.email ?? authSession.provider}
+          onPress={() => setConfirmSignOutVisible(true)}
+        />
+      ) : null}
+      <SettingsRow
         icon="help-circle-outline"
         label="Help & support"
         onPress={() => navigation.navigate('HelpSupport')}
@@ -281,6 +307,22 @@ export function ProfileScreen() {
         cancelLabel="Keep data"
         onConfirm={() => void resetExperience()}
         onCancel={() => setConfirmResetVisible(false)}
+      />
+      <ConfirmDialog
+        visible={confirmSignOutVisible}
+        title="Sign out?"
+        body="You’ll stay on this device as a guest. Saved miles remain on this phone."
+        confirmLabel="Sign out"
+        cancelLabel="Stay signed in"
+        onConfirm={() => {
+          setConfirmSignOutVisible(false);
+          void (async () => {
+            await getAuthPort().signOut();
+            setAuthSession(null);
+            if (!product.preferredName) setPreferredName(null);
+          })();
+        }}
+        onCancel={() => setConfirmSignOutVisible(false)}
       />
     </TabScreen>
   );

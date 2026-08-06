@@ -933,7 +933,13 @@ export function ManualTripScreen() {
             style={flowStyles.fieldCard}
             accessibilityLabel="Choose drive date"
           >
-            <Text style={flowStyles.fieldValue}>{formatDateLocal(driveDate.getTime())}</Text>
+            <Text style={flowStyles.fieldValue}>
+              {driveDate.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </Text>
           </MRCard>
         </View>
       </View>
@@ -988,7 +994,7 @@ export function ManualTripScreen() {
           setStartLabel(value);
           setRouteMode('places');
         }}
-        placeholder="Where you started"
+        placeholder="Start address"
         autoCapitalize="words"
       />
       <MRFormField
@@ -998,7 +1004,7 @@ export function ManualTripScreen() {
           setEndLabel(value);
           setRouteMode('places');
         }}
-        placeholder="Where you finished"
+        placeholder="End address"
         autoCapitalize="words"
       />
       <MRFormField
@@ -1363,8 +1369,52 @@ export function MissingDrivesIntroScreen() {
     <ScrollScreen>
       <View style={flowStyles.missingIllustration} accessibilityRole="image" accessibilityLabel="Car finding missed drives">
         <View style={flowStyles.missingMapLine} />
+        <View
+          style={{
+            position: 'absolute',
+            left: 48,
+            bottom: 48,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: colors.forest[500],
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            right: 56,
+            bottom: 64,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: colors.forest[700],
+          }}
+        />
         <View style={flowStyles.missingCar}>
           <View style={flowStyles.missingCarWindow} />
+          <View
+            style={{
+              position: 'absolute',
+              left: 14,
+              bottom: -6,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: colors.forest[900],
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              right: 14,
+              bottom: -6,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: colors.forest[900],
+            }}
+          />
         </View>
         <View style={flowStyles.missingPin}>
           <Text style={flowStyles.missingPinGlyph}>✓</Text>
@@ -1374,13 +1424,14 @@ export function MissingDrivesIntroScreen() {
         Find the miles you missed
       </Text>
       <Text style={[flowStyles.lockedBody, { marginBottom: spacing.md }]}>
-        MileRecover scans for gaps in your driving history and suggests miles you may have missed.
+        We'll scan for likely work drives that weren't saved yet. Suggestions need your confirmation
+        — nothing is added automatically.
       </Text>
       <View style={flowStyles.trustStack}>
         {[
-          'Uses your existing location data',
+          'Uses your existing location/evidence',
+          'Suggests likely work drives',
           'Nothing is added without you',
-          'Takes about 1 minute',
         ].map((item) => (
           <View key={item} style={flowStyles.trustRow}>
             <MRIconCircle glyph="✓" accessibilityLabel="Included" />
@@ -1798,7 +1849,11 @@ export function ProtectionAlertScreen() {
           return (
             <MRCard key={row.label} style={flowStyles.diagnosticCard}>
               <View style={flowStyles.diagnosticLeft}>
-                <MRIconCircle glyph="✓" accessibilityLabel={row.label} />
+                <MRIconCircle
+                  glyph={needsAttention ? '!' : '✓'}
+                  tone={needsAttention ? 'attention' : 'ok'}
+                  accessibilityLabel={`${row.label}: ${row.value}`}
+                />
                 <Text style={flowStyles.diagnosticLabel}>{row.label}</Text>
               </View>
               <Text
