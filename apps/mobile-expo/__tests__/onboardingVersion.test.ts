@@ -8,7 +8,7 @@ import {
 import { createInitialProductUiState, ONBOARDING_STEP_ORDER } from '../src/product/types';
 
 describe('Authoritative onboarding versioning', () => {
-  it('locks image-lock onboarding at version 10 with account step', () => {
+  it('locks foundation onboarding at version 11 with account step', () => {
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
       'account',
@@ -17,7 +17,7 @@ describe('Authoritative onboarding versioning', () => {
       'protect_drives',
       'ready',
     ]);
-    expect(CURRENT_ONBOARDING_VERSION).toBe(10);
+    expect(CURRENT_ONBOARDING_VERSION).toBe(11);
   });
 
   it('clean install is incomplete and starts at welcome', () => {

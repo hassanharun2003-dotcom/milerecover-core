@@ -51,7 +51,7 @@ export type NextActionId =
  * Bump when essential onboarding screens/questions change and stale installs must re-enter.
  * v10: Welcome → Account(auth) → Purpose → Region → Protection → Ready.
  */
-export const CURRENT_ONBOARDING_VERSION = 10;
+export const CURRENT_ONBOARDING_VERSION = 11;
 
 export interface VersionedOnboardingState {
   schemaVersion: 4;

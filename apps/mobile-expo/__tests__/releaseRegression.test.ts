@@ -215,9 +215,9 @@ describe('Continuous release regression matrix', () => {
       expect(copy.replace(/\s+/g, ' ').trim().length).toBeGreaterThan(80);
     }
     const copyByName = Object.fromEntries(rendered) as Record<string, string>;
-    expect(copyByName.Review).toMatch(/Possible drive|Not sure|Edit/i);
-    expect(copyByName.Proof).toMatch(/Corrections|Reports|Ready|Needs details/i);
-    expect(copyByName.Profile).toMatch(/DRIVING|DATA|SUPPORT/i);
+    expect(copyByName.Review).toMatch(/Possible drive|Not sure|Work|Personal/i);
+    expect(copyByName.Proof).toMatch(/Tax-ready|Fix \d+ items|Preview report|Export/i);
+    expect(copyByName.Profile).toMatch(/Vehicles|Mileage rate|Tracking health|About MileRecover/i);
   });
 
   it('10. keeps onboarding step order complete and starts empty users at Welcome', () => {

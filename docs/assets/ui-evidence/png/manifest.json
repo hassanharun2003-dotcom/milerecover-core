@@ -1,27 +1,27 @@
 {
   "onboarding-welcome-light": {
     "file": "onboarding-welcome-light.png",
-    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started → I already use a mileage app",
+    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started →",
     "failures": []
   },
   "onboarding-account-light": {
     "file": "onboarding-account-light.png",
-    "copyPreview": "‹ 2 of 6 Save your progress (optional) Sign in to restore preferences later, or continue without an account. Your miles stay on this device. Continue with Google Continue with Apple Continue without an account",
+    "copyPreview": "‹ 1 of 5 Save your progress (optional) Sign in to restore preferences later, or continue without an account. Your miles stay on this device. Continue with Google Continue with Apple Continue without an account",
     "failures": []
   },
   "onboarding-purpose-light": {
     "file": "onboarding-purpose-light.png",
-    "copyPreview": "‹ 3 of 6 What's your main reason for tracking mileage? We'll tailor rates, reports, and tips. Employee reimbursement Self-employed / Business Delivery or gig work Personal Continue →",
+    "copyPreview": "‹ 2 of 5 What's your main reason for tracking mileage? We'll tailor rates, reports, and tips. Employee reimbursement Self-employed / Business Delivery or gig work Personal Continue →",
     "failures": []
   },
   "onboarding-locale_setup-light": {
     "file": "onboarding-locale_setup-light.png",
-    "copyPreview": "‹ 4 of 6 Set your region and mileage rate. Country United States ▾ Mileage rate $0.70 per mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →",
+    "copyPreview": "‹ 3 of 5 Set your region and mileage rate. Country United States ▾ Mileage rate $0.70 per mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →",
     "failures": []
   },
   "onboarding-protect_drives-light": {
     "file": "onboarding-protect_drives-light.png",
-    "copyPreview": "‹ 5 of 6 Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — u",
+    "copyPreview": "‹ 4 of 5 Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — u",
     "failures": []
   },
   "onboarding-ready-light": {
@@ -31,37 +31,37 @@
   },
   "home-live-light": {
     "file": "home-live-light.png",
-    "copyPreview": "≡ MileRecover ◉ Welcome back You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Drive protection is paused. Next up Turn on protection › + Add a drive Check for missed d",
+    "copyPreview": "≡ MileRecover  Good morning You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Drive protection is paused. Next up Turn on protection › + Add a drive Check for missed drives ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ ",
     "failures": []
   },
   "review-pending-light": {
     "file": "review-pending-light.png",
-    "copyPreview": "Needs review (1) Done (0) Route unavailable Client site visit Your phone was quiet for part of this stretch. · 14.2 mi Confidence · Possible drive Estimated value $9.94 We noticed a quiet stretch when you might have been driving. Possible d",
+    "copyPreview": "Review Needs review (1) Done (0) Your phone was quiet for part of this stretch. ⋯ Client site visit Route preview 14.2 mi — Estimated value $9.94 Work Personal Not sure Possible drive · We noticed a quiet stretch when you might have been dr",
     "failures": []
   },
   "proof-ready-light": {
     "file": "proof-ready-light.png",
-    "copyPreview": "Work mileage report Week Month Quarter Year YTD 2026 year to date Work distance 58.0 mi Work drives 3 Estimated value Set rate Needs details Needs purpose for drive on Aug 1. 2 items need attention Needs purpose for drive on Aug 1. · Purpos",
+    "copyPreview": "Proof Month Quarter Year YTD 2026 year to date 58 Work miles 3 Work drives — Est. value Aug ✓ Needs purpose for drive on Aug 1. Fix 2 items Preview report Export CSV export › PDF report › ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile",
     "failures": []
   },
   "profile-light": {
     "file": "profile-light.png",
-    "copyPreview": "M Your profile Not set · United States ACCOUNT Pr Profile and preferences Not set › Pl Familiar places Add anytime › DRIVING Ve Vehicles Add a vehicle › Ra Rate and units 70¢/mi · USD · Miles › Po Protection Center › Drive protection is off",
+    "copyPreview": "M Your profile Not set · United States   Vehicles Add a vehicle ›  Mileage rate 70¢/mi · USD ›  Work information Not set ›  Tracking health Paused ›  Import mileage ›  Export history ›  Help & support ›  About MileRecover Version 0",
     "failures": []
   },
   "manual-trip-light": {
     "file": "manual-trip-light.png",
-    "copyPreview": "Add drive Save the details you know. We never invent a route. 1 · Work or personal Work Personal Decide later 2 · Date Today Yesterday Choose date Selected 2026-08-05 3 · Distance Enter distance Start & end Distance (miles) More details Opt",
+    "copyPreview": "Manual entry From other app Work or personal? Work Personal Date 2026-08-06 Start location End location Distance (mi) More details Optional time, vehicle, purpose, notes, expenses, and receipt. Save drive Your data stays private and secure",
     "failures": []
   },
   "protection-light": {
     "file": "protection-light.png",
-    "copyPreview": "Protection Center Drive protection is off Turn automatic protection on to capture future drives. Manual drives still work. ✓ Background tracking Needs attention Location access Needs attention Battery optimization Allowed Automatic protecti",
+    "copyPreview": "Protection Center Protection Drive protection is off Turn automatic protection on to capture future drives. Manual drives still work. ↻ Background tracking Needs attention ⌖ Location access Needs attention ⚡ Battery optimized Up to date ◌ M",
     "failures": []
   },
   "tracking-light": {
     "file": "tracking-light.png",
-    "copyPreview": "Tracking health Diagnostics for automatic capture. Protection status and repair actions are in Protection Center. One or more checks need attention 40 of 40 automatic trips left this month. Open Protection Center to repair anything that nee",
+    "copyPreview": "Tracking health Automatic capture status is summarized here. Repair actions live in Protection Center. ✓ One or more checks need attention. 40 of 40 automatic trips left this month. Open Protection Center to repair anything that needs atten",
     "failures": []
   },
   "report-preview-light": {
@@ -71,7 +71,7 @@
   },
   "subscription-light": {
     "file": "subscription-light.png",
-    "copyPreview": "7 days free Try Plus features. Cancel anytime. Monthly Annual — Save 17% Preview Purchases are disabled in this preview. Current plan: Free Free stays usable with manual logging, capped automatic trips, and basic CSV. Free $0 / month • 40 a",
+    "copyPreview": "Go Pro Recover more miles. Save more money. Monthly Yearly (Save 20%) Preview Purchases are disabled in this preview. Current plan: Free Free stays usable with manual logging, capped automatic trips, and basic CSV. Most Popular Pro $14.99 /",
     "failures": []
   },
   "import-light": {
@@ -86,7 +86,7 @@
   },
   "about-light": {
     "file": "about-light.png",
-    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.5 Build 0.2.5-image-lock.1 Release notes 0.2.5 image lock: Batch A onboarding+auth and Ba",
+    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.6 Build 0.2.6-foundation.1 Release notes 0.2.6 foundation reset: single light image-locke",
     "failures": []
   },
   "terms-light": {
@@ -96,7 +96,7 @@
   },
   "missing-drives-light": {
     "file": "missing-drives-light.png",
-    "copyPreview": "Find the miles you missed MileRecover can suggest likely work drives from location history on this device. You confirm what to keep — nothing is added without your review. ✓ Uses location evidence already on this device ✓ You confirm every ",
+    "copyPreview": "✓ Find the miles you missed MileRecover scans for gaps in your driving history and suggests miles you may have missed. ✓ Uses your existing location data ✓ Nothing is added without you ✓ Takes about 1 minute Run check now Takes about 1 minu",
     "failures": []
   },
   "manual-trip-start-end-light": {
@@ -106,27 +106,27 @@
   },
   "fixture-brand_new_install-light": {
     "file": "fixture-brand_new_install-light.png",
-    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started → I already use a mileage app",
+    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started →",
     "failures": []
   },
   "fixture-onboarding_welcome-light": {
     "file": "fixture-onboarding_welcome-light.png",
-    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started → I already use a mileage app",
+    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started →",
     "failures": []
   },
   "fixture-onboarding_purpose-light": {
     "file": "fixture-onboarding_purpose-light.png",
-    "copyPreview": "‹ 3 of 6 What's your main reason for tracking mileage? We'll tailor rates, reports, and tips. Employee reimbursement Self-employed / Business Delivery or gig work Personal Continue →",
+    "copyPreview": "‹ 2 of 5 What's your main reason for tracking mileage? We'll tailor rates, reports, and tips. Employee reimbursement Self-employed / Business Delivery or gig work Personal Continue →",
     "failures": []
   },
   "fixture-onboarding_locale_setup-light": {
     "file": "fixture-onboarding_locale_setup-light.png",
-    "copyPreview": "‹ 4 of 6 Set your region and mileage rate. Country United States ▾ Mileage rate $0.70 per mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →",
+    "copyPreview": "‹ 3 of 5 Set your region and mileage rate. Country United States ▾ Mileage rate $0.70 per mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →",
     "failures": []
   },
   "fixture-onboarding_protect_drives-light": {
     "file": "fixture-onboarding_protect_drives-light.png",
-    "copyPreview": "‹ 5 of 6 Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — u",
+    "copyPreview": "‹ 4 of 5 Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — u",
     "failures": []
   },
   "fixture-onboarding_ready-light": {
@@ -136,77 +136,77 @@
   },
   "fixture-manual_mode-light": {
     "file": "fixture-manual_mode-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Drive protection is paused. Next up Turn on protection › + Add a drive Check for mi",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Drive protection is paused. Next up Turn on protection › + Add a drive Check for missed drives ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proo",
     "failures": []
   },
   "fixture-permission_partial-light": {
     "file": "fixture-permission_partial-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check fo",
     "failures": []
   },
   "fixture-permission_granted_no_drive-light": {
     "file": "fixture-permission_granted_no_drive-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check fo",
     "failures": []
   },
   "fixture-tracking_verified-light": {
     "file": "fixture-tracking_verified-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check fo",
     "failures": []
   },
   "fixture-protection_degraded-light": {
     "file": "fixture-protection_degraded-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check fo",
     "failures": []
   },
   "fixture-no_trips-light": {
     "file": "fixture-no_trips-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check fo",
     "failures": []
   },
   "fixture-pending_review_trips-light": {
     "file": "fixture-pending_review_trips-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $15.47 this year. ✓ 22.1 mi Work miles 2 Work drives $15.47 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $15.47 this year.  22.1 Work miles 2 Work drives $15.47 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Che",
     "failures": []
   },
   "fixture-confirmed_trips-light": {
     "file": "fixture-confirmed_trips-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $40.60 this year. ✓ 58.0 mi Work miles 3 Work drives $40.60 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $40.60 this year.  58 Work miles 3 Work drives $40.60 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check",
     "failures": []
   },
   "fixture-recovered_trip-light": {
     "file": "fixture-recovered_trip-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $15.47 this year. ✓ 22.1 mi Work miles 2 Work drives $15.47 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $15.47 this year.  22.1 Work miles 2 Work drives $15.47 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Che",
     "failures": []
   },
   "fixture-free_limit_close-light": {
     "file": "fixture-free_limit_close-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $11.20 this year. ✓ 16.0 mi Work miles 1 Work drives $11.20 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $11.20 this year.  16 Work miles 1 Work drives $11.20 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check",
     "failures": []
   },
   "fixture-free_limit_reached-light": {
     "file": "fixture-free_limit_reached-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $11.20 this year. ✓ 16.0 mi Work miles 1 Work drives $11.20 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $11.20 this year.  16 Work miles 1 Work drives $11.20 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check",
     "failures": []
   },
   "fixture-report_ready-light": {
     "file": "fixture-report_ready-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $40.60 this year. ✓ 58.0 mi Work miles 3 Work drives $40.60 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $40.60 this year.  58 Work miles 3 Work drives $40.60 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check",
     "failures": []
   },
   "fixture-report_blocked-light": {
     "file": "fixture-report_blocked-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $10.50 this year. ✓ 15.0 mi Work miles 1 Work drives $10.50 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $10.50 this year.  15 Work miles 1 Work drives $10.50 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check",
     "failures": []
   },
   "fixture-offline-light": {
     "file": "fixture-offline-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected $12.60 this year. ✓ 18.0 mi Work miles 2 Work drives $12.60 This month ✓ MileRecover is offline. Saved miles stay on this device until checks can run again. Next up You’re all caught up + ",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $12.60 this year.  18 Work miles 2 Work drives $12.60 This month ✓ MileRecover is offline. Saved miles stay on this device until checks can run again. Next up You’re all caught up + Add a",
     "failures": []
   },
   "fixture-light_mode-light": {
     "file": "fixture-light_mode-light.png",
-    "copyPreview": "≡ MileRecover ◉ Good evening, Sam. You've protected Start tracking to see the value of your work miles. ✓ 0.0 mi Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up",
+    "copyPreview": "≡ MileRecover  Good morning, Sam. You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Allow location so automatic protection can notice when a work drive starts. Next up Allow location › + Add a drive Check fo",
     "failures": []
   }
 }

@@ -19,7 +19,7 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  '0.2.5 image lock: Batch A onboarding+auth and Batch B Home match the collage blueprint with white canvas and locked tokens.';
+  '0.2.6 foundation reset: single light image-locked presentation layer; isolated runtime/channel so prior OTAs cannot restore the obsolete UI.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();

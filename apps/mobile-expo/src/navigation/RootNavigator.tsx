@@ -35,12 +35,12 @@ export function RootNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: palette.header.background },
-        headerTintColor: palette.text.inverse,
-        headerTitleStyle: { fontWeight: '600' as const },
+        // Image-lock: light headers — dark green reserved for hero surfaces only.
+        headerStyle: { backgroundColor: palette.background.canvas },
+        headerTintColor: palette.text.primary,
+        headerTitleStyle: { fontWeight: '700' as const, color: palette.text.primary },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: palette.background.canvas },
-        // Native header owns the status-bar inset; body screens pad bottom via StackScrollScreen.
         headerTransparent: false,
       }}
     >
@@ -48,9 +48,9 @@ export function RootNavigator() {
       <Stack.Screen name="ManualTrip" component={ManualTripScreen} options={{ title: 'Add drive' }} />
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} options={{ title: 'Trip details' }} />
       <Stack.Screen name="MissingTripRecovery" component={MissingTripRecoveryScreen} options={{ title: 'Recovery' }} />
-      <Stack.Screen name="MissingDrivesIntro" component={MissingDrivesIntroScreen} options={{ title: 'Missed drives' }} />
-      <Stack.Screen name="ProtectionAlert" component={ProtectionAlertScreen} options={{ title: 'Protection' }} />
-      <Stack.Screen name="TrackingActive" component={TrackingActiveScreen} options={{ title: 'Tracking' }} />
+      <Stack.Screen name="MissingDrivesIntro" component={MissingDrivesIntroScreen} options={{ title: 'Missing drives' }} />
+      <Stack.Screen name="ProtectionAlert" component={ProtectionAlertScreen} options={{ title: 'Protection Center' }} />
+      <Stack.Screen name="TrackingActive" component={TrackingActiveScreen} options={{ title: 'Tracking health' }} />
       <Stack.Screen name="BringExistingMileage" component={BringExistingMileageScreen} options={{ title: 'Bring mileage' }} />
       <Stack.Screen name="ImportPreview" component={ImportPreviewScreen} options={{ title: 'Import preview' }} />
       <Stack.Screen name="ImportExceptionReview" component={ImportExceptionReviewScreen} options={{ title: 'Exceptions' }} />
@@ -59,7 +59,7 @@ export function RootNavigator() {
       <Stack.Screen name="ComingLater" component={ComingLaterScreen} options={{ title: 'Coming later' }} />
       <Stack.Screen name="ExportReport" component={ExportReportScreen} options={{ title: 'Export' }} />
       <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} options={{ title: 'Preview' }} />
-      <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Plans' }} />
+      <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Go Pro' }} />
       <Stack.Screen name="EditSetup" component={EditSetupScreen} options={{ title: 'Edit setup' }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
       <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms' }} />

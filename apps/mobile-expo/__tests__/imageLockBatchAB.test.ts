@@ -33,7 +33,7 @@ describe('Image lock Batch A/B foundations', () => {
     const empty = createEmptyOnboardingState();
     expect(empty.currentStep).toBe('welcome');
     expect(nextIncompleteEssentialStep(empty)).toBe('welcome');
-    expect(CURRENT_ONBOARDING_VERSION).toBe(10);
+    expect(CURRENT_ONBOARDING_VERSION).toBe(11);
     expect(ONBOARDING_STEP_ORDER).toEqual([
       'welcome',
       'account',
@@ -67,6 +67,7 @@ describe('Image lock Batch A/B foundations', () => {
       'utf8',
     );
     expect(profile).toMatch(/Reset onboarding/);
+    expect(profile).toMatch(/Reset App To Brand New User/);
     expect(profile).toMatch(/resetOnboarding/);
     expect(profile).toMatch(/allowInternalPreviewTools/);
   });

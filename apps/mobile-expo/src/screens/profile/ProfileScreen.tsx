@@ -1,27 +1,81 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { formatActiveRateLabel } from '@milerecover/domain';
-import { spacing } from '@milerecover/config';
-import { ConfirmDialog, ListRow, ListSection, TabScreen, text, useAppTheme } from '../../design-system';
+import { layout, spacing, typography } from '@milerecover/config';
+import {
+  APP_VERSION,
+} from '../../constants/buildInfo';
+import { ConfirmDialog, MRCard, TabScreen, useAppTheme } from '../../design-system';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { useProduct } from '../../product/ProductContext';
 import {
-  selectAllowance,
-  selectEntitlementPlanLabel,
   selectPendingReviewCount,
   selectProtectionView,
 } from '../../product/presentation';
-import { allowInternalPreviewTools, DRIVING_PATTERN_OPTIONS, PRIMARY_GOAL_OPTIONS } from '../../product/types';
+import { allowInternalPreviewTools, PRIMARY_GOAL_OPTIONS } from '../../product/types';
 import { useApp } from '../../store/AppContext';
 
 type ProfileNav = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, 'Profile'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
+
+function SettingsRow({
+  icon,
+  label,
+  value,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  value?: string;
+  onPress: () => void;
+}) {
+  const { palette } = useAppTheme();
+  return (
+    <MRCard
+      onPress={onPress}
+      accessibilityLabel={value ? `${label}, ${value}` : label}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: 56,
+        marginBottom: spacing.sm,
+        paddingVertical: spacing.smMd,
+      }}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: palette.background.mist,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: spacing.smMd,
+        }}
+      >
+        <Ionicons name={icon} size={18} color={palette.forest[700]} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: palette.text.primary, fontWeight: '600', fontSize: typography.size.bodyLarge }}>
+          {label}
+        </Text>
+        {value ? (
+          <Text style={{ color: palette.text.secondary, fontSize: typography.size.caption, marginTop: 2 }}>
+            {value}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={{ color: palette.text.secondary, fontSize: 22 }}>›</Text>
+    </MRCard>
+  );
+}
 
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileNav>();
@@ -32,7 +86,6 @@ export function ProfileScreen() {
   const [confirmResetOnboardingVisible, setConfirmResetOnboardingVisible] = useState(false);
   const [resetting, setResetting] = useState(false);
   const displayName = product.preferredName?.trim() || 'Your profile';
-  const drivingType = DRIVING_PATTERN_OPTIONS.find((option) => option.id === product.drivingType)?.label ?? 'Not set';
   const primaryGoal = PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
   const pendingReviewCount = selectPendingReviewCount(
     state,
@@ -47,25 +100,19 @@ export function ProfileScreen() {
     automaticCaptureAvailable,
     pendingReviewCount,
   });
-  const allowance = selectAllowance(state, product);
   const rateLabel = formatActiveRateLabel(product.localeProfile);
-  const planLabel = selectEntitlementPlanLabel(product.entitlement);
-  const trialDaysLeft =
-    product.entitlement.status === 'trialActive' && product.entitlement.trialEndsAt
-      ? Math.max(0, Math.ceil((product.entitlement.trialEndsAt - Date.now()) / 86400000))
-      : null;
-  const currentPlanValue =
-    trialDaysLeft != null
-      ? `${planLabel} · ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left`
-      : planLabel;
-  const unitLabel = product.localeProfile.distanceUnit === 'km' ? 'Kilometers' : 'Miles';
-  const rateAndUnits = `${rateLabel} · ${unitLabel}`;
-  const automaticAllowance =
-    allowance.limit == null
-      ? `${allowance.used} · Unlimited auto`
-      : `${allowance.used} of ${allowance.limit} auto/mo`;
   const internalPreviewTools = product.showDevTools && allowInternalPreviewTools();
   const initial = (product.preferredName?.trim()?.[0] || 'M').toUpperCase();
+  const workSubtitle =
+    primaryGoal === 'Employee reimbursement'
+      ? `Employee · ${product.localeProfile.countryDisplayName}`
+      : `${primaryGoal} · ${product.localeProfile.countryDisplayName}`;
+  const trackingLabel =
+    protection.state === 'PROTECTED'
+      ? 'All systems normal'
+      : protection.state === 'OFF' || protection.state === 'MANUAL_ONLY'
+        ? 'Paused'
+        : protection.title;
 
   const resetExperience = async () => {
     if (resetting) return;
@@ -86,133 +133,133 @@ export function ProfileScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.md,
-          marginBottom: spacing.lg,
+          marginBottom: layout.section,
         }}
         accessibilityRole="header"
       >
         <View
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: palette.background.mist,
-            borderWidth: 1,
-            borderColor: palette.forest[500],
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            backgroundColor: palette.forest[900],
             alignItems: 'center',
             justifyContent: 'center',
+            marginRight: spacing.md,
           }}
           accessibilityLabel={`Avatar ${initial}`}
         >
-          <Text style={[text.title, { color: palette.forest[700] }]}>{initial}</Text>
+          <Text style={{ color: palette.text.inverse, fontSize: 28, fontWeight: '700' }}>{initial}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={text.title}>{displayName}</Text>
-          <Text style={[text.body, { marginTop: spacing.xs }]}>
-            {primaryGoal} · {product.localeProfile.countryDisplayName}
+          <Text
+            style={{
+              color: palette.text.primary,
+              fontSize: typography.size.headline,
+              fontWeight: '700',
+            }}
+          >
+            {displayName}
+          </Text>
+          <Text style={{ color: palette.text.secondary, marginTop: spacing.xs, fontSize: typography.size.body }}>
+            {workSubtitle}
           </Text>
         </View>
+        <Pressable
+          onPress={() => navigation.navigate('EditSetup')}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          hitSlop={8}
+          style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name="settings-outline" size={22} color={palette.text.primary} />
+        </Pressable>
       </View>
 
-      <ListSection title="Account">
-        <ListRow
-          icon="Pr"
-          label="Profile and preferences"
-          value={drivingType}
-          onPress={() => navigation.navigate('EditSetup')}
-        />
-        <ListRow
-          icon="Pl"
-          label="Familiar places"
-          value={product.workLocations.length > 0 ? String(product.workLocations.length) : 'Add anytime'}
-          onPress={() => navigation.navigate('WorkLocationSetup')}
-        />
-      </ListSection>
-
-      <ListSection title="Driving">
-        <ListRow
-          icon="Ve"
-          label="Vehicles"
-          value={product.vehicles.length > 0 ? String(product.vehicles.length) : 'Add a vehicle'}
-          onPress={() => navigation.navigate('VehicleSetup')}
-        />
-        <ListRow
-          icon="Ra"
-          label="Rate and units"
-          value={rateAndUnits}
-          onPress={() => navigation.navigate('EditSetup')}
-        />
-        <ListRow
-          icon="Po"
-          label="Protection Center"
-          value={protection.title}
-          onPress={() => {
-            if (protection.primaryAction.action === 'see_plans') {
-              navigation.navigate('PlanSelection', { source: 'upgrade' });
-            } else {
-              navigation.navigate('ProtectionAlert');
-            }
-          }}
-        />
-        <ListRow
-          icon="Tr"
-          label="Tracking health"
-          value={product.trackingEnabled ? automaticAllowance : 'Manual'}
-          onPress={() => navigation.navigate('TrackingActive')}
-        />
-      </ListSection>
-
-      <ListSection title="Data">
-        <ListRow
-          icon="Im"
-          label="Import mileage"
-          onPress={() => navigation.navigate('BringExistingMileage')}
-        />
-        <ListRow icon="Pv" label="Privacy" onPress={() => navigation.navigate('Privacy')} />
-      </ListSection>
-
-      <ListSection title="Plan">
-        <ListRow
-          icon="Pl"
-          label="Plan and billing"
-          value={currentPlanValue}
-          onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
-        />
-        <ListRow
-          icon="Rs"
-          label="Restore purchases"
-          onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
-        />
-      </ListSection>
-
-      <ListSection title="Support">
-        <ListRow icon="He" label="Help and support" onPress={() => navigation.navigate('HelpSupport')} />
-        <ListRow icon="Ab" label="About MileRecover" onPress={() => navigation.navigate('About')} />
-        <ListRow
-          icon="Ed"
-          label="Review setup"
-          value="Trips stay saved"
-          onPress={() => navigation.navigate('EditSetup')}
-        />
-      </ListSection>
+      <SettingsRow
+        icon="car-outline"
+        label="Vehicles"
+        value={
+          product.vehicles.length === 0
+            ? 'Add a vehicle'
+            : `${product.vehicles.length} vehicle${product.vehicles.length === 1 ? '' : 's'}`
+        }
+        onPress={() => navigation.navigate('VehicleSetup')}
+      />
+      <SettingsRow
+        icon="cash-outline"
+        label="Mileage rate"
+        value={rateLabel}
+        onPress={() => navigation.navigate('EditSetup')}
+      />
+      <SettingsRow
+        icon="briefcase-outline"
+        label="Work information"
+        value={primaryGoal}
+        onPress={() => navigation.navigate('EditSetup')}
+      />
+      <SettingsRow
+        icon="shield-checkmark-outline"
+        label="Tracking health"
+        value={trackingLabel}
+        onPress={() => {
+          if (protection.primaryAction.action === 'see_plans') {
+            navigation.navigate('PlanSelection', { source: 'upgrade' });
+          } else {
+            navigation.navigate('ProtectionAlert');
+          }
+        }}
+      />
+      <SettingsRow
+        icon="download-outline"
+        label="Import mileage"
+        onPress={() => navigation.navigate('BringExistingMileage')}
+      />
+      <SettingsRow
+        icon="share-outline"
+        label="Export history"
+        onPress={() => navigation.navigate('ExportReport')}
+      />
+      <SettingsRow
+        icon="help-circle-outline"
+        label="Help & support"
+        onPress={() => navigation.navigate('HelpSupport')}
+      />
+      <SettingsRow
+        icon="information-circle-outline"
+        label="About MileRecover"
+        value={`Version ${APP_VERSION}`}
+        onPress={() => navigation.navigate('About')}
+      />
 
       {internalPreviewTools ? (
-        <ListSection title="Preview">
-          <ListRow
-            icon="On"
+        <>
+          <Text
+            style={{
+              marginTop: spacing.md,
+              marginBottom: spacing.sm,
+              color: palette.text.secondary,
+              fontWeight: '700',
+              fontSize: typography.size.caption,
+            }}
+          >
+            Preview
+          </Text>
+          <SettingsRow
+            icon="refresh-outline"
             label="Reset onboarding"
             value="Keeps trips · restarts setup"
             onPress={() => setConfirmResetOnboardingVisible(true)}
           />
-          <ListRow
-            icon="Re"
-            label="Reset app for testing"
-            value="Clears setup + local data"
+          <SettingsRow
+            icon="trash-outline"
+            label="Reset App To Brand New User"
+            value={resetting ? 'Resetting…' : 'Clears onboarding, guest, cache'}
             onPress={() => setConfirmResetVisible(true)}
-            busy={resetting}
           />
-        </ListSection>
+        </>
       ) : null}
+
       <ConfirmDialog
         visible={confirmResetOnboardingVisible}
         title="Reset onboarding?"
@@ -228,9 +275,9 @@ export function ProfileScreen() {
       />
       <ConfirmDialog
         visible={confirmResetVisible}
-        title="Reset app for testing?"
-        body="This clears setup, trips, imports, and local testing data on this device. Use only for preview testing."
-        confirmLabel="Reset app"
+        title="Reset App To Brand New User?"
+        body="Clears onboarding, guest state, navigation restore, preview caches, and local trips on this device. Preview builds only."
+        confirmLabel="Reset to brand new"
         cancelLabel="Keep data"
         onConfirm={() => void resetExperience()}
         onCancel={() => setConfirmResetVisible(false)}

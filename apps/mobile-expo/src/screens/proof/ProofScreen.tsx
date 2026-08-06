@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { spacing } from '@milerecover/config';
+import { layout, spacing, typography } from '@milerecover/config';
 import {
   buildMileageCsv,
   buildMileageReportData,
@@ -12,27 +12,26 @@ import {
   capabilitiesForEntitlement,
   csvFilename,
   formatCurrencyCents,
-  formatDistance,
+  milesToDisplay,
   rateForTimestamp,
-  reportTitleForGoal,
   resolveReportPeriod,
   type ProofIssue,
   type ReportPeriod,
   type ReportPeriodKind,
 } from '@milerecover/domain';
 import {
-  AttentionBox,
   EmptyState,
   FormError,
-  ListRow,
-  ListSection,
-  PrimaryButton,
-  SecondaryButton,
-  SegmentedControl,
-  SoftPanel,
-  SummaryCard,
+  MRCard,
+  MRMetricTile,
+  MRPrimaryButton,
+  MRSecondaryButton,
+  MRSegmentedControl,
+  MRStatusPanel,
+  SimpleBarChart,
   TabScreen,
   text,
+  useAppTheme,
 } from '../../design-system';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
@@ -52,13 +51,42 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+/** Collage: Month / Quarter / Year / YTD */
 const PERIOD_OPTIONS: { label: string; value: ReportPeriodKind }[] = [
-  { label: 'Week', value: 'this_week' },
   { label: 'Month', value: 'this_month' },
   { label: 'Quarter', value: 'this_quarter' },
   { label: 'Year', value: 'this_year' },
   { label: 'YTD', value: 'ytd' },
 ];
+
+function chartBarsForPeriod(
+  trips: { startAt: number; distanceMiles: number; status: string; classification: string }[],
+  period: ReportPeriod,
+  localeTag: string,
+): Array<{ label: string; value: number }> {
+  const work = trips.filter(
+    (t) =>
+      t.status === 'confirmed' &&
+      t.classification === 'business' &&
+      t.startAt >= period.startAt &&
+      t.startAt <= period.endAt,
+  );
+  const buckets = new Map<string, number>();
+  for (const trip of work) {
+    const key = new Date(trip.startAt).toLocaleDateString(localeTag, {
+      weekday: period.kind === 'this_month' ? 'narrow' : undefined,
+      month: period.kind === 'this_month' ? undefined : 'short',
+      day: period.kind === 'this_month' ? 'numeric' : undefined,
+    });
+    buckets.set(key, (buckets.get(key) ?? 0) + trip.distanceMiles);
+  }
+  if (buckets.size === 0) {
+    return ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((label) => ({ label, value: 0 }));
+  }
+  return Array.from(buckets.entries())
+    .slice(0, 8)
+    .map(([label, value]) => ({ label, value }));
+}
 
 function periodFromState(period: { id: string; label: string; startAt: number; endAt: number }): ReportPeriod {
   const kind = PERIOD_OPTIONS.some((option) => option.value === period.id)
@@ -128,12 +156,13 @@ function fixItemsLabel(count: number): string {
 
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
+  const { palette } = useAppTheme();
   const { state, setReportingPeriod } = useApp();
   const { product, markFirstExport, markFirstReportPreview } = useProduct();
   const [periodKind, setPeriodKind] = useState<ReportPeriodKind>(
     PERIOD_OPTIONS.some((option) => option.value === state.reportingPeriod.id)
       ? (state.reportingPeriod.id as ReportPeriodKind)
-      : 'ytd',
+      : 'this_month',
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -322,16 +351,34 @@ export function ProofScreen() {
     }
   };
 
-  const exportBusy = csvBusy || shareBusy;
-  const adaptiveTitle = reportTitleForGoal(product.primaryGoal);
+  const bars = useMemo(
+    () => chartBarsForPeriod(tripsForProof, period, locale.localeTag),
+    [locale.localeTag, period, tripsForProof],
+  );
+  const workMilesValue = milesToDisplay(report.totalMiles, locale.distanceUnit).toLocaleString(
+    locale.localeTag,
+    {
+      maximumFractionDigits: report.totalMiles >= 100 ? 0 : 1,
+      minimumFractionDigits: 0,
+    },
+  );
 
   return (
     <TabScreen>
-      <Text style={[text.title, { marginBottom: spacing.sm }]} accessibilityRole="header">
-        {adaptiveTitle}
+      <Text
+        style={{
+          fontSize: typography.size.headline,
+          lineHeight: typography.lineHeight.headline,
+          fontWeight: '700',
+          color: palette.text.primary,
+          marginBottom: spacing.md,
+        }}
+        accessibilityRole="header"
+      >
+        Proof
       </Text>
 
-      <SegmentedControl options={PERIOD_OPTIONS} value={periodKind} onChange={choosePeriod} />
+      <MRSegmentedControl options={PERIOD_OPTIONS} value={periodKind} onChange={choosePeriod} />
 
       {report.tripCount === 0 ? (
         <EmptyState
@@ -342,138 +389,99 @@ export function ProofScreen() {
         />
       ) : (
         <>
-          <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>{period.label}</Text>
-          <SummaryCard
-            items={[
-              {
-                label: 'Work distance',
-                value: formatDistance(report.totalMiles, locale.distanceUnit, locale.localeTag),
-              },
-              {
-                label: 'Work drives',
-                value: String(report.tripCount),
-              },
-              {
-                label: 'Estimated value',
-                value:
-                  report.estimatedValueCents != null
-                    ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
-                    : 'Set rate',
-              },
-            ]}
-          />
-          <SoftPanel>
-            <Text style={text.subtitle}>
-              {exportReady ? 'Ready to share with work or your records' : readinessState}
-            </Text>
-            <Text style={[text.body, { marginTop: spacing.xs }]}>
-              {exportReady
-                ? 'Clear work-drive summary for the selected period. Estimated values use your chosen rate — not tax advice.'
-                : readinessMessage}
-            </Text>
-          </SoftPanel>
-
-          {corrections.length > 0 ? (
-            <AttentionBox
-              title={
-                corrections.length === 1
-                  ? '1 item needs attention'
-                  : `${corrections.length} items need attention`
+          <Text style={[text.body, { color: palette.text.secondary, marginBottom: spacing.sm }]}>
+            {period.label}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: layout.section }}>
+            <MRMetricTile
+              label={locale.distanceUnit === 'km' ? 'Work km' : 'Work miles'}
+              value={workMilesValue}
+            />
+            <MRMetricTile label="Work drives" value={String(report.tripCount)} />
+            <MRMetricTile
+              label="Est. value"
+              value={
+                report.estimatedValueCents != null
+                  ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
+                  : '—'
               }
-            >
-              <Text style={[text.body, { marginBottom: spacing.sm }]}>{readinessMessage}</Text>
-              {corrections.map((issue) => (
-                <Text
-                  key={`${issue.severity}-${issue.id}`}
-                  style={[text.body, { marginBottom: spacing.xs }]}
-                >
-                  · {issue.label}
-                  {correctionDetail(issue, confirmedWorkTrips, locale.localeTag)
-                    ? ` — ${correctionDetail(issue, confirmedWorkTrips, locale.localeTag)}`
-                    : ''}
-                </Text>
-              ))}
-              {fixTarget ? (
-                <View style={{ marginTop: spacing.sm }}>
-                  <PrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
-                </View>
-              ) : null}
-              <View style={{ marginTop: spacing.sm }}>
-                <SecondaryButton
-                  label="Preview report"
-                  onPress={openPreview}
-                  disabled={!exportReady}
-                  accessibilityLabel={
-                    exportReady
-                      ? 'Preview report'
-                      : 'Preview report unavailable until required items are fixed'
-                  }
-                />
-              </View>
-            </AttentionBox>
-          ) : (
-            <View style={{ marginBottom: spacing.md }}>
-              <Text style={[text.body, { marginBottom: spacing.sm }]}>{readinessMessage}</Text>
-              <SecondaryButton
-                label="Preview report"
-                onPress={openPreview}
-                disabled={!exportReady}
-                accessibilityLabel={
-                  exportReady
-                    ? 'Preview report'
-                    : 'Preview report unavailable until required items are fixed'
-                }
-              />
-            </View>
-          )}
+            />
+          </View>
 
-          <ListSection title="Export">
-            {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
-            {error ? <FormError message={error} /> : null}
-            <ListRow
+          <MRCard style={{ marginBottom: layout.section, paddingVertical: spacing.md }}>
+            <SimpleBarChart bars={bars} accessibilityLabel="Work miles chart for selected period" />
+          </MRCard>
+
+          <MRStatusPanel
+            tone={exportReady ? 'ok' : 'attention'}
+            message={exportReady ? 'Tax-ready & employer-ready' : readinessMessage}
+          />
+
+          {fixTarget ? (
+            <View style={{ marginBottom: spacing.sm }}>
+              <MRPrimaryButton label={fixTarget.label} onPress={fixTarget.onPress} />
+            </View>
+          ) : null}
+          <View style={{ marginBottom: layout.section }}>
+            <MRSecondaryButton
               label="Preview report"
-              value={reportsDisabledReason ?? 'Available'}
               onPress={openPreview}
               disabled={!exportReady}
-            />
-            <ListRow
-              label="CSV export"
-              value={
-                csvBusy || (shareBusy && csvBusy)
-                  ? SHARE_COPY.preparingCsv
-                  : reportsDisabledReason ?? 'Free'
+              accessibilityLabel={
+                exportReady
+                  ? 'Preview report'
+                  : 'Preview report unavailable until required items are fixed'
               }
-              onPress={() => void shareCsv()}
-              busy={csvBusy || (shareBusy && !pdfBusy)}
-              disabled={!exportReady || pdfBusy}
             />
-            <ListRow
-              label="PDF export"
-              value={
-                reportsDisabledReason ??
-                (capabilities.canUseStandardPdf ? 'Plus' : 'Plus')
-              }
-              onPress={() => {
-                if (capabilities.canUseStandardPdf) void sharePdf();
-                else navigation.navigate('PlanSelection', { source: 'upgrade' });
-              }}
-              busy={pdfBusy || (shareBusy && !csvBusy)}
-              disabled={!exportReady || (exportBusy && !pdfBusy)}
-            />
-            <ListRow
-              label="Share"
-              value={reportsDisabledReason ?? 'Available'}
-              onPress={() => navigation.navigate('ExportReport')}
-              disabled={!exportReady}
-            />
-          </ListSection>
-
-          <View style={{ marginTop: spacing.md }}>
-            <Text style={[text.caption, { marginBottom: spacing.sm }]}>
-              Updated {new Date(report.generatedAt).toLocaleString(locale.localeTag)}
-            </Text>
-            <SecondaryButton label="Add another drive" onPress={() => navigation.navigate('ManualTrip')} />
           </View>
+
+          <Text
+            style={{
+              color: palette.text.secondary,
+              fontWeight: '700',
+              fontSize: typography.size.caption,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Export
+          </Text>
+          {message ? <Text style={[text.body, { marginBottom: spacing.sm }]}>{message}</Text> : null}
+          {error ? <FormError message={error} /> : null}
+          <MRCard
+            onPress={() => void shareCsv()}
+            accessibilityLabel="CSV export"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              minHeight: 52,
+              opacity: !exportReady || pdfBusy ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ fontWeight: '600', color: palette.text.primary, fontSize: typography.size.bodyLarge }}>
+              {csvBusy ? SHARE_COPY.preparingCsv : 'CSV export'}
+            </Text>
+            <Text style={{ color: palette.text.secondary, fontSize: 22 }}>›</Text>
+          </MRCard>
+          <MRCard
+            onPress={() => {
+              if (capabilities.canUseStandardPdf) void sharePdf();
+              else navigation.navigate('PlanSelection', { source: 'upgrade' });
+            }}
+            accessibilityLabel="PDF report"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              minHeight: 52,
+              opacity: !exportReady || (csvBusy && !pdfBusy) ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ fontWeight: '600', color: palette.text.primary, fontSize: typography.size.bodyLarge }}>
+              {pdfBusy ? 'Preparing PDF…' : 'PDF report'}
+            </Text>
+            <Text style={{ color: palette.text.secondary, fontSize: 22 }}>›</Text>
+          </MRCard>
         </>
       )}
     </TabScreen>

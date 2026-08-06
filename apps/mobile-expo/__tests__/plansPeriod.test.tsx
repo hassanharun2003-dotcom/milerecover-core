@@ -9,22 +9,26 @@ describe('Plans monthly/annual rendering', () => {
     expect(plus.annualPrice).toBe('$89.99');
     expect(pro.monthlyPrice).toBe('$14.99');
     expect(pro.annualPrice).toBe('$119.99');
-    expect(plus.features.join(' ')).not.toMatch(/Never lose another reimbursable mile\..*Never lose another reimbursable mile\./);
+    expect(plus.features.join(' ')).not.toMatch(
+      /Never lose another reimbursable mile\..*Never lose another reimbursable mile\./,
+    );
   });
 
-  it('renders Plus and Pro on Plans screen', async () => {
+  it('renders image-lock Go Pro paywall with real Pro pricing', async () => {
     const { copy } = await renderStackScreen('PlanSelection', { source: 'profile' });
-    expect(copy).toMatch(/7 days free/i);
-    expect(copy).toMatch(/Try Plus features\. Cancel anytime\./i);
-    expect(copy).toMatch(/Plus/i);
+    expect(copy).toMatch(/Go Pro/i);
+    expect(copy).toMatch(/Recover more miles/i);
+    expect(copy).toMatch(/Monthly/i);
+    expect(copy).toMatch(/Yearly/i);
     expect(copy).toMatch(/Pro/i);
-    expect(copy).toMatch(/40 automatic trips\/month/i);
-    expect(copy).toMatch(/1 vehicle/i);
-    expect(copy).toMatch(/1 missing scan\/month/i);
-    expect(copy).toMatch(/Then \$8\.99\/month unless cancelled/i);
-    expect(copy).toMatch(/Continue with Free|Free/i);
+    expect(copy).toMatch(/\$14\.99/);
+    expect(copy).toMatch(/Start Free 7-Day Trial/i);
+    expect(copy).toMatch(/Compare all plans/i);
+    expect(copy).toMatch(/Unlimited automatic tracking/i);
+    expect(copy).toMatch(/Missing drive recovery/i);
+    expect(copy).toMatch(/Priority support/i);
+    expect(copy).toMatch(/Free/i);
     expect(copy).toMatch(/recover older mileage|Rescue/i);
     expect(copy).not.toMatch(/RevenueCat/i);
-    expect(copy).toMatch(/Automatic|missed|PDF|tracking health/i);
   });
 });

@@ -597,6 +597,7 @@ export function ReviewCard({
   title,
   subtitle,
   distance,
+  duration,
   estimatedValue,
   purpose,
   confidence,
@@ -614,6 +615,8 @@ export function ReviewCard({
   title: string;
   subtitle: string;
   distance: string;
+  /** Duration label e.g. "28 min" — image-lock metric row. */
+  duration?: string | null;
   estimatedValue?: string | null;
   purpose?: string | null;
   confidence?: string | null;
@@ -633,75 +636,123 @@ export function ReviewCard({
     title,
     `Time ${subtitle}`,
     `Distance ${distance}`,
-    purpose ? `Purpose ${purpose}` : 'Purpose not set',
-    confidence ? `Confidence ${confidence}` : null,
+    duration ? `Duration ${duration}` : null,
+    purpose ? `Purpose ${purpose}` : null,
     estimatedValue,
-    evidence,
   ]
     .filter(Boolean)
     .join('. ');
+  const chip = (label: string, active: boolean, onPressChip: () => void) => (
+    <Pressable
+      key={label}
+      onPress={onPressChip}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${title}`}
+      style={{
+        flex: 1,
+        minHeight: 40,
+        borderRadius: radii.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: active ? palette.action.primary : palette.background.mist,
+        borderWidth: 1,
+        borderColor: active ? palette.action.primary : palette.border.default,
+      }}
+    >
+      <Text
+        style={{
+          color: active ? palette.action.primaryText : palette.text.secondary,
+          fontWeight: '600',
+          fontSize: typography.size.body,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
   return (
     <Pressable
-      style={({ pressed }) => [cardBase, themedCard(palette), pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        {
+          borderRadius: radii.lg,
+          borderWidth: 1,
+          borderColor: palette.border.default,
+          backgroundColor: palette.background.card,
+          padding: layout.cardPad,
+          marginBottom: spacing.md,
+        },
+        pressed && styles.cardPressed,
+      ]}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="summary"
       accessibilityLabel={a11y}
     >
-      <View style={styles.reviewCardTop}>
-        <RouteMapPreview points={routePreview} />
-        <View style={{ flex: 1 }}>
-          <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
-          <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>
-            {subtitle} · {distance}
-          </Text>
-          {confidence ? (
-            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Confidence · {confidence}</Text>
-          ) : null}
-          {estimatedValue ? (
-            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{estimatedValue}</Text>
-          ) : null}
-          {purpose?.trim() ? (
-            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>Purpose · {purpose}</Text>
-          ) : null}
-          {vehicle ? <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{vehicle}</Text> : null}
-          {reason ? <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>{reason}</Text> : null}
-          {evidence ? (
-            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{evidence}</Text>
-          ) : provenance ? (
-            <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{provenance}</Text>
-          ) : null}
-        </View>
-      </View>
-      <View style={styles.reviewDecisionActions}>
-        <View style={styles.reviewDecisionButton}>
-          <PrimaryButton
-            label="Work"
-            onPress={onWork}
-            accessibilityLabel={`Mark as work drive. ${title}`}
-          />
-        </View>
-        <View style={styles.reviewDecisionButton}>
-          <SecondaryButton
-            label="Personal"
-            onPress={onPersonal}
-            accessibilityLabel={`Mark as personal drive. ${title}`}
-          />
-        </View>
-        {onNotSure ? (
-          <View style={styles.reviewDecisionButton}>
-            <SecondaryButton
-              label="Not sure"
-              onPress={onNotSure}
-              accessibilityLabel={`Mark as not sure. ${title}`}
-            />
-          </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+        <Text style={{ color: palette.text.secondary, fontSize: typography.size.caption, fontWeight: '500' }}>
+          {subtitle}
+        </Text>
+        {onEdit ? (
+          <Pressable onPress={onEdit} hitSlop={8} accessibilityRole="button" accessibilityLabel={`More for ${title}`}>
+            <Text style={{ color: palette.text.secondary, fontSize: 18, fontWeight: '700' }}>⋯</Text>
+          </Pressable>
         ) : null}
       </View>
-      {onEdit ? (
-        <View style={styles.reviewEditAction}>
-          <TertiaryButton label="Edit" onPress={onEdit} accessibilityLabel={`Edit ${title}`} />
-        </View>
+      <Text
+        style={{
+          color: palette.text.primary,
+          fontSize: typography.size.bodyLarge,
+          fontWeight: '700',
+          marginBottom: spacing.sm,
+        }}
+        numberOfLines={2}
+      >
+        {title}
+      </Text>
+      <View
+        style={{
+          height: 120,
+          borderRadius: radii.md,
+          backgroundColor: palette.background.mist,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: spacing.sm,
+          overflow: 'hidden',
+        }}
+      >
+        {routePreview && routePreview.length >= 2 ? (
+          <RouteMapPreview points={routePreview} />
+        ) : (
+          <Text style={{ color: palette.forest[700], fontWeight: '600' }}>Route preview</Text>
+        )}
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
+        <Text style={{ color: palette.text.primary, fontWeight: '700', fontSize: typography.size.body }}>
+          {distance}
+        </Text>
+        <Text style={{ color: palette.text.primary, fontWeight: '700', fontSize: typography.size.body }}>
+          {duration ?? '—'}
+        </Text>
+        <Text style={{ color: palette.text.primary, fontWeight: '700', fontSize: typography.size.body }}>
+          {estimatedValue ?? '—'}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        {chip('Work', false, onWork)}
+        {chip('Personal', false, onPersonal)}
+        {onNotSure ? chip('Not sure', false, onNotSure) : null}
+      </View>
+      {confidence || reason ? (
+        <Text
+          style={{
+            color: palette.text.secondary,
+            fontSize: typography.size.caption,
+            marginTop: spacing.sm,
+          }}
+          numberOfLines={2}
+        >
+          {[confidence, reason].filter(Boolean).join(' · ')}
+        </Text>
       ) : null}
     </Pressable>
   );
@@ -1773,12 +1824,52 @@ export function ReviewedItemCard({
 }) {
   const { palette } = useAppTheme();
   return (
-    <View style={[cardBase, themedCard(palette), { marginBottom: spacing.sm }]} accessibilityRole="summary">
-      <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
-      <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{subtitle}</Text>
-      <Text style={[text.caption, themedText(palette, 'secondary'), { marginTop: spacing.sm }]}>Decision: {decisionLabel}</Text>
-      <View style={{ marginTop: spacing.md }}>
-        <SecondaryButton label="Undo decision" onPress={onUndo} accessibilityLabel={`Undo ${decisionLabel} decision for ${title}`} />
+    <View
+      style={{
+        borderRadius: radii.lg,
+        borderWidth: 1,
+        borderColor: palette.border.default,
+        backgroundColor: palette.background.card,
+        padding: layout.cardPad,
+        marginBottom: spacing.md,
+      }}
+      accessibilityRole="summary"
+      accessibilityLabel={`${title}. ${subtitle}. ${decisionLabel}`}
+    >
+      <Text style={{ color: palette.text.secondary, fontSize: typography.size.caption, fontWeight: '500' }}>
+        {subtitle}
+      </Text>
+      <Text
+        style={{
+          color: palette.text.primary,
+          fontSize: typography.size.bodyLarge,
+          fontWeight: '700',
+          marginTop: spacing.xs,
+        }}
+        numberOfLines={2}
+      >
+        {title}
+      </Text>
+      <View
+        style={{
+          marginTop: spacing.sm,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.sm,
+        }}
+      >
+        <View
+          style={{
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.xs,
+            borderRadius: radii.md,
+            backgroundColor: palette.background.mist,
+          }}
+        >
+          <Text style={{ color: palette.forest[700], fontWeight: '600' }}>{decisionLabel}</Text>
+        </View>
+        <TertiaryButton label="Undo" onPress={onUndo} accessibilityLabel={`Undo ${decisionLabel} for ${title}`} />
       </View>
     </View>
   );

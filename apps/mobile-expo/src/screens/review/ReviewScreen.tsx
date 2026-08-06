@@ -17,15 +17,17 @@ import {
 } from '@milerecover/domain';
 import {
   EmptyState,
+  MRSecondaryButton,
+  MRSegmentedControl,
   ReviewCard,
   ReviewedItemCard,
-  SecondaryButton,
-  SegmentedControl,
   TabScreen,
   TertiaryButton,
   UndoSnackbar,
+  useAppTheme,
 } from '../../design-system';
-import { Alert } from 'react-native';
+import { Alert, Text } from 'react-native';
+import { spacing, typography } from '@milerecover/config';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { selectProductExperience } from '../../product/selectors';
 import { useProduct } from '../../product/ProductContext';
@@ -117,6 +119,15 @@ function dateTimeLabel(at: number, localeTag: string): string {
   })}`;
 }
 
+function durationLabel(startAt: number | null | undefined, endAt: number | null | undefined): string | null {
+  if (startAt == null || endAt == null || endAt <= startAt) return null;
+  const minutes = Math.max(1, Math.round((endAt - startAt) / 60000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return rem ? `${hours} hr ${rem} min` : `${hours} hr`;
+}
+
 function reviewedHistoryCopy(entry: ReviewHistoryEntry, localeTag: string, distanceUnit: DistanceUnit): {
   title: string;
   subtitle: string;
@@ -151,6 +162,7 @@ function reviewedHistoryCopy(entry: ReviewHistoryEntry, localeTag: string, dista
 
 export function ReviewScreen() {
   const navigation = useNavigation<ReviewNav>();
+  const { palette } = useAppTheme();
   const {
     state,
     permissions,
@@ -288,7 +300,19 @@ export function ReviewScreen() {
 
   return (
     <TabScreen>
-      <SegmentedControl
+      <Text
+        style={{
+          fontSize: typography.size.title,
+          lineHeight: typography.lineHeight.title,
+          fontWeight: '700',
+          color: palette.text.primary,
+          marginBottom: spacing.md,
+        }}
+        accessibilityRole="header"
+      >
+        Review
+      </Text>
+      <MRSegmentedControl
         options={[
           { label: `Needs review (${pending.length})`, value: 'needs' },
           { label: `Done (${reviewed.length})`, value: 'reviewed' },
@@ -304,7 +328,7 @@ export function ReviewScreen() {
               title="You’re caught up"
               body="No drives need classification."
             />
-            <SecondaryButton
+            <MRSecondaryButton
               label="Add drive"
               onPress={() => navigation.navigate('ManualTrip')}
             />
@@ -357,6 +381,7 @@ export function ReviewScreen() {
                     ? formatDistance(item.distanceMiles, locale.distanceUnit, locale.localeTag)
                     : 'Distance needed'
                 }
+                duration={durationLabel(trip?.startAt ?? recovery?.proposedStartAt, trip?.endAt ?? recovery?.proposedEndAt)}
                 estimatedValue={estimateForMiles(item.distanceMiles, at)}
                 purpose={trip?.purpose ?? null}
                 confidence={confidenceLabel}

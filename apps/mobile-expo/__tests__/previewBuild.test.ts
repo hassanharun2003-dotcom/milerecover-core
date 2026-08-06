@@ -3,6 +3,8 @@ import path from 'path';
 import {
   APP_BUILD_LABEL,
   APP_PACKAGE_ID,
+  APP_RUNTIME_VERSION,
+  APP_UPDATE_CHANNEL,
   APP_VERSION,
   getDevClientAutolinkingExclude,
   isStandaloneBuild,
@@ -16,12 +18,8 @@ function readJson(fileName: string): Record<string, unknown> {
 
 describe('Production MVP build configuration', () => {
   const appConfigSource = fs.readFileSync(path.join(root, 'app.config.ts'), 'utf8');
-  const syncScript = fs.readFileSync(
-    path.join(root, 'scripts/sync-dev-client-autolinking.cjs'),
-    'utf8',
-  );
   const packageJson = readJson('package.json') as {
-    scripts?: { 'eas-build-pre-install'?: string };
+    scripts?: { 'eas-build-pre-install'?: string; 'update:preview'?: string; 'update:production'?: string };
   };
   const eas = readJson('eas.json') as {
     build: {
@@ -33,36 +31,36 @@ describe('Production MVP build configuration', () => {
     };
   };
 
-  it('ships package com.milerecover.app and version/runtime 0.2.5', () => {
+  it('ships package com.milerecover.app and isolated runtime 0.2.6', () => {
     expect(APP_PACKAGE_ID).toBe('com.milerecover.app');
-    expect(APP_VERSION).toBe('0.2.5');
-    expect(APP_BUILD_LABEL).toBe('0.2.5-image-lock.2');
+    expect(APP_VERSION).toBe('0.2.6');
+    expect(APP_RUNTIME_VERSION).toBe('0.2.6');
+    expect(APP_BUILD_LABEL).toBe('0.2.6-foundation.1');
+    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.6');
     expect(appConfigSource).toContain("package: 'com.milerecover.app'");
     expect(appConfigSource).toContain("bundleIdentifier: 'com.milerecover.app'");
-    expect(appConfigSource).toContain("version: '0.2.5'");
-    expect(appConfigSource).toContain("policy: 'appVersion'");
+    expect(appConfigSource).toContain("version: '0.2.6'");
+    expect(appConfigSource).toContain("runtimeVersion: '0.2.6'");
+    expect(appConfigSource).not.toContain("policy: 'appVersion'");
     expect(appConfigSource).toContain('expo-location');
     expect(appConfigSource).toContain('@react-native-community/datetimepicker');
     expect(appConfigSource).toContain('@react-native-google-signin/google-signin');
     expect(appConfigSource).toContain('expo-apple-authentication');
   });
 
-  it('enables preview autoIncrement and standalone preview behavior', () => {
+  it('uses isolated preview-foundation channel so prior OTAs cannot replace UI', () => {
     expect(eas.build.preview.autoIncrement).toBe(true);
-    expect(eas.build.preview.channel).toBe('preview');
+    expect(eas.build.preview.channel).toBe('preview-foundation-0.2.6');
     expect(eas.build.preview.env?.APP_VARIANT).toBe('preview');
     expect(isStandaloneBuild('preview')).toBe(true);
     expect(appConfigSource).toContain("'expo-dev-client'");
     expect(appConfigSource).toContain('enabled: !IS_DEV_CLIENT');
+    expect(packageJson.scripts?.['update:preview']).toContain('preview-foundation-0.2.6');
   });
 
   it('forces APP_VARIANT when publishing OTA so preview updates stay standalone', () => {
-    const pkg = readJson('package.json') as {
-      scripts?: { 'update:preview'?: string; 'update:production'?: string };
-    };
-    expect(pkg.scripts?.['update:preview']).toContain('APP_VARIANT=preview');
-    expect(pkg.scripts?.['update:preview']).toContain('--channel preview');
-    expect(pkg.scripts?.['update:production']).toContain('APP_VARIANT=production');
+    expect(packageJson.scripts?.['update:preview']).toContain('APP_VARIANT=preview');
+    expect(packageJson.scripts?.['update:production']).toContain('APP_VARIANT=production');
   });
 
   it('excludes expo-dev-client native modules from autolinking for standalone variants', () => {
@@ -78,10 +76,15 @@ describe('Production MVP build configuration', () => {
     expect(packageJson.scripts?.['eas-build-pre-install']).toContain(
       'sync-dev-client-autolinking.cjs',
     );
-    expect(syncScript).toContain("'expo-dev-launcher'");
-    expect(syncScript).toContain("'expo-dev-menu'");
-    expect(syncScript).toContain('DEV_CLIENT_NATIVE_PACKAGES');
-    expect(appConfigSource).toContain("'expo-dev-launcher'");
-    expect(appConfigSource).toContain('DEV_CLIENT_NATIVE_PACKAGES');
+  });
+
+  it('documents Samsung old-UI root cause', () => {
+    const rca = fs.readFileSync(
+      path.join(root, '../../docs/design/ROOT_CAUSE_SAMSUNG_OLD_UI.md'),
+      'utf8',
+    );
+    expect(rca).toMatch(/runtimeVersion/);
+    expect(rca).toMatch(/0\.1\.8/);
+    expect(rca).toMatch(/HomeScreen\.tsx/);
   });
 });

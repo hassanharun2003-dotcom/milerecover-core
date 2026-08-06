@@ -36,7 +36,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.5',
+  version: '0.2.6',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -110,9 +110,8 @@ const config = {
       },
     ],
   ],
-  runtimeVersion: {
-    policy: 'appVersion',
-  },
+  // Explicit runtime — isolates foundation APK from prior 0.2.5 preview OTA.
+  runtimeVersion: '0.2.6',
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
     // Standalone preview/production binaries and their OTAs must keep updates on.
@@ -130,6 +129,16 @@ const config = {
     },
     appVariant: APP_VARIANT,
     gitCommitHash: GIT_COMMIT_HASH,
+    buildTimestamp:
+      process.env.EAS_BUILD_CREATED_AT ??
+      process.env.EXPO_PUBLIC_BUILD_TIMESTAMP ??
+      new Date().toISOString(),
+    runtimeVersion: '0.2.6',
+    updateChannel: process.env.EAS_BUILD_PROFILE === 'preview' || process.env.APP_VARIANT === 'preview'
+      ? 'preview-foundation-0.2.6'
+      : process.env.APP_VARIANT === 'production'
+        ? 'production'
+        : 'development',
     /** Mirrored for diagnostics — applied on EAS via eas-build-pre-install. */
     devClientAutolinkingExclude: DEV_CLIENT_AUTOLINKING_EXCLUDE,
     googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
