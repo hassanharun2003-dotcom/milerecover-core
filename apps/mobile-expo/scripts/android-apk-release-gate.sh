@@ -65,6 +65,9 @@ ok "package metadata"
 rg -q 'lib/arm64-v8a/.+\.so' "$OUT_DIR/unzip-l.txt" || fail "arm64-v8a native libs missing"
 ok "arm64-v8a present"
 
+rg -q 'Stored .+ resources\.arsc' "$OUT_DIR/unzip-v.txt" || fail "resources.arsc not Stored (R+ requires uncompressed+aligned)"
+ok "resources.arsc Stored"
+
 # adb install proof
 "$ADB" devices | tee "$OUT_DIR/adb-devices.txt"
 "$ADB" uninstall "$EXPECT_PACKAGE" >/dev/null 2>&1 || true
