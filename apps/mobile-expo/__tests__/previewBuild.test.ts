@@ -36,7 +36,7 @@ describe('Production MVP build configuration', () => {
     expect(APP_PACKAGE_ID).toBe('com.milerecover.app');
     expect(APP_VERSION).toBe('0.2.7');
     expect(APP_RUNTIME_VERSION).toBe('0.2.7');
-    expect(APP_BUILD_LABEL).toBe('0.2.7-startup.7');
+    expect(APP_BUILD_LABEL).toBe('0.2.7-startup.8');
     expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.7');
     expect(appConfigSource).toContain("package: 'com.milerecover.app'");
     expect(appConfigSource).toContain("bundleIdentifier: 'com.milerecover.app'");

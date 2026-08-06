@@ -391,9 +391,35 @@ export async function saveOnboardingCompletionStamp(
   return true;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label}_TIMEOUT_${ms}MS`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+/** Drop a stuck latest-wins queue so completion can write immediately. */
+function resetProductWriteQueue(): void {
+  productWriteLatest = null;
+  productWriteScheduled = false;
+  productWriteChain = Promise.resolve();
+}
+
 /**
  * Atomically persist completion stamp + product blob, then read back.
  * Used at the end of onboarding so Home unlock survives force-stop.
+ *
+ * Intentionally does NOT await the shared save queue — a stuck in-flight
+ * AsyncStorage.setItem would block Home forever ("One moment…").
  */
 export async function persistVerifiedOnboardingCompletion(state: ProductUiState): Promise<void> {
   const stamp = stampFromOnboarding(state.onboarding);
@@ -408,32 +434,63 @@ export async function persistVerifiedOnboardingCompletion(state: ProductUiState)
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      // Flush any in-flight latest-wins writes so they cannot finish after us.
-      productWriteLatest = null;
-      await flushProductUiSaves();
-      await AsyncStorage.multiSet([
-        [ONBOARDING_COMPLETION_KEY, stampJson],
-        [PRODUCT_UI_STORAGE_KEY, blob],
-      ]);
-      await writeCompletionStampFile(stamp);
-      const [stampRaw, productRaw] = await AsyncStorage.multiGet([
-        ONBOARDING_COMPLETION_KEY,
-        PRODUCT_UI_STORAGE_KEY,
-      ]);
-      if (stampRaw[1] !== stampJson) {
+      resetProductWriteQueue();
+      await withTimeout(
+        AsyncStorage.multiSet([
+          [ONBOARDING_COMPLETION_KEY, stampJson],
+          [PRODUCT_UI_STORAGE_KEY, blob],
+        ]),
+        8_000,
+        'ONBOARDING_MULTISET',
+      );
+      try {
+        await withTimeout(writeCompletionStampFile(stamp), 5_000, 'ONBOARDING_FILE_STAMP');
+      } catch {
+        // File backup optional if AsyncStorage verify succeeds.
+      }
+      const pairs = await withTimeout(
+        AsyncStorage.multiGet([ONBOARDING_COMPLETION_KEY, PRODUCT_UI_STORAGE_KEY]),
+        8_000,
+        'ONBOARDING_MULTIGET',
+      );
+      const stampRaw = pairs[0]?.[1];
+      const productRaw = pairs[1]?.[1];
+      if (stampRaw !== stampJson) {
         throw new Error('ONBOARDING_STAMP_VERIFY_FAILED');
       }
-      if (!productRaw[1]) {
+      if (!productRaw) {
         throw new Error('ONBOARDING_BLOB_VERIFY_FAILED');
       }
-      const parsed = JSON.parse(productRaw[1]) as { onboarding?: VersionedOnboardingState };
+      const parsed = JSON.parse(productRaw) as { onboarding?: VersionedOnboardingState };
       if (!isOnboardingMinimumComplete(parsed.onboarding as VersionedOnboardingState)) {
         throw new Error('ONBOARDING_BLOB_INCOMPLETE_AFTER_WRITE');
       }
       return;
     } catch (error) {
       lastError = error;
+      resetProductWriteQueue();
     }
+  }
+  // Last resort: file stamp alone can restore Home on next launch.
+  try {
+    await writeCompletionStampFile(stamp);
+    try {
+      await withTimeout(
+        AsyncStorage.setItem(ONBOARDING_COMPLETION_KEY, stampJson),
+        5_000,
+        'ONBOARDING_STAMP_ONLY',
+      );
+    } catch {
+      // AsyncStorage may be wedged; documentDirectory stamp is enough for reopen.
+    }
+    try {
+      await withTimeout(AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, blob), 5_000, 'PRODUCT_BLOB_ONLY');
+    } catch {
+      // optional when file stamp exists
+    }
+    return;
+  } catch (error) {
+    lastError = error;
   }
   throw lastError instanceof Error ? lastError : new Error('ONBOARDING_PERSIST_FAILED');
 }
@@ -528,7 +585,11 @@ export async function loadProductUiState(): Promise<ProductUiState> {
 export async function saveProductUiState(state: ProductUiState): Promise<void> {
   const { showDevTools: _showDevTools, ...persisted } = state;
   void _showDevTools;
-  await AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(persisted));
+  await withTimeout(
+    AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(persisted)),
+    8_000,
+    'PRODUCT_UI_SETITEM',
+  );
 }
 
 /**
