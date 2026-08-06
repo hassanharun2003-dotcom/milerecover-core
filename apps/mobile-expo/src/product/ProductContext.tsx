@@ -251,15 +251,10 @@ export function ProductProvider({
     };
   }, [skipHydration]);
 
-  // Belt-and-suspenders: after hydration, every committed product snapshot is durable.
-  // Latest-wins queue collapses rapid onboarding taps into one final write.
-  useEffect(() => {
-    if (!hydrated) return;
-    productRef.current = product;
-    void enqueueProductUiSave(product);
-  }, [product, hydrated]);
-
   const persist = useCallback((updater: (prev: ProductUiState) => ProductUiState) => {
+    // Apply against productRef (not React state) so rapid taps chain correctly even
+    // when setState has not re-rendered yet. Never mirror React state back into the
+    // ref from an effect — a stale effect can enqueue an older snapshot last.
     const next = updater(productRef.current);
     productRef.current = next;
     setProduct(next);

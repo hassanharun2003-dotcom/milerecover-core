@@ -19,7 +19,7 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  '0.2.7 startup.3: Updates NEVER on load; durable onboarding persistence (sync enqueue + hydrate effect) so Home survives force-stop.';
+  '0.2.7 startup.4: Updates NEVER on load; productRef-chained persistence (no stale effect overwrite) so Home survives force-stop.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();
