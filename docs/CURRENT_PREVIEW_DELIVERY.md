@@ -1,47 +1,35 @@
-# Current preview delivery — 0.2.6 foundation.2
+# Current preview delivery — 0.2.7 startup.1
 
-**Branch:** `cursor/foundation-reset-0.2.6-29cb`  
-**Build label:** `0.2.6-foundation.2`  
-**App version / runtime:** `0.2.6` (explicit — isolated from prior OTA)  
-**Channel:** `preview-foundation-0.2.6`  
-**versionCode:** `34`  
-**Commit:** `508164c1b58286e0fbcb8a4190d63505f6a193fc`  
-**SHA-256:** `f8e9b8e3c1f6b764633f5dbc7bb2e4a376592c8c112674ca4cf685173fe088e7`  
+**Branch:** `cursor/startup-crash-0.2.7-29cb`  
+**Build label:** `0.2.7-startup.1`  
+**App version / runtime:** `0.2.7` (isolated from 0.2.6)  
+**Channel:** `preview-foundation-0.2.7`  
+**versionCode:** `35`  
+**Commit:** `8dc79013ca8e60e27698a1aad6af5ec7bd4dd516`  
+**SHA-256:** `e21fc2099fce2486be6ccfcc84c5f11e44c10e32c66595ae90757c6087587119`  
 **Build method:** Local EAS preview APK (`APP_VARIANT=preview`)
 
-## Why Samsung still showed the old UI
+## Why 0.2.6 opened and closed
 
-See `docs/design/ROOT_CAUSE_SAMSUNG_OLD_UI.md`.
+See `docs/qa/STARTUP_CRASH_0.2.6.md`.
 
-Primary cause: devices on ≤0.1.8 binaries with system dark theme cannot receive 0.2.x JS via OTA (`runtimeVersion` = app version). Install this **0.2.6** APK after uninstalling older builds.
+Expo Updates `checkAutomatically: 'ON_LOAD'` ran a remote check inside `StartupProcedure` **before** React Native JS started. Failures (`UpdateFailedToLoad` / DNS) delayed first paint 15–32s. Fixed in 0.2.7 with `checkAutomatically: 'NEVER'`.
 
 ## Direct install
 
-https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.6/MileRecover-preview-0.2.6.apk
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.7/MileRecover-preview-0.2.7.apk
 
-Also: `MileRecover-preview-0.2.6-foundation.2.apk` (same binary).
+Do **not** use 0.2.6. Uninstall older builds first if needed.
 
-## Scope
+## Cold-launch proof (API 34 emulator)
 
-- Phase: foundation reset — single production presentation layer
-- All primary screens rebuilt against `docs/design/reference-crops/`
-- Business engines preserved
-- Preview: **Reset App To Brand New User**
-- Diagnostics (preview): commit, runtime, channel, version, update ID, build timestamp
+- Process alive **60s** after cold launch and again after force-stop/reopen
+- Welcome visible on clean install (`docs/assets/ui-evidence/device/0.2.7/raw/01-welcome.png`)
+- Home after onboarding + reopen (`02-home.png`, `03-reopen.png`)
+- Log: `StartStartup` → `EndStartup` with **no** remote `Check` / **no** `UpdateFailedToLoad`
+- **No** `FATAL EXCEPTION` for `com.milerecover.app`
 
-## Device evidence
+## Smoke script
 
-`docs/assets/ui-evidence/device/0.2.6/`
-
-- `raw/` — Android screenshots from this APK/commit
-- `compare/` — reference | actual side-by-side
-- `diff/` / `overlay/` — difference maps
-- `meta.json` — APK/commit binding
-- `MISMATCHES.md` — honest remaining differences (mostly empty-truthful vs collage sample data)
-
-## Samsung install steps
-
-1. Uninstall every older MileRecover build (`com.milerecover.app`)
-2. Install the 0.2.6 APK above
-3. Open app → Welcome (fresh install)
-4. Profile → About / Diagnostics → confirm version `0.2.6`, runtime `0.2.6`, channel `preview-foundation-0.2.6`
+`apps/mobile-expo/scripts/android-launch-smoke.sh`  
+`npm run smoke:android-launch` (set `APK=...`)

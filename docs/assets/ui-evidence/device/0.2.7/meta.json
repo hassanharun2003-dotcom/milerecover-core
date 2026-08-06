@@ -1,0 +1,33 @@
+{
+  "appVersion": "0.2.7",
+  "versionLabel": "0.2.7-startup.1",
+  "versionCode": 35,
+  "runtimeVersion": "0.2.7",
+  "channel": "preview-foundation-0.2.7",
+  "buildCommit": "8dc79013ca8e60e27698a1aad6af5ec7bd4dd516",
+  "apkSha256": "e21fc2099fce2486be6ccfcc84c5f11e44c10e32c66595ae90757c6087587119",
+  "package": "com.milerecover.app",
+  "device": {
+    "model": "sdk_gphone64_x86_64 Pixel6 AVD",
+    "androidVersion": "14 API34",
+    "viewport": "1080x2400",
+    "density": "420dpi",
+    "acceleration": "TCG"
+  },
+  "coldLaunch": {
+    "aliveSeconds": 60,
+    "welcomeVisible": true,
+    "homeAfterOnboarding": true,
+    "forceStopReopenHome": true,
+    "fatalExceptionForPackage": false,
+    "updateFailedToLoadOnStartup": false,
+    "updatesCheckAutomatically": "NEVER",
+    "startStartupToEndStartup": "no remote Check (embedded only)"
+  },
+  "installUrl": "https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.7/MileRecover-preview-0.2.7.apk",
+  "priorBrokenApk": {
+    "version": "0.2.6",
+    "sha256": "f8e9b8e3c1f6b764633f5dbc7bb2e4a376592c8c112674ca4cf685173fe088e7",
+    "rca": "docs/qa/STARTUP_CRASH_0.2.6.md"
+  }
+}
