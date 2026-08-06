@@ -25,3 +25,11 @@ See `docs/qa/GOOGLE_SIGNIN_0.2.9.md` and environment setup actions:
 4. Optional: Maps + RevenueCat keys
 
 Until secrets exist, a production-style Auth screen shows only **Continue without an account** — never a dead Google button.
+
+## Published proof
+- Tag: `android-preview-0.2.10`
+- Direct APK: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.10/MileRecover-preview-0.2.10.apk
+- SHA-256: `fb999bce3f9dd937e8f6fc8470a8ddd6b89b46ce6a63e4c783e280246d18e929`
+- versionCode: `46`
+- GitHub-downloaded asset adb install: Success
+- Emulator screenshots: `/opt/cursor/artifacts/screenshots/0.2.10/`
