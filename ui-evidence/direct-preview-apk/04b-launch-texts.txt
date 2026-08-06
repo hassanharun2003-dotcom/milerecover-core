@@ -1,0 +1,4 @@
+System UI isn't responding
+Close app
+Wait
+DEV_LAUNCHER False

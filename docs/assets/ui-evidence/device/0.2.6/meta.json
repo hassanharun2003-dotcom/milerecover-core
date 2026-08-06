@@ -1,0 +1,77 @@
+{
+  "appVersion": "0.2.6",
+  "versionLabel": "0.2.6-foundation.2",
+  "versionCode": 34,
+  "runtimeVersion": "0.2.6",
+  "channel": "preview-foundation-0.2.6",
+  "buildCommit": "508164c1b58286e0fbcb8a4190d63505f6a193fc",
+  "apkSha256": "f8e9b8e3c1f6b764633f5dbc7bb2e4a376592c8c112674ca4cf685173fe088e7",
+  "package": "com.milerecover.app",
+  "device": {
+    "model": "sdk_gphone64_x86_64 Pixel6 AVD",
+    "androidVersion": "14 API34",
+    "viewport": "1080x2400",
+    "density": "420dpi",
+    "acceleration": "TCG"
+  },
+  "fixtureState": "clean install; wifi/data disabled; truthful empty for primary captures; subscription via Export PDF upgrade",
+  "diffSummary": [
+    {
+      "screen": "01-welcome",
+      "ref": "01-welcome",
+      "mad": 22.1
+    },
+    {
+      "screen": "03-purpose",
+      "ref": "02-purpose",
+      "mad": 21.59
+    },
+    {
+      "screen": "04-region-rate",
+      "ref": "03-region-rate",
+      "mad": 22.52
+    },
+    {
+      "screen": "07-home",
+      "ref": "04-home",
+      "mad": 36.13
+    },
+    {
+      "screen": "08-review",
+      "ref": "05-review",
+      "mad": 13.23
+    },
+    {
+      "screen": "09-proof",
+      "ref": "06-proof",
+      "mad": 27.31
+    },
+    {
+      "screen": "11-add-drive",
+      "ref": "07-add-drive",
+      "mad": 23.63
+    },
+    {
+      "screen": "13-protection-center",
+      "ref": "08-protection-center",
+      "mad": 36.68
+    },
+    {
+      "screen": "14-subscription",
+      "ref": "09-subscription",
+      "mad": 61.3
+    },
+    {
+      "screen": "10-profile",
+      "ref": "10-profile",
+      "mad": 10.12
+    },
+    {
+      "screen": "12-missing-drives",
+      "ref": "11-missing-drives",
+      "mad": 32.8
+    }
+  ],
+  "installUrl": "https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.6/MileRecover-preview-0.2.6.apk",
+  "note": "Screenshots from same APK commit as release (foundation.2)."
+}
