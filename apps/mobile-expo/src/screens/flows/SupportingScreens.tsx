@@ -285,6 +285,19 @@ const flowStyles = StyleSheet.create({
     lineHeight: typography.lineHeight.bodyLarge,
     fontWeight: '600',
   },
+  statusValue: {
+    fontSize: typography.size.body,
+    lineHeight: typography.lineHeight.body,
+    fontWeight: '700',
+    textAlign: 'right',
+    maxWidth: 140,
+  },
+  statusValueOk: {
+    color: colors.forest[700],
+  },
+  statusValueAttention: {
+    color: colors.status.warning,
+  },
   statusPill: {
     borderRadius: radii.pill,
     paddingHorizontal: spacing.smMd,
@@ -345,15 +358,10 @@ const flowStyles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   proBadge: {
-    color: colors.forest[900],
-    backgroundColor: colors.background.card,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.smMd,
-    paddingVertical: spacing.xs,
+    color: '#B7E1C7',
     fontSize: typography.size.caption,
     lineHeight: typography.lineHeight.caption,
     fontWeight: '700',
-    overflow: 'hidden',
   },
   proPlanName: {
     color: colors.text.inverse,
@@ -1543,33 +1551,28 @@ export function ProtectionAlertScreen() {
   const overviewHeroTitle = protection.state === 'PROTECTED' ? "You're protected" : protection.title;
   const overviewHeroBody =
     protection.state === 'PROTECTED'
-      ? 'MileRecover is actively tracking and watching for work drives.'
+      ? 'MileRecover is actively tracking your work drives.'
       : protection.message;
   const overviewDiagnosticRows = [
     {
       label: 'Background tracking',
       value: product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady ? 'On' : 'Needs attention',
-      glyph: '↻',
     },
     {
       label: 'Location access',
-      value: foregroundReady ? 'On' : 'Needs attention',
-      glyph: '⌖',
+      value: foregroundReady ? 'Active' : 'Needs attention',
     },
     {
       label: 'Battery optimized',
       value: permissions.batteryOptimizationRestricted ? 'Needs attention' : 'Up to date',
-      glyph: '⚡',
     },
     {
       label: 'Motion detection',
-      value: automaticCaptureAvailable ? 'Active' : 'Needs attention',
-      glyph: '◌',
+      value: automaticCaptureAvailable ? 'On' : 'Needs attention',
     },
     {
       label: 'Data sync',
       value: protection.state === 'PROTECTED' || protection.lastCheckLabel ? 'Up to date' : 'Needs attention',
-      glyph: '✓',
     },
   ];
   const [guideStep, setGuideStep] = useState<
@@ -1785,39 +1788,36 @@ export function ProtectionAlertScreen() {
 
   return (
     <ScrollScreen>
-      <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.md }]} accessibilityRole="header">
-        Protection Center
-      </Text>
       <MRHeroCard accessibilityLabel={overviewHeroTitle}>
-        <Text style={flowStyles.heroKicker}>Protection</Text>
         <Text style={flowStyles.heroTitle}>{overviewHeroTitle}</Text>
         <Text style={flowStyles.heroBody}>{overviewHeroBody}</Text>
       </MRHeroCard>
       <View style={flowStyles.cardStack}>
-        {overviewDiagnosticRows.map((row) => (
-          <MRCard key={row.label} style={flowStyles.diagnosticCard}>
-            <View style={flowStyles.diagnosticLeft}>
-              <MRIconCircle glyph={row.glyph} accessibilityLabel={row.label} />
-              <Text style={flowStyles.diagnosticLabel}>{row.label}</Text>
-            </View>
-            <Text
-              style={[
-                flowStyles.statusPill,
-                row.value === 'Needs attention' ? flowStyles.statusPillAttention : flowStyles.statusPillOk,
-              ]}
-            >
-              {row.value}
-            </Text>
-          </MRCard>
-        ))}
+        {overviewDiagnosticRows.map((row) => {
+          const needsAttention = row.value === 'Needs attention';
+          return (
+            <MRCard key={row.label} style={flowStyles.diagnosticCard}>
+              <View style={flowStyles.diagnosticLeft}>
+                <MRIconCircle glyph="✓" accessibilityLabel={row.label} />
+                <Text style={flowStyles.diagnosticLabel}>{row.label}</Text>
+              </View>
+              <Text
+                style={[
+                  flowStyles.statusValue,
+                  needsAttention ? flowStyles.statusValueAttention : flowStyles.statusValueOk,
+                ]}
+              >
+                {row.value}
+              </Text>
+            </MRCard>
+          );
+        })}
       </View>
       <MRPrimaryButton
         label="Run diagnostics"
         onPress={primaryAction.action !== 'none' ? runPrimaryAction : startGuidedRepair}
         accessibilityLabel="Run diagnostics"
       />
-      <MRSecondaryButton label="Tracking details" onPress={() => navigation.navigate('TrackingActive')} />
-      <Text style={flowStyles.centerCaption}>Manual entry is always available.</Text>
     </ScrollScreen>
   );
 }
@@ -2945,18 +2945,18 @@ export function PlanSelectionScreen() {
         </View>
       }
     >
-      {!billingAvailable && isPreviewBillingBuild() ? (
-        <StatusCard variant="info" title="Preview" body={PREVIEW_BILLING_NOTICE} emphasis="subtle" />
-      ) : notice && !(isPreviewBillingBuild() && notice === STORE_UNAVAILABLE_MESSAGE) ? (
+      {notice && !(isPreviewBillingBuild() && notice === STORE_UNAVAILABLE_MESSAGE) ? (
         <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" />
       ) : null}
 
-      <StatusCard
-        variant="info"
-        title={`Current plan: ${currentPlanLabel}`}
-        body={currentPlanBody}
-        emphasis="subtle"
-      />
+      {showCompare ? (
+        <StatusCard
+          variant="info"
+          title={`Current plan: ${currentPlanLabel}`}
+          body={currentPlanBody}
+          emphasis="subtle"
+        />
+      ) : null}
 
       <MRHeroCard accessibilityLabel={`Pro plan ${proPrice}`}>
         <View style={flowStyles.proCardHeader}>
@@ -2965,7 +2965,7 @@ export function PlanSelectionScreen() {
         <Text style={flowStyles.proPlanName}>Pro</Text>
         <View style={flowStyles.priceRow}>
           <Text style={flowStyles.proPrice}>{proPrice}</Text>
-          <Text style={flowStyles.proPeriod}>/{annual ? 'year' : 'month'}</Text>
+          <Text style={flowStyles.proPeriod}> / {annual ? 'year' : 'month'}</Text>
         </View>
         <View style={flowStyles.featureStack}>
           {proMarketingFeatures.map((feature) => (
