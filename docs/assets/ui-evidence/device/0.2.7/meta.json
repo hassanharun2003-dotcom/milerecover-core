@@ -1,34 +1,21 @@
 {
-  "appVersion": "0.2.7",
-  "versionLabel": "0.2.7-startup.1",
-  "versionCode": 35,
+  "versionName": "0.2.7",
+  "versionCode": 42,
+  "buildLabel": "0.2.7-startup.8",
+  "packageId": "com.milerecover.app",
   "runtimeVersion": "0.2.7",
   "channel": "preview-foundation-0.2.7",
-  "buildCommit": "8dc79013ca8e60e27698a1aad6af5ec7bd4dd516",
-  "apkSha256": "e21fc2099fce2486be6ccfcc84c5f11e44c10e32c66595ae90757c6087587119",
-  "package": "com.milerecover.app",
-  "device": {
-    "model": "sdk_gphone64_x86_64 Pixel6 AVD",
-    "androidVersion": "14 API34",
-    "viewport": "1080x2400",
-    "density": "420dpi",
-    "acceleration": "TCG"
-  },
-  "coldLaunch": {
-    "aliveSeconds": 60,
-    "welcomeVisible": true,
+  "commit": "c325793a1bf194c0bc14da17d4bcf7f8dbf85845",
+  "apkSha256": "f120665f89e9ae16c523199903b86c57d2c9c559821a419cac15fe97a66176bd",
+  "apkPath": "MileRecover-preview-0.2.7.apk",
+  "device": "AVD mile_pixel6 API 34 TCG",
+  "proof": {
+    "coldLaunchAlive60s": true,
+    "samePid": true,
+    "welcomeCleanInstall": true,
     "homeAfterOnboarding": true,
-    "forceStopReopenHome": true,
-    "fatalExceptionForPackage": false,
-    "updateFailedToLoadOnStartup": false,
-    "updatesCheckAutomatically": "NEVER",
-    "startStartupToEndStartup": "no remote Check (embedded only)",
-    "verifiedAt": "2026-08-06T11:32:00Z"
-  },
-  "installUrl": "https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.7/MileRecover-preview-0.2.7.apk",
-  "priorBrokenApk": {
-    "version": "0.2.6",
-    "sha256": "f8e9b8e3c1f6b764633f5dbc7bb2e4a376592c8c112674ca4cf685173fe088e7",
-    "rca": "docs/qa/STARTUP_CRASH_0.2.6.md"
+    "homeAfterForceStopReopen": true,
+    "completionStampFile": true,
+    "updateFailedToLoadOnColdStart": false
   }
 }

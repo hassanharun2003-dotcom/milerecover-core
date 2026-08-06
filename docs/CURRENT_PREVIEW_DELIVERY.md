@@ -1,35 +1,49 @@
-# Current preview delivery — 0.2.7 startup.1
+# Current preview delivery — 0.2.7 startup.8
 
 **Branch:** `cursor/startup-crash-0.2.7-29cb`  
-**Build label:** `0.2.7-startup.1`  
-**App version / runtime:** `0.2.7` (isolated from 0.2.6)  
+**Build label:** `0.2.7-startup.8`  
+**App version / runtime:** `0.2.7`  
 **Channel:** `preview-foundation-0.2.7`  
-**versionCode:** `35`  
-**Commit:** `8dc79013ca8e60e27698a1aad6af5ec7bd4dd516`  
-**SHA-256:** `e21fc2099fce2486be6ccfcc84c5f11e44c10e32c66595ae90757c6087587119`  
+**versionCode:** `42`  
+**Package:** `com.milerecover.app`  
+**Commit:** `c325793a1bf194c0bc14da17d4bcf7f8dbf85845`  
+**SHA-256:** `f120665f89e9ae16c523199903b86c57d2c9c559821a419cac15fe97a66176bd`  
 **Build method:** Local EAS preview APK (`APP_VARIANT=preview`)
 
 ## Why 0.2.6 opened and closed
 
 See `docs/qa/STARTUP_CRASH_0.2.6.md`.
 
-Expo Updates `checkAutomatically: 'ON_LOAD'` ran a remote check inside `StartupProcedure` **before** React Native JS started. Failures (`UpdateFailedToLoad` / DNS) delayed first paint 15–32s. Fixed in 0.2.7 with `checkAutomatically: 'NEVER'`.
+Native Expo Updates ran `checkAutomatically: ON_LOAD`, hit `UpdateFailedToLoad` on DNS/network failure before JS started, and delayed/failed cold start on constrained devices.
+
+## What 0.2.7 fixes
+
+1. `updates.checkAutomatically: NEVER` + isolated runtime/channel `0.2.7` / `preview-foundation-0.2.7`
+2. Startup ErrorBoundary + deferred optional services
+3. Durable onboarding: write verified completion **before** Home unlock; documentDirectory stamp backup when AsyncStorage is slow/wedged
+4. Hydrate is read-only (no clobber of in-flight onboarding taps)
 
 ## Direct install
 
 https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.7/MileRecover-preview-0.2.7.apk
 
-Do **not** use 0.2.6. Uninstall older builds first if needed.
+## Cold-launch proof (API 34 emulator, AVD `mile_pixel6`, TCG)
 
-## Cold-launch proof (API 34 emulator)
-
-- Process alive **60s** after cold launch and again after force-stop/reopen
-- Welcome visible on clean install (`docs/assets/ui-evidence/device/0.2.7/raw/01-welcome.png`)
-- Home after onboarding + reopen (`02-home.png`, `03-reopen.png`)
-- Log: `StartStartup` → `EndStartup` with **no** remote `Check` / **no** `UpdateFailedToLoad`
+- Same PID alive **≥60s** after cold launch
+- Clean install → Welcome
+- Onboarding → Home
+- Force-stop → reopen → **Home**
+- Durable `product-ui/v4` completion + `files/onboarding-complete-v1.json` stamp
+- Native Updates: `StartStartup` → `EndStartup` with **no** remote Check on cold start
 - **No** `FATAL EXCEPTION` for `com.milerecover.app`
+- Screenshots: `docs/assets/ui-evidence/device/0.2.7/raw/`
 
 ## Smoke script
 
-`apps/mobile-expo/scripts/android-launch-smoke.sh`  
-`npm run smoke:android-launch` (set `APK=...`)
+`apps/mobile-expo/scripts/android-launch-smoke.sh`
+
+## Honest limitations
+
+- Samsung hardware not available in this VM (API 34 emulator used)
+- Deferred JS update checks after Home may still log `UpdateFailedToLoad` when offline; they must not block or kill startup
+- System UI ANRs are common on TCG emulators and are environmental, not app fatals
