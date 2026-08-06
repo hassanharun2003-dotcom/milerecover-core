@@ -309,6 +309,49 @@ export async function saveProductUiState(state: ProductUiState): Promise<void> {
   await AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(persisted));
 }
 
+/**
+ * Serialize product-ui writes so rapid onboarding taps cannot let an older
+ * in-flight AsyncStorage.setItem finish after a newer one (stale disk state).
+ * Always persists the latest enqueued snapshot (latest-wins).
+ */
+let productWriteChain: Promise<void> = Promise.resolve();
+let productWriteLatest: ProductUiState | null = null;
+let productWriteScheduled = false;
+
+async function drainProductWrites(): Promise<void> {
+  productWriteScheduled = false;
+  const snapshot = productWriteLatest;
+  productWriteLatest = null;
+  if (!snapshot) return;
+  await saveProductUiState(snapshot);
+  if (productWriteLatest) {
+    productWriteScheduled = true;
+    await drainProductWrites();
+  }
+}
+
+/** Enqueue a durable save of the latest product UI state. Safe to call rapidly. */
+export function enqueueProductUiSave(state: ProductUiState): Promise<void> {
+  productWriteLatest = state;
+  if (!productWriteScheduled) {
+    productWriteScheduled = true;
+    productWriteChain = productWriteChain
+      .then(drainProductWrites)
+      .catch(() => {
+        // Keep the chain alive after a failed write so later saves still run.
+        productWriteScheduled = false;
+      });
+  }
+  return productWriteChain;
+}
+
+/** Await all pending product-ui writes (call after onboarding completion). */
+export function flushProductUiSaves(): Promise<void> {
+  return productWriteChain;
+}
+
 export async function clearProductUiState(): Promise<void> {
+  await flushProductUiSaves();
+  productWriteLatest = null;
   await AsyncStorage.multiRemove([...PRODUCT_UI_STORAGE_KEYS]);
 }

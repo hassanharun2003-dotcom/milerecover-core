@@ -95,6 +95,7 @@ export function OnboardingFlow() {
     setTrackingEnabled,
     patchOnboarding,
     completeProductOnboarding,
+    flushProductPersistence,
     setPendingPostOnboardingRoute,
   } = useProduct();
 
@@ -204,16 +205,24 @@ export function OnboardingFlow() {
           : protectionConfigured
             ? 'start_protection'
             : 'add_first_drive';
-    completeProductOnboarding(route);
-    patchOnboarding({
-      nextActionSelected: action,
-      accountStepAcknowledged: true,
-      countryStepAcknowledged: true,
-      protectionEducationAcknowledged: true,
-      permissionsEducationAcknowledged: true,
-    });
-    logEvent(ANALYTICS_EVENTS.onboardingCompleted, { next: action });
-    finishOnboarding();
+    void (async () => {
+      try {
+        await completeProductOnboarding(route);
+        patchOnboarding({
+          nextActionSelected: action,
+          accountStepAcknowledged: true,
+          countryStepAcknowledged: true,
+          protectionEducationAcknowledged: true,
+          permissionsEducationAcknowledged: true,
+        });
+        await flushProductPersistence();
+      } catch {
+        // In-memory completion still unlocks Home; disk flush is best-effort.
+      } finally {
+        logEvent(ANALYTICS_EVENTS.onboardingCompleted, { next: action });
+        finishOnboarding();
+      }
+    })();
   };
 
   const displayRate = useMemo(() => {

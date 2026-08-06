@@ -145,28 +145,66 @@ export function AppProvider({ children, repository }: AppProviderProps) {
     lastSuccessfulLoadAt: null,
   });
 
+  const appWriteLatestRef = useRef<{
+    state: MileRecoverAppState;
+    permissions: PermissionSnapshot;
+  } | null>(null);
+  const appWriteChainRef = useRef<Promise<void>>(Promise.resolve());
+
   const persistCurrent = useCallback(
-    async (nextState: MileRecoverAppState, nextPermissions: PermissionSnapshot) => {
+    (nextState: MileRecoverAppState, nextPermissions: PermissionSnapshot) => {
       if (nextState.startupPhase === 'restoring' || nextState.startupPhase === 'unavailable') {
         return;
       }
-      const document = buildPersistedDocument(nextState, nextPermissions, metadataRef.current);
-      const saved = await repoRef.current.save(document);
-      if (saved.ok) {
-        metadataRef.current = {
-          ...metadataRef.current,
-          lastSuccessfulSaveAt: saved.savedAt,
-        };
-      } else {
-        setState((prev) => ({
-          ...prev,
-          loadError: saved.message,
-          startupPhase:
-            prev.startupPhase === 'ready-empty' || prev.startupPhase === 'ready-with-data'
-              ? 'unavailable'
-              : prev.startupPhase,
-        }));
-      }
+      // Latest-wins queue: rapid commits must not let an older save finish last.
+      appWriteLatestRef.current = { state: nextState, permissions: nextPermissions };
+      appWriteChainRef.current = appWriteChainRef.current
+        .then(async () => {
+          const latest = appWriteLatestRef.current;
+          if (!latest) return;
+          appWriteLatestRef.current = null;
+          const document = buildPersistedDocument(
+            latest.state,
+            latest.permissions,
+            metadataRef.current,
+          );
+          const saved = await repoRef.current.save(document);
+          if (saved.ok) {
+            metadataRef.current = {
+              ...metadataRef.current,
+              lastSuccessfulSaveAt: saved.savedAt,
+            };
+          } else {
+            setState((prev) => ({
+              ...prev,
+              loadError: saved.message,
+              startupPhase:
+                prev.startupPhase === 'ready-empty' || prev.startupPhase === 'ready-with-data'
+                  ? 'unavailable'
+                  : prev.startupPhase,
+            }));
+          }
+          // Another commit arrived while we were saving — drain it too.
+          if (appWriteLatestRef.current) {
+            const again = appWriteLatestRef.current;
+            appWriteLatestRef.current = null;
+            const document2 = buildPersistedDocument(
+              again.state,
+              again.permissions,
+              metadataRef.current,
+            );
+            const saved2 = await repoRef.current.save(document2);
+            if (saved2.ok) {
+              metadataRef.current = {
+                ...metadataRef.current,
+                lastSuccessfulSaveAt: saved2.savedAt,
+              };
+            }
+          }
+        })
+        .catch(() => {
+          // Keep chain alive after failures.
+        });
     },
     [],
   );
@@ -175,7 +213,7 @@ export function AppProvider({ children, repository }: AppProviderProps) {
     (updater: (prev: MileRecoverAppState) => MileRecoverAppState, nextPermissions?: PermissionSnapshot) => {
       setState((prev) => {
         const next = withDerived(updater(prev));
-        void persistCurrent(next, nextPermissions ?? permissions);
+        persistCurrent(next, nextPermissions ?? permissions);
         return next;
       });
       if (nextPermissions) setPermissions(nextPermissions);

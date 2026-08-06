@@ -85,6 +85,7 @@ Contributing factors:
 4. Lazy `OnboardingFlow` / `RootNavigator`; deferred tracking engine import
 5. Background task defined only when tracking starts
 6. Automated `scripts/android-launch-smoke.sh` (60s alive + Welcome)
+7. **0.2.7-startup.2:** serialize product-ui AsyncStorage writes (latest-wins). Rapid onboarding taps previously let an older in-flight `setItem` finish last, so force-stop reopen lost completion and returned to Welcome.
 
 ## Evidence files
 

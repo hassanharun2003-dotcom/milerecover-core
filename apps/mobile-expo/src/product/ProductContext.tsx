@@ -28,7 +28,12 @@ import {
 import type { PlanTier } from '../fixtures/subscription';
 import type { DemoScenario } from '../fixtures/scenarios';
 import { resetAppExperience } from '../services/dataPrivacy';
-import { loadProductUiState, saveProductUiState } from './persistence';
+import {
+  enqueueProductUiSave,
+  flushProductUiSaves,
+  loadProductUiState,
+  saveProductUiState,
+} from './persistence';
 import {
   allowInternalPreviewTools,
   createInitialProductUiState,
@@ -112,7 +117,9 @@ interface ProductContextValue {
   dismissFinishSetup: () => void;
   setPendingPostOnboardingRoute: (route: PostOnboardingRoute) => void;
   consumePendingPostOnboardingRoute: () => PostOnboardingRoute;
-  completeProductOnboarding: (route?: PostOnboardingRoute) => void;
+  completeProductOnboarding: (route?: PostOnboardingRoute) => Promise<void>;
+  /** Await pending product-ui AsyncStorage writes (onboarding completion / tests). */
+  flushProductPersistence: () => Promise<void>;
   setReviewDecision: (itemId: string, decision: ReviewDecision) => void;
   undoReviewDecision: (itemId: string) => void;
   pushReviewHistory: (entry: ReviewHistoryEntry) => void;
@@ -244,7 +251,10 @@ export function ProductProvider({
   const persist = useCallback((updater: (prev: ProductUiState) => ProductUiState) => {
     setProduct((prev) => {
       const next = updater(prev);
-      if (hydratedRef.current) void saveProductUiState(next);
+      if (hydratedRef.current) {
+        // Serialized latest-wins queue — must enqueue before flushProductUiSaves().
+        void enqueueProductUiSave(next);
+      }
       return next;
     });
   }, []);
@@ -544,7 +554,7 @@ export function ProductProvider({
         if (route) persist((prev) => ({ ...prev, pendingPostOnboardingRoute: null }));
         return route;
       },
-      completeProductOnboarding: (route = null) =>
+      completeProductOnboarding: async (route = null) => {
         persist((prev) => {
           const now = Date.now();
           const nextAction = nextActionForRoute(route, prev);
@@ -585,7 +595,10 @@ export function ProductProvider({
             },
             now,
           );
-        }),
+        });
+        await flushProductUiSaves();
+      },
+      flushProductPersistence: () => flushProductUiSaves(),
       setReviewDecision: (itemId, decision) =>
         persist((prev) => ({
           ...prev,
@@ -743,6 +756,7 @@ export function ProductProvider({
         await resetAppExperience();
         const next = createInitialProductUiState();
         setProduct(next);
+        await saveProductUiState(next);
       },
     }),
     [product, hydrated, persist],

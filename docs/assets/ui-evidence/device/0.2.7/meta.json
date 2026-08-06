@@ -22,7 +22,8 @@
     "fatalExceptionForPackage": false,
     "updateFailedToLoadOnStartup": false,
     "updatesCheckAutomatically": "NEVER",
-    "startStartupToEndStartup": "no remote Check (embedded only)"
+    "startStartupToEndStartup": "no remote Check (embedded only)",
+    "verifiedAt": "2026-08-06T11:32:00Z"
   },
   "installUrl": "https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.7/MileRecover-preview-0.2.7.apk",
   "priorBrokenApk": {

@@ -19,7 +19,7 @@ import { useAppUpdates } from '../../updates/UpdateProvider';
 type AboutNav = NativeStackNavigationProp<RootStackParamList, 'About'>;
 
 const RELEASE_NOTES =
-  '0.2.7 startup fix: Expo Updates no longer blocks cold launch; ErrorBoundary + deferred tracking; preserves image-locked UI.';
+  '0.2.7 startup.2: Updates NEVER on load; serialized onboarding persistence so Home survives force-stop; ErrorBoundary + deferred tracking.';
 
 export function AboutScreen() {
   const navigation = useNavigation<AboutNav>();
