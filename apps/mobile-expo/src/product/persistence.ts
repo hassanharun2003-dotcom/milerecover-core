@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   createEmptyOnboardingState,
   createFreeEntitlement,
@@ -334,12 +335,59 @@ function stampFromOnboarding(onboarding: VersionedOnboardingState): OnboardingCo
   };
 }
 
+function completionStampFileUri(): string | null {
+  const base = FileSystem.documentDirectory;
+  if (!base) return null;
+  return `${base}onboarding-complete-v1.json`;
+}
+
+async function writeCompletionStampFile(stamp: OnboardingCompletionStamp): Promise<void> {
+  const uri = completionStampFileUri();
+  if (!uri) return;
+  await FileSystem.writeAsStringAsync(uri, JSON.stringify(stamp), {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+}
+
+async function readCompletionStampFile(): Promise<OnboardingCompletionStamp | null> {
+  try {
+    const uri = completionStampFileUri();
+    if (!uri) return null;
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) return null;
+    const raw = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    const parsed = JSON.parse(raw) as Partial<OnboardingCompletionStamp>;
+    if (parsed.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION) return null;
+    if (typeof parsed.completedAt !== 'number') return null;
+    if (!parsed.primaryGoal || !parsed.nextActionSelected) return null;
+    return {
+      completedAt: parsed.completedAt,
+      completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
+      primaryGoal: parsed.primaryGoal,
+      nextActionSelected: parsed.nextActionSelected,
+      countryStepAcknowledged: true,
+      accountStepAcknowledged: true,
+      protectionEducationAcknowledged: true,
+      permissionsEducationAcknowledged: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function saveOnboardingCompletionStamp(
   onboarding: VersionedOnboardingState,
 ): Promise<boolean> {
   const stamp = stampFromOnboarding(onboarding);
   if (!stamp) return false;
   await AsyncStorage.setItem(ONBOARDING_COMPLETION_KEY, JSON.stringify(stamp));
+  try {
+    await writeCompletionStampFile(stamp);
+  } catch {
+    // File backup is best-effort; AsyncStorage remains canonical.
+  }
   return true;
 }
 
@@ -367,6 +415,7 @@ export async function persistVerifiedOnboardingCompletion(state: ProductUiState)
         [ONBOARDING_COMPLETION_KEY, stampJson],
         [PRODUCT_UI_STORAGE_KEY, blob],
       ]);
+      await writeCompletionStampFile(stamp);
       const [stampRaw, productRaw] = await AsyncStorage.multiGet([
         ONBOARDING_COMPLETION_KEY,
         PRODUCT_UI_STORAGE_KEY,
@@ -392,24 +441,30 @@ export async function persistVerifiedOnboardingCompletion(state: ProductUiState)
 export async function loadOnboardingCompletionStamp(): Promise<OnboardingCompletionStamp | null> {
   try {
     const raw = await AsyncStorage.getItem(ONBOARDING_COMPLETION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<OnboardingCompletionStamp>;
-    if (parsed.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION) return null;
-    if (typeof parsed.completedAt !== 'number') return null;
-    if (!parsed.primaryGoal || !parsed.nextActionSelected) return null;
-    return {
-      completedAt: parsed.completedAt,
-      completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
-      primaryGoal: parsed.primaryGoal,
-      nextActionSelected: parsed.nextActionSelected,
-      countryStepAcknowledged: true,
-      accountStepAcknowledged: true,
-      protectionEducationAcknowledged: true,
-      permissionsEducationAcknowledged: true,
-    };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<OnboardingCompletionStamp>;
+      if (
+        parsed.completedOnboardingVersion === CURRENT_ONBOARDING_VERSION &&
+        typeof parsed.completedAt === 'number' &&
+        parsed.primaryGoal &&
+        parsed.nextActionSelected
+      ) {
+        return {
+          completedAt: parsed.completedAt,
+          completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
+          primaryGoal: parsed.primaryGoal,
+          nextActionSelected: parsed.nextActionSelected,
+          countryStepAcknowledged: true,
+          accountStepAcknowledged: true,
+          protectionEducationAcknowledged: true,
+          permissionsEducationAcknowledged: true,
+        };
+      }
+    }
   } catch {
-    return null;
+    // fall through to file backup
   }
+  return readCompletionStampFile();
 }
 
 export type ProductUiLoadResult = {
@@ -523,4 +578,10 @@ export async function clearProductUiState(): Promise<void> {
   await flushProductUiSaves();
   productWriteLatest = null;
   await AsyncStorage.multiRemove([...PRODUCT_UI_STORAGE_KEYS, ONBOARDING_COMPLETION_KEY]);
+  try {
+    const uri = completionStampFileUri();
+    if (uri) await FileSystem.deleteAsync(uri, { idempotent: true });
+  } catch {
+    // ignore
+  }
 }

@@ -575,53 +575,55 @@ export function ProductProvider({
         return route;
       },
       completeProductOnboarding: async (route = null) => {
+        // Build the completed snapshot WITHOUT setState first. Updating React
+        // before the durable write lets Home mount while disk is still empty;
+        // force-stop then returns Welcome.
         const now = Date.now();
-        persist((prev) => {
-          const nextAction = nextActionForRoute(route, prev);
-          const protection =
-            prev.protectionSetupState === 'not_started' ? 'educated' : prev.protectionSetupState;
-          const pattern =
-            prev.onboarding.drivingPattern ?? inferDrivingPatternFromGoal(prev.onboarding.primaryGoal);
-          return patchOnboardingState(
-            {
-              ...prev,
-              protectionSetupState: protection,
-              pendingPostOnboardingRoute: route,
-              onboardingSkippedOptional: true,
-            },
-            {
-              currentStep: 'ready',
-              completedSteps: uniqueSteps([
-                ...prev.onboarding.completedSteps,
-                prev.onboarding.currentStep,
-                'ready',
-              ]),
-              drivingPattern: pattern,
-              accountStepAcknowledged: true,
-              countryStepAcknowledged: true,
-              protectionEducationAcknowledged: true,
-              permissionsEducationAcknowledged: true,
-              vehicleSetupState:
-                prev.onboarding.vehicleSetupState === 'not_started'
-                  ? 'skipped'
-                  : prev.onboarding.vehicleSetupState,
-              familiarPlacesSetupState:
-                prev.onboarding.familiarPlacesSetupState === 'not_started'
-                  ? 'skipped'
-                  : prev.onboarding.familiarPlacesSetupState,
-              nextActionSelected: nextAction,
-              completedAt: now,
-              completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
-            },
-            now,
-          );
-        });
-        const snapshot = productRef.current;
+        const prev = productRef.current;
+        const nextAction = nextActionForRoute(route, prev);
+        const protection =
+          prev.protectionSetupState === 'not_started' ? 'educated' : prev.protectionSetupState;
+        const pattern =
+          prev.onboarding.drivingPattern ?? inferDrivingPatternFromGoal(prev.onboarding.primaryGoal);
+        const snapshot = patchOnboardingState(
+          {
+            ...prev,
+            protectionSetupState: protection,
+            pendingPostOnboardingRoute: route,
+            onboardingSkippedOptional: true,
+          },
+          {
+            currentStep: 'ready',
+            completedSteps: uniqueSteps([
+              ...prev.onboarding.completedSteps,
+              prev.onboarding.currentStep,
+              'ready',
+            ]),
+            drivingPattern: pattern,
+            accountStepAcknowledged: true,
+            countryStepAcknowledged: true,
+            protectionEducationAcknowledged: true,
+            permissionsEducationAcknowledged: true,
+            vehicleSetupState:
+              prev.onboarding.vehicleSetupState === 'not_started'
+                ? 'skipped'
+                : prev.onboarding.vehicleSetupState,
+            familiarPlacesSetupState:
+              prev.onboarding.familiarPlacesSetupState === 'not_started'
+                ? 'skipped'
+                : prev.onboarding.familiarPlacesSetupState,
+            nextActionSelected: nextAction,
+            completedAt: now,
+            completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
+          },
+          now,
+        );
         if (!isOnboardingMinimumComplete(snapshot.onboarding)) {
           throw new Error('ONBOARDING_INCOMPLETE_FOR_PERSIST');
         }
-        // Launch-critical: verified stamp + blob before Home unlock.
         await persistVerifiedOnboardingCompletion(snapshot);
+        productRef.current = snapshot;
+        setProduct(snapshot);
       },
       flushProductPersistence: async () => {
         const snapshot = productRef.current;
