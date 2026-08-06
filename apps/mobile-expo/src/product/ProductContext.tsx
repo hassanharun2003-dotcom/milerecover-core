@@ -228,6 +228,8 @@ export function ProductProvider({
   );
   const [hydrated, setHydrated] = useState(skipHydration);
   const hydratedRef = useRef(skipHydration);
+  /** Mirror of product for sync persist without relying on setState updater side effects. */
+  const productRef = useRef<ProductUiState>(initialState ?? createInitialProductUiState());
 
   useEffect(() => {
     if (skipHydration) {
@@ -239,6 +241,7 @@ export function ProductProvider({
     void (async () => {
       const loaded = await loadProductUiState();
       if (cancelled) return;
+      productRef.current = loaded;
       setProduct(loaded);
       hydratedRef.current = true;
       setHydrated(true);
@@ -248,15 +251,21 @@ export function ProductProvider({
     };
   }, [skipHydration]);
 
+  // Belt-and-suspenders: after hydration, every committed product snapshot is durable.
+  // Latest-wins queue collapses rapid onboarding taps into one final write.
+  useEffect(() => {
+    if (!hydrated) return;
+    productRef.current = product;
+    void enqueueProductUiSave(product);
+  }, [product, hydrated]);
+
   const persist = useCallback((updater: (prev: ProductUiState) => ProductUiState) => {
-    setProduct((prev) => {
-      const next = updater(prev);
-      if (hydratedRef.current) {
-        // Serialized latest-wins queue — must enqueue before flushProductUiSaves().
-        void enqueueProductUiSave(next);
-      }
-      return next;
-    });
+    const next = updater(productRef.current);
+    productRef.current = next;
+    setProduct(next);
+    if (hydratedRef.current) {
+      void enqueueProductUiSave(next);
+    }
   }, []);
 
   const value = useMemo<ProductContextValue>(
