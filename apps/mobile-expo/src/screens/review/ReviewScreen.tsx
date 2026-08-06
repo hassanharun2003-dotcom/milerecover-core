@@ -194,6 +194,17 @@ export function ReviewScreen() {
     }
   }, [markFirstMissingTripSeen, pending, product.firstMissingTripSeenAt]);
 
+  const previousPendingCount = useRef(pending.length);
+  useEffect(() => {
+    const prev = previousPendingCount.current;
+    previousPendingCount.current = pending.length;
+    if (prev >= 3 && pending.length === 0) {
+      void import('../../services/reviewPrompt').then(({ maybeAskForReview }) =>
+        maybeAskForReview('review_backlog_cleared'),
+      );
+    }
+  }, [pending.length]);
+
   useEffect(() => {
     return () => {
       if (undoTimer.current) clearTimeout(undoTimer.current);

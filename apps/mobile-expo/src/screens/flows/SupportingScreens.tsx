@@ -42,6 +42,7 @@ import {
 import {
   Chip,
   ChipRow,
+  ConfirmDialog,
   DestructiveButton,
   EvidenceRow,
   FixedHeaderScrollScreen,
@@ -69,6 +70,7 @@ import {
   TertiaryButton,
   text,
 } from '../../design-system';
+import { CarRouteHero } from '../../components/CarRouteHero';
 import { isModelCompatibleWithMake, searchMakes, searchModels } from '../../data/vehicles';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
@@ -317,8 +319,8 @@ const flowStyles = StyleSheet.create({
     backgroundColor: colors.status.warningBg,
   },
   formStack: {
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    gap: spacing.smMd,
+    marginBottom: spacing.smMd,
   },
   fieldGroupLabel: {
     color: colors.text.primary,
@@ -565,6 +567,8 @@ export function ManualTripScreen() {
   const [error, setError] = useState<string | null>(null);
   const [distanceError, setDistanceError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
+  const pendingLeaveActionRef = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
   const allowLeaveRef = useRef(false);
 
   const purposeChips = (() => {
@@ -718,23 +722,40 @@ export function ManualTripScreen() {
 
   const isDirty = useMemo(() => {
     if (existing) {
+      const existingDistance = milesToDisplay(existing.distanceMiles, unit).toFixed(1);
       return (
-        distance.trim() !== String(existing.distanceMiles) ||
+        distance.trim() !== existingDistance ||
         purpose.trim() !== (existing.purpose ?? '') ||
         startLabel.trim() !== (existing.startLabel ?? '') ||
         endLabel.trim() !== (existing.endLabel ?? '') ||
-        notes.trim() !== (existing.notes ?? '')
+        notes.trim() !== (existing.notes ?? '') ||
+        parkingAmount.trim() !==
+          (existing.parkingCents != null ? (existing.parkingCents / 100).toFixed(2) : '') ||
+        tollsAmount.trim() !==
+          (existing.tollsCents != null ? (existing.tollsCents / 100).toFixed(2) : '')
       );
     }
+    // Classification / segment taps alone are not meaningful unsaved data.
     return Boolean(
       distance.trim() ||
         purpose.trim() ||
         startLabel.trim() ||
         endLabel.trim() ||
         notes.trim() ||
-        classification != null,
+        parkingAmount.trim() ||
+        tollsAmount.trim(),
     );
-  }, [classification, distance, endLabel, existing, notes, purpose, startLabel]);
+  }, [
+    distance,
+    endLabel,
+    existing,
+    notes,
+    parkingAmount,
+    purpose,
+    startLabel,
+    tollsAmount,
+    unit,
+  ]);
 
   useEffect(() => {
     setUpdatePromptBlocked(true);
@@ -745,17 +766,8 @@ export function ManualTripScreen() {
     const unsubscribe = navigation.addListener('beforeRemove', (event) => {
       if (allowLeaveRef.current || !isDirty || saving) return;
       event.preventDefault();
-      Alert.alert('Discard this drive?', 'You have unsaved details. Leave without saving?', [
-        { text: 'Keep editing', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            allowLeaveRef.current = true;
-            navigation.dispatch(event.data.action);
-          },
-        },
-      ]);
+      pendingLeaveActionRef.current = event.data.action;
+      setDiscardVisible(true);
     });
     return unsubscribe;
   }, [isDirty, navigation, saving]);
@@ -1023,11 +1035,10 @@ export function ManualTripScreen() {
         <MRStatusPanel message="Saved. Your drive is on this device." />
       ) : null}
 
-      <SelectionCard
-        title="More details"
-        body="Optional time, vehicle, purpose, notes, expenses, and receipt."
-        selected={showDetails}
+      <MRTertiaryButton
+        label={showDetails ? 'Hide more details' : 'More details'}
         onPress={() => setShowDetails((value) => !value)}
+        accessibilityLabel={showDetails ? 'Hide more details' : 'Show more details'}
       />
       {showDetails ? (
         <>
@@ -1177,6 +1188,25 @@ export function ManualTripScreen() {
           </Text>
         </>
       ) : null}
+      <ConfirmDialog
+        visible={discardVisible}
+        title="Discard this drive?"
+        body="You have unsaved details. Leave without saving?"
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          const action = pendingLeaveActionRef.current;
+          setDiscardVisible(false);
+          pendingLeaveActionRef.current = null;
+          if (!action) return;
+          allowLeaveRef.current = true;
+          navigation.dispatch(action);
+        }}
+        onCancel={() => {
+          setDiscardVisible(false);
+          pendingLeaveActionRef.current = null;
+        }}
+      />
     </ScrollScreen>
   );
 }
@@ -1368,74 +1398,23 @@ export function MissingDrivesIntroScreen() {
   return (
     <ScrollScreen>
       <View style={flowStyles.missingIllustration} accessibilityRole="image" accessibilityLabel="Car finding missed drives">
-        <View style={flowStyles.missingMapLine} />
-        <View
-          style={{
-            position: 'absolute',
-            left: 48,
-            bottom: 48,
-            width: 10,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: colors.forest[500],
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            right: 56,
-            bottom: 64,
-            width: 10,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: colors.forest[700],
-          }}
-        />
-        <View style={flowStyles.missingCar}>
-          <View style={flowStyles.missingCarWindow} />
-          <View
-            style={{
-              position: 'absolute',
-              left: 14,
-              bottom: -6,
-              width: 16,
-              height: 16,
-              borderRadius: 8,
-              backgroundColor: colors.forest[900],
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              right: 14,
-              bottom: -6,
-              width: 16,
-              height: 16,
-              borderRadius: 8,
-              backgroundColor: colors.forest[900],
-            }}
-          />
-        </View>
-        <View style={flowStyles.missingPin}>
-          <Text style={flowStyles.missingPinGlyph}>✓</Text>
-        </View>
+        <CarRouteHero compact />
       </View>
       <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
         Find the miles you missed
       </Text>
       <Text style={[flowStyles.lockedBody, { marginBottom: spacing.md }]}>
-        We'll scan for likely work drives that weren't saved yet. Suggestions need your confirmation
-        — nothing is added automatically.
+        We'll scan for likely work drives that weren't saved yet.
       </Text>
       <View style={flowStyles.trustStack}>
         {[
-          'Uses your existing location/evidence',
-          'Suggests likely work drives',
+          'Uses available evidence',
+          'Suggests likely missing drives',
           'Nothing is added without you',
         ].map((item) => (
           <View key={item} style={flowStyles.trustRow}>
             <MRIconCircle glyph="✓" accessibilityLabel="Included" />
-            <Text style={flowStyles.trustText}>{item}</Text>
+            <Text style={[flowStyles.trustText, { color: colors.forest[700], fontWeight: '700' }]}>{item}</Text>
           </View>
         ))}
       </View>
@@ -1604,28 +1583,6 @@ export function ProtectionAlertScreen() {
     protection.state === 'PROTECTED'
       ? 'MileRecover is actively tracking your work drives.'
       : protection.message;
-  const overviewDiagnosticRows = [
-    {
-      label: 'Background tracking',
-      value: product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady ? 'On' : 'Needs attention',
-    },
-    {
-      label: 'Location access',
-      value: foregroundReady ? 'Active' : 'Needs attention',
-    },
-    {
-      label: 'Battery optimized',
-      value: permissions.batteryOptimizationRestricted ? 'Needs attention' : 'Up to date',
-    },
-    {
-      label: 'Motion detection',
-      value: automaticCaptureAvailable ? 'On' : 'Needs attention',
-    },
-    {
-      label: 'Data sync',
-      value: protection.state === 'PROTECTED' || protection.lastCheckLabel ? 'Up to date' : 'Needs attention',
-    },
-  ];
   const [guideStep, setGuideStep] = useState<
     'overview' | 'explain_fg' | 'ask_fg' | 'explain_bg' | 'ask_bg' | 'verify' | 'success'
   >('overview');
@@ -1657,6 +1614,44 @@ export function ProtectionAlertScreen() {
       setGuideStep('verify');
     } else setGuideStep('verify');
   };
+
+  const overviewDiagnosticRows: Array<{
+    label: string;
+    value: string;
+    fix?: () => void;
+  }> = [
+    {
+      label: 'Background tracking',
+      value: product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady ? 'On' : 'Needs attention',
+      fix:
+        product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady
+          ? undefined
+          : () => startGuidedRepair(),
+    },
+    {
+      label: 'Location access',
+      value: foregroundReady ? 'Active' : 'Needs attention',
+      fix: foregroundReady ? undefined : () => setGuideStep('explain_fg'),
+    },
+    {
+      label: 'Battery optimized',
+      value: permissions.batteryOptimizationRestricted ? 'Needs attention' : 'Up to date',
+      fix: permissions.batteryOptimizationRestricted ? () => void openSystemSettings() : undefined,
+    },
+    {
+      label: 'Motion detection',
+      value: automaticCaptureAvailable ? 'On' : 'Needs attention',
+      fix: automaticCaptureAvailable ? undefined : () => startGuidedRepair(),
+    },
+    {
+      label: 'Data sync',
+      value: protection.state === 'PROTECTED' || protection.lastCheckLabel ? 'Up to date' : 'Needs attention',
+      fix:
+        protection.state === 'PROTECTED' || protection.lastCheckLabel
+          ? undefined
+          : () => void refreshPermissions(),
+    },
+  ];
 
   const runPrimaryAction = () => {
     if (primaryAction.action === 'none') return;
@@ -1847,7 +1842,7 @@ export function ProtectionAlertScreen() {
         {overviewDiagnosticRows.map((row) => {
           const needsAttention = row.value === 'Needs attention';
           return (
-            <MRCard key={row.label} style={flowStyles.diagnosticCard}>
+            <MRCard key={row.label} style={[flowStyles.diagnosticCard, { minHeight: 52, paddingVertical: spacing.sm }]}>
               <View style={flowStyles.diagnosticLeft}>
                 <MRIconCircle
                   glyph={needsAttention ? '!' : '✓'}
@@ -1856,14 +1851,18 @@ export function ProtectionAlertScreen() {
                 />
                 <Text style={flowStyles.diagnosticLabel}>{row.label}</Text>
               </View>
-              <Text
-                style={[
-                  flowStyles.statusValue,
-                  needsAttention ? flowStyles.statusValueAttention : flowStyles.statusValueOk,
-                ]}
-              >
-                {row.value}
-              </Text>
+              {needsAttention && row.fix ? (
+                <MRTertiaryButton label="Fix" onPress={row.fix} accessibilityLabel={`Fix ${row.label}`} />
+              ) : (
+                <Text
+                  style={[
+                    flowStyles.statusValue,
+                    needsAttention ? flowStyles.statusValueAttention : flowStyles.statusValueOk,
+                  ]}
+                >
+                  {row.value}
+                </Text>
+              )}
             </MRCard>
           );
         })}
@@ -2176,14 +2175,17 @@ export function VehicleSetupScreen() {
     setValidationMessage(null);
   };
 
+  const popularMakes = COMMON_MAKES;
+  const showMakeResults = makeQuery.trim().length > 0;
+
   return (
     <ScrollScreen>
-      <StatusCard
-        variant="info"
-        title="Which vehicle carries your work miles?"
-        body="Search make and model, or type your own. One primary vehicle is the default for new drives."
-        emphasis="subtle"
-      />
+      <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
+        Vehicles
+      </Text>
+      <Text style={[flowStyles.lockedBody, { marginBottom: spacing.md }]}>
+        Search make and model. One primary vehicle is the default for new drives.
+      </Text>
       {limitMessage ? <StatusCard variant="warning" title="Vehicle limit" body={limitMessage} emphasis="subtle" /> : null}
       {validationMessage ? (
         <StatusCard variant="warning" title="Check vehicle details" body={validationMessage} emphasis="subtle" />
@@ -2198,24 +2200,118 @@ export function VehicleSetupScreen() {
             accessibilityLabel="Search saved vehicles"
           />
           {filteredVehicles.map((vehicle) => (
-            <SelectionCard
+            <MRCard
               key={vehicle.id}
-              title={vehicleDisplayTitle(vehicle)}
-              body={[
-                vehicle.isPrimary ? 'Primary' : null,
-                vehicleDisplaySubtitle(vehicle),
-              ]
-                .filter(Boolean)
-                .join(' · ') || 'Tap to edit'}
               selected={editingId === vehicle.id}
               onPress={() => loadVehicle(vehicle.id)}
-            />
+              style={{
+                minHeight: 48,
+                marginBottom: spacing.xs,
+                paddingVertical: spacing.sm,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+              accessibilityLabel={vehicleDisplayTitle(vehicle)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: '600', color: colors.text.primary }}>{vehicleDisplayTitle(vehicle)}</Text>
+                <Text style={{ color: colors.text.secondary, fontSize: typography.size.caption, marginTop: 2 }}>
+                  {[vehicle.isPrimary ? 'Primary' : null, vehicleDisplaySubtitle(vehicle)].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              <Text style={{ color: colors.text.secondary, fontSize: 20 }}>›</Text>
+            </MRCard>
           ))}
           <TertiaryButton label="Add another vehicle" onPress={() => loadVehicle(null)} />
         </ListSection>
       ) : null}
       <FormField
-        label="Year"
+        label="Search make"
+        value={makeQuery}
+        onChangeText={(value) => {
+          setMakeQuery(value);
+          if (value.trim()) applyMakeChange(value);
+        }}
+        placeholder="Honda, Toyota…"
+        accessibilityLabel="Search vehicle make"
+      />
+      {!showMakeResults ? (
+        <View style={{ marginBottom: spacing.md }}>
+          <Text style={[text.caption, { marginBottom: spacing.xs, fontWeight: '600' }]}>Popular makes</Text>
+          <ChipRow>
+            {popularMakes.map((choice) => (
+              <Chip
+                key={choice}
+                label={choice}
+                selected={make === choice}
+                onPress={() => applyMakeChange(choice)}
+              />
+            ))}
+          </ChipRow>
+        </View>
+      ) : (
+        <View style={{ marginBottom: spacing.md, gap: spacing.xs }}>
+          {makeMatches.map((choice) => (
+            <MRCard
+              key={choice}
+              selected={make === choice}
+              onPress={() => applyMakeChange(choice)}
+              style={{ minHeight: 44, marginBottom: 0, paddingVertical: spacing.sm }}
+              accessibilityLabel={choice}
+            >
+              <Text style={{ fontWeight: '600', color: colors.text.primary }}>{choice}</Text>
+            </MRCard>
+          ))}
+          <MRCard
+            selected={make === 'Other'}
+            onPress={() => applyMakeChange('Other')}
+            style={{ minHeight: 44, marginBottom: 0, paddingVertical: spacing.sm }}
+            accessibilityLabel="Other make"
+          >
+            <Text style={{ fontWeight: '600', color: colors.text.primary }}>Other</Text>
+          </MRCard>
+        </View>
+      )}
+      {make ? (
+        <>
+          <FormField
+            label="Search model"
+            value={modelQuery}
+            onChangeText={(value) => {
+              setModelQuery(value);
+              setModel(value);
+              if (!nicknameUserSet) setNickname(suggestedNickname({ year, make, model: value }));
+            }}
+            placeholder="Civic, Camry, or Other"
+            accessibilityLabel="Search vehicle model"
+          />
+          <ChipRow>
+            {modelMatches.map((choice) => (
+              <Chip
+                key={choice}
+                label={choice}
+                selected={model === choice}
+                onPress={() => {
+                  setModel(choice);
+                  setModelQuery(choice);
+                  if (!nicknameUserSet) setNickname(suggestedNickname({ year, make, model: choice }));
+                }}
+              />
+            ))}
+            <Chip
+              label="Other"
+              selected={model === 'Other'}
+              onPress={() => {
+                setModel('Other');
+                setModelQuery('Other');
+              }}
+            />
+          </ChipRow>
+        </>
+      ) : null}
+      <FormField
+        label="Year (optional)"
         value={year}
         onChangeText={(value) => {
           setYear(value);
@@ -2225,52 +2321,6 @@ export function VehicleSetupScreen() {
         keyboardType="numeric"
         accessibilityLabel="Vehicle year"
       />
-      <FormField
-        label="Search make"
-        value={makeQuery}
-        onChangeText={(value) => {
-          setMakeQuery(value);
-          applyMakeChange(value);
-        }}
-        placeholder="Honda, Toyota…"
-        accessibilityLabel="Search vehicle make"
-      />
-      {makeMatches.map((choice) => (
-        <SelectionCard
-          key={choice}
-          title={choice}
-          selected={make === choice}
-          onPress={() => applyMakeChange(choice)}
-        />
-      ))}
-      <SelectionCard
-        title="Other"
-        selected={make === 'Other'}
-        onPress={() => applyMakeChange('Other')}
-      />
-      <FormField
-        label="Search model"
-        value={modelQuery}
-        onChangeText={(value) => {
-          setModelQuery(value);
-          setModel(value);
-          if (!nicknameUserSet) setNickname(suggestedNickname({ year, make, model: value }));
-        }}
-        placeholder="Civic, Camry, or Other"
-        accessibilityLabel="Search vehicle model"
-      />
-      {modelMatches.map((choice) => (
-        <SelectionCard
-          key={choice}
-          title={choice}
-          selected={model === choice}
-          onPress={() => {
-            setModel(choice);
-            setModelQuery(choice);
-            if (!nicknameUserSet) setNickname(suggestedNickname({ year, make, model: choice }));
-          }}
-        />
-      ))}
       <FormField
         label="Nickname (optional)"
         value={nickname}

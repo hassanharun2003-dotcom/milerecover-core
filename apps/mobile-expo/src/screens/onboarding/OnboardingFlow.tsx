@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
+import type { ComponentProps } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { layout, spacing, typography } from '@milerecover/config';
 import {
   formatActiveRateLabel,
@@ -47,27 +49,27 @@ import {
 
 const WELCOME_BENEFITS = [
   {
-    glyph: '↻',
+    icon: 'refresh-outline' as const,
     label: 'Recover forgotten miles',
     body: 'Find work miles you may have missed.',
   },
   {
-    glyph: '☰',
+    icon: 'document-text-outline' as const,
     label: 'Tax & employer ready',
     body: 'Create clean professional mileage records.',
   },
   {
-    glyph: '◉',
-    label: 'Automatic protection',
-    body: 'MileRecover quietly watches for eligible drives.',
+    icon: 'shield-checkmark-outline' as const,
+    label: 'Automatic tracking',
+    body: 'Works quietly while you drive.',
   },
 ] as const;
 
-const PURPOSE_ICONS: Record<string, string> = {
-  employee_reimbursement: 'E',
-  self_employed_business: 'B',
-  gig_delivery: 'D',
-  mixed: 'P',
+const PURPOSE_ICONS: Record<string, ComponentProps<typeof Ionicons>['name']> = {
+  employee_reimbursement: 'briefcase-outline',
+  self_employed_business: 'storefront-outline',
+  gig_delivery: 'bicycle-outline',
+  mixed: 'person-outline',
 };
 
 const PROTECTION_BENEFITS = [
@@ -497,18 +499,18 @@ export function OnboardingFlow() {
           >
             Protect your miles. Protect your money.
           </Text>
-          <View style={{ width: '100%', gap: layout.section, paddingHorizontal: spacing.sm }}>
+          <View style={{ width: '100%', gap: spacing.md, paddingHorizontal: spacing.sm }}>
             {WELCOME_BENEFITS.map((benefit) => (
               <View
                 key={benefit.label}
                 style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.smMd }}
               >
-                <MRIconCircle glyph={benefit.glyph} accessibilityLabel={benefit.label} />
-                <View style={{ flex: 1 }}>
+                <MRIconCircle icon={benefit.icon} accessibilityLabel={benefit.label} />
+                <View style={{ flex: 1, paddingTop: 2 }}>
                   <Text
                     style={{
-                      fontSize: typography.size.bodyLarge,
-                      lineHeight: typography.lineHeight.bodyLarge,
+                      fontSize: typography.size.body,
+                      lineHeight: typography.lineHeight.body,
                       fontWeight: '600',
                       color: palette.text.primary,
                     }}
@@ -560,55 +562,60 @@ export function OnboardingFlow() {
           <Text style={[text.body, { marginBottom: spacing.md }]}>
             We'll tailor rates, reports, and tips.
           </Text>
-          {PRIMARY_GOAL_OPTIONS.map((option) => {
-            const selected = product.primaryGoal === option.id;
-            return (
-              <MRCard
-                key={option.id}
-                selected={selected}
-                onPress={() => {
-                  setPrimaryGoal(option.id);
-                  logEvent(ANALYTICS_EVENTS.goalSelected, { goal: option.id });
-                }}
-                accessibilityLabel={option.label}
-                style={{
-                  minHeight: 64,
-                  paddingVertical: spacing.smMd,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.sm,
-                }}
-              >
-                <MRIconCircle
-                  glyph={PURPOSE_ICONS[option.id] ?? '•'}
+          <View style={{ gap: spacing.sm }}>
+            {PRIMARY_GOAL_OPTIONS.map((option) => {
+              const selected = product.primaryGoal === option.id;
+              return (
+                <MRCard
+                  key={option.id}
+                  selected={selected}
+                  onPress={() => {
+                    setPrimaryGoal(option.id);
+                    logEvent(ANALYTICS_EVENTS.goalSelected, { goal: option.id });
+                  }}
                   accessibilityLabel={option.label}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: typography.size.bodyLarge,
-                      fontWeight: '600',
-                      color: palette.text.primary,
-                    }}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text
-                    style={{
-                      marginTop: 2,
-                      fontSize: typography.size.caption,
-                      color: palette.text.secondary,
-                    }}
-                  >
-                    {option.body}
-                  </Text>
-                </View>
-                {selected ? (
-                  <Text style={{ color: palette.action.primary, fontWeight: '700', fontSize: 18 }}>✓</Text>
-                ) : null}
-              </MRCard>
-            );
-          })}
+                  style={{
+                    minHeight: 56,
+                    marginBottom: 0,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.sm,
+                  }}
+                >
+                  <MRIconCircle
+                    icon={PURPOSE_ICONS[option.id] ?? 'ellipse-outline'}
+                    accessibilityLabel={option.label}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: typography.size.body,
+                        fontWeight: '600',
+                        color: palette.text.primary,
+                      }}
+                    >
+                      {option.label}
+                    </Text>
+                    <Text
+                      style={{
+                        marginTop: 2,
+                        fontSize: typography.size.caption,
+                        color: palette.text.secondary,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {option.body}
+                    </Text>
+                  </View>
+                  {selected ? (
+                    <Text style={{ color: palette.action.primary, fontWeight: '700', fontSize: 18 }}>✓</Text>
+                  ) : null}
+                </MRCard>
+              );
+            })}
+          </View>
         </View>
       ) : null}
 

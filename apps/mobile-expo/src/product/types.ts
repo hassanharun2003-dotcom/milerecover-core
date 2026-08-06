@@ -290,7 +290,7 @@ export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: strin
   },
   {
     id: 'mixed',
-    label: 'Personal / mixed use',
+    label: 'Personal',
     body: 'Track personal or mixed driving.',
   },
 ];

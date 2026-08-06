@@ -140,6 +140,8 @@ describe('CSV import', () => {
     const analyzed = analyzeCsvImport(text);
     expect(analyzed.validRows).toHaveLength(2);
     expect(analyzed.issues.length).toBeGreaterThan(0);
+    expect(analyzed.detectedFormat).toBe('generic');
+    expect(analyzed.readyCount).toBe(2);
     const { trips, duplicatesSkipped } = importRowsToTrips(analyzed.validRows, []);
     expect(trips).toHaveLength(2);
     expect(trips[0].source).toBe('imported');
@@ -147,6 +149,24 @@ describe('CSV import', () => {
     const again = importRowsToTrips(analyzed.validRows, trips);
     expect(again.duplicatesSkipped).toBe(2);
     expect(again.trips).toHaveLength(0);
+  });
+
+  it('detects MileIQ-style exports and preserves classification', () => {
+    const text = [
+      'Date,Start Location,End Location,Classification,Miles,Purpose,Rate Per Mile',
+      '2026-08-01,Home,Office,Business,12.4,Client visit,0.70',
+      '08/02/2026,A,B,Personal,5.0,Commute,0.70',
+    ].join('\n');
+    const analyzed = analyzeCsvImport(text, 'mileiq-export.csv');
+    expect(analyzed.detectedFormat).toBe('mileiq');
+    expect(analyzed.formatLabel).toBe('MileIQ');
+    expect(analyzed.validRows).toHaveLength(2);
+    expect(analyzed.validRows[0].classification).toBe('business');
+    expect(analyzed.validRows[0].rateCentsPerMile).toBe(70);
+    expect(analyzed.validRows[1].classification).toBe('personal');
+    const { trips } = importRowsToTrips(analyzed.validRows, []);
+    expect(trips[0].classification).toBe('business');
+    expect(trips[1].classification).toBe('personal');
   });
 });
 

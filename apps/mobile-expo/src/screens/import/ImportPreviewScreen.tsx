@@ -32,8 +32,8 @@ export function ImportPreviewScreen() {
   const { product, setImportPhase, addImportBatch } = useProduct();
   const [error, setError] = useState<string | null>(null);
   const analysis = useMemo(
-    () => analyzeCsvImport(product.importCsvText ?? ''),
-    [product.importCsvText],
+    () => analyzeCsvImport(product.importCsvText ?? '', product.importFileLabel),
+    [product.importCsvText, product.importFileLabel],
   );
   const importPlan = useMemo(
     () => importRowsToTrips(analysis.validRows, state.trips),
@@ -108,24 +108,25 @@ export function ImportPreviewScreen() {
     >
       <StatusCard
         variant={importableCount > 0 ? 'success' : 'warning'}
-        title="CSV preview"
-        body="These counts come from your selected file. Rows with issues or duplicates are not silently imported."
+        title={`${analysis.totalRows} drives found`}
+        body={`${analysis.formatLabel} detected. ${analysis.readyCount} ready · ${duplicateCount + analysis.duplicateHints} possible duplicates · ${analysis.attentionCount} need attention. Nothing is imported until you confirm.`}
         emphasis="hero"
       />
       <SummaryCard
         items={[
-          { label: 'Valid rows', value: String(analysis.validRows.length) },
-          { label: 'Importable', value: String(importableCount) },
-          { label: 'Issues', value: String(issueCount + duplicateCount) },
+          { label: 'Ready', value: String(importableCount) },
+          { label: 'Duplicates', value: String(duplicateCount + analysis.duplicateHints) },
+          { label: 'Need attention', value: String(analysis.attentionCount) },
         ]}
       />
       {error ? <FormError message={error} /> : null}
       <ListSection title="Column mapping">
         <EvidenceRow label="Selected file" value={product.importFileLabel ?? 'CSV import'} />
+        <EvidenceRow label="Detected format" value={analysis.formatLabel} />
         <EvidenceRow label="Headers found" value={analysis.headers.length > 0 ? analysis.headers.join(', ') : 'None'} />
         <EvidenceRow label="Date column" value={analysis.headers.some((h) => /date|day/i.test(h)) ? 'Detected' : 'Missing'} />
-        <EvidenceRow label="Distance column" value={analysis.headers.some((h) => /mile|distance/i.test(h)) ? 'Detected' : 'Missing'} />
-        <EvidenceRow label="Purpose column" value={analysis.headers.some((h) => /purpose|reason/i.test(h)) ? 'Detected if present' : 'Optional'} />
+        <EvidenceRow label="Distance column" value={analysis.headers.some((h) => /mile|distance|km/i.test(h)) ? 'Detected' : 'Missing'} />
+        <EvidenceRow label="Purpose column" value={analysis.headers.some((h) => /purpose|reason|category/i.test(h)) ? 'Detected if present' : 'Optional'} />
       </ListSection>
       <ListSection title="Import details">
         <EvidenceRow label="Rows skipped by parser" value={String(analysis.skipped)} />
@@ -151,8 +152,8 @@ export function ImportExceptionReviewScreen() {
   const { state } = useApp();
   const { product } = useProduct();
   const analysis = useMemo(
-    () => analyzeCsvImport(product.importCsvText ?? ''),
-    [product.importCsvText],
+    () => analyzeCsvImport(product.importCsvText ?? '', product.importFileLabel),
+    [product.importCsvText, product.importFileLabel],
   );
   const importPlan = useMemo(
     () => importRowsToTrips(analysis.validRows, state.trips),

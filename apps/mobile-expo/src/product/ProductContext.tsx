@@ -542,11 +542,15 @@ export function ProductProvider({
         });
         return true;
       },
-      markFirstRecoveredDrive: () =>
+      markFirstRecoveredDrive: () => {
         persist((prev) => ({
           ...prev,
           firstRecoveredDriveAt: prev.firstRecoveredDriveAt ?? Date.now(),
-        })),
+        }));
+        void import('../services/reviewPrompt').then(({ maybeAskForReview }) =>
+          maybeAskForReview('first_recovered_drive'),
+        );
+      },
       markCelebratedFirstDrive: () =>
         persist((prev) => ({
           ...prev,

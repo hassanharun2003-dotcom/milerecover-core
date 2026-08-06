@@ -13,6 +13,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { layout, radii, shadows, spacing, typography } from '@milerecover/config';
 import { useAppTheme } from './ThemeProvider';
 import { OnboardingScreen, TabScreen } from './screenShell';
@@ -244,11 +245,14 @@ export function MRSecondaryButton({
 }
 
 export function MRIconCircle({
-  glyph,
+  glyph = '✓',
+  icon,
   accessibilityLabel,
   tone = 'ok',
 }: {
-  glyph: string;
+  glyph?: string;
+  /** Optional Ionicons glyph name for coherent line icons. */
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
   accessibilityLabel?: string;
   tone?: 'ok' | 'attention' | 'info';
 }) {
@@ -264,9 +268,13 @@ export function MRIconCircle({
     <View
       style={[styles.iconCircle, { backgroundColor }]}
       accessibilityRole="image"
-      accessibilityLabel={accessibilityLabel ?? glyph}
+      accessibilityLabel={accessibilityLabel ?? (icon ? String(icon) : glyph)}
     >
-      <Text style={[styles.iconGlyph, { color }]}>{glyph}</Text>
+      {icon ? (
+        <Ionicons name={icon} size={20} color={color} />
+      ) : (
+        <Text style={[styles.iconGlyph, { color }]}>{glyph}</Text>
+      )}
     </View>
   );
 }

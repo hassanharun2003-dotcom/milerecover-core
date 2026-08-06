@@ -45,35 +45,36 @@ function SettingsRow({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        minHeight: 56,
-        marginBottom: spacing.sm,
-        paddingVertical: spacing.smMd,
+        minHeight: 52,
+        marginBottom: spacing.xs,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.smMd,
       }}
     >
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          width: 32,
+          height: 32,
+          borderRadius: 16,
           backgroundColor: palette.background.mist,
           alignItems: 'center',
           justifyContent: 'center',
-          marginRight: spacing.smMd,
+          marginRight: spacing.sm,
         }}
       >
-        <Ionicons name={icon} size={18} color={palette.forest[700]} />
+        <Ionicons name={icon} size={16} color={palette.forest[700]} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: palette.text.primary, fontWeight: '600', fontSize: typography.size.bodyLarge }}>
+        <Text style={{ color: palette.text.primary, fontWeight: '600', fontSize: typography.size.body }}>
           {label}
         </Text>
         {value ? (
-          <Text style={{ color: palette.text.secondary, fontSize: typography.size.caption, marginTop: 2 }}>
+          <Text style={{ color: palette.text.secondary, fontSize: typography.size.caption, marginTop: 1 }}>
             {value}
           </Text>
         ) : null}
       </View>
-      <Text style={{ color: palette.text.secondary, fontSize: 22 }}>›</Text>
+      <Text style={{ color: palette.text.secondary, fontSize: 20 }}>›</Text>
     </MRCard>
   );
 }
@@ -223,8 +224,9 @@ export function ProfileScreen() {
         }}
       />
       <SettingsRow
-        icon="download-outline"
-        label="Import mileage"
+        icon="swap-horizontal-outline"
+        label="Switch to MileRecover"
+        value="Import from MileIQ and more"
         onPress={() => navigation.navigate('BringExistingMileage')}
       />
       <SettingsRow

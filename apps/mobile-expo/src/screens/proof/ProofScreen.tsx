@@ -20,7 +20,6 @@ import {
   type ReportPeriodKind,
 } from '@milerecover/domain';
 import {
-  EmptyState,
   FormError,
   MRCard,
   MRMetricTile,
@@ -273,7 +272,13 @@ export function ProofScreen() {
 
   const openPreview = () => {
     logEvent(ANALYTICS_EVENTS.reportPreviewed, { format: 'pdf' });
+    const first = product.firstReportPreviewAt == null;
     markFirstReportPreview();
+    if (first) {
+      void import('../../services/reviewPrompt').then(({ maybeAskForReview }) =>
+        maybeAskForReview('first_report_created'),
+      );
+    }
     navigation.navigate('ReportPreview', { format: 'pdf' });
   };
 
@@ -380,41 +385,54 @@ export function ProofScreen() {
 
       <MRSegmentedControl options={PERIOD_OPTIONS} value={periodKind} onChange={choosePeriod} />
 
-      {report.tripCount === 0 ? (
-        <EmptyState
-          title="No trips yet"
-          body="Only drives you confirm as work appear in reports."
-          actionLabel="Add a drive"
-          onAction={() => navigation.navigate('ManualTrip')}
+      <Text style={[text.body, { color: palette.text.secondary, marginBottom: spacing.sm, marginTop: spacing.sm }]}>
+        {period.label}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: layout.section }}>
+        <MRMetricTile
+          label={locale.distanceUnit === 'km' ? 'Work km' : 'Work miles'}
+          value={report.tripCount === 0 ? '0' : workMilesValue}
         />
-      ) : (
+        <MRMetricTile label="Work drives" value={String(report.tripCount)} />
+        <MRMetricTile
+          label="Est. value"
+          value={
+            report.tripCount === 0
+              ? '—'
+              : report.estimatedValueCents != null
+                ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
+                : '—'
+          }
+        />
+      </View>
+
+      <MRCard style={{ marginBottom: layout.section, paddingVertical: spacing.md }}>
+        <SimpleBarChart bars={bars} accessibilityLabel="Work miles chart for selected period" />
+      </MRCard>
+
+      {report.tripCount === 0 ? (
         <>
-          <Text style={[text.body, { color: palette.text.secondary, marginBottom: spacing.sm }]}>
-            {period.label}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: layout.section }}>
-            <MRMetricTile
-              label={locale.distanceUnit === 'km' ? 'Work km' : 'Work miles'}
-              value={workMilesValue}
-            />
-            <MRMetricTile label="Work drives" value={String(report.tripCount)} />
-            <MRMetricTile
-              label="Est. value"
-              value={
-                report.estimatedValueCents != null
-                  ? formatCurrencyCents(report.estimatedValueCents, locale.currencyCode, locale.localeTag)
-                  : '—'
-              }
+          <MRStatusPanel
+            tone="info"
+            message="Only drives you confirm as work appear in reports."
+          />
+          <View style={{ marginTop: spacing.md }}>
+            <MRPrimaryButton
+              label="Add a drive"
+              onPress={() => navigation.navigate('ManualTrip')}
+              accessibilityLabel="Add a drive"
             />
           </View>
-
-          <MRCard style={{ marginBottom: layout.section, paddingVertical: spacing.md }}>
-            <SimpleBarChart bars={bars} accessibilityLabel="Work miles chart for selected period" />
-          </MRCard>
-
+        </>
+      ) : (
+        <>
           <MRStatusPanel
             tone={exportReady ? 'ok' : 'attention'}
-            message={exportReady ? 'Tax-ready & employer-ready' : readinessMessage}
+            message={
+              exportReady
+                ? 'Employer-ready · tax-ready when your records are complete'
+                : readinessMessage
+            }
           />
 
           {fixTarget ? (

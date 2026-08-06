@@ -54,9 +54,9 @@ describe('Image lock Batch A/B foundations', () => {
       'Employee reimbursement',
       'Self-employed / Business',
       'Delivery or gig work',
-      'Personal / mixed use',
+      'Personal',
     ]);
-    expect(PRIMARY_GOAL_OPTIONS.find((o) => o.label === 'Personal / mixed use')?.id).toBe('mixed');
+    expect(PRIMARY_GOAL_OPTIONS.find((o) => o.label === 'Personal')?.id).toBe('mixed');
   });
 
   it('keeps Reset App preview-only (never in production)', () => {
