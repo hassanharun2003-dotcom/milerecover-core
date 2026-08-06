@@ -85,17 +85,19 @@ jarsigner \
 "$APKSIGNER" verify --verbose --min-sdk-version 21 --print-certs "$OUT_APK" \
   | tee /tmp/milerecover-apksigner-verify.txt
 "$ZIPALIGN" -c -v 4 "$OUT_APK" >/tmp/milerecover-zipalign-verify.txt
+unzip -v "$OUT_APK" >"$TMP_DIR/unzip-v.txt"
+unzip -l "$OUT_APK" >"$TMP_DIR/unzip-l.txt"
 # If any .so is Stored, also enforce 16KB page alignment.
-if unzip -v "$OUT_APK" | rg -q 'Stored .+ lib/.+\.so'; then
+if rg -q 'Stored .+ lib/.+\.so' "$TMP_DIR/unzip-v.txt"; then
   "$ZIPALIGN" -c -P 16 -v 4 "$OUT_APK" >>/tmp/milerecover-zipalign-verify.txt
 fi
 
 # Require META-INF JAR signature artifacts for Samsung PackageInstaller.
-unzip -l "$OUT_APK" | rg -q 'META-INF/.+\.RSA' || {
+rg -q 'META-INF/.+\.RSA' "$TMP_DIR/unzip-l.txt" || {
   echo "Missing META-INF *.RSA after signing" >&2
   exit 3
 }
-unzip -l "$OUT_APK" | rg -q 'META-INF/.+\.SF' || {
+rg -q 'META-INF/.+\.SF' "$TMP_DIR/unzip-l.txt" || {
   echo "Missing META-INF *.SF after signing" >&2
   exit 3
 }

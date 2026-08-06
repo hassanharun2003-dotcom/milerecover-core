@@ -34,7 +34,10 @@ unzip -t "$APK" >"$OUT_DIR/unzip-t.txt" 2>&1 || fail "unzip integrity"
 ok "unzip integrity"
 
 "$ZIPALIGN" -c -v 4 "$APK" >"$OUT_DIR/zipalign.txt" 2>&1 || fail "zipalign"
-if unzip -v "$APK" | rg -q 'Stored .+ lib/.+\.so'; then
+# Materialize zip listings first — `unzip | rg -q` under pipefail false-fails on SIGPIPE.
+unzip -v "$APK" >"$OUT_DIR/unzip-v.txt" 2>&1 || fail "unzip -v"
+unzip -l "$APK" >"$OUT_DIR/unzip-l.txt" 2>&1 || fail "unzip -l"
+if rg -q 'Stored .+ lib/.+\.so' "$OUT_DIR/unzip-v.txt"; then
   "$ZIPALIGN" -c -P 16 -v 4 "$APK" >>"$OUT_DIR/zipalign.txt" 2>&1 || fail "zipalign 16KB for Stored .so"
 fi
 ok "zipalign"
@@ -48,8 +51,8 @@ rg -q "Verified using v3 scheme \(APK Signature Scheme v3\): true" "$OUT_DIR/apk
 # Reject empty DN certificates that Samsung prep can choke on.
 rg -q "Signer #1 certificate DN: CN=.+" "$OUT_DIR/apksigner.txt" || fail "certificate DN empty/missing"
 ! rg -q "Signer #1 certificate DN: CN=, OU=, O=, L=, ST=, C=" "$OUT_DIR/apksigner.txt" || fail "empty certificate DN"
-unzip -l "$APK" | rg -q 'META-INF/.+\.RSA' || fail "META-INF *.RSA missing"
-unzip -l "$APK" | rg -q 'META-INF/.+\.SF' || fail "META-INF *.SF missing"
+rg -q 'META-INF/.+\.RSA' "$OUT_DIR/unzip-l.txt" || fail "META-INF *.RSA missing"
+rg -q 'META-INF/.+\.SF' "$OUT_DIR/unzip-l.txt" || fail "META-INF *.SF missing"
 ok "apksigner v1+v2+v3 + non-empty DN + META-INF"
 
 "$AAPT" dump badging "$APK" >"$OUT_DIR/badging.txt" 2>&1 || fail "aapt badging"
@@ -59,7 +62,7 @@ rg -q "versionCode='${EXPECT_VERSION_CODE}'" "$OUT_DIR/badging.txt" || fail "ver
 rg -q "launchable-activity" "$OUT_DIR/badging.txt" || fail "no launchable activity"
 ok "package metadata"
 
-unzip -l "$APK" | rg -q 'lib/arm64-v8a/.+\.so' || fail "arm64-v8a native libs missing"
+rg -q 'lib/arm64-v8a/.+\.so' "$OUT_DIR/unzip-l.txt" || fail "arm64-v8a native libs missing"
 ok "arm64-v8a present"
 
 # adb install proof
