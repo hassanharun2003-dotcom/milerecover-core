@@ -372,7 +372,11 @@ export function MRStatusPanel({
     tone === 'attention' ? palette.status.warning : palette.forest[700];
   const content = (
     <View style={styles.statusRow}>
-      <MRIconCircle glyph="✓" accessibilityLabel="Status" />
+      <MRIconCircle
+        glyph={tone === 'attention' ? '!' : '✓'}
+        tone={tone === 'attention' ? 'attention' : 'ok'}
+        accessibilityLabel={tone === 'attention' ? 'Needs attention' : 'Status ok'}
+      />
       <Text
         style={{
           flex: 1,

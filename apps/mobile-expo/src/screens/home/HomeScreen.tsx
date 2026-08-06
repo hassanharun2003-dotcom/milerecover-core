@@ -446,11 +446,11 @@ export function HomeScreen() {
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <View style={{ flex: 1, paddingRight: spacing.sm }}>
-            <Text style={{ color: palette.forest[100], fontSize: typography.size.caption, fontWeight: '500' }}>
-              You've protected
-            </Text>
             {showHeroMoney ? (
               <>
+                <Text style={{ color: palette.forest[100], fontSize: typography.size.caption, fontWeight: '500' }}>
+                  You've protected
+                </Text>
                 <Text
                   style={{
                     color: palette.text.inverse,
@@ -479,7 +479,6 @@ export function HomeScreen() {
                   fontSize: typography.size.title,
                   lineHeight: typography.lineHeight.title,
                   fontWeight: '700',
-                  marginTop: spacing.sm,
                 }}
               >
                 {heroSupporting}
