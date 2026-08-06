@@ -279,6 +279,87 @@ function migrateRaw(parsed: Record<string, unknown>): ProductUiState {
   return merged;
 }
 
+/** Small launch-critical stamp — must not race with the large product-ui blob. */
+export const ONBOARDING_COMPLETION_KEY = '@milerecover/onboarding-complete/v1';
+
+export type OnboardingCompletionStamp = {
+  completedAt: number;
+  completedOnboardingVersion: number;
+  primaryGoal: NonNullable<VersionedOnboardingState['primaryGoal']>;
+  nextActionSelected: NonNullable<VersionedOnboardingState['nextActionSelected']>;
+  countryStepAcknowledged: true;
+  accountStepAcknowledged: true;
+  protectionEducationAcknowledged: true;
+  permissionsEducationAcknowledged: true;
+};
+
+function applyCompletionStamp(
+  state: ProductUiState,
+  stamp: OnboardingCompletionStamp,
+): ProductUiState {
+  const onboarding: VersionedOnboardingState = {
+    ...state.onboarding,
+    primaryGoal: stamp.primaryGoal,
+    nextActionSelected: stamp.nextActionSelected,
+    countryStepAcknowledged: true,
+    accountStepAcknowledged: true,
+    protectionEducationAcknowledged: true,
+    permissionsEducationAcknowledged: true,
+    completedAt: stamp.completedAt,
+    completedOnboardingVersion: stamp.completedOnboardingVersion,
+    currentStep: 'ready',
+  };
+  return {
+    ...state,
+    onboarding,
+    onboardingStep: 'ready',
+    primaryGoal: stamp.primaryGoal,
+    onboardingNeed: stamp.primaryGoal,
+  };
+}
+
+export async function saveOnboardingCompletionStamp(
+  onboarding: VersionedOnboardingState,
+): Promise<void> {
+  if (!isOnboardingMinimumComplete(onboarding)) return;
+  if (onboarding.primaryGoal == null || onboarding.nextActionSelected == null) return;
+  if (onboarding.completedAt == null || onboarding.completedOnboardingVersion == null) return;
+  const stamp: OnboardingCompletionStamp = {
+    completedAt: onboarding.completedAt,
+    completedOnboardingVersion: onboarding.completedOnboardingVersion,
+    primaryGoal: onboarding.primaryGoal,
+    nextActionSelected: onboarding.nextActionSelected,
+    countryStepAcknowledged: true,
+    accountStepAcknowledged: true,
+    protectionEducationAcknowledged: true,
+    permissionsEducationAcknowledged: true,
+  };
+  await AsyncStorage.setItem(ONBOARDING_COMPLETION_KEY, JSON.stringify(stamp));
+}
+
+export async function loadOnboardingCompletionStamp(): Promise<OnboardingCompletionStamp | null> {
+  try {
+    const raw = await AsyncStorage.getItem(ONBOARDING_COMPLETION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<OnboardingCompletionStamp>;
+    if (parsed.completedOnboardingVersion !== CURRENT_ONBOARDING_VERSION) return null;
+    if (typeof parsed.completedAt !== 'number') return null;
+    if (!parsed.primaryGoal || !parsed.nextActionSelected) return null;
+    return {
+      completedAt: parsed.completedAt,
+      completedOnboardingVersion: CURRENT_ONBOARDING_VERSION,
+      primaryGoal: parsed.primaryGoal,
+      nextActionSelected: parsed.nextActionSelected,
+      countryStepAcknowledged: true,
+      accountStepAcknowledged: true,
+      protectionEducationAcknowledged: true,
+      permissionsEducationAcknowledged: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function loadProductUiState(): Promise<ProductUiState> {
   try {
     for (const key of [
@@ -290,12 +371,21 @@ export async function loadProductUiState(): Promise<ProductUiState> {
       const raw = await AsyncStorage.getItem(key);
       if (!raw) continue;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      const migrated = migrateRaw(parsed);
+      let migrated = migrateRaw(parsed);
+      const stamp = await loadOnboardingCompletionStamp();
+      if (stamp && !isOnboardingMinimumComplete(migrated.onboarding)) {
+        migrated = applyCompletionStamp(migrated, stamp);
+      }
       await AsyncStorage.setItem(PRODUCT_UI_STORAGE_KEY, JSON.stringify(migrated));
       if (key !== PRODUCT_UI_STORAGE_KEY) {
         await AsyncStorage.removeItem(key);
       }
       return migrated;
+    }
+    // No product blob — still honor a valid completion stamp (rare recovery path).
+    const stamp = await loadOnboardingCompletionStamp();
+    if (stamp) {
+      return applyCompletionStamp(createInitialProductUiState(), stamp);
     }
   } catch {
     // fall through
@@ -316,32 +406,22 @@ export async function saveProductUiState(state: ProductUiState): Promise<void> {
  */
 let productWriteChain: Promise<void> = Promise.resolve();
 let productWriteLatest: ProductUiState | null = null;
-let productWriteScheduled = false;
-
-async function drainProductWrites(): Promise<void> {
-  productWriteScheduled = false;
-  const snapshot = productWriteLatest;
-  productWriteLatest = null;
-  if (!snapshot) return;
-  await saveProductUiState(snapshot);
-  if (productWriteLatest) {
-    productWriteScheduled = true;
-    await drainProductWrites();
-  }
-}
 
 /** Enqueue a durable save of the latest product UI state. Safe to call rapidly. */
 export function enqueueProductUiSave(state: ProductUiState): Promise<void> {
   productWriteLatest = state;
-  if (!productWriteScheduled) {
-    productWriteScheduled = true;
-    productWriteChain = productWriteChain
-      .then(drainProductWrites)
-      .catch(() => {
-        // Keep the chain alive after a failed write so later saves still run.
-        productWriteScheduled = false;
-      });
-  }
+  productWriteChain = productWriteChain
+    .then(async () => {
+      // Drain until no newer snapshot arrived while awaiting setItem.
+      while (productWriteLatest) {
+        const snapshot = productWriteLatest;
+        productWriteLatest = null;
+        await saveProductUiState(snapshot);
+      }
+    })
+    .catch(() => {
+      // Keep the chain alive after a failed write so later saves still run.
+    });
   return productWriteChain;
 }
 
@@ -353,5 +433,5 @@ export function flushProductUiSaves(): Promise<void> {
 export async function clearProductUiState(): Promise<void> {
   await flushProductUiSaves();
   productWriteLatest = null;
-  await AsyncStorage.multiRemove([...PRODUCT_UI_STORAGE_KEYS]);
+  await AsyncStorage.multiRemove([...PRODUCT_UI_STORAGE_KEYS, ONBOARDING_COMPLETION_KEY]);
 }

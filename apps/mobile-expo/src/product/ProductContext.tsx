@@ -32,6 +32,7 @@ import {
   enqueueProductUiSave,
   flushProductUiSaves,
   loadProductUiState,
+  saveOnboardingCompletionStamp,
   saveProductUiState,
 } from './persistence';
 import {
@@ -600,9 +601,16 @@ export function ProductProvider({
             now,
           );
         });
+        // Launch-critical: small stamp write + full blob, both awaited.
+        await saveOnboardingCompletionStamp(productRef.current.onboarding);
+        await saveProductUiState(productRef.current);
         await flushProductUiSaves();
       },
-      flushProductPersistence: () => flushProductUiSaves(),
+      flushProductPersistence: async () => {
+        await saveOnboardingCompletionStamp(productRef.current.onboarding);
+        await saveProductUiState(productRef.current);
+        await flushProductUiSaves();
+      },
       setReviewDecision: (itemId, decision) =>
         persist((prev) => ({
           ...prev,
