@@ -1,0 +1,6 @@
+08-04 17:16:19.863   160   160 I hwservicemanager: getTransport: Cannot find entry android.hardware.configstore@1.0::ISurfaceFlingerConfigs/default in either framework or device manifest.
+08-04 17:16:19.950   160   160 I hwservicemanager: getTransport: Cannot find entry android.hardware.graphics.mapper@4.0::IMapper/default in either framework or device manifest.
+08-04 17:16:23.679 12747 12773 I dev.expo.updates: {"timestamp":1785863783679,"message":"Updates state change: CheckCompleteUnavailable, context = {isStartupProcedureRunning=true, isUpdateAvailable=false, isUpdatePending=false, isChecking=false, isDownloading=false, isRestarting=false, restartCount=0, downloadProgress=0.0, sequenceNumber=3, lastCheckForUpdateTime=Tue Aug 04 17:16:23 UTC 2026}","code":"None","level":"info"}
+08-04 17:16:23.943 12747 12773 I dev.expo.updates: {"timestamp":1785863783942,"message":"UpdatesController onBackgroundUpdateFinished: No update available","code":"NoUpdatesAvailable","level":"info"}
+08-04 17:16:23.944 12747 12773 I dev.expo.updates: {"timestamp":1785863783943,"message":"ErrorRecovery: remote load status changed: IDLE","code":"None","level":"info"}
+08-04 17:16:42.521   160   160 I hwservicemanager: getTransport: Cannot find entry android.hardware.graphics.mapper@4.0::IMapper/default in either framework or device manifest.
