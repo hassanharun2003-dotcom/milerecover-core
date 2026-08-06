@@ -2805,7 +2805,6 @@ export function PlanSelectionScreen() {
     lastOfferAt: product.paywallCaps.lastTrialOfferAt,
     dismissedSession: product.paywallCaps.trialOfferDismissedSession,
   });
-  const previewFixture = !billingAvailable && isPreviewBillingBuild();
   const freeFixture = PLAN_FIXTURES.find((plan) => plan.id === 'free')!;
   const plusFixture = PLAN_FIXTURES.find((plan) => plan.id === 'plus')!;
   const proFixture = PLAN_FIXTURES.find((plan) => plan.id === 'pro')!;
