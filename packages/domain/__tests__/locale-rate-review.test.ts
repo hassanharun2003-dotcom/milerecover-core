@@ -26,11 +26,13 @@ describe('Locale rate review and snapshots', () => {
     ).toBe(true);
   });
 
-  it('formats Canada active rate as cents per km, not ¢/mi stored', () => {
+  it('formats rates in major currency units, never cents', () => {
+    const us = localeProfileFromCountry('US');
+    expect(formatActiveRateLabel(us)).toMatch(/^\$\d+\.\d{2} \/ mile$/);
     const ca = localeProfileFromCountry('CA');
     const label = formatActiveRateLabel(ca);
-    expect(label).toMatch(/¢\/km/);
-    expect(label).not.toMatch(/stored/i);
+    expect(label).toMatch(/^\$\d+\.\d{2} \/ km$/);
+    expect(label).not.toMatch(/¢|stored/i);
   });
 
   it('shows Review mileage rate when flagged', () => {

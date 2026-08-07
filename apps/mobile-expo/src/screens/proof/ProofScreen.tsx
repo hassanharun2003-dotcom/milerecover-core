@@ -428,11 +428,7 @@ export function ProofScreen() {
         <>
           <MRStatusPanel
             tone={exportReady ? 'ok' : 'attention'}
-            message={
-              exportReady
-                ? 'Employer-ready · tax-ready when your records are complete'
-                : readinessMessage
-            }
+            message={exportReady ? 'Tax-ready & employer-ready' : readinessMessage}
           />
 
           {fixTarget ? (

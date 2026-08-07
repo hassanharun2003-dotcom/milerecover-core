@@ -354,8 +354,23 @@ export function rateNeedsReviewAfterLocaleChange(
   return false;
 }
 
+function currencyPrefix(currencyCode: string): string {
+  switch (currencyCode) {
+    case 'USD':
+    case 'CAD':
+    case 'AUD':
+      return '$';
+    case 'GBP':
+      return '£';
+    case 'EUR':
+      return '€';
+    default:
+      return `${currencyCode} `;
+  }
+}
+
 /**
- * Customer-facing rate label. Never show “¢/mi stored” as the active Canadian km rate.
+ * Customer-facing rate label in dollars (or major units), never cents.
  * Internal storage remains cents-per-mile.
  */
 export function formatActiveRateLabel(
@@ -365,11 +380,12 @@ export function formatActiveRateLabel(
   if (profile.activeRateNeedsReview) return 'Review mileage rate';
   const rate = rateForTimestamp(profile.rates, at);
   if (!rate || !(rate.centsPerMile > 0)) return 'Not set';
+  const prefix = currencyPrefix(rate.currencyCode);
   if (profile.distanceUnit === 'km') {
-    const centsPerKm = Math.round(rate.centsPerMile / KM_PER_MILE);
-    return `${centsPerKm}¢/km · ${rate.currencyCode}`;
+    const dollarsPerKm = rate.centsPerMile / KM_PER_MILE / 100;
+    return `${prefix}${dollarsPerKm.toFixed(2)} / km`;
   }
-  return `${rate.centsPerMile}¢/mi · ${rate.currencyCode}`;
+  return `${prefix}${(rate.centsPerMile / 100).toFixed(2)} / mile`;
 }
 
 export function createTripRateSnapshot(
