@@ -1,0 +1,164 @@
+{
+  "canonicalStatus": "PENDING_BINARY",
+  "canonicalImage": {
+    "path": "docs/design/canonical/MileRecover-LOCKED-DESIGN.png",
+    "exists": false,
+    "sha256": null,
+    "dimensionsPx": null,
+    "fileSizeBytes": null,
+    "sourceDate": "2026-08-07",
+    "sourceDescription": "FINAL APPROVED MileRecover visual design board attached to Permanent Figma Design Lock task message",
+    "canonicalAuthority": true,
+    "pixelsModified": false,
+    "blockers": [
+      "Exact attached PNG binary was not delivered to the agent VM filesystem. Chat provided an image description only. Agent refused to redraw/recompress/invent pixels."
+    ]
+  },
+  "figma": {
+    "integrationPresent": false,
+    "authenticated": false,
+    "readCapability": false,
+    "writeCapability": false,
+    "fileName": "MileRecover — Production Design Lock",
+    "fileUrl": null,
+    "statusDoc": "docs/design/FIGMA_STATUS.md"
+  },
+  "directCrops": {
+    "directory": "docs/design/canonical/screens/",
+    "policy": "Crops must be direct pixel crops from MileRecover-LOCKED-DESIGN.png. ORIGINAL_REFERENCE=true only for direct crops. No reconstructed screens marked original.",
+    "status": "PENDING_CANONICAL_BINARY",
+    "screens": [
+      {
+        "id": "welcome",
+        "file": "docs/design/canonical/screens/Welcome.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "Onboarding/Welcome",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "purpose",
+        "file": "docs/design/canonical/screens/Purpose.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "Onboarding/Purpose",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "region-rate",
+        "file": "docs/design/canonical/screens/Region-Rate.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "Onboarding/RegionRate",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "home",
+        "file": "docs/design/canonical/screens/Home.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "Home",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "review",
+        "file": "docs/design/canonical/screens/Review.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "Review",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "proof",
+        "file": "docs/design/canonical/screens/Proof.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "Proof",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "add-drive",
+        "file": "docs/design/canonical/screens/Add-Drive.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "AddDrive",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "protection-center",
+        "file": "docs/design/canonical/screens/Protection-Center.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "ProtectionCenter",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "go-pro",
+        "file": "docs/design/canonical/screens/Go-Pro.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "GoPro",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "profile",
+        "file": "docs/design/canonical/screens/Profile.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "Profile",
+        "status": "PENDING_CROP"
+      },
+      {
+        "id": "missing-drives",
+        "file": "docs/design/canonical/screens/Missing-Drives.png",
+        "ORIGINAL_REFERENCE": null,
+        "dimensionsPx": null,
+        "sha256": null,
+        "sourceCoordinates": null,
+        "productionRoute": "MissingDrives",
+        "status": "PENDING_CROP"
+      }
+    ],
+    "alsoVisibleInSourceIfPresent": [
+      {
+        "id": "landing-splash-marketing",
+        "note": "Marketing/landing panel may appear in the board. Not a production app route; do not treat as an app screen unless founder marks it in-scope.",
+        "productionRoute": null
+      }
+    ]
+  },
+  "priorWorkingLockNote": {
+    "pathOnOtherBranch": "docs/design/reference-crops/ on branch cursor/final-design-lock-0.2.11-29cb",
+    "ORIGINAL_REFERENCE": false,
+    "reason": "Prior crops were vision-extracted reconstructions when a previous collage binary was not persisted. They must NOT be copied into canonical/screens as ORIGINAL_REFERENCE=true for this attachment."
+  },
+  "applicationCodeModified": false,
+  "documents": {
+    "designLock": "docs/design/canonical/DESIGN_LOCK.md",
+    "figmaStatus": "docs/design/FIGMA_STATUS.md",
+    "implementationMap": "docs/design/canonical/FIGMA_IMPLEMENTATION_MAP.md",
+    "tokens": "docs/design/canonical/tokens/design-tokens.json",
+    "countryFlags": "docs/design/canonical/tokens/COUNTRY_FLAGS.md",
+    "artwork": "docs/design/canonical/assets/ARTWORK_INVENTORY.md"
+  }
+}
