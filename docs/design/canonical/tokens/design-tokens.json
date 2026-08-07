@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "name": "MileRecover Locked Design Tokens",
+    "source": "FINAL APPROVED design board (Permanent Figma Design Lock attachment)",
+    "status": "DOCUMENTED_FROM_APPROVED_BOARD_PENDING_PIXEL_MEASUREMENT",
+    "note": "Color hex values and structural roles are taken from the approved board description. Exact px measurements for crops, card widths, and icon sizes must be filled from direct crops of MileRecover-LOCKED-DESIGN.png once the binary is on disk. Do not treat prior app theme values as authority over this file.",
+    "figmaVariablesCreated": false
+  },
+  "colors": {
+    "primary": { "name": "MileRecover Green", "hex": "#00A859", "usage": "Primary buttons, active toggles, success indicators" },
+    "forest": { "name": "Dark Forest Green", "hex": "#002B1B", "usage": "Hero backgrounds, headers, splash" },
+    "mint": { "name": "Mint Green (Light)", "hex": "#E6F7EF", "usage": "Background highlights in cards and success iconography", "requiresPixelConfirm": true },
+    "canvas": { "name": "White / Canvas", "hex": "#FFFFFF", "usage": "App screen background" },
+    "textPrimary": { "name": "Primary Text", "hex": "#1A1A1A", "usage": "Dark charcoal primary text", "requiresPixelConfirm": true },
+    "textSecondary": { "name": "Secondary Text", "hex": "#6B7280", "usage": "Medium gray secondary copy", "requiresPixelConfirm": true },
+    "textOnDark": { "name": "Text on Dark", "hex": "#FFFFFF", "usage": "Text on forest/hero surfaces" },
+    "border": { "name": "Border", "hex": "#E5E7EB", "usage": "Thin light-gray card/input borders", "requiresPixelConfirm": true },
+    "warning": { "name": "Warning", "hex": "#D97706", "usage": "Attention / permission degraded states", "requiresPixelConfirm": true, "role": "system-token-for-derived-states" },
+    "error": { "name": "Error", "hex": "#DC2626", "usage": "Error states", "requiresPixelConfirm": true, "role": "system-token-for-derived-states" },
+    "disabled": { "name": "Disabled", "hex": "#9CA3AF", "usage": "Disabled controls and muted CTAs", "requiresPixelConfirm": true }
+  },
+  "typography": {
+    "family": {
+      "lockedIntent": "Clean modern sans-serif as in approved board",
+      "implementationNote": "Match board hierarchy with platform UI sans; do not introduce Inter/Roboto/Arial as brand identity if product already forbids them — match weight/size/spacing of the board"
+    },
+    "display": { "role": "display", "approxSizePt": 28, "weight": 700, "usage": "Brand / splash / large welcome" },
+    "pageTitle": { "role": "page title", "approxSizePt": 24, "weight": 700 },
+    "sectionHeading": { "role": "section heading", "approxSizePt": 18, "weight": 700 },
+    "cardTitle": { "role": "card title", "approxSizePt": 16, "weight": 600 },
+    "body": { "role": "body", "approxSizePt": 16, "weight": 400 },
+    "supporting": { "role": "supporting copy", "approxSizePt": 14, "weight": 400 },
+    "caption": { "role": "caption", "approxSizePt": 12, "weight": 500 },
+    "metricValue": { "role": "metric value", "approxSizePt": 20, "weight": 700 },
+    "button": { "role": "button", "approxSizePt": 16, "weight": 600 }
+  },
+  "spacing": {
+    "screenGutter": { "approxPt": 20, "requiresPixelConfirm": true },
+    "sectionSpacing": { "approxPt": 16, "requiresPixelConfirm": true },
+    "cardPadding": { "approxPt": 16, "requiresPixelConfirm": true },
+    "compactGap": { "approxPt": 8, "requiresPixelConfirm": true },
+    "controlSpacing": { "approxPt": 12, "requiresPixelConfirm": true }
+  },
+  "radii": {
+    "card": { "approxPx": 16, "usage": "White cards" },
+    "button": { "approxPx": 999, "usage": "Large pill-shaped primary/secondary buttons", "note": "Board shows pill-shaped CTAs" },
+    "input": { "approxPx": 12, "requiresPixelConfirm": true },
+    "pill": { "approxPx": 999, "usage": "Status pills, chips" },
+    "modalSheet": { "approxPx": 20, "requiresPixelConfirm": true }
+  },
+  "elevation": {
+    "cardShadow": {
+      "description": "Subtle soft shadow on white cards",
+      "approx": "0 1px 2px rgba(0,0,0,0.06)",
+      "requiresPixelConfirm": true
+    }
+  },
+  "controls": {
+    "primaryButtonHeightApproxPt": 52,
+    "secondaryButtonHeightApproxPt": 52,
+    "bottomNavItems": ["Home", "Review", "Proof", "Profile"],
+    "classificationSegments": ["Work", "Personal", "Not sure"],
+    "proofPeriodTabs": ["Month", "Quarter", "Year", "YTD"]
+  },
+  "componentsRequired": [
+    "logo",
+    "PrimaryButton",
+    "SecondaryButton",
+    "IconButton",
+    "HeroCard",
+    "Card",
+    "BenefitRow",
+    "MetricTile",
+    "StatusRow",
+    "SettingsRow",
+    "SegmentedControl",
+    "Input",
+    "Selector",
+    "TripCard",
+    "BottomNavigation",
+    "EmptyState",
+    "ReportSummary",
+    "PaywallCard",
+    "BottomSheet",
+    "CountryRow",
+    "CountryFlag"
+  ]
+}
