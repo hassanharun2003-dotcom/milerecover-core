@@ -25,7 +25,8 @@ export function NotificationBootstrap({ children }: { children: React.ReactNode 
   }, []);
 
   useEffect(() => {
-    if (product.onboarding.completedAt == null) return;
+    // Wait until Home is unlocked — never prompt during Ready finish.
+    if (!state.onboardingComplete || product.onboarding.completedAt == null) return;
     let cancelled = false;
     // Defer OS permission prompt so it never races Ready → Home finish
     // (which previously left “One moment…” under the system dialog and could ANR).
@@ -101,7 +102,7 @@ export function NotificationBootstrap({ children }: { children: React.ReactNode 
         });
       }
       })();
-    }, 2500);
+    }, 4000);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -113,6 +114,7 @@ export function NotificationBootstrap({ children }: { children: React.ReactNode 
     product.notificationPreferences,
     product.onboarding.completedAt,
     state,
+    state.onboardingComplete,
   ]);
 
   return <>{children}</>;
