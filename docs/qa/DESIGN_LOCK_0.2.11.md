@@ -3,13 +3,13 @@
 ## Identity
 
 - versionName: `0.2.11`
-- versionCode: `49` (final signed candidate; EAS autoIncrement)
+- versionCode: `50` (final signed release)
 - runtimeVersion / channel: `0.2.11` / `preview-foundation-0.2.11`
 - package: `com.milerecover.app`
 - signing: same preview keystore DN `CN=MileRecover Preview, OU=Engineering, O=MileRecover, L=London, ST=England, C=GB`
 - SHA-1: `E6:62:40:AA:E7:FA:4B:B7:37:51:44:1E:16:04:80:D9:67:24:1F:31`
 - APK (signed): `/opt/cursor/artifacts/apk/MileRecover-preview-0.2.11.apk`
-- SHA-256 (first signed build): `b5a30c61a08203bbb0577894a624183322937a0507b931cdde7c21d09ff459cd`
+- SHA-256 (first signed build): `609ddccda2725eb3c47c89e7590b22586a59184bbbddc8adbc41e48fec4535a8`
 
 ## Emulator acceptance screenshots
 
@@ -60,3 +60,9 @@ Mounted navigator components only — not unused fixtures.
 ## PR
 
 https://github.com/hassanharun2003-dotcom/milerecover-core/pull/21
+
+
+## GitHub release
+
+- Tag: `android-preview-0.2.11`
+- Direct APK: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.11/MileRecover-preview-0.2.11.apk
