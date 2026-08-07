@@ -1,6 +1,9 @@
 /**
- * MileRecover design tokens — image-locked collage blueprint.
- * Primary #0F6B46 · Deep #073D2C · Mint #E8F4EE · Canvas #FFFFFF
+ * MileRecover design tokens — locked to Figma
+ * file key 5y8p0axQChkYVBcM7tgHDj (MileRecover — Production Design Lock).
+ *
+ * Colors / spacing / radii / type measured from live Figma variables + text styles.
+ * Small RN adaptations (System font stack, elevation) are intentional.
  */
 
 export type SemanticPalette = {
@@ -23,33 +26,32 @@ export type SemanticPalette = {
   scrim: string;
 };
 
-/** Blueprint-locked light semantic palette — only shipped theme. */
+/** Figma Color collection (Light) — Production Design Lock. */
 export const lightSemantic: SemanticPalette = {
-  canvas: '#FFFFFF',
+  canvas: '#FAFAF8',
   surface: '#FFFFFF',
-  surfaceMuted: '#F5F5F5',
-  surfaceSelected: '#E8F4EE',
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
-  textTertiary: '#64748B',
-  border: '#E2E8F0',
-  primary: '#0F6B46',
-  primaryDeep: '#073D2C',
+  surfaceMuted: '#F3FAF6',
+  surfaceSelected: '#E5F5EC',
+  textPrimary: '#15202B',
+  textSecondary: '#5B6670',
+  textTertiary: '#8B949E',
+  border: '#E2E6EA',
+  primary: '#1F8A5B',
+  primaryDeep: '#0B3D2E',
   onPrimary: '#FFFFFF',
-  success: '#16A34A',
-  /** Blueprint amber accent — use nested status.warning for readable text ink. */
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  disabledSurface: '#F5F5F5',
-  disabledText: '#94A3B8',
-  scrim: 'rgba(15, 23, 42, 0.45)',
+  success: '#1F8A5B',
+  warning: '#D97706',
+  danger: '#DC2626',
+  disabledSurface: '#F3FAF6',
+  disabledText: '#8B949E',
+  scrim: 'rgba(21, 32, 43, 0.45)',
 };
 
 /** @deprecated Dark is not shipped — aliases light for compile safety. */
 export const darkSemantic: SemanticPalette = { ...lightSemantic };
 
 function buildNestedPalette(s: SemanticPalette) {
-  const successSurface = '#DCFCE7';
+  const successSurface = s.surfaceSelected;
   const warningSurface = '#FEF3C7';
   const dangerSurface = '#FEE2E2';
   /** Darker amber for text/icons on light surfaces (WCAG); brand accent stays s.warning. */
@@ -58,10 +60,10 @@ function buildNestedPalette(s: SemanticPalette) {
   return {
     forest: {
       900: s.primaryDeep,
-      800: '#0A5236',
+      800: '#0F5C3F',
       700: s.primary,
       600: s.primary,
-      500: '#15803D',
+      500: '#2A9A6A',
       100: s.surfaceSelected,
     },
     protected: {
@@ -124,7 +126,7 @@ function buildNestedPalette(s: SemanticPalette) {
       primary: s.primary,
       primaryText: s.onPrimary,
       secondary: s.surfaceSelected,
-      secondaryText: s.primary,
+      secondaryText: s.primaryDeep,
       selectedSurface: s.surfaceSelected,
       selectedBorder: s.primary,
       disabledSurface: s.disabledSurface,
@@ -149,6 +151,7 @@ export const colors = buildNestedPalette(lightSemantic);
 /** @deprecated Not shipped — equals light palette. */
 export const darkColors = colors;
 
+/** Figma Spacing collection. */
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -157,34 +160,42 @@ export const spacing = {
   mdLg: 20,
   lg: 24,
   xl: 32,
-  xxl: 48,
+  xxl: 40,
+  xxxl: 48,
 } as const;
 
-/** Image-lock layout rhythm — prefer these over ad-hoc numbers in screens. */
+/**
+ * Figma Implementation Specs:
+ * page padding 24 · button 48 · input 48 · bottom nav 72 · min touch 44
+ */
 export const layout = {
-  pageX: 20,
+  pageX: 24,
   section: 16,
   cardPad: 16,
-  buttonH: 52,
+  buttonH: 48,
   segmentH: 40,
-  fieldH: 52,
-  tabBarH: 56,
+  fieldH: 48,
+  tabBarH: 72,
   iconCircle: 40,
   iconGlyph: 20,
+  deviceW: 390,
+  deviceH: 844,
+  contentStartTop: 54,
 } as const;
 
-/** Premium card radius — control md, cards lg, hero xl */
+/** Figma Radius collection + Implementation Specs. */
 export const radii = {
   sm: 8,
   md: 12,
   lg: 16,
   xl: 20,
+  xxl: 24,
   pill: 999,
 } as const;
 
 /**
- * Image-lock typography scale (system font; hierarchy locked to collage).
- * Display 28/34 · Title/headline 24/30 · TitleSm 20/26 · Body 16/22
+ * Figma text styles (Inter → System on RN):
+ * Display 34/42 · H1 28/34 · H2 22/28 · H3 18/24 · Body Large 17/26 · Body 15/22
  */
 export const typography = {
   fontFamily: {
@@ -194,19 +205,27 @@ export const typography = {
   },
   size: {
     caption: 12,
+    label: 13,
+    bodySmall: 13,
     body: 15,
-    bodyLarge: 16,
-    title: 20,
-    headline: 24,
-    display: 28,
+    button: 16,
+    bodyLarge: 17,
+    title: 18,
+    headline: 22,
+    h1: 28,
+    display: 34,
   },
   lineHeight: {
     caption: 16,
+    label: 16,
+    bodySmall: 18,
     body: 22,
-    bodyLarge: 22,
-    title: 26,
-    headline: 30,
-    display: 34,
+    button: 20,
+    bodyLarge: 26,
+    title: 24,
+    headline: 28,
+    h1: 34,
+    display: 42,
   },
   tabularNums: ['tabular-nums'] as const,
 } as const;
@@ -221,24 +240,25 @@ export const motion = {
 } as const;
 
 export const touchTarget = {
-  minHeight: 48,
-  minWidth: 48,
+  minHeight: 44,
+  minWidth: 44,
 } as const;
 
+/** Figma effect styles shadow/card + shadow/floating. */
 export const shadows = {
   card: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowColor: '#142029',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 2,
   },
   lifted: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#142029',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    elevation: 6,
   },
 } as const;
 

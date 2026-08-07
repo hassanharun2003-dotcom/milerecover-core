@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { spacing, touchTarget } from '@milerecover/config';
+import { layout, spacing, touchTarget } from '@milerecover/config';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { ReviewScreen } from '../screens/review/ReviewScreen';
 import { ProofScreen } from '../screens/proof/ProofScreen';
@@ -70,7 +70,8 @@ export function RootTabs() {
     automaticCaptureAvailable,
   ).activeReviewItems.length;
   const bottomPad = Math.max(insets.bottom, spacing.sm);
-  const tabBarHeight = 56 + bottomPad;
+  // Figma BottomNav frame is 72pt; add remaining home-indicator inset beyond the design pad.
+  const tabBarHeight = layout.tabBarH + Math.max(0, bottomPad - spacing.sm);
 
   return (
     <Tab.Navigator

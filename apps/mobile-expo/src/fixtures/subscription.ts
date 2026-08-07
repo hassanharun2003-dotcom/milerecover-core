@@ -1,4 +1,4 @@
-/** Development-only subscription fixtures — not production commerce. */
+/** Development-only subscription fixtures — display-only until store products resolve. */
 export type PlanTier = 'free' | 'plus' | 'pro';
 
 export interface PlanFixture {
@@ -7,7 +7,7 @@ export interface PlanFixture {
   tagline: string;
   monthlyPrice: string;
   annualPrice: string;
-  /** Max 3 concise outcome bullets shown in Plans UI */
+  /** Max concise outcome bullets shown in Plans UI */
   features: string[];
   highlighted?: boolean;
   /** Approximate annual savings vs 12× monthly (for annual toggle copy) */
@@ -21,44 +21,49 @@ export interface RescueOptionFixture {
   description: string;
 }
 
+/** Locked to Figma Plans / Compare (file 5y8p0axQChkYVBcM7tgHDj). */
 export const PLAN_FIXTURES: PlanFixture[] = [
   {
     id: 'free',
     name: 'Free',
-    tagline: 'Manual work-drive logging stays available',
+    tagline: 'Free stays useful. Upgrade only when you need more automation or reporting.',
     monthlyPrice: '$0',
     annualPrice: '$0',
     features: [
+      '40 automatic trips/month',
+      '1 vehicle',
+      '1 missing scan/month',
       'Unlimited manual trips',
-      '40 automatic trips per month',
-      'One vehicle · CSV export · tracking health',
+      'Basic CSV export',
     ],
   },
   {
     id: 'plus',
     name: 'Plus',
-    tagline: 'Never lose another reimbursable mile.',
-    monthlyPrice: '$8.99',
-    annualPrice: '$89.99',
-    annualSavingsLabel: 'Save 17%',
+    tagline: 'Unlimited automation when Free limits aren’t enough.',
+    monthlyPrice: '$9.99',
+    annualPrice: '$95.90',
+    annualSavingsLabel: 'Save 20%',
     highlighted: true,
     features: [
-      'Unlimited automatic tracking',
-      'Missed-drive review',
-      'Share-ready PDF reports',
+      'Unlimited automatic trips',
+      'Unlimited missing scans',
+      'PDF reports',
+      'More vehicles',
     ],
   },
   {
     id: 'pro',
     name: 'Pro',
-    tagline: 'Stronger records when work, clients, or taxes demand more.',
-    monthlyPrice: '$14.99',
-    annualPrice: '$119.99',
-    annualSavingsLabel: 'Save about $60/year vs monthly',
+    tagline: 'Everything in Plus with advanced reports and priority support.',
+    monthlyPrice: '$19.99',
+    annualPrice: '$191.90',
+    annualSavingsLabel: 'Save 20%',
     features: [
       'Everything in Plus',
-      'Deeper history recovery',
-      'Advanced organization and reporting',
+      'Advanced reports',
+      'Extra recovery tools',
+      'Priority support',
     ],
   },
 ];

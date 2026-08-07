@@ -412,9 +412,22 @@ export function ProofScreen() {
 
       {report.tripCount === 0 ? (
         <>
+          <Text
+            style={{
+              color: palette.text.primary,
+              fontWeight: '700',
+              fontSize: typography.size.title,
+              marginBottom: spacing.xs,
+            }}
+          >
+            No work drives yet
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.md }]}>
+            Confirm work drives and your reports will build automatically.
+          </Text>
           <MRStatusPanel
             tone="info"
-            message="Only drives you confirm as work appear in reports."
+            message="Only drives you confirm as Work appear in reports."
           />
           <View style={{ marginTop: spacing.md }}>
             <MRPrimaryButton

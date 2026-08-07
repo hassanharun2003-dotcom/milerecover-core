@@ -55,7 +55,7 @@ describe('Screen render evidence', () => {
     });
     manifest['home-live-empty'] = liveHome.copy.slice(0, 600);
     expect(liveHome.copy).toMatch(/MileRecover|Welcome back|You've protected|Start tracking/i);
-    expect(liveHome.copy).toMatch(/Add a drive|Next up|Check for missed drives/i);
+    expect(liveHome.copy).toMatch(/Add your first drive|Next up|Check for missed drives/i);
     expect(liveHome.copy).not.toContain('Alex Johnson');
     expect(liveHome.copy).not.toContain('87.6');
     expect(liveHome.copy).not.toContain('487.32');
@@ -65,7 +65,7 @@ describe('Screen render evidence', () => {
 
     const reviewHome = await renderMainTabs('recovery_available');
     manifest['home-review-item'] = reviewHome.copy.slice(0, 600);
-    expect(reviewHome.copy).toMatch(/Review \d+ |Work drives|Next up|Add a drive/i);
+    expect(reviewHome.copy).toMatch(/Review \d+ |Work drives|Next up|Check for missed drives/i);
 
     fs.writeFileSync(path.join(evidenceDir, 'home-evidence.json'), JSON.stringify(manifest, null, 2));
   });
@@ -109,10 +109,11 @@ describe('Screen render evidence', () => {
     expect(manifest['tracking-active']).toMatch(/Tracking health|Run diagnostics|Open Protection Center/i);
     expect(manifest['help-support']).toMatch(/COMMON QUESTIONS|Common questions|Help|Review setup/i);
     expect(manifest['report-preview']).toMatch(/report|preview|work drive/i);
-    expect(manifest['plan-selection']).toMatch(/Try Plus features|Current plan: Free|Free stays usable/i);
+    expect(manifest['plan-selection']).toMatch(/Choose your plan|Current plan: Free|Free stays useful/i);
+
     expect(manifest['plan-selection']).toMatch(/Plus|Pro/i);
     expect(manifest['plan-selection']).not.toMatch(/RevenueCat/i);
-    expect(manifest['edit-setup']).toMatch(/Update your answers|Adjust setup|Primary goal|Country/i);
+    expect(manifest['edit-setup']).toMatch(/Region & rate|Work type|United States|Preferred name|Personalization/i);
     expect(manifest['privacy']).toMatch(/Privacy and data|local-first|Local-first|records miles/i);
     expect(manifest['coming-later']).toMatch(/Not available in this preview/i);
     expect(manifest['about']).toMatch(/About|version|Check for updates|Privacy/i);

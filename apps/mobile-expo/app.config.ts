@@ -62,7 +62,7 @@ const config = {
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
-      backgroundColor: '#E8F4EE',
+      backgroundColor: '#E5F5EC',
     },
     permissions: [
       'ACCESS_COARSE_LOCATION',
@@ -97,7 +97,7 @@ const config = {
     [
       'expo-notifications',
       {
-        color: '#0F6B46',
+        color: '#1F8A5B',
       },
     ],
     [

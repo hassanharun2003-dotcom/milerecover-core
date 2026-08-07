@@ -5,7 +5,7 @@ import { File } from 'expo-file-system';
 import { analyzeCsvImport } from '@milerecover/domain';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { spacing, typography } from '@milerecover/config';
+import { spacing } from '@milerecover/config';
 import {
   FormError,
   ImportOptionCard,
@@ -21,8 +21,10 @@ import { useProduct } from '../../product/ProductContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const SUPPORTED_APPS = ['MileIQ', 'Everlance', 'Driversnote', 'TripLog', 'Stride', 'Generic CSV'] as const;
-
+/**
+ * Competitor names must NOT appear in normal UI before source detection.
+ * Detection may reveal a format label on ImportPreview after the file is chosen.
+ */
 export function BringExistingMileageScreen() {
   const navigation = useNavigation<Nav>();
   const { palette } = useAppTheme();
@@ -63,41 +65,29 @@ export function BringExistingMileageScreen() {
       <StatusCard
         variant="info"
         title="Switch to MileRecover"
-        body="Export a CSV from your current mileage app, then choose the file here. We detect the format, preview rows, and never invent miles."
+        body="Bring your mileage history with you. Keep past trips together without starting from scratch."
         emphasis="hero"
       />
-      <Text
-        style={[
-          text.caption,
-          {
-            color: palette.text.secondary,
-            marginBottom: spacing.sm,
-            fontWeight: '600',
-            fontSize: typography.size.caption,
-          },
-        ]}
-      >
-        Supported exports
-      </Text>
-      <View style={styles.appTags}>
-        {SUPPORTED_APPS.map((name) => (
-          <View
-            key={name}
-            style={[styles.tag, { backgroundColor: palette.background.mist, borderColor: palette.border.default }]}
-          >
-            <Text style={{ color: palette.text.primary, fontSize: typography.size.caption, fontWeight: '600' }}>
-              {name}
-            </Text>
-          </View>
-        ))}
-      </View>
       <ImportOptionCard
-        title="Choose export file"
-        subtitle="CSV from MileIQ, Everlance, Driversnote, TripLog, Stride, or a generic spreadsheet"
+        title="Import a CSV"
+        subtitle="Choose a mileage file from your phone or email."
         onPress={() => void pickCsv()}
       />
+      <ImportOptionCard
+        title="Import from another mileage app"
+        subtitle="Upload an export. We’ll detect the format when we can."
+        onPress={() => void pickCsv()}
+      />
+      <ImportOptionCard
+        title="Add drives manually"
+        subtitle="Start fresh and log trips yourself."
+        onPress={() => navigation.navigate('ManualTrip')}
+      />
+      <Text style={[text.caption, { color: palette.text.secondary, marginTop: spacing.sm }]}>
+        Supported formats appear after you choose a file. Competitor names only show if we detect that
+        export.
+      </Text>
       <View style={styles.tertiary}>
-        <TertiaryButton label="Add drives by hand" onPress={() => navigation.navigate('ManualTrip')} />
         <TertiaryButton label="Start fresh instead" onPress={() => navigation.goBack()} />
       </View>
       {error ? <FormError message={error} /> : null}
@@ -113,16 +103,4 @@ export function BringExistingMileageScreen() {
 const styles = StyleSheet.create({
   selected: { marginTop: spacing.lg },
   tertiary: { marginTop: spacing.md, gap: spacing.xs },
-  appTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  tag: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
 });

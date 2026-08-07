@@ -533,42 +533,49 @@ export function HomeScreen() {
 
       <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Next up</Text>
       <MRCard
-        onPress={nextBest.run ?? undefined}
-        accessibilityLabel={nextBest.label}
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          minHeight: 52,
+          minHeight: layout.buttonH,
           paddingVertical: spacing.smMd,
+          gap: 4,
         }}
       >
         <Text
           style={{
-            flex: 1,
             fontSize: typography.size.bodyLarge,
             fontWeight: '600',
             color: palette.text.primary,
           }}
         >
-          {nextBest.label}
+          {confirmedCount === 0 && nextBest.label === 'Add your first drive'
+            ? 'Start with a manual trip'
+            : nextBest.label}
         </Text>
-        {nextBest.run ? (
-          <Text style={{ color: palette.text.secondary, fontSize: 22, marginLeft: spacing.sm }}>›</Text>
-        ) : null}
+        <Text style={{ fontSize: typography.size.caption, color: palette.text.secondary }}>
+          {confirmedCount === 0 && nextBest.label === 'Add your first drive'
+            ? 'Log a trip manually while automatic tracking gets going.'
+            : protectionNeedsAction
+              ? 'Fix tracking first so upcoming drives stay protected.'
+              : pendingReviewCount > 0
+                ? 'Confirm and lock in your mileage.'
+                : 'Your next useful step in MileRecover.'}
+        </Text>
       </MRCard>
 
       <View style={{ marginTop: spacing.sm, gap: spacing.sm, marginBottom: spacing.md }}>
-        <MRPrimaryButton
-          label="+ Add a drive"
-          onPress={() => navigation.navigate('ManualTrip')}
-          accessibilityLabel="Add a drive from home"
-        />
-        <MRSecondaryButton
-          label="Check for missed drives"
-          onPress={() => navigation.navigate('MissingDrivesIntro')}
-          accessibilityLabel="Check for missed drives"
-        />
+        {nextBest.run ? (
+          <MRPrimaryButton
+            label={nextBest.label}
+            onPress={nextBest.run}
+            accessibilityLabel={nextBest.label}
+          />
+        ) : null}
+        {nextBest.label !== 'Check for missed drives' ? (
+          <MRSecondaryButton
+            label="Check for missed drives"
+            onPress={() => navigation.navigate('MissingDrivesIntro')}
+            accessibilityLabel="Check for missed drives"
+          />
+        ) : null}
       </View>
 
       <TrialOfferCard

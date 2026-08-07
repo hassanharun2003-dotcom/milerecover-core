@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -76,6 +76,26 @@ function SettingsRow({
       </View>
       <Text style={{ color: palette.text.secondary, fontSize: 20 }}>›</Text>
     </MRCard>
+  );
+}
+
+function SectionLabel({ label }: { label: string }) {
+  const { palette } = useAppTheme();
+  return (
+    <Text
+      style={{
+        marginTop: spacing.md,
+        marginBottom: spacing.sm,
+        color: palette.text.secondary,
+        fontWeight: '700',
+        fontSize: typography.size.caption,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+      }}
+      accessibilityRole="header"
+    >
+      {label}
+    </Text>
   );
 }
 
@@ -178,17 +198,27 @@ export function ProfileScreen() {
             {workSubtitle}
           </Text>
         </View>
-        <Pressable
-          onPress={() => navigation.navigate('EditSetup')}
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          hitSlop={8}
-          style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Ionicons name="settings-outline" size={22} color={palette.text.primary} />
-        </Pressable>
       </View>
 
+      <SectionLabel label="Account" />
+      <SettingsRow
+        icon="person-outline"
+        label="Account"
+        value={authSession?.email ?? 'Email & sign-in'}
+        onPress={() => (authSession ? setConfirmSignOutVisible(true) : navigation.navigate('EditSetup'))}
+      />
+      <SettingsRow
+        icon="briefcase-outline"
+        label="Work information"
+        value={primaryGoal}
+        onPress={() => navigation.navigate('EditSetup')}
+      />
+      <SettingsRow
+        icon="cash-outline"
+        label="Mileage rate"
+        value={rateLabel}
+        onPress={() => navigation.navigate('EditSetup')}
+      />
       <SettingsRow
         icon="car-outline"
         label="Vehicles"
@@ -199,18 +229,8 @@ export function ProfileScreen() {
         }
         onPress={() => navigation.navigate('VehicleSetup')}
       />
-      <SettingsRow
-        icon="cash-outline"
-        label="Mileage rate"
-        value={rateLabel}
-        onPress={() => navigation.navigate('EditSetup')}
-      />
-      <SettingsRow
-        icon="briefcase-outline"
-        label="Work information"
-        value={primaryGoal}
-        onPress={() => navigation.navigate('EditSetup')}
-      />
+
+      <SectionLabel label="Tracking" />
       <SettingsRow
         icon="shield-checkmark-outline"
         label="Tracking health"
@@ -224,27 +244,45 @@ export function ProfileScreen() {
         }}
       />
       <SettingsRow
+        icon="notifications-outline"
+        label="Notifications"
+        value={product.notificationPreferences.enabled ? 'Manage alerts' : 'Off'}
+        onPress={() => navigation.navigate('Notifications')}
+      />
+      <SettingsRow
+        icon="location-outline"
+        label="Frequent drives"
+        value="Named work places"
+        onPress={() => navigation.navigate('WorkLocationSetup')}
+      />
+
+      <SectionLabel label="Data" />
+      <SettingsRow
         icon="swap-horizontal-outline"
-        label="Switch to MileRecover"
-        value="Import from MileIQ and more"
+        label="Import mileage"
+        value="Bring your trips with you"
         onPress={() => navigation.navigate('BringExistingMileage')}
       />
       <SettingsRow
         icon="share-outline"
         label="Export history"
+        value="CSV & reports"
         onPress={() => navigation.navigate('ExportReport')}
       />
-      <SettingsRow
-        icon="notifications-outline"
-        label="Notifications"
-        value={product.notificationPreferences.enabled ? 'On' : 'Off'}
-        onPress={() => navigation.navigate('Notifications')}
-      />
+
+      <SectionLabel label="Plan" />
       <SettingsRow
         icon="diamond-outline"
-        label="Plan / subscription"
+        label="Plan & subscription"
         value={product.selectedPlan === 'free' ? 'Free' : product.selectedPlan}
         onPress={() => navigation.navigate('PlanSelection', { source: 'profile' })}
+      />
+
+      <SectionLabel label="Support" />
+      <SettingsRow
+        icon="help-circle-outline"
+        label="Help & support"
+        onPress={() => navigation.navigate('HelpSupport')}
       />
       <SettingsRow
         icon="shield-outline"
@@ -256,19 +294,6 @@ export function ProfileScreen() {
         label="Terms"
         onPress={() => navigation.navigate('Terms')}
       />
-      {authSession ? (
-        <SettingsRow
-          icon="log-out-outline"
-          label="Sign out"
-          value={authSession.email ?? authSession.provider}
-          onPress={() => setConfirmSignOutVisible(true)}
-        />
-      ) : null}
-      <SettingsRow
-        icon="help-circle-outline"
-        label="Help & support"
-        onPress={() => navigation.navigate('HelpSupport')}
-      />
       <SettingsRow
         icon="information-circle-outline"
         label="About MileRecover"
@@ -278,17 +303,7 @@ export function ProfileScreen() {
 
       {internalPreviewTools ? (
         <>
-          <Text
-            style={{
-              marginTop: spacing.md,
-              marginBottom: spacing.sm,
-              color: palette.text.secondary,
-              fontWeight: '700',
-              fontSize: typography.size.caption,
-            }}
-          >
-            Preview
-          </Text>
+          <SectionLabel label="Preview" />
           <SettingsRow
             icon="refresh-outline"
             label="Reset onboarding"

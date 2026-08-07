@@ -17,16 +17,16 @@ import fs from 'fs';
 import path from 'path';
 
 describe('Image lock Batch A/B foundations', () => {
-  it('uses white canvas and locked layout/typography tokens', () => {
-    expect(lightSemantic.canvas).toBe('#FFFFFF');
-    expect(lightSemantic.primary).toBe('#0F6B46');
-    expect(lightSemantic.primaryDeep).toBe('#073D2C');
-    expect(lightSemantic.surfaceSelected).toBe('#E8F4EE');
+  it('uses Figma Production Design Lock layout/typography tokens', () => {
+    expect(lightSemantic.canvas).toBe('#FAFAF8');
+    expect(lightSemantic.primary).toBe('#1F8A5B');
+    expect(lightSemantic.primaryDeep).toBe('#0B3D2E');
+    expect(lightSemantic.surfaceSelected).toBe('#E5F5EC');
     expect(radii.xl).toBe(20);
-    expect(layout.pageX).toBe(20);
-    expect(layout.buttonH).toBe(52);
-    expect(typography.size.display).toBe(28);
-    expect(typography.lineHeight.display).toBe(34);
+    expect(layout.pageX).toBe(24);
+    expect(layout.buttonH).toBe(48);
+    expect(typography.size.display).toBe(34);
+    expect(typography.lineHeight.display).toBe(42);
   });
 
   it('clean install opens welcome and requires account before purpose', () => {

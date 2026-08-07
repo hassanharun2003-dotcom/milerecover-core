@@ -2898,7 +2898,6 @@ export function PlanSelectionScreen() {
   const { state } = useApp();
   const { product, setSelectedPlan, setEntitlement } = useProduct();
   const [annual, setAnnual] = useState(false);
-  const [showCompare, setShowCompare] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [billingAvailable, setBillingAvailable] = useState(false);
@@ -2956,13 +2955,6 @@ export function PlanSelectionScreen() {
     '1 missing scan/month',
     'Unlimited manual trips',
     'Basic CSV export',
-  ];
-  const proMarketingFeatures = [
-    'Unlimited automatic tracking',
-    'Missing drive recovery',
-    'Advanced PDF reports',
-    'Multiple vehicles',
-    'Priority support',
   ];
 
   useEffect(() => {
@@ -3023,17 +3015,17 @@ export function PlanSelectionScreen() {
     setSelectedPlan('free');
     setNotice("You're on Free. Your existing records stay available.");
   };
-  const plusCta = trialEligible ? 'Start 7-day free trial' : 'Continue with Plus';
-  const proCta = trialEligible ? 'Start Free 7-Day Trial' : 'Continue with Pro';
+  const plusCta = trialEligible ? 'Start free 7-day trial' : 'Start Plus';
+  const proCta = trialEligible ? 'Start free 7-day trial' : 'Start Pro';
 
   return (
     <FixedHeaderScrollScreen
       scrollKey={annual ? 'annual' : 'monthly'}
       header={
         <View>
-          <Text style={flowStyles.lockedTitle}>Go Pro</Text>
+          <Text style={flowStyles.lockedTitle}>Choose your plan</Text>
           <Text style={[flowStyles.lockedBody, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Recover more miles. Save more money.
+            Free stays useful. Upgrade only when you need more automation or reporting.
           </Text>
           {valueProof ? (
             <Text style={[text.caption, { marginBottom: spacing.sm }]}>{valueProof}</Text>
@@ -3043,7 +3035,7 @@ export function PlanSelectionScreen() {
             onChange={(value) => setAnnual(value === 'annual')}
             options={[
               { label: 'Monthly', value: 'monthly' },
-              { label: 'Yearly (Save 20%)', value: 'annual' },
+              { label: 'Yearly · Save 20%', value: 'annual' },
             ]}
           />
         </View>
@@ -3053,88 +3045,73 @@ export function PlanSelectionScreen() {
         <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" />
       ) : null}
 
-      {showCompare ? (
-        <StatusCard
-          variant="info"
-          title={`Current plan: ${currentPlanLabel}`}
-          body={currentPlanBody}
-          emphasis="subtle"
-        />
-      ) : null}
+      <StatusCard
+        variant="info"
+        title={`Current plan: ${currentPlanLabel}`}
+        body={currentPlanBody}
+        emphasis="subtle"
+      />
 
-      <MRHeroCard accessibilityLabel={`Pro plan ${proPrice}`}>
-        <View style={flowStyles.proCardHeader}>
-          <Text style={flowStyles.proBadge}>Most Popular</Text>
-        </View>
-        <Text style={flowStyles.proPlanName}>Pro</Text>
-        <View style={flowStyles.priceRow}>
-          <Text style={flowStyles.proPrice}>{proPrice}</Text>
-          <Text style={flowStyles.proPeriod}> / {annual ? 'year' : 'month'}</Text>
-        </View>
-        <View style={flowStyles.featureStack}>
-          {proMarketingFeatures.map((feature) => (
-            <View key={feature} style={flowStyles.inverseFeatureRow}>
-              <Text style={flowStyles.inverseCheck}>✓</Text>
-              <Text style={flowStyles.inverseFeatureText}>{feature}</Text>
+      <View style={flowStyles.cardStack}>
+        <MRCard selected={entitlement.planId === 'free'}>
+          <Text style={flowStyles.planName}>{freeFixture.name}</Text>
+          <Text style={flowStyles.planPrice}>{freeFixture.monthlyPrice}</Text>
+          {freeFeatures.map((feature) => (
+            <View key={feature} style={flowStyles.featureRow}>
+              <Text style={flowStyles.checkText}>•</Text>
+              <Text style={flowStyles.featureText}>{feature}</Text>
             </View>
           ))}
-        </View>
-      </MRHeroCard>
+          <MRSecondaryButton label="Continue with Free" onPress={selectFree} />
+        </MRCard>
 
-      <MRPrimaryButton
-        label={proCta}
-        loading={purchaseBusy}
-        disabled={purchaseBusy}
-        onPress={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
-        accessibilityLabel={proCta}
-      />
+        <MRCard selected={entitlement.planId === 'plus'}>
+          <View style={flowStyles.proCardHeader}>
+            <Text style={[flowStyles.proBadge, { alignSelf: 'flex-start' }]}>Recommended</Text>
+          </View>
+          <Text style={flowStyles.planName}>{plusFixture.name}</Text>
+          <Text style={flowStyles.planPrice}>
+            {plusPrice}/{plusPeriod === 'annual' ? 'yr' : 'mo'}
+          </Text>
+          {plusFeatures.map((feature) => (
+            <View key={feature} style={flowStyles.featureRow}>
+              <Text style={flowStyles.checkText}>•</Text>
+              <Text style={flowStyles.featureText}>{feature}</Text>
+            </View>
+          ))}
+          <MRPrimaryButton
+            label={plusCta}
+            loading={purchaseBusy}
+            disabled={purchaseBusy}
+            onPress={() =>
+              void handlePurchase('plus', () =>
+                trialEligible
+                  ? purchasePort.purchasePlusTrial('monthly')
+                  : purchasePort.purchasePlus(period),
+              )
+            }
+            accessibilityLabel={plusCta}
+          />
+        </MRCard>
 
-      <MRTertiaryButton
-        label={showCompare ? 'Hide plan comparison' : 'Compare all plans'}
-        onPress={() => setShowCompare((value) => !value)}
-      />
-
-      {showCompare ? (
-        <View style={flowStyles.cardStack}>
-          <MRCard selected={entitlement.planId === 'plus'}>
-            <Text style={flowStyles.planName}>{plusFixture.name}</Text>
-            <Text style={flowStyles.planPrice}>{plusPrice} / {plusPeriod === 'annual' ? 'year' : 'month'}</Text>
-            {plusFeatures.map((feature) => (
-              <View key={feature} style={flowStyles.featureRow}>
-                <Text style={flowStyles.checkText}>✓</Text>
-                <Text style={flowStyles.featureText}>{feature}</Text>
-              </View>
-            ))}
-            <MRSecondaryButton
-              label={plusCta}
-              disabled={purchaseBusy}
-              onPress={() =>
-                void handlePurchase('plus', () =>
-                  trialEligible
-                    ? purchasePort.purchasePlusTrial('monthly')
-                    : purchasePort.purchasePlus(period),
-                )
-              }
-            />
-          </MRCard>
-          <MRCard selected={entitlement.planId === 'free'}>
-            <Text style={flowStyles.planName}>{freeFixture.name}</Text>
-            <Text style={flowStyles.planPrice}>{freeFixture.monthlyPrice} / month</Text>
-            {freeFeatures.map((feature) => (
-              <View key={feature} style={flowStyles.featureRow}>
-                <Text style={flowStyles.checkText}>✓</Text>
-                <Text style={flowStyles.featureText}>{feature}</Text>
-              </View>
-            ))}
-            <MRSecondaryButton label="Continue with Free" onPress={selectFree} />
-          </MRCard>
-        </View>
-      ) : null}
-
-      <MRTertiaryButton
-        label="Need to recover older mileage instead?"
-        onPress={() => navigation.navigate('RescueProducts')}
-      />
+        <MRCard selected={entitlement.planId === 'pro'}>
+          <Text style={flowStyles.planName}>{proFixture.name}</Text>
+          <Text style={flowStyles.planPrice}>
+            {proPrice}/{annual ? 'yr' : 'mo'}
+          </Text>
+          {proFixture.features.map((feature) => (
+            <View key={feature} style={flowStyles.featureRow}>
+              <Text style={flowStyles.checkText}>•</Text>
+              <Text style={flowStyles.featureText}>{feature}</Text>
+            </View>
+          ))}
+          <MRSecondaryButton
+            label={proCta}
+            disabled={purchaseBusy}
+            onPress={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
+          />
+        </MRCard>
+      </View>
 
       <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
         <MRTertiaryButton
@@ -3147,8 +3124,12 @@ export function PlanSelectionScreen() {
             void handlePurchase('plus', () => purchasePort.restore());
           }}
         />
+        <MRTertiaryButton
+          label="Need to recover older mileage instead?"
+          onPress={() => navigation.navigate('RescueProducts')}
+        />
         <Text style={text.caption}>
-          Subscriptions renew unless cancelled in Google Play or App Store settings.{' '}
+          Current plan: Free. No fake urgency. Cancel anytime in your store account.{' '}
           <Text style={text.caption} onPress={() => navigation.navigate('Terms')}>
             Terms
           </Text>

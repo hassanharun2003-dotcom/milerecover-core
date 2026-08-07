@@ -51,8 +51,8 @@ describe('Locked product experience', () => {
   });
 
   it('centralizes subscription fixtures with design prices', () => {
-    expect(PLAN_FIXTURES.find((p) => p.id === 'plus')?.monthlyPrice).toBe('$8.99');
-    expect(PLAN_FIXTURES.find((p) => p.id === 'pro')?.monthlyPrice).toBe('$14.99');
+    expect(PLAN_FIXTURES.find((p) => p.id === 'plus')?.monthlyPrice).toBe('$9.99');
+    expect(PLAN_FIXTURES.find((p) => p.id === 'pro')?.monthlyPrice).toBe('$19.99');
     expect(RESCUE_OPTIONS.find((r) => r.id === 'rescue-year')?.price).toBe('$59.99');
   });
 
