@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { createEmptyOnboardingState, CURRENT_ONBOARDING_VERSION, resolveReportPeriod } from '@milerecover/domain';
 import { resolveLaunchState } from '../src/startup/launchState';
-import { createEmptyAppState } from '../src/store/types';
+import { createInitialAppState } from '../src/store/types';
 import {
   annualUsdFromMonthly,
   CATALOG_PLANS,
