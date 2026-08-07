@@ -1,0 +1,50 @@
+{
+  "appVersion": "0.2.5",
+  "versionLabel": "0.2.5-image-lock.2",
+  "versionCode": 32,
+  "buildCommit": "b47494089a6c1a6d12bb201763e7989aa9f63c62",
+  "apkSha256": "134265313b8a417d604d6bab899f6547108a995616a0668b9cd1f7e66f6c587d",
+  "package": "com.milerecover.app",
+  "device": {
+    "model": "sdk_gphone64_x86_64 (Pixel 6 AVD mile_pixel6)",
+    "androidVersion": "14 (API 34)",
+    "viewport": "1080x2400",
+    "density": "420dpi",
+    "acceleration": "TCG (-accel off, no KVM)"
+  },
+  "fixtureState": "clean install / truthful empty production state; wifi/data disabled to block Expo OTA during capture",
+  "screens": {
+    "01-welcome": "captured \u2014 green brand mark, Skip, 3 benefits, Get started",
+    "02-auth": "captured \u2014 1 of 5; Google + continue without account; truthful unavailable",
+    "03-purpose": "captured \u2014 2 of 5; collage purpose labels",
+    "04-region-rate": "captured \u2014 3 of 5",
+    "05-protection": "captured \u2014 4 of 5",
+    "06-ready": "captured",
+    "07-home": "captured \u2014 Good evening, $0.00 this year, 3 metric tiles, tabs"
+  },
+  "diffSummary": [
+    {
+      "screen": "01-welcome",
+      "ref": "01-welcome",
+      "mean_abs_diff": 22.13092619597359
+    },
+    {
+      "screen": "03-purpose",
+      "ref": "02-purpose",
+      "mean_abs_diff": 21.616937051889657
+    },
+    {
+      "screen": "04-region-rate",
+      "ref": "03-region-rate",
+      "mean_abs_diff": 22.541437801271925
+    },
+    {
+      "screen": "07-home",
+      "ref": "04-home",
+      "mean_abs_diff": 36.20801940292461
+    }
+  ],
+  "installUrl": "https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.5/MileRecover-preview-0.2.5.apk",
+  "apkSourceCommit": "b47494089a6c1a6d12bb201763e7989aa9f63c62",
+  "evidenceCommit": "31e318f"
+}

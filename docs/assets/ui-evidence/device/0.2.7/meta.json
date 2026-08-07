@@ -1,0 +1,21 @@
+{
+  "versionName": "0.2.7",
+  "versionCode": 42,
+  "buildLabel": "0.2.7-startup.8",
+  "packageId": "com.milerecover.app",
+  "runtimeVersion": "0.2.7",
+  "channel": "preview-foundation-0.2.7",
+  "commit": "c325793a1bf194c0bc14da17d4bcf7f8dbf85845",
+  "apkSha256": "f120665f89e9ae16c523199903b86c57d2c9c559821a419cac15fe97a66176bd",
+  "apkPath": "MileRecover-preview-0.2.7.apk",
+  "device": "AVD mile_pixel6 API 34 TCG",
+  "proof": {
+    "coldLaunchAlive60s": true,
+    "samePid": true,
+    "welcomeCleanInstall": true,
+    "homeAfterOnboarding": true,
+    "homeAfterForceStopReopen": true,
+    "completionStampFile": true,
+    "updateFailedToLoadOnColdStart": false
+  }
+}
