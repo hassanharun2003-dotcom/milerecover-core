@@ -21,6 +21,7 @@ import {
   text,
   useAppTheme,
 } from '../../design-system';
+import { CountryFlag } from '../../components/CountryFlag';
 import { useProduct } from '../../product/ProductContext';
 import {
   COUNTRY_OPTIONS,
@@ -253,9 +254,7 @@ export function EditSetupScreen() {
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Text style={{ fontSize: 20 }}>
-            {COUNTRY_OPTIONS.find((option) => option.id === country)?.flagEmoji ?? '🌍'}
-          </Text>
+          <CountryFlag code={country} size={20} />
           <Text style={text.body}>{currentCountryLabel}</Text>
         </View>
         <Text style={{ color: palette.text.secondary }}>{countryOpen ? '▴' : '▾'}</Text>
@@ -273,9 +272,10 @@ export function EditSetupScreen() {
           {filteredCountries.map((option) => (
             <SelectionCard
               key={option.id}
-              title={`${option.flagEmoji}  ${option.label}`}
+              title={option.label}
               body={option.id === 'OTHER' ? 'Custom units — no local tax rules claimed' : undefined}
               selected={country === option.id}
+              leading={<CountryFlag code={option.id} size={20} />}
               onPress={() => {
                 setCountry(option.id);
                 setSavedLocale(false);

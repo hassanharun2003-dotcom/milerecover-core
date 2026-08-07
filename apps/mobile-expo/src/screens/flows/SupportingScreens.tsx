@@ -71,6 +71,13 @@ import {
   text,
 } from '../../design-system';
 import { FigmaIllustration } from '../../components/FigmaIllustration';
+import {
+  MissingDrivesArt,
+  ProtectionArt,
+  RecoverySuccessArt,
+} from '../../components/ProductArt';
+import { yearlySavingsLabel } from '../../constants/pricing';
+import { hapticSelection, hapticSuccess } from '../../services/haptics';
 import { isModelCompatibleWithMake, searchMakes, searchModels } from '../../data/vehicles';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
@@ -839,6 +846,7 @@ export function ManualTripScreen() {
       return;
     }
     setSaving(true);
+    void hapticSuccess();
     const created = createManualTripRecord(input);
     const trip =
       classification === 'personal'
@@ -907,7 +915,9 @@ export function ManualTripScreen() {
             loading={saving}
           />
           {existing ? <DestructiveButton label="Delete drive" onPress={confirmDelete} /> : null}
-          <Text style={flowStyles.privacyCaption}>Your data stays private and secure</Text>
+          <Text style={flowStyles.privacyCaption}>
+            Kept on this device. Receipts and notes stay private unless you export them.
+          </Text>
         </View>
       }
     >
@@ -927,7 +937,10 @@ export function ManualTripScreen() {
           <Text style={flowStyles.fieldGroupLabel}>Classification</Text>
           <MRSegmentedControl
             value={classification === 'personal' ? 'personal' : 'work'}
-            onChange={(value) => setClassification(value)}
+            onChange={(value) => {
+              void hapticSelection();
+              setClassification(value);
+            }}
             options={[
               { label: 'Work', value: 'work' },
               { label: 'Personal', value: 'personal' },
@@ -1483,23 +1496,13 @@ export function MissingDrivesIntroScreen() {
 
   return (
     <ScrollScreen>
-      <View
-        style={flowStyles.missingIllustration}
-        accessibilityRole="image"
-        accessibilityLabel="Car finding missed drives"
-      >
-        <FigmaIllustration
-          name="missingDrivesRoute"
-          accessibilityLabel="Car route missing drives artwork"
-          width={280}
-          height={180}
-        />
-      </View>
+      <MissingDrivesArt />
       <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
         Find the miles you missed
       </Text>
       <Text style={[flowStyles.lockedBody, { marginBottom: spacing.md }]}>
-        Scan recent location history to recover drives that were never logged.
+        Uses evidence from recent movement to suggest likely missing drives. Nothing is added without your
+        confirmation.
       </Text>
       <View style={flowStyles.trustStack}>
         {[
@@ -1566,9 +1569,7 @@ export function MissingTripRecoveryScreen() {
   if (recovered) {
     return (
       <ScrollScreen>
-        <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
-          <FigmaIllustration name="recoverySuccess" accessibilityLabel="Miles recovered success artwork" />
-        </View>
+        <RecoverySuccessArt />
         <Text
           style={[flowStyles.lockedTitle, { textAlign: 'center', marginBottom: spacing.sm }]}
           accessibilityRole="header"
@@ -1617,6 +1618,7 @@ export function MissingTripRecoveryScreen() {
       return;
     }
     remember('work');
+    void hapticSuccess();
     const rate = rateForTimestamp(locale.rates, candidate.proposedStartAt);
     const cents =
       rate != null ? estimatedValueCents(miles, rate.centsPerMile) : null;
@@ -1718,13 +1720,19 @@ export function ProtectionAlertScreen() {
   const foregroundReady = permissions.location === 'granted';
   const backgroundReady =
     permissions.backgroundLocation === 'granted' || permissions.backgroundLocation === 'not_applicable';
+  const automaticReady =
+    Boolean(product.trackingEnabled && capabilities.canUseAutomaticCapture && foregroundReady && backgroundReady);
+  const batteryReady = !permissions.batteryOptimizationRestricted;
   const primaryAction = protection.primaryAction;
   const permissionMissing = !foregroundReady;
+  const isWaiting = protection.state === 'CONFIGURED_WAITING';
   const isHealthy = protection.state === 'PROTECTED';
   const overviewHeroTitle = permissionMissing
     ? 'Location permission missing'
     : isHealthy
-      ? "You're protected"
+      ? 'Protection is on'
+      : isWaiting
+        ? 'Protection is on'
       : protection.state === 'NEEDS_PERMISSION' ||
           protection.state === 'BATTERY_LIMITED' ||
           protection.state === 'STALE' ||
@@ -1736,11 +1744,13 @@ export function ProtectionAlertScreen() {
     ? "MileRecover can't protect drives without location access. Enable it to resume tracking."
     : isHealthy
       ? 'Automatic tracking is running. New drives will be captured in the background.'
+      : isWaiting
+        ? 'Waiting for your first drive. We won’t call it fully protected until a verified drive lands.'
       : 'One or more settings may stop drives from being captured. Fix them to stay protected.';
   const overviewPrimaryLabel = permissionMissing
     ? 'Open settings'
-    : isHealthy
-      ? 'Run diagnostics'
+    : isHealthy || isWaiting
+      ? 'Done'
       : 'Fix tracking issues';
   const [guideStep, setGuideStep] = useState<
     'overview' | 'explain_fg' | 'ask_fg' | 'explain_bg' | 'ask_bg' | 'verify' | 'success'
@@ -1781,36 +1791,28 @@ export function ProtectionAlertScreen() {
     fix?: () => void;
   }> = [
     {
-      label: 'Location permission',
-      value: foregroundReady ? 'On' : 'Missing',
+      label: 'Foreground location',
+      value: foregroundReady ? 'Allowed' : 'Missing',
       ok: foregroundReady,
       fix: foregroundReady ? undefined : () => setGuideStep('explain_fg'),
     },
     {
-      label: 'Background tracking',
-      value:
-        product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady
-          ? 'Active'
-          : !backgroundReady
-            ? 'Paused'
-            : 'Interrupted',
-      ok: Boolean(product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady),
-      fix:
-        product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady
-          ? undefined
-          : () => startGuidedRepair(),
+      label: 'Background location',
+      value: backgroundReady ? 'Allowed' : 'Missing',
+      ok: backgroundReady,
+      fix: backgroundReady ? undefined : () => setGuideStep('explain_bg'),
+    },
+    {
+      label: 'Automatic protection',
+      value: automaticReady ? (isHealthy ? 'On' : isWaiting ? 'Waiting for first drive' : 'On') : 'Unavailable',
+      ok: automaticReady && (isHealthy || isWaiting),
+      fix: automaticReady ? undefined : () => startGuidedRepair(),
     },
     {
       label: 'Battery optimization',
-      value: permissions.batteryOptimizationRestricted ? 'Restricting' : 'Ready',
-      ok: !permissions.batteryOptimizationRestricted,
-      fix: permissions.batteryOptimizationRestricted ? () => void openSystemSettings() : undefined,
-    },
-    {
-      label: 'Motion & fitness',
-      value: automaticCaptureAvailable ? 'On' : 'Needs attention',
-      ok: automaticCaptureAvailable,
-      fix: automaticCaptureAvailable ? undefined : () => startGuidedRepair(),
+      value: batteryReady ? 'Not restricting' : 'Restricting',
+      ok: batteryReady,
+      fix: batteryReady ? undefined : () => void openSystemSettings(),
     },
   ];
 
@@ -1932,13 +1934,46 @@ export function ProtectionAlertScreen() {
       product.trackingEnabled &&
       waiting;
     const canFinishSetup = ok || waiting || configuredReady;
+    const primaryVerifyLabel = !foregroundReady
+      ? 'Allow location while using the app'
+      : !backgroundReady
+        ? 'Allow background location'
+        : !batteryReady
+          ? 'Open battery settings'
+          : canFinishSetup
+            ? 'Done'
+            : 'Check again';
+    const runVerifyPrimary = () => {
+      if (!foregroundReady) {
+        setGuideStep('explain_fg');
+        return;
+      }
+      if (!backgroundReady) {
+        setGuideStep('explain_bg');
+        return;
+      }
+      if (!batteryReady) {
+        void openSystemSettings();
+        return;
+      }
+      if (canFinishSetup) {
+        setProtectionSetupState('configured');
+        if (!product.trackingEnabled && capabilities.canUseAutomaticCapture) {
+          setTrackingEnabled(true);
+        }
+        void hapticSuccess();
+        navigation.goBack();
+        return;
+      }
+      void refreshPermissions();
+    };
     return (
       <ScrollScreen>
         <StatusCard
           variant={ok ? 'success' : configuredReady || waiting ? 'info' : 'warning'}
           title={
             ok
-              ? 'You’re protected'
+              ? 'Protection is on'
               : configuredReady || waiting
                 ? 'Waiting for first drive'
                 : 'Checking protection…'
@@ -1953,29 +1988,35 @@ export function ProtectionAlertScreen() {
           emphasis="hero"
         />
         <SoftPanel>
-          <EvidenceRow label="While using the app" value={foregroundReady ? 'Allowed' : 'Not allowed'} />
-          <EvidenceRow label="In the background" value={backgroundReady ? 'Allowed' : 'Not allowed'} />
+          <EvidenceRow label="Foreground location" value={foregroundReady ? 'Allowed' : 'Not allowed'} />
+          <EvidenceRow label="Background location" value={backgroundReady ? 'Allowed' : 'Not allowed'} />
           <EvidenceRow
             label="Automatic protection"
-            value={product.trackingEnabled ? 'On' : 'Paused'}
+            value={
+              product.trackingEnabled
+                ? ok
+                  ? 'On'
+                  : waiting || configuredReady
+                    ? 'Waiting for first drive'
+                    : 'Configured'
+                : 'Paused'
+            }
+          />
+          <EvidenceRow
+            label="Battery optimization"
+            value={batteryReady ? 'Not restricting' : 'Restricting'}
           />
           {protection.lastCheckLabel ? (
             <EvidenceRow label="Last check" value={protection.lastCheckLabel.replace(/^Last successful check:\s*/i, '')} />
           ) : null}
         </SoftPanel>
         <PrimaryButton
-          label="Check again"
-          onPress={() => void refreshPermissions()}
-          accessibilityLabel="Check protection permissions again"
+          label={primaryVerifyLabel}
+          onPress={runVerifyPrimary}
+          accessibilityLabel={primaryVerifyLabel}
         />
-        {!foregroundReady ? (
-          <SecondaryButton label="Allow location while using the app" onPress={() => setGuideStep('explain_fg')} />
-        ) : null}
-        {foregroundReady && !backgroundReady ? (
-          <SecondaryButton label="Allow background location" onPress={() => setGuideStep('explain_bg')} />
-        ) : null}
-        {canFinishSetup ? (
-          <PrimaryButton
+        {canFinishSetup && primaryVerifyLabel !== 'Done' ? (
+          <SecondaryButton
             label="Done"
             onPress={() => {
               setProtectionSetupState('configured');
@@ -1987,25 +2028,25 @@ export function ProtectionAlertScreen() {
             accessibilityLabel="Finish protection setup"
           />
         ) : (
-          <TertiaryButton label="Continue with manual tracking" onPress={() => navigation.goBack()} />
+          <SecondaryButton
+            label="Check again"
+            onPress={() => void refreshPermissions()}
+            accessibilityLabel="Check protection permissions again"
+          />
         )}
+        {!canFinishSetup ? (
+          <TertiaryButton label="Continue with manual tracking" onPress={() => navigation.goBack()} />
+        ) : null}
       </ScrollScreen>
     );
   }
 
   return (
     <ScrollScreen>
-      <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
-        <FigmaIllustration
-          name="protectionHero"
-          accessibilityLabel="Protection Center hero artwork"
-          width={342}
-          height={134}
-        />
-      </View>
+      <ProtectionArt />
       <MRHeroCard accessibilityLabel={overviewHeroTitle}>
         <Text style={[text.caption, { marginBottom: spacing.xs, fontWeight: '600' }]}>
-          {permissionMissing ? 'Action required' : isHealthy ? 'Protected' : 'Needs attention'}
+          {permissionMissing ? 'Action required' : isHealthy || isWaiting ? 'Protection is on' : 'Needs attention'}
         </Text>
         <Text style={flowStyles.heroTitle}>{overviewHeroTitle}</Text>
         <Text style={flowStyles.heroBody}>{overviewHeroBody}</Text>
@@ -2051,12 +2092,17 @@ export function ProtectionAlertScreen() {
         onPress={
           permissionMissing
             ? () => void openSystemSettings()
+            : isHealthy || isWaiting
+              ? () => navigation.goBack()
             : primaryAction.action !== 'none'
               ? runPrimaryAction
               : startGuidedRepair
         }
         accessibilityLabel={overviewPrimaryLabel}
       />
+      {!(isHealthy || isWaiting || permissionMissing) ? (
+        <MRSecondaryButton label="Done" onPress={() => navigation.goBack()} accessibilityLabel="Done" />
+      ) : null}
     </ScrollScreen>
   );
 }
@@ -3220,12 +3266,20 @@ export function PlanSelectionScreen() {
             onChange={(value) => setAnnual(value === 'annual')}
             options={[
               { label: 'Monthly', value: 'monthly' },
-              { label: 'Yearly · Save 20%', value: 'annual' },
+              { label: `Yearly · ${yearlySavingsLabel()}`, value: 'annual' },
             ]}
           />
         </View>
       }
     >
+      {!billingAvailable ? (
+        <StatusCard
+          variant="warning"
+          title="Store unavailable"
+          body={STORE_UNAVAILABLE_MESSAGE}
+          emphasis="subtle"
+        />
+      ) : null}
       {notice && !(isPreviewBillingBuild() && notice === STORE_UNAVAILABLE_MESSAGE) ? (
         <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" />
       ) : null}
@@ -3238,7 +3292,7 @@ export function PlanSelectionScreen() {
       />
 
       <View style={flowStyles.cardStack}>
-        <MRCard selected={entitlement.planId === 'free'}>
+        <MRCard selected={entitlement.planId === 'free'} style={{ overflow: 'visible' }}>
           <Text style={flowStyles.planName}>{freeFixture.name}</Text>
           <Text style={flowStyles.planPrice}>{freeFixture.monthlyPrice}</Text>
           {freeFeatures.map((feature) => (
@@ -3250,10 +3304,10 @@ export function PlanSelectionScreen() {
           <MRSecondaryButton label="Continue with Free" onPress={selectFree} />
         </MRCard>
 
-        <MRCard selected={entitlement.planId === 'plus'}>
-          <View style={flowStyles.proCardHeader}>
-            <Text style={[flowStyles.proBadge, { alignSelf: 'flex-start' }]}>Recommended</Text>
-          </View>
+        <MRCard selected={entitlement.planId === 'plus'} style={{ overflow: 'visible' }}>
+          <Text style={[flowStyles.proBadge, { alignSelf: 'flex-start', marginBottom: spacing.xs }]}>
+            Recommended
+          </Text>
           <Text style={flowStyles.planName}>{plusFixture.name}</Text>
           <Text style={flowStyles.planPrice}>
             {plusPrice}/{plusPeriod === 'annual' ? 'yr' : 'mo'}
@@ -3267,7 +3321,7 @@ export function PlanSelectionScreen() {
           <MRPrimaryButton
             label={plusCta}
             loading={purchaseBusy}
-            disabled={purchaseBusy}
+            disabled={purchaseBusy || !billingAvailable}
             onPress={() =>
               void handlePurchase('plus', () =>
                 trialEligible
@@ -3279,7 +3333,7 @@ export function PlanSelectionScreen() {
           />
         </MRCard>
 
-        <MRCard selected={entitlement.planId === 'pro'}>
+        <MRCard selected={entitlement.planId === 'pro'} style={{ overflow: 'visible' }}>
           <Text style={flowStyles.planName}>{proFixture.name}</Text>
           <Text style={flowStyles.planPrice}>
             {proPrice}/{annual ? 'yr' : 'mo'}
@@ -3292,7 +3346,7 @@ export function PlanSelectionScreen() {
           ))}
           <MRSecondaryButton
             label={proCta}
-            disabled={purchaseBusy}
+            disabled={purchaseBusy || !billingAvailable}
             onPress={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
           />
         </MRCard>

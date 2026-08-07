@@ -36,7 +36,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.12',
+  version: '0.2.13',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -118,8 +118,8 @@ const config = {
       },
     ],
   ],
-  // Explicit runtime — isolates 0.2.12 from prior 0.2.11 product OTA/runtime.
-  runtimeVersion: '0.2.12',
+  // Explicit runtime — isolates 0.2.13 from prior 0.2.12 product OTA/runtime.
+  runtimeVersion: '0.2.13',
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
     // Standalone preview/production binaries keep updates enabled.
@@ -142,9 +142,9 @@ const config = {
       process.env.EAS_BUILD_CREATED_AT ??
       process.env.EXPO_PUBLIC_BUILD_TIMESTAMP ??
       new Date().toISOString(),
-    runtimeVersion: '0.2.12',
+    runtimeVersion: '0.2.13',
     updateChannel: process.env.EAS_BUILD_PROFILE === 'preview' || process.env.APP_VARIANT === 'preview'
-      ? 'preview-foundation-0.2.12'
+      ? 'preview-foundation-0.2.13'
       : process.env.APP_VARIANT === 'production'
         ? 'production'
         : 'development',

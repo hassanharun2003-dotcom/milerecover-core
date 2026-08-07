@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Switch, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { spacing } from '@milerecover/config';
-import { MRCard, StackScrollScreen, text, useAppTheme } from '../../design-system';
+import type { PermissionState } from '@milerecover/domain';
+import { MRCard, MRSecondaryButton, StackScrollScreen, text, useAppTheme } from '../../design-system';
 import { useProduct } from '../../product/ProductContext';
 import {
+  getNotificationPermission,
+  openNotificationSettings,
   requestNotificationPermission,
   type NotificationPreferenceKey,
 } from '../../services/notifications';
@@ -51,6 +55,26 @@ export function NotificationsScreen() {
   const { product, setNotificationPreferences } = useProduct();
   const prefs = product.notificationPreferences;
   const [busy, setBusy] = useState(false);
+  const [osPermission, setOsPermission] = useState<PermissionState>('not_determined');
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void getNotificationPermission().then((permission) => {
+        if (!active) return;
+        setOsPermission(permission);
+        if (permission !== 'granted' && prefs.enabled) {
+          setNotificationPreferences({ enabled: false });
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }, [prefs.enabled, setNotificationPreferences]),
+  );
+
+  const masterOn = prefs.enabled && osPermission === 'granted';
+  const osBlocked = osPermission === 'denied' || osPermission === 'restricted';
 
   const enableMaster = async (enabled: boolean) => {
     if (!enabled) {
@@ -60,6 +84,7 @@ export function NotificationsScreen() {
     setBusy(true);
     try {
       const permission = await requestNotificationPermission();
+      setOsPermission(permission);
       setNotificationPreferences({ enabled: permission === 'granted' });
     } finally {
       setBusy(false);
@@ -88,16 +113,28 @@ export function NotificationsScreen() {
         <View style={{ flex: 1, paddingRight: spacing.sm }}>
           <Text style={{ fontWeight: '700', color: palette.text.primary }}>Allow notifications</Text>
           <Text style={{ color: palette.text.secondary, marginTop: 2 }}>
-            Master control for MileRecover alerts
+            {osBlocked
+              ? 'Blocked in Android settings — use Open Settings to restore.'
+              : 'Master control for MileRecover alerts'}
           </Text>
         </View>
         <Switch
-          value={prefs.enabled}
-          disabled={busy}
+          value={masterOn}
+          disabled={busy || osBlocked}
           onValueChange={(value) => void enableMaster(value)}
           accessibilityLabel="Allow notifications"
         />
       </MRCard>
+
+      {osBlocked ? (
+        <View style={{ marginBottom: spacing.md }}>
+          <MRSecondaryButton
+            label="Open Settings"
+            onPress={() => void openNotificationSettings()}
+            accessibilityLabel="Open Android notification settings"
+          />
+        </View>
+      ) : null}
 
       {ROWS.map((row) => (
         <MRCard
@@ -118,8 +155,8 @@ export function NotificationsScreen() {
             </Text>
           </View>
           <Switch
-            value={prefs.enabled && prefs[row.key]}
-            disabled={!prefs.enabled}
+            value={masterOn && prefs[row.key]}
+            disabled={!masterOn}
             onValueChange={(value) => setNotificationPreferences({ [row.key]: value })}
             accessibilityLabel={row.label}
           />

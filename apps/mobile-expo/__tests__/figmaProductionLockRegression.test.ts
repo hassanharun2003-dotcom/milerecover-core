@@ -8,7 +8,7 @@ import { PLAN_FIXTURES } from '../src/fixtures/subscription';
 const root = path.join(__dirname, '..');
 const read = (rel: string) => fs.readFileSync(path.join(root, rel), 'utf8');
 
-describe('Figma production lock 0.2.12 regressions', () => {
+describe('Figma production lock regressions (retained + 0.2.13)', () => {
   it('routes fresh install to onboarding and completed setup to Home', () => {
     const fresh = resolveLaunchState({
       appHydrated: true,
@@ -69,7 +69,7 @@ describe('Figma production lock 0.2.12 regressions', () => {
 
   it('keeps import pre-detection copy competitor-neutral', () => {
     const importScreen = read('src/screens/import/BringExistingMileageScreen.tsx');
-    expect(importScreen).toMatch(/Bring existing mileage|Import mileage|CSV/i);
+    expect(importScreen).toMatch(/Choose an export or CSV|Bring your mileage|CSV/i);
     expect(importScreen).not.toMatch(/MileIQ|Everlance|Stride(?!\s)/);
   });
 
@@ -83,7 +83,7 @@ describe('Figma production lock 0.2.12 regressions', () => {
     expect(free?.features.length).toBeGreaterThan(0);
   });
 
-  it('wires locked Figma illustrations for priority flows', () => {
+  it('wires locked illustrations for priority flows', () => {
     const illustration = read('src/components/FigmaIllustration.tsx');
     for (const key of [
       'welcomeProtection',
@@ -96,6 +96,8 @@ describe('Figma production lock 0.2.12 regressions', () => {
     ]) {
       expect(illustration).toContain(key);
     }
+    const productArt = read('src/components/ProductArt.tsx');
+    expect(productArt).toMatch(/MissingDrivesArt|WelcomeArt|ProtectionArt|ReadyArt/);
     const onboarding = read('src/screens/onboarding/OnboardingFlow.tsx');
     expect(onboarding).toMatch(/Protect every mile/);
     expect(onboarding).toMatch(/You're ready|You're ready/);

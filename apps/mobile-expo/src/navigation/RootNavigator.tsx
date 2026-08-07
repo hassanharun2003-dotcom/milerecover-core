@@ -60,7 +60,7 @@ export function RootNavigator() {
       <Stack.Screen name="ComingLater" component={ComingLaterScreen} options={{ title: 'Coming later' }} />
       <Stack.Screen name="ExportReport" component={ExportReportScreen} options={{ title: 'Export' }} />
       <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} options={{ title: 'Preview' }} />
-      <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Go Pro' }} />
+      <Stack.Screen name="PlanSelection" component={PlanSelectionScreen} options={{ title: 'Plans' }} />
       <Stack.Screen name="EditSetup" component={EditSetupScreen} options={{ title: 'Edit setup' }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
       <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms' }} />

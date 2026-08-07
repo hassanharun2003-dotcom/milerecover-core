@@ -19,6 +19,12 @@ import {
   type PostOnboardingRoute,
   type ProductOnboardingStep,
 } from '../../product/types';
+import { CountryFlag } from '../../components/CountryFlag';
+import {
+  ReadyArt,
+  TrackingArt,
+  WelcomeArt,
+} from '../../components/ProductArt';
 import {
   BottomSheet,
   ChecklistRow,
@@ -45,8 +51,6 @@ import {
   getAuthPort,
   type AuthProviderId,
 } from '../../services/auth';
-import { FigmaIllustration } from '../../components/FigmaIllustration';
-
 const WELCOME_BENEFITS = [
   {
     icon: 'navigate-outline' as const,
@@ -486,11 +490,7 @@ export function OnboardingFlow() {
 
       {step === 'welcome' ? (
         <View style={{ alignItems: 'center', marginTop: spacing.md }}>
-          <FigmaIllustration
-            name="welcomeProtection"
-            accessibilityLabel="MileRecover protection shield artwork"
-            style={{ marginBottom: spacing.lg }}
-          />
+          <WelcomeArt style={{ width: '100%', marginBottom: spacing.lg }} />
           <Text
             style={{
               fontSize: typography.size.display,
@@ -662,9 +662,7 @@ export function OnboardingFlow() {
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 22 }} accessibilityLabel="">
-                {COUNTRY_OPTIONS.find((option) => option.id === countryDraft)?.flagEmoji ?? '🌍'}
-              </Text>
+              <CountryFlag code={countryDraft} size={22} />
               <Text style={{ color: palette.text.primary, fontSize: typography.size.bodyLarge }}>
                 {countryLabel}
               </Text>
@@ -762,10 +760,11 @@ export function OnboardingFlow() {
             {COUNTRY_OPTIONS.map((opt) => (
               <SelectionCard
                 key={opt.id}
-                title={`${opt.flagEmoji}  ${opt.label}`}
+                title={opt.label}
                 body={opt.id === recommendedCountry ? 'Suggested from your device' : undefined}
                 selected={countryDraft === opt.id}
                 onPress={() => applyCountry(opt.id)}
+                leading={<CountryFlag code={opt.id} size={22} />}
               />
             ))}
           </BottomSheet>
@@ -774,12 +773,7 @@ export function OnboardingFlow() {
 
       {step === 'protect_drives' && protectionPhase === 'tracking' ? (
         <View>
-          <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
-            <FigmaIllustration
-              name="trackingCar"
-              accessibilityLabel="Automatic tracking car artwork"
-            />
-          </View>
+          <TrackingArt />
           <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
             Drive normally. MileRecover does the remembering.
           </Text>
@@ -821,11 +815,7 @@ export function OnboardingFlow() {
 
       {step === 'ready' ? (
         <View style={{ alignItems: 'center' }}>
-          <FigmaIllustration
-            name="readySuccess"
-            accessibilityLabel="Setup complete success artwork"
-            style={{ marginBottom: spacing.md }}
-          />
+          <ReadyArt style={{ width: '100%', marginBottom: spacing.md }} />
           <Text
             style={[text.headline, { marginBottom: spacing.sm, textAlign: 'center' }]}
             accessibilityRole="header"

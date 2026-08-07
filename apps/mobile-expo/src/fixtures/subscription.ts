@@ -1,5 +1,17 @@
-/** Development-only subscription fixtures — display-only until store products resolve. */
-export type PlanTier = 'free' | 'plus' | 'pro';
+/**
+ * Development-only subscription fixtures — display-only until store products resolve.
+ * Prices derive from `constants/pricing.ts` (single source of truth).
+ */
+import {
+  CATALOG_PLANS,
+  RESCUE_CATALOG,
+  catalogAnnualLabel,
+  catalogMonthlyLabel,
+  yearlySavingsLabel,
+  type CatalogPlanId,
+} from '../constants/pricing';
+
+export type PlanTier = CatalogPlanId;
 
 export interface PlanFixture {
   id: PlanTier;
@@ -21,64 +33,21 @@ export interface RescueOptionFixture {
   description: string;
 }
 
-/** Locked to Figma Plans / Compare (file 5y8p0axQChkYVBcM7tgHDj). */
-export const PLAN_FIXTURES: PlanFixture[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    tagline: 'Free stays useful. Upgrade only when you need more automation or reporting.',
-    monthlyPrice: '$0',
-    annualPrice: '$0',
-    features: [
-      '40 automatic trips/month',
-      '1 vehicle',
-      '1 missing scan/month',
-      'Unlimited manual trips',
-      'Basic CSV export',
-    ],
-  },
-  {
-    id: 'plus',
-    name: 'Plus',
-    tagline: 'Unlimited automation when Free limits aren’t enough.',
-    monthlyPrice: '$9.99',
-    annualPrice: '$95.90',
-    annualSavingsLabel: 'Save 20%',
-    highlighted: true,
-    features: [
-      'Unlimited automatic trips',
-      'Unlimited missing scans',
-      'PDF reports',
-      'More vehicles',
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    tagline: 'Everything in Plus with advanced reports and priority support.',
-    monthlyPrice: '$19.99',
-    annualPrice: '$191.90',
-    annualSavingsLabel: 'Save 20%',
-    features: [
-      'Everything in Plus',
-      'Advanced reports',
-      'Extra recovery tools',
-      'Priority support',
-    ],
-  },
-];
+/** Locked catalog — always mirrors constants/pricing.ts. */
+export const PLAN_FIXTURES: PlanFixture[] = CATALOG_PLANS.map((plan) => ({
+  id: plan.id,
+  name: plan.name,
+  tagline: plan.tagline,
+  monthlyPrice: catalogMonthlyLabel(plan.id),
+  annualPrice: catalogAnnualLabel(plan.id),
+  features: [...plan.features],
+  highlighted: plan.highlighted,
+  annualSavingsLabel: plan.id === 'free' ? undefined : yearlySavingsLabel(),
+}));
 
-export const RESCUE_OPTIONS: RescueOptionFixture[] = [
-  {
-    id: 'rescue-90',
-    name: '90-Day Rescue',
-    price: '$29.99',
-    description: 'Catch up on up to 90 days—organized and ready to review.',
-  },
-  {
-    id: 'rescue-year',
-    name: 'Full-Year Rescue',
-    price: '$59.99',
-    description: 'A full year cleaned up and ready to share—no subscription required.',
-  },
-];
+export const RESCUE_OPTIONS: RescueOptionFixture[] = RESCUE_CATALOG.map((option) => ({
+  id: option.id,
+  name: option.name,
+  price: `$${option.priceUsd.toFixed(2)}`,
+  description: option.description,
+}));

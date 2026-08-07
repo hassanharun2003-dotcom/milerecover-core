@@ -61,7 +61,7 @@ function compactProtection(input: ProtectionStatusView): {
     case 'PROTECTED':
       return {
         kind: 'protected',
-        sentence: input.lastCheckLabel ?? 'Automatic capture is on.',
+        sentence: input.lastCheckLabel ?? 'Protection is on.',
         actionLabel: 'View',
         action: 'protection',
       };
@@ -362,12 +362,21 @@ export function HomeScreen() {
   /** Never show “You’ve protected $0.00” for a brand-new user — use a readiness state. */
   const showHeroMoney =
     confirmedCount > 0 &&
+    compact.kind === 'protected' &&
     yearSummary.estimatedValueCents != null &&
     yearSummary.estimatedValueCents > 0 &&
     yearSummary.estimatedValueLabel !== 'Review rate';
+  const heroTitle =
+    compact.kind === 'configured_waiting' || confirmedCount === 0
+      ? 'Protection is on'
+      : compact.kind === 'protected'
+        ? 'Protection is on'
+        : yearSummary.estimatedValueLabel === 'Review rate'
+          ? 'Add or confirm a mileage rate'
+          : 'Protection needs attention';
   const heroSupporting =
-    confirmedCount === 0
-      ? 'Ready to protect your first drive'
+    compact.kind === 'configured_waiting' || confirmedCount === 0
+      ? 'Waiting for your first drive.'
       : yearSummary.estimatedValueLabel === 'Review rate'
         ? 'Add or confirm a mileage rate to estimate value.'
         : compact.sentence;
@@ -386,9 +395,9 @@ export function HomeScreen() {
   const bannerMessage = protectionNeedsAction
     ? compact.sentence
     : compact.kind === 'protected'
-      ? 'All systems normal — Tracking'
+      ? 'Protection is on'
       : compact.kind === 'configured_waiting'
-        ? 'All systems ready — waiting for your first verified drive.'
+        ? 'Protection is on — waiting for your first drive.'
       : compact.kind === 'manual_mode'
         ? 'Manual tracking selected. Automatic protection is off.'
         : compact.sentence;
@@ -440,8 +449,8 @@ export function HomeScreen() {
         onPress={openProtection}
         accessibilityLabel={
           showHeroMoney
-            ? `You've protected ${yearSummary.estimatedValueLabel} this year.`
-            : heroSupporting
+            ? `Protection is on. You've protected ${yearSummary.estimatedValueLabel} this year. Opens Protection Center.`
+            : `${heroTitle}. ${heroSupporting} Opens Protection Center.`
         }
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -449,7 +458,7 @@ export function HomeScreen() {
             {showHeroMoney ? (
               <>
                 <Text style={{ color: palette.forest[100], fontSize: typography.size.caption, fontWeight: '500' }}>
-                  You've protected
+                  Protection is on
                 </Text>
                 <Text
                   style={{
@@ -469,20 +478,31 @@ export function HomeScreen() {
                     marginTop: spacing.xs,
                   }}
                 >
-                  this year.
+                  protected this year.
                 </Text>
               </>
             ) : (
-              <Text
-                style={{
-                  color: palette.text.inverse,
-                  fontSize: typography.size.title,
-                  lineHeight: typography.lineHeight.title,
-                  fontWeight: '700',
-                }}
-              >
-                {heroSupporting}
-              </Text>
+              <>
+                <Text
+                  style={{
+                    color: palette.text.inverse,
+                    fontSize: typography.size.title,
+                    lineHeight: typography.lineHeight.title,
+                    fontWeight: '700',
+                  }}
+                >
+                  {heroTitle}
+                </Text>
+                <Text
+                  style={{
+                    color: palette.forest[100],
+                    fontSize: typography.size.bodyLarge,
+                    marginTop: spacing.xs,
+                  }}
+                >
+                  {heroSupporting}
+                </Text>
+              </>
             )}
           </View>
           <View
@@ -532,43 +552,43 @@ export function HomeScreen() {
       />
 
       <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Next up</Text>
-      <MRCard
-        style={{
-          minHeight: layout.buttonH,
-          paddingVertical: spacing.smMd,
-          gap: 4,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: typography.size.bodyLarge,
-            fontWeight: '600',
-            color: palette.text.primary,
-          }}
-        >
-          {confirmedCount === 0 && nextBest.label === 'Add your first drive'
-            ? 'Start with a manual trip'
-            : nextBest.label}
-        </Text>
-        <Text style={{ fontSize: typography.size.caption, color: palette.text.secondary }}>
-          {confirmedCount === 0 && nextBest.label === 'Add your first drive'
-            ? 'Log a trip manually while automatic tracking gets going.'
-            : protectionNeedsAction
-              ? 'Fix tracking first so upcoming drives stay protected.'
-              : pendingReviewCount > 0
-                ? 'Confirm and lock in your mileage.'
-                : 'Your next useful step in MileRecover.'}
-        </Text>
-      </MRCard>
-
-      <View style={{ marginTop: spacing.sm, gap: spacing.sm, marginBottom: spacing.md }}>
+      <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
         {nextBest.run ? (
           <MRPrimaryButton
-            label={nextBest.label}
+            label={
+              confirmedCount === 0 && nextBest.label === 'Add your first drive'
+                ? 'Add your first drive'
+                : nextBest.label
+            }
             onPress={nextBest.run}
-            accessibilityLabel={nextBest.label}
+            accessibilityLabel={
+              confirmedCount === 0 && nextBest.label === 'Add your first drive'
+                ? 'Add your first drive'
+                : nextBest.label
+            }
           />
-        ) : null}
+        ) : (
+          <MRCard
+            style={{
+              minHeight: layout.buttonH,
+              paddingVertical: spacing.smMd,
+              gap: 4,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.size.bodyLarge,
+                fontWeight: '600',
+                color: palette.text.primary,
+              }}
+            >
+              {nextBest.label}
+            </Text>
+            <Text style={{ fontSize: typography.size.caption, color: palette.text.secondary }}>
+              Your next useful step will appear here.
+            </Text>
+          </MRCard>
+        )}
         {nextBest.label !== 'Check for missed drives' ? (
           <MRSecondaryButton
             label="Check for missed drives"
