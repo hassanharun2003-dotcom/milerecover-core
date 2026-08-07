@@ -19,7 +19,7 @@ import path from 'path';
 describe('Image lock Batch A/B foundations', () => {
   it('uses Figma Production Design Lock layout/typography tokens', () => {
     expect(lightSemantic.canvas).toBe('#FAFAF8');
-    expect(lightSemantic.primary).toBe('#1F8A5B');
+    expect(lightSemantic.primary).toBe('#1C8054');
     expect(lightSemantic.primaryDeep).toBe('#0B3D2E');
     expect(lightSemantic.surfaceSelected).toBe('#E5F5EC');
     expect(radii.xl).toBe(20);
@@ -52,11 +52,11 @@ describe('Image lock Batch A/B foundations', () => {
   it('matches collage purpose labels exactly', () => {
     expect(PRIMARY_GOAL_OPTIONS.map((o) => o.label)).toEqual([
       'Employee reimbursement',
-      'Self-employed / Business',
+      'Self-employed / business',
       'Delivery or gig work',
-      'Personal',
+      'Personal / mixed use',
     ]);
-    expect(PRIMARY_GOAL_OPTIONS.find((o) => o.label === 'Personal')?.id).toBe('mixed');
+    expect(PRIMARY_GOAL_OPTIONS.find((o) => o.id === 'mixed')?.label).toBe('Personal / mixed use');
   });
 
   it('keeps Reset App preview-only (never in production)', () => {

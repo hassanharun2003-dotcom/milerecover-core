@@ -12,22 +12,22 @@ const ROWS: { key: NotificationPreferenceKey; label: string; body: string }[] = 
   {
     key: 'tripReadyForReview',
     label: 'Drives ready for review',
-    body: 'When new drives need Work / Personal classification.',
+    body: 'When trips need classification',
   },
   {
     key: 'possibleMissedDrive',
     label: 'Possible missed drives',
-    body: 'Suggestions only — nothing is added without you.',
+    body: 'When a recovery check finds candidates',
   },
   {
     key: 'trackingDegraded',
-    label: 'Protection needs attention',
-    body: 'Location, battery, or background tracking issues.',
+    label: 'Tracking needs attention',
+    body: 'If protection may be interrupted',
   },
   {
     key: 'weeklySummary',
     label: 'Weekly summary',
-    body: 'A calm weekly snapshot of protected work miles.',
+    body: 'A calm weekly mileage snapshot',
   },
   {
     key: 'reportReminder',
@@ -37,7 +37,7 @@ const ROWS: { key: NotificationPreferenceKey; label: string; body: string }[] = 
   {
     key: 'trialEnding',
     label: 'Trial ending',
-    body: 'Only if you start a Pro trial yourself.',
+    body: 'Only if you start a trial yourself.',
   },
   {
     key: 'paymentIssue',
@@ -72,7 +72,7 @@ export function NotificationsScreen() {
         Notifications
       </Text>
       <Text style={[text.body, { marginBottom: spacing.md, color: palette.text.secondary }]}>
-        Useful alerts only. We never put sensitive route details on your lock screen.
+        No sensitive route details on the lock screen.
       </Text>
 
       <MRCard
@@ -88,7 +88,7 @@ export function NotificationsScreen() {
         <View style={{ flex: 1, paddingRight: spacing.sm }}>
           <Text style={{ fontWeight: '700', color: palette.text.primary }}>Allow notifications</Text>
           <Text style={{ color: palette.text.secondary, marginTop: 2 }}>
-            {prefs.enabled ? 'On' : 'Off'}
+            Master control for MileRecover alerts
           </Text>
         </View>
         <Switch

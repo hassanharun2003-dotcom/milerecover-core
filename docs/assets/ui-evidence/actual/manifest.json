@@ -1,55 +1,55 @@
 {
   "onboarding-welcome": {
     "file": "onboarding-welcome-actual.png",
-    "copyPreview": "Skip Welcome to MileRecover ✓ Recover forgotten miles ✓ Tax & employer ready ✓ Automatic tracking Get started →"
+    "copyPreview": "Skip Protect every mile. Track work mileage automatically, recover trips you missed, and keep proof ready when you need it.  Automatic tracking Detects drives while you focus on the road.  Find missed mileage Recover trips that slipped th"
   },
   "onboarding-account": {
     "file": "onboarding-account-actual.png",
-    "copyPreview": "‹ 1 of 5 Save your progress (optional) Sign in to restore preferences later, or continue without an account. Your miles stay on this device. Continue with Google Continue with Apple Continue without an account"
+    "copyPreview": "‹ 1 of 5 Save your progress Sign in so your preferences are easier to restore later — or continue without an account. Your miles stay on this device. Continue with Apple Continue without an account"
   },
   "onboarding-purpose": {
     "file": "onboarding-purpose-actual.png",
-    "copyPreview": "‹ 2 of 5 What's your main reason for tracking mileage? We'll tailor rates, reports, and tips. Employee reimbursement Self-employed / Business Delivery or gig work Personal Continue →"
+    "copyPreview": "‹ 2 of 5 What do you use your mileage for? We'll personalize MileRecover around the way you drive.  Employee reimbursement Get paid back for work mileage  Self-employed / business Keep mileage ready for deductions  Delivery or gig work T"
   },
   "onboarding-locale_setup": {
     "file": "onboarding-locale_setup-actual.png",
-    "copyPreview": "‹ 3 of 5 Set your region and mileage rate. Country United States ▾ Mileage rate $0.70 per mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →"
+    "copyPreview": "‹ 3 of 5 Set your region and mileage rate Country 🇺🇸 United States Change country Mileage rate $0.70 / mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →"
   },
   "onboarding-protect_drives": {
     "file": "onboarding-protect_drives-actual.png",
-    "copyPreview": "‹ 4 of 5 Keep your drives protected MileRecover can capture drives automatically, even when the app is not open. ✓ Automatic detection — finds possible drives for you ✓ Background tracking — works when your screen is off ✓ Battery-aware — u"
+    "copyPreview": "‹ 4 of 5 Drive normally. MileRecover does the remembering. MileRecover uses motion and location signals to detect likely drives while protecting your privacy. ✓ Detects when a drive starts and ends ✓ Uses motion to reduce unnecessary GPS us"
   },
   "onboarding-ready": {
     "file": "onboarding-ready-actual.png",
-    "copyPreview": "✓ You’re all set You can add drives manually anytime. Turn on protection later from Profile when you’re ready. Go to Home Add my first drive"
+    "copyPreview": "You're ready. Automatic tracking is prepared. Take your first drive and MileRecover will handle the rest. Your setup Purpose · Not set Region · United States · Miles Rate · $0.70 / mile Protection · Manual for now Go to Home Add my first dr"
   },
   "home-live": {
     "file": "home-live-actual.png",
-    "copyPreview": "≡ MileRecover  Good morning You've protected $0.00 this year.  0 Work miles 0 Work drives $0.00 This month ✓ Drive protection is paused. Next up Turn on protection › + Add a drive Check for missed drives ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ "
+    "copyPreview": "≡ MileRecover  Good afternoon Ready to protect your first drive  0 Work miles 0 Work drives $0.00 This month ! Drive protection is paused. Next up Turn on protection Fix tracking first so upcoming drives stay protected. Turn on protection"
   },
   "review-pending": {
     "file": "review-pending-actual.png",
-    "copyPreview": "Review Needs review (1) Done (0) Your phone was quiet for part of this stretch. ⋯ Client site visit Route preview 14.2 mi — Estimated value $9.94 Work Personal Not sure Possible drive · We noticed a quiet stretch when you might have been dr"
+    "copyPreview": "Review Needs review (1) Done (0) Your phone was quiet for part of this stretch. ⋯ Client site visit Route preview 14.2 mi — $9.94 Work Personal Not sure Possible drive · We noticed a quiet stretch when you might have been driving. Add a dri"
   },
   "proof-ready": {
     "file": "proof-ready-actual.png",
-    "copyPreview": "Proof Month Quarter Year YTD 2026 year to date 58 Work miles 3 Work drives — Est. value Aug ✓ Needs purpose for drive on Aug 1. Fix 2 items Preview report Export CSV export › PDF report › ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile"
+    "copyPreview": "Proof Month Quarter Year YTD 2026 year to date 58 Work miles 3 Work drives — Est. value Aug ! Needs purpose for drive on Aug 1. Fix 2 items Preview report Export CSV export › PDF report › ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile"
   },
   "profile": {
     "file": "profile-actual.png",
-    "copyPreview": "M Your profile Not set · United States   Vehicles Add a vehicle ›  Mileage rate 70¢/mi · USD ›  Work information Not set ›  Tracking health Paused ›  Import mileage ›  Export history ›  Help & support ›  About MileRecover Version 0"
+    "copyPreview": "M Your profile Not set · United States Account  Account Email & sign-in ›  Work information Not set ›  Mileage rate $0.70 / mile ›  Vehicles Add a vehicle › Tracking  Tracking health Paused ›  Notifications Manage alerts ›  Frequent "
   },
   "manual-trip": {
     "file": "manual-trip-actual.png",
-    "copyPreview": "Manual entry From other app Work or personal? Work Personal Date 2026-08-06 Start location End location Distance (mi) More details Optional time, vehicle, purpose, notes, expenses, and receipt. Save drive Your data stays private and secure"
+    "copyPreview": "Manual entry Import mileage Classification Work Personal Date Aug 7, 2026 Start address End address Distance (mi) More details Save drive Your data stays private and secure"
   },
   "protection": {
     "file": "protection-actual.png",
-    "copyPreview": "Protection Center Protection Drive protection is off Turn automatic protection on to capture future drives. Manual drives still work. ↻ Background tracking Needs attention ⌖ Location access Needs attention ⚡ Battery optimized Up to date ◌ M"
+    "copyPreview": "Action required Location permission missing MileRecover can't protect drives without location access. Enable it to resume tracking. System status ! Location permission Fix ! Background tracking Fix ✓ Battery optimization Ready ✓ Motion & fi"
   },
   "tracking": {
     "file": "tracking-actual.png",
-    "copyPreview": "Tracking health Automatic capture status is summarized here. Repair actions live in Protection Center. ✓ One or more checks need attention. 40 of 40 automatic trips left this month. Open Protection Center to repair anything that needs atten"
+    "copyPreview": "Tracking health Automatic capture status is summarized here. Repair actions live in Protection Center. ! One or more checks need attention. 40 of 40 automatic trips left this month. Open Protection Center to repair anything that needs atten"
   },
   "report-preview": {
     "file": "report-preview-actual.png",
@@ -57,19 +57,19 @@
   },
   "subscription": {
     "file": "subscription-actual.png",
-    "copyPreview": "Go Pro Recover more miles. Save more money. Monthly Yearly (Save 20%) Preview Purchases are disabled in this preview. Current plan: Free Free stays usable with manual logging, capped automatic trips, and basic CSV. Most Popular Pro $14.99 /"
+    "copyPreview": "Choose your plan Free stays useful. Upgrade only when you need more automation or reporting. Monthly Yearly · Save 20% Current plan: Free Free stays usable with manual logging, capped automatic trips, and basic CSV. Free $0 • 40 automatic t"
   },
   "import": {
     "file": "import-actual.png",
-    "copyPreview": "Bring your history with you Pick a CSV file. We will analyze the columns, show issues, and import only rows we can read without hiding duplicates. Pick CSV file Mileage exports or spreadsheets saved as CSV Add drives by hand Start fresh ins"
+    "copyPreview": "Switch to MileRecover Bring your mileage history with you. Keep past trips together without starting from scratch. Import a CSV Choose a mileage file from your phone or email. Import from another mileage app Upload an export. We’ll detect t"
   },
   "vehicles": {
     "file": "vehicles-actual.png",
-    "copyPreview": "Which vehicle carries your work miles? Search make and model, or type your own. One primary vehicle is the default for new drives. Year Search make Acura Audi BMW Chevrolet Dodge Ford GMC Honda Other Search model Nickname (optional) License"
+    "copyPreview": "Vehicles Search make and model. One primary vehicle is the default for new drives. Search make Popular makes Toyota Honda Ford Chevrolet Nissan Hyundai Kia Subaru Tesla Other Year (optional) Nickname (optional) License plate (optional) Prim"
   },
   "about": {
     "file": "about-actual.png",
-    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.6 Build 0.2.6-foundation.1 Release notes 0.2.6 foundation reset: single light image-locke"
+    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.12 Build 0.2.12-figma-lock.1 SUPPORT AND LEGAL Support › Privacy › Terms ›"
   },
   "terms": {
     "file": "terms-actual.png",
@@ -77,7 +77,7 @@
   },
   "missing-drives": {
     "file": "missing-drives-actual.png",
-    "copyPreview": "✓ Find the miles you missed MileRecover scans for gaps in your driving history and suggests miles you may have missed. ✓ Uses your existing location data ✓ Nothing is added without you ✓ Takes about 1 minute Run check now Takes about 1 minu"
+    "copyPreview": "Find the miles you missed Scan recent location history to recover drives that were never logged. ✓ Recover unprotected trips Catch drives that slipped through automatic tracking. ✓ Review before they count Classify Work, Personal, or Ignore"
   },
   "manual-trip-start-end": {
     "file": "manual-trip-start-end-actual.png",

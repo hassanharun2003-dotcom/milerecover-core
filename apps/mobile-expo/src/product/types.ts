@@ -276,22 +276,22 @@ export const PRIMARY_GOAL_OPTIONS: { id: PrimaryGoal; label: string; body: strin
   {
     id: 'employee_reimbursement',
     label: 'Employee reimbursement',
-    body: 'Share clear records with work.',
+    body: 'Get paid back for work mileage',
   },
   {
     id: 'self_employed_business',
-    label: 'Self-employed / Business',
-    body: 'Track business travel for your records.',
+    label: 'Self-employed / business',
+    body: 'Keep mileage ready for deductions',
   },
   {
     id: 'gig_delivery',
     label: 'Delivery or gig work',
-    body: 'Protect shifts, jobs, and delivery drives.',
+    body: 'Track work across driving jobs',
   },
   {
     id: 'mixed',
-    label: 'Personal',
-    body: 'Track personal or mixed driving.',
+    label: 'Personal / mixed use',
+    body: 'Separate work and personal trips',
   },
 ];
 

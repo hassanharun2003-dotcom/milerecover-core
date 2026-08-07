@@ -68,7 +68,7 @@ interface AppContextValue {
     distanceMiles: number,
     purpose: string,
   ) => TripRecord | null;
-  refreshRecoverySuggestions: (workPlaces?: { id: string; label: string }[]) => void;
+  refreshRecoverySuggestions: (workPlaces?: { id: string; label: string }[]) => number;
   setReportingPeriod: (period: MileRecoverAppState['reportingPeriod']) => void;
   setTrackingEngineState: (engineState: TrackingEngineState, lastSampleAt?: number | null) => void;
   refreshPermissions: () => Promise<PermissionSnapshot>;
@@ -160,45 +160,33 @@ export function AppProvider({ children, repository }: AppProviderProps) {
       appWriteLatestRef.current = { state: nextState, permissions: nextPermissions };
       appWriteChainRef.current = appWriteChainRef.current
         .then(async () => {
-          const latest = appWriteLatestRef.current;
-          if (!latest) return;
-          appWriteLatestRef.current = null;
-          const document = buildPersistedDocument(
-            latest.state,
-            latest.permissions,
-            metadataRef.current,
-          );
-          const saved = await repoRef.current.save(document);
-          if (saved.ok) {
-            metadataRef.current = {
-              ...metadataRef.current,
-              lastSuccessfulSaveAt: saved.savedAt,
-            };
-          } else {
-            setState((prev) => ({
-              ...prev,
-              loadError: saved.message,
-              startupPhase:
-                prev.startupPhase === 'ready-empty' || prev.startupPhase === 'ready-with-data'
-                  ? 'unavailable'
-                  : prev.startupPhase,
-            }));
-          }
-          // Another commit arrived while we were saving — drain it too.
-          if (appWriteLatestRef.current) {
-            const again = appWriteLatestRef.current;
+          // Drain latest-wins queue. Loop so a write that arrives mid-save is also persisted.
+          // Reading into a fresh local each iteration avoids TS CFA treating the ref as
+          // permanently null after the first assignment to null (which produced `never`).
+          for (;;) {
+            const latest = appWriteLatestRef.current;
+            if (!latest) return;
             appWriteLatestRef.current = null;
-            const document2 = buildPersistedDocument(
-              again.state,
-              again.permissions,
+            const document = buildPersistedDocument(
+              latest.state,
+              latest.permissions,
               metadataRef.current,
             );
-            const saved2 = await repoRef.current.save(document2);
-            if (saved2.ok) {
+            const saved = await repoRef.current.save(document);
+            if (saved.ok) {
               metadataRef.current = {
                 ...metadataRef.current,
-                lastSuccessfulSaveAt: saved2.savedAt,
+                lastSuccessfulSaveAt: saved.savedAt,
               };
+            } else {
+              setState((prev) => ({
+                ...prev,
+                loadError: saved.message,
+                startupPhase:
+                  prev.startupPhase === 'ready-empty' || prev.startupPhase === 'ready-with-data'
+                    ? 'unavailable'
+                    : prev.startupPhase,
+              }));
             }
           }
         })
@@ -400,6 +388,7 @@ export function AppProvider({ children, repository }: AppProviderProps) {
         return created;
       },
       refreshRecoverySuggestions: (workPlaces = []) => {
+        let added = 0;
         commit((prev) => {
           const suggestions = runUnifiedRecoveryScan({
             trips: prev.trips,
@@ -408,12 +397,14 @@ export function AppProvider({ children, repository }: AppProviderProps) {
             lastConfirmedCaptureAt: prev.lastConfirmedCaptureAt,
             trackingEngineState: prev.trackingEngineState,
           });
+          added = suggestions.length;
           if (suggestions.length === 0) return prev;
           return {
             ...prev,
             recoveryCandidates: [...prev.recoveryCandidates, ...suggestions],
           };
         });
+        return added;
       },
       setReportingPeriod: (period) => {
         commit((prev) => ({ ...prev, reportingPeriod: period }));

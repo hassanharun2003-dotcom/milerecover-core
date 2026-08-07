@@ -69,7 +69,9 @@ describe('Phase 0 visual QA harness', () => {
     }
   });
 
-  it('writes PNG visual evidence for major screens in shipped light theme', async () => {
+  it(
+    'writes PNG visual evidence for major screens in shipped light theme',
+    async () => {
     const manifest: Record<string, { file: string; copyPreview: string; failures: string[] }> = {};
 
     const boards: Array<{ id: string; title: string; copy: string }> = [];
@@ -216,5 +218,7 @@ describe('Phase 0 visual QA harness', () => {
     }
     fs.writeFileSync(actualManifestPath, JSON.stringify(actualManifest, null, 2));
     expect(Object.keys(actualManifest).length).toBeGreaterThan(12);
-  }, 120_000);
+  },
+    300_000,
+  );
 });

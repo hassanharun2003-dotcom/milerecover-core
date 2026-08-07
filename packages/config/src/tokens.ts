@@ -26,7 +26,9 @@ export type SemanticPalette = {
   scrim: string;
 };
 
-/** Figma Color collection (Light) — Production Design Lock. */
+/** Figma Color collection (Light) — Production Design Lock.
+ * Primary Figma value is #1F8A5B; shipped primary is #1C8054 so white
+ * button label contrast meets WCAG AA (≥4.5:1) without redesigning the brand. */
 export const lightSemantic: SemanticPalette = {
   canvas: '#FAFAF8',
   surface: '#FFFFFF',
@@ -36,14 +38,15 @@ export const lightSemantic: SemanticPalette = {
   textSecondary: '#5B6670',
   textTertiary: '#8B949E',
   border: '#E2E6EA',
-  primary: '#1F8A5B',
+  primary: '#1C8054',
   primaryDeep: '#0B3D2E',
   onPrimary: '#FFFFFF',
-  success: '#1F8A5B',
+  success: '#1C8054',
   warning: '#D97706',
   danger: '#DC2626',
   disabledSurface: '#F3FAF6',
-  disabledText: '#8B949E',
+  /** Distinct from textTertiary so enabled outline/caption stays stronger than disabled. */
+  disabledText: '#9AA3AD',
   scrim: 'rgba(21, 32, 43, 0.45)',
 };
 

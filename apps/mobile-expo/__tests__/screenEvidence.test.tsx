@@ -23,14 +23,14 @@ describe('Screen render evidence', () => {
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-welcome']).toMatch(/Welcome to MileRecover|MileRecover/i);
+    expect(manifest['onboarding-welcome']).toMatch(/Protect every mile|Welcome to MileRecover|MileRecover/i);
     expect(manifest['onboarding-account']).toMatch(/Continue with Google|Continue without an account/i);
     expect(manifest['onboarding-purpose']).toMatch(
-      /Employee reimbursement|Self-employed \/ Business|Delivery or gig work|Personal|What's your main reason/i,
+      /Employee reimbursement|Self-employed \/ [Bb]usiness|Delivery or gig work|Personal|What do you use your mileage for|What's your main reason/i,
     );
     expect(manifest['onboarding-locale_setup']).toMatch(/Country|region and mileage rate|Update rate|Miles|Kilometers/i);
     expect(manifest['onboarding-protect_drives']).toMatch(
-      /Keep your drives protected|Protect future drives|Turn on drive protection|Enable drive protection|Set up protection|Not now|Skip for now/i,
+      /Drive normally|Keep your drives protected|Protect future drives|Turn on drive protection|Enable drive protection|Set up protection|Set up tracking|Allow when prompted|Not now|Skip for now|Set up later/i,
     );
     expect(manifest['onboarding-ready']).toMatch(
       /You’re all set|You're all set|You’re ready|You're ready|Go to dashboard|Go to Home|Add my first drive/i,

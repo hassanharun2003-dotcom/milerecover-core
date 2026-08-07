@@ -17,6 +17,8 @@ import {
 } from '@milerecover/domain';
 import {
   EmptyState,
+  MRCard,
+  MRPrimaryButton,
   MRSecondaryButton,
   MRSegmentedControl,
   ReviewCard,
@@ -24,9 +26,10 @@ import {
   TabScreen,
   TertiaryButton,
   UndoSnackbar,
+  text,
   useAppTheme,
 } from '../../design-system';
-import { Alert, Text } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { spacing, typography } from '@milerecover/config';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
 import { selectProductExperience } from '../../product/selectors';
@@ -183,10 +186,27 @@ export function ReviewScreen() {
   const experience = selectProductExperience(state, product, permissions, automaticCaptureAvailable);
   const [segment, setSegment] = useState<'needs' | 'reviewed'>('needs');
   const [undoItem, setUndoItem] = useState<ReviewHistoryEntry | null>(null);
+  const [batchChoices, setBatchChoices] = useState<Record<string, 'work' | 'personal' | null>>({});
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = experience.activeReviewItems;
   const reviewed = product.reviewHistoryEntries.filter((entry) => !entry.undoneAt);
   const locale = product.localeProfile;
+
+  const batchGroups = (() => {
+    const groups = new Map<string, ReviewItem[]>();
+    for (const item of pending) {
+      if (item.kind === 'possible_missing_trip') continue;
+      const trip = state.trips.find((record) => record.id === item.tripId);
+      const key = routeLabelForTrip(trip, item.title);
+      const list = groups.get(key) ?? [];
+      list.push(item);
+      groups.set(key, list);
+    }
+    return [...groups.entries()]
+      .filter(([, items]) => items.length >= 2)
+      .map(([route, items]) => ({ route, items }));
+  })();
+  const showBatch = segment === 'needs' && batchGroups.length > 0;
 
   useEffect(() => {
     if (pending.some((item) => item.kind === 'possible_missing_trip') && product.firstMissingTripSeenAt == null) {
@@ -276,6 +296,17 @@ export function ReviewScreen() {
     pushDecision(item, decision, trip, trip.id, 'trip');
   };
 
+  const confirmBatchClassifications = () => {
+    for (const group of batchGroups) {
+      const choice = batchChoices[group.route];
+      if (choice !== 'work' && choice !== 'personal') continue;
+      for (const item of group.items) {
+        decide(item, choice);
+      }
+    }
+    setBatchChoices({});
+  };
+
   const undo = (entry: ReviewHistoryEntry) => {
     if (entry.targetKind === 'trip' && isTripRecord(entry.previousSnapshot)) {
       restoreTrip(entry.previousSnapshot);
@@ -331,6 +362,71 @@ export function ReviewScreen() {
         value={segment}
         onChange={setSegment}
       />
+
+      {showBatch ? (
+        <MRCard style={{ marginBottom: spacing.md, padding: spacing.md }}>
+          <Text
+            style={{
+              fontSize: typography.size.title,
+              lineHeight: typography.lineHeight.title,
+              fontWeight: '700',
+              color: palette.text.primary,
+              marginBottom: spacing.xs,
+            }}
+            accessibilityRole="header"
+          >
+            Classify quickly
+          </Text>
+          <Text style={[text.body, { color: palette.text.secondary, marginBottom: spacing.md }]}>
+            Mark several similar drives at once.
+          </Text>
+          <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+            {batchGroups.map((group) => (
+              <View
+                key={group.route}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: spacing.sm,
+                }}
+              >
+                <Text style={[text.body, { flex: 1, fontWeight: '600', color: palette.text.primary }]}>
+                  {group.route} · {group.items.length} drives
+                </Text>
+                <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                  <TertiaryButton
+                    label="Work"
+                    onPress={() =>
+                      setBatchChoices((prev) => ({
+                        ...prev,
+                        [group.route]: prev[group.route] === 'work' ? null : 'work',
+                      }))
+                    }
+                    accessibilityLabel={`Mark ${group.route} as Work`}
+                  />
+                  <TertiaryButton
+                    label="Personal"
+                    onPress={() =>
+                      setBatchChoices((prev) => ({
+                        ...prev,
+                        [group.route]: prev[group.route] === 'personal' ? null : 'personal',
+                      }))
+                    }
+                    accessibilityLabel={`Mark ${group.route} as Personal`}
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+          <MRPrimaryButton
+            label="Confirm classifications"
+            onPress={confirmBatchClassifications}
+            disabled={!Object.values(batchChoices).some((v) => v === 'work' || v === 'personal')}
+            accessibilityLabel="Confirm batch classifications"
+          />
+        </MRCard>
+      ) : null}
 
       {segment === 'needs' ? (
         pending.length === 0 ? (

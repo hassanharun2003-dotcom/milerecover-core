@@ -1,5 +1,5 @@
 /** Visible in Profile → About. Bump APP_BUILD_LABEL when a new native preview APK is required. */
-export const APP_BUILD_LABEL = '0.2.11-launch.1';
+export const APP_BUILD_LABEL = '0.2.12-figma-lock.1';
 
 /**
  * Temporary Home-screen OTA verification string.
@@ -7,17 +7,17 @@ export const APP_BUILD_LABEL = '0.2.11-launch.1';
  */
 export const PREVIEW_CHANNEL_MARKER = '';
 
-/** App store / runtime version — launch-candidate product completion. */
-export const APP_VERSION = '0.2.11';
+/** App store / runtime version — Figma production lock RC. */
+export const APP_VERSION = '0.2.12';
 
 /**
  * Explicit Expo Updates runtime — MUST stay equal to APP_VERSION for this release.
  * Isolates this binary from any prior preview-channel OTA bundles.
  */
-export const APP_RUNTIME_VERSION = '0.2.11';
+export const APP_RUNTIME_VERSION = '0.2.12';
 
-/** Preview EAS channel for this launch-candidate APK only. */
-export const APP_UPDATE_CHANNEL = 'preview-foundation-0.2.11';
+/** Preview EAS channel for this Figma-lock RC APK only. */
+export const APP_UPDATE_CHANNEL = 'preview-foundation-0.2.12';
 
 /** ISO timestamp stamped at native build time when EAS sets EAS_BUILD_*. */
 export const APP_BUILD_TIMESTAMP =

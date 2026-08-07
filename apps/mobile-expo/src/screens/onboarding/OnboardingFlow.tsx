@@ -32,7 +32,6 @@ import {
   MRStatusPanel,
   MRTertiaryButton,
   MRWelcomeDots,
-  MRWelcomeLogo,
   OnboardingScreen,
   SelectionCard,
   text,
@@ -46,22 +45,23 @@ import {
   getAuthPort,
   type AuthProviderId,
 } from '../../services/auth';
+import { FigmaIllustration } from '../../components/FigmaIllustration';
 
 const WELCOME_BENEFITS = [
   {
-    icon: 'refresh-outline' as const,
-    label: 'Recover forgotten miles',
-    body: 'Find work miles you may have missed.',
+    icon: 'navigate-outline' as const,
+    label: 'Automatic tracking',
+    body: 'Detects drives while you focus on the road.',
+  },
+  {
+    icon: 'search-outline' as const,
+    label: 'Find missed mileage',
+    body: 'Recover trips that slipped through automatic tracking.',
   },
   {
     icon: 'document-text-outline' as const,
-    label: 'Tax & employer ready',
-    body: 'Create clean professional mileage records.',
-  },
-  {
-    icon: 'shield-checkmark-outline' as const,
-    label: 'Automatic tracking',
-    body: 'Works quietly while you drive.',
+    label: 'Reports you can trust',
+    body: 'Keep proof ready for tax and reimbursement.',
   },
 ] as const;
 
@@ -73,10 +73,9 @@ const PURPOSE_ICONS: Record<string, ComponentProps<typeof Ionicons>['name']> = {
 };
 
 const PROTECTION_BENEFITS = [
-  'Detects possible drives',
-  'Works in the background',
-  'Battery-aware',
-  'You decide what counts',
+  'Detects when a drive starts and ends',
+  'Uses motion to reduce unnecessary GPS use',
+  'You stay in control of Work vs Personal',
 ] as const;
 
 const KM_PER_MILE = 1.609344;
@@ -173,8 +172,10 @@ export function OnboardingFlow() {
     centsPerMileToDisplayDollars(
       product.localeProfile.rates[0]?.centsPerMile ?? 0,
       product.localeProfile.distanceUnit,
-    ) || '1.80',
+    ) || '0.70',
   );
+  /** Figma: Tracking Education → Permission Education within protect_drives. */
+  const [protectionPhase, setProtectionPhase] = useState<'tracking' | 'permission'>('tracking');
 
   const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
@@ -381,17 +382,25 @@ export function OnboardingFlow() {
             }}
             accessibilityLabel="Continue to drive protection"
           />
+        ) : step === 'protect_drives' && protectionPhase === 'tracking' ? (
+          <MRPrimaryButton
+            label="Set up tracking"
+            onPress={() => {
+              logEvent(ANALYTICS_EVENTS.protectionSetupStarted, {});
+              setProtectionSetupState('educated');
+              patchOnboarding({ protectionEducationAcknowledged: true });
+              setProtectionPhase('permission');
+            }}
+            accessibilityLabel="Set up tracking"
+          />
         ) : step === 'protect_drives' ? (
           <View style={{ gap: spacing.sm }}>
             <MRPrimaryButton
-              label="Turn on drive protection"
+              label="Allow when prompted"
               loading={permissionBusy}
               onPress={() => {
                 if (permissionBusy) return;
                 setPermissionBusy(true);
-                logEvent(ANALYTICS_EVENTS.protectionSetupStarted, {});
-                setProtectionSetupState('educated');
-                patchOnboarding({ protectionEducationAcknowledged: true });
                 void (async () => {
                   try {
                     const fg = await requestLocationPermission();
@@ -411,14 +420,15 @@ export function OnboardingFlow() {
                     }
                   } finally {
                     setPermissionBusy(false);
+                    setProtectionPhase('tracking');
                     advanceOnboarding();
                   }
                 })();
               }}
-              accessibilityLabel="Turn on drive protection"
+              accessibilityLabel="Allow location when prompted"
             />
             <MRTertiaryButton
-              label="I’ll add drives manually"
+              label="Set up later"
               onPress={() => {
                 setTrackingEnabled(false);
                 setProtectionSetupState('not_started');
@@ -426,6 +436,7 @@ export function OnboardingFlow() {
                   protectionEducationAcknowledged: true,
                   permissionsEducationAcknowledged: true,
                 });
+                setProtectionPhase('tracking');
                 advanceOnboarding();
               }}
             />
@@ -474,20 +485,24 @@ export function OnboardingFlow() {
       ) : null}
 
       {step === 'welcome' ? (
-        <View style={{ alignItems: 'center', marginTop: spacing.xl }}>
-          <MRWelcomeLogo />
+        <View style={{ alignItems: 'center', marginTop: spacing.md }}>
+          <FigmaIllustration
+            name="welcomeProtection"
+            accessibilityLabel="MileRecover protection shield artwork"
+            style={{ marginBottom: spacing.lg }}
+          />
           <Text
             style={{
               fontSize: typography.size.display,
               lineHeight: typography.lineHeight.display,
               fontWeight: '700',
-              color: palette.action.primary,
+              color: palette.text.primary,
               textAlign: 'center',
               marginBottom: spacing.sm,
             }}
             accessibilityRole="header"
           >
-            Welcome to MileRecover
+            Protect every mile.
           </Text>
           <Text
             style={{
@@ -496,12 +511,13 @@ export function OnboardingFlow() {
               color: palette.text.secondary,
               textAlign: 'center',
               marginBottom: spacing.lg,
-              paddingHorizontal: spacing.md,
+              paddingHorizontal: spacing.sm,
             }}
           >
-            Protect your miles. Protect your money.
+            Track work mileage automatically, recover trips you missed, and keep proof ready when you
+            need it.
           </Text>
-          <View style={{ width: '100%', gap: spacing.md, paddingHorizontal: spacing.sm }}>
+          <View style={{ width: '100%', gap: spacing.md }}>
             {WELCOME_BENEFITS.map((benefit) => (
               <View
                 key={benefit.label}
@@ -559,10 +575,10 @@ export function OnboardingFlow() {
       {step === 'purpose' ? (
         <View>
           <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            What's your main reason for tracking mileage?
+            What do you use your mileage for?
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            We'll tailor rates, reports, and tips.
+            We'll personalize MileRecover around the way you drive.
           </Text>
           <View style={{ gap: spacing.sm }}>
             {PRIMARY_GOAL_OPTIONS.map((option) => {
@@ -624,14 +640,14 @@ export function OnboardingFlow() {
       {step === 'locale_setup' ? (
         <View>
           <Text style={[text.headline, { marginBottom: spacing.md }]} accessibilityRole="header">
-            Set your region and mileage rate.
+            Set your region and mileage rate
           </Text>
 
           <Text style={[text.caption, { marginBottom: spacing.xs, fontWeight: '500' }]}>Country</Text>
           <Pressable
             onPress={() => setCountrySheetOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Country ${countryLabel}`}
+            accessibilityLabel={`Change country, currently ${countryLabel}`}
             style={{
               minHeight: layout.fieldH,
               borderWidth: 1,
@@ -641,7 +657,7 @@ export function OnboardingFlow() {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: spacing.md,
+              marginBottom: spacing.xs,
               backgroundColor: palette.background.card,
             }}
           >
@@ -653,10 +669,12 @@ export function OnboardingFlow() {
                 {countryLabel}
               </Text>
             </View>
-            <Text style={{ color: palette.text.secondary }}>▾</Text>
+            <Text style={{ color: palette.text.secondary, fontSize: typography.size.caption }}>
+              Change country
+            </Text>
           </Pressable>
 
-          <Text style={[text.caption, { marginBottom: spacing.xs, fontWeight: '500' }]}>
+          <Text style={[text.caption, { marginBottom: spacing.xs, marginTop: spacing.sm, fontWeight: '500' }]}>
             Mileage rate
           </Text>
           <View
@@ -721,12 +739,12 @@ export function OnboardingFlow() {
                 label={unitDraft === 'km' ? 'Mileage rate ($ per km)' : 'Mileage rate ($ per mile)'}
                 value={rateDollars}
                 onChangeText={setRateDollars}
-                placeholder="1.80"
+                placeholder="0.70"
                 keyboardType="decimal-pad"
                 accessibilityLabel="Mileage rate in dollars"
               />
               <Text style={[text.caption, { marginTop: spacing.xs }]}>
-                Enter a normal amount like 1.80 — not cents.
+                Enter a normal amount like 0.70 — dollars per mile, not cents.
               </Text>
             </View>
           ) : null}
@@ -754,47 +772,68 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
-      {step === 'protect_drives' ? (
+      {step === 'protect_drives' && protectionPhase === 'tracking' ? (
         <View>
+          <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+            <FigmaIllustration
+              name="trackingCar"
+              accessibilityLabel="Automatic tracking car artwork"
+            />
+          </View>
           <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Protect your drives automatically
+            Drive normally. MileRecover does the remembering.
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            MileRecover can capture possible drives in the background. You always confirm what
-            counts as work.
+            MileRecover uses motion and location signals to detect likely drives while protecting your
+            privacy.
           </Text>
           <View style={{ gap: spacing.sm }}>
             {PROTECTION_BENEFITS.map((label) => (
               <ChecklistRow key={label} label={label} status="ready" />
             ))}
           </View>
-          <Text style={[text.caption, { marginTop: spacing.md }]}>
-            We’ll ask for location permission next. If you decline, manual entry still works.
+        </View>
+      ) : null}
+
+      {step === 'protect_drives' && protectionPhase === 'permission' ? (
+        <View>
+          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+            Allow location for automatic tracking
+          </Text>
+          <MRStatusPanel
+            tone="info"
+            message="Location helps detect drives while the app is closed. Motion helps reduce battery use. You choose what becomes Work or Personal."
+          />
+          <View style={{ gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.md }}>
+            {[
+              'Detect drives automatically',
+              'Keep tracking when the app is closed',
+              'Reduce missed work mileage',
+            ].map((label) => (
+              <ChecklistRow key={label} label={label} status="ready" />
+            ))}
+          </View>
+          <Text style={[text.caption]}>
+            You'll stay in control. Sensitive route details won't appear on lock-screen notifications.
           </Text>
         </View>
       ) : null}
 
       {step === 'ready' ? (
         <View style={{ alignItems: 'center' }}>
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              backgroundColor: palette.background.mist,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: spacing.md,
-            }}
-            accessibilityLabel="Complete"
-          >
-            <Text style={[text.display, { color: palette.forest[700] }]}>✓</Text>
-          </View>
+          <FigmaIllustration
+            name="readySuccess"
+            accessibilityLabel="Setup complete success artwork"
+            style={{ marginBottom: spacing.md }}
+          />
           <Text
             style={[text.headline, { marginBottom: spacing.sm, textAlign: 'center' }]}
             accessibilityRole="header"
           >
-            You’re all set
+            You're ready.
+          </Text>
+          <Text style={[text.body, { marginBottom: spacing.lg, textAlign: 'center' }]}>
+            Automatic tracking is prepared. Take your first drive and MileRecover will handle the rest.
           </Text>
           <View
             style={{
@@ -844,6 +883,9 @@ export function OnboardingFlow() {
               onPress={() => finish('ManualTrip')}
               disabled={finishing}
             />
+            <Text style={[text.caption, { textAlign: 'center', color: palette.text.secondary }]}>
+              Notification permission is asked later, after Home.
+            </Text>
           </View>
         </View>
       ) : null}

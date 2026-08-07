@@ -70,7 +70,7 @@ import {
   TertiaryButton,
   text,
 } from '../../design-system';
-import { CarRouteHero } from '../../components/CarRouteHero';
+import { FigmaIllustration } from '../../components/FigmaIllustration';
 import { isModelCompatibleWithMake, searchMakes, searchModels } from '../../data/vehicles';
 import { PLAN_FIXTURES, RESCUE_OPTIONS } from '../../fixtures/subscription';
 import type { RootStackParamList } from '../../navigation/types';
@@ -919,12 +919,12 @@ export function ManualTripScreen() {
           }}
           options={[
             { label: 'Manual entry', value: 'manual' },
-            { label: 'From other app', value: 'import' },
+            { label: 'Import mileage', value: 'import' },
           ]}
         />
 
         <View>
-          <Text style={flowStyles.fieldGroupLabel}>Work or personal?</Text>
+          <Text style={flowStyles.fieldGroupLabel}>Classification</Text>
           <MRSegmentedControl
             value={classification === 'personal' ? 'personal' : 'work'}
             onChange={(value) => setClassification(value)}
@@ -1000,23 +1000,23 @@ export function ManualTripScreen() {
         </View>
       ) : null}
       <MRFormField
-        label="Start location"
+        label="Start address"
         value={startLabel}
         onChangeText={(value) => {
           setStartLabel(value);
           setRouteMode('places');
         }}
-        placeholder="Start address"
+        placeholder="Enter start address"
         autoCapitalize="words"
       />
       <MRFormField
-        label="End location"
+        label="End address"
         value={endLabel}
         onChangeText={(value) => {
           setEndLabel(value);
           setRouteMode('places');
         }}
-        placeholder="End address"
+        placeholder="Enter end address"
         autoCapitalize="words"
       />
       <MRFormField
@@ -1306,23 +1306,23 @@ export function TripDetailsScreen() {
           value={`${formatTimeLocal(trip.startAt)} – ${formatTimeLocal(trip.endAt)}`}
         />
         <EvidenceRow label="Start" value={trip.startLabel ?? 'Not set'} />
-        <EvidenceRow label="Destination" value={trip.endLabel ?? 'Not set'} />
+        <EvidenceRow label="End" value={trip.endLabel ?? 'Not set'} />
         <EvidenceRow
           label="Distance"
           value={formatDistance(trip.distanceMiles, locale.distanceUnit, locale.localeTag)}
         />
-        <EvidenceRow label="Vehicle" value={vehicleName} />
-        <EvidenceRow label="Purpose" value={trip.purpose ?? 'Not set'} />
         <EvidenceRow
-          label="Estimated value"
+          label="Est. value"
           value={
             estimate != null
               ? formatCurrencyCents(estimate, locale.currencyCode, locale.localeTag)
               : rateMissing
-                ? 'Missing historical rate'
-                : 'Set a rate in Profile'
+                ? 'Rate missing'
+                : '—'
           }
         />
+        <EvidenceRow label="Vehicle" value={vehicleName} />
+        <EvidenceRow label="Purpose" value={trip.purpose ?? 'Not set'} />
         <EvidenceRow
           label="Trip replay"
           value={
@@ -1332,9 +1332,11 @@ export function TripDetailsScreen() {
           }
         />
       </ListSection>
-      <PrimaryButton label="Work" onPress={() => classify('work')} accessibilityLabel="Classify as work" />
-      <SecondaryButton label="Personal" onPress={() => classify('personal')} accessibilityLabel="Classify as personal" />
-      <SecondaryButton label="Not sure" onPress={() => classify('not_sure')} accessibilityLabel="Mark as not sure" />
+      <ListSection title="Classify this drive">
+        <PrimaryButton label="Work" onPress={() => classify('work')} accessibilityLabel="Classify as work" />
+        <SecondaryButton label="Personal" onPress={() => classify('personal')} accessibilityLabel="Classify as personal" />
+        <SecondaryButton label="Not sure" onPress={() => classify('not_sure')} accessibilityLabel="Mark as not sure" />
+      </ListSection>
       <DestructiveButton label="Wasn't a drive" onPress={() => classify('not_drive')} />
       <SecondaryButton
         label="Edit"
@@ -1378,10 +1380,18 @@ export function TripDetailsScreen() {
 
 export function MissingDrivesIntroScreen() {
   const navigation = useNavigation<Nav>();
-  const { product } = useProduct();
+  const { product, consumeMissingScan } = useProduct();
   const { refreshRecoverySuggestions } = useApp();
   const capabilities = capabilitiesForEntitlement(product.entitlement);
+  const [phase, setPhase] = useState<'intro' | 'scanning' | 'no_results' | 'free_limit'>('intro');
   const [busy, setBusy] = useState(false);
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+    };
+  }, []);
 
   const runCheck = () => {
     if (busy) return;
@@ -1389,40 +1399,139 @@ export function MissingDrivesIntroScreen() {
       navigation.navigate('PlanSelection', { source: 'upgrade' });
       return;
     }
+    if (!consumeMissingScan()) {
+      setPhase('free_limit');
+      return;
+    }
     setBusy(true);
-    refreshRecoverySuggestions(product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })));
-    setBusy(false);
-    navigation.navigate('MainTabs', { screen: 'Review' });
+    setPhase('scanning');
+    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+    scanTimerRef.current = setTimeout(() => {
+      const added = refreshRecoverySuggestions(
+        product.workLocations.map((loc) => ({ id: loc.id, label: loc.label })),
+      );
+      setBusy(false);
+      if (added === 0) {
+        setPhase('no_results');
+        return;
+      }
+      setPhase('intro');
+      navigation.navigate('MainTabs', { screen: 'Review' });
+    }, 900);
   };
+
+  if (phase === 'scanning') {
+    return (
+      <ScrollScreen>
+        <LoadingState message="Scanning for missed drives…" />
+        <Text style={[flowStyles.lockedBody, { textAlign: 'center', marginTop: spacing.md }]}>
+          Looking through the last 30 days of movement patterns.
+        </Text>
+        <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+          {['Gathering locations', 'Detecting drive segments', 'Preparing candidates'].map((stepLabel) => (
+            <View key={stepLabel} style={flowStyles.trustRow}>
+              <MRIconCircle glyph="…" accessibilityLabel={stepLabel} />
+              <Text style={flowStyles.trustText}>{stepLabel}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollScreen>
+    );
+  }
+
+  if (phase === 'no_results') {
+    return (
+      <ScrollScreen>
+        <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+          <FigmaIllustration name="missingNoResults" accessibilityLabel="No missed drives artwork" />
+        </View>
+        <Text
+          style={[flowStyles.lockedTitle, { textAlign: 'center', marginBottom: spacing.sm }]}
+          accessibilityRole="header"
+        >
+          No missed drives found
+        </Text>
+        <Text style={[flowStyles.lockedBody, { textAlign: 'center', marginBottom: spacing.lg }]}>
+          Your recent activity looks complete. Check again after a few more days of driving.
+        </Text>
+        <MRPrimaryButton
+          label="Back to home"
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+        />
+        <MRSecondaryButton label="Scan again" onPress={() => setPhase('intro')} />
+      </ScrollScreen>
+    );
+  }
+
+  if (phase === 'free_limit') {
+    return (
+      <ScrollScreen>
+        <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
+          You've used this month's free scan
+        </Text>
+        <Text style={[flowStyles.lockedBody, { marginBottom: spacing.lg }]}>
+          Upgrade for unlimited missed-drive scans and keep recovering unprotected miles every month.
+        </Text>
+        <MRPrimaryButton
+          label="See upgrade options"
+          onPress={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+        />
+        <MRSecondaryButton label="Not now" onPress={() => setPhase('intro')} />
+      </ScrollScreen>
+    );
+  }
 
   return (
     <ScrollScreen>
-      <View style={flowStyles.missingIllustration} accessibilityRole="image" accessibilityLabel="Car finding missed drives">
-        <CarRouteHero compact />
+      <View
+        style={flowStyles.missingIllustration}
+        accessibilityRole="image"
+        accessibilityLabel="Car finding missed drives"
+      >
+        <FigmaIllustration
+          name="missingDrivesRoute"
+          accessibilityLabel="Car route missing drives artwork"
+          width={280}
+          height={180}
+        />
       </View>
       <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
         Find the miles you missed
       </Text>
       <Text style={[flowStyles.lockedBody, { marginBottom: spacing.md }]}>
-        We'll scan for likely work drives that weren't saved yet.
+        Scan recent location history to recover drives that were never logged.
       </Text>
       <View style={flowStyles.trustStack}>
         {[
-          'Uses available evidence',
-          'Suggests likely missing drives',
-          'Nothing is added without you',
+          {
+            title: 'Recover unprotected trips',
+            body: 'Catch drives that slipped through automatic tracking.',
+          },
+          {
+            title: 'Review before they count',
+            body: 'Classify Work, Personal, or Ignore — nothing is saved until you confirm.',
+          },
+          {
+            title: 'Keep your records complete',
+            body: 'Close gaps so tax and reimbursement proof stay accurate.',
+          },
         ].map((item) => (
-          <View key={item} style={flowStyles.trustRow}>
+          <View key={item.title} style={flowStyles.trustRow}>
             <MRIconCircle glyph="✓" accessibilityLabel="Included" />
-            <Text style={[flowStyles.trustText, { color: colors.forest[700], fontWeight: '700' }]}>{item}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[flowStyles.trustText, { color: colors.forest[700], fontWeight: '700' }]}>
+                {item.title}
+              </Text>
+              <Text style={[text.caption, { color: colors.text.secondary, marginTop: 2 }]}>{item.body}</Text>
+            </View>
           </View>
         ))}
       </View>
       <MRPrimaryButton
-        label="Run check now"
+        label="Check for missed drives"
         loading={busy}
         onPress={runCheck}
-        accessibilityLabel="Run check for missed drives"
+        accessibilityLabel="Check for missed drives"
       />
       <Text style={flowStyles.centerCaption}>Takes about 1 minute</Text>
     </ScrollScreen>
@@ -1449,6 +1558,31 @@ export function MissingTripRecoveryScreen() {
   );
   const [purpose, setPurpose] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [recovered, setRecovered] = useState<{
+    miles: number;
+    valueLabel: string | null;
+  } | null>(null);
+
+  if (recovered) {
+    return (
+      <ScrollScreen>
+        <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+          <FigmaIllustration name="recoverySuccess" accessibilityLabel="Miles recovered success artwork" />
+        </View>
+        <Text
+          style={[flowStyles.lockedTitle, { textAlign: 'center', marginBottom: spacing.sm }]}
+          accessibilityRole="header"
+        >
+          Miles recovered
+        </Text>
+        <Text style={[flowStyles.lockedBody, { textAlign: 'center', marginBottom: spacing.lg }]}>
+          You added a work drive · {formatDistance(recovered.miles, unit, locale.localeTag)}
+          {recovered.valueLabel ? ` · about ${recovered.valueLabel} in value.` : '.'}
+        </Text>
+        <MRPrimaryButton label="Done" onPress={() => navigation.goBack()} />
+      </ScrollScreen>
+    );
+  }
 
   if (!candidate) {
     return (
@@ -1483,7 +1617,14 @@ export function MissingTripRecoveryScreen() {
       return;
     }
     remember('work');
-    navigation.goBack();
+    const rate = rateForTimestamp(locale.rates, candidate.proposedStartAt);
+    const cents =
+      rate != null ? estimatedValueCents(miles, rate.centsPerMile) : null;
+    setRecovered({
+      miles,
+      valueLabel:
+        cents != null ? formatCurrencyCents(cents, locale.currencyCode, locale.localeTag) : null,
+    });
   };
 
   const reject = (decision: 'personal' | 'not_drive') => {
@@ -1578,11 +1719,29 @@ export function ProtectionAlertScreen() {
   const backgroundReady =
     permissions.backgroundLocation === 'granted' || permissions.backgroundLocation === 'not_applicable';
   const primaryAction = protection.primaryAction;
-  const overviewHeroTitle = protection.state === 'PROTECTED' ? "You're protected" : protection.title;
-  const overviewHeroBody =
-    protection.state === 'PROTECTED'
-      ? 'MileRecover is actively tracking your work drives.'
-      : protection.message;
+  const permissionMissing = !foregroundReady;
+  const isHealthy = protection.state === 'PROTECTED';
+  const overviewHeroTitle = permissionMissing
+    ? 'Location permission missing'
+    : isHealthy
+      ? "You're protected"
+      : protection.state === 'NEEDS_PERMISSION' ||
+          protection.state === 'BATTERY_LIMITED' ||
+          protection.state === 'STALE' ||
+          protection.state === 'ERROR' ||
+          protection.state === 'OFF'
+        ? 'Tracking needs attention'
+        : protection.title;
+  const overviewHeroBody = permissionMissing
+    ? "MileRecover can't protect drives without location access. Enable it to resume tracking."
+    : isHealthy
+      ? 'Automatic tracking is running. New drives will be captured in the background.'
+      : 'One or more settings may stop drives from being captured. Fix them to stay protected.';
+  const overviewPrimaryLabel = permissionMissing
+    ? 'Open settings'
+    : isHealthy
+      ? 'Run diagnostics'
+      : 'Fix tracking issues';
   const [guideStep, setGuideStep] = useState<
     'overview' | 'explain_fg' | 'ask_fg' | 'explain_bg' | 'ask_bg' | 'verify' | 'success'
   >('overview');
@@ -1618,38 +1777,40 @@ export function ProtectionAlertScreen() {
   const overviewDiagnosticRows: Array<{
     label: string;
     value: string;
+    ok: boolean;
     fix?: () => void;
   }> = [
     {
+      label: 'Location permission',
+      value: foregroundReady ? 'On' : 'Missing',
+      ok: foregroundReady,
+      fix: foregroundReady ? undefined : () => setGuideStep('explain_fg'),
+    },
+    {
       label: 'Background tracking',
-      value: product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady ? 'On' : 'Needs attention',
+      value:
+        product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady
+          ? 'Active'
+          : !backgroundReady
+            ? 'Paused'
+            : 'Interrupted',
+      ok: Boolean(product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady),
       fix:
         product.trackingEnabled && capabilities.canUseAutomaticCapture && backgroundReady
           ? undefined
           : () => startGuidedRepair(),
     },
     {
-      label: 'Location access',
-      value: foregroundReady ? 'Active' : 'Needs attention',
-      fix: foregroundReady ? undefined : () => setGuideStep('explain_fg'),
-    },
-    {
-      label: 'Battery optimized',
-      value: permissions.batteryOptimizationRestricted ? 'Needs attention' : 'Up to date',
+      label: 'Battery optimization',
+      value: permissions.batteryOptimizationRestricted ? 'Restricting' : 'Ready',
+      ok: !permissions.batteryOptimizationRestricted,
       fix: permissions.batteryOptimizationRestricted ? () => void openSystemSettings() : undefined,
     },
     {
-      label: 'Motion detection',
+      label: 'Motion & fitness',
       value: automaticCaptureAvailable ? 'On' : 'Needs attention',
+      ok: automaticCaptureAvailable,
       fix: automaticCaptureAvailable ? undefined : () => startGuidedRepair(),
-    },
-    {
-      label: 'Data sync',
-      value: protection.state === 'PROTECTED' || protection.lastCheckLabel ? 'Up to date' : 'Needs attention',
-      fix:
-        protection.state === 'PROTECTED' || protection.lastCheckLabel
-          ? undefined
-          : () => void refreshPermissions(),
     },
   ];
 
@@ -1834,13 +1995,25 @@ export function ProtectionAlertScreen() {
 
   return (
     <ScrollScreen>
+      <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+        <FigmaIllustration
+          name="protectionHero"
+          accessibilityLabel="Protection Center hero artwork"
+          width={342}
+          height={134}
+        />
+      </View>
       <MRHeroCard accessibilityLabel={overviewHeroTitle}>
+        <Text style={[text.caption, { marginBottom: spacing.xs, fontWeight: '600' }]}>
+          {permissionMissing ? 'Action required' : isHealthy ? 'Protected' : 'Needs attention'}
+        </Text>
         <Text style={flowStyles.heroTitle}>{overviewHeroTitle}</Text>
         <Text style={flowStyles.heroBody}>{overviewHeroBody}</Text>
       </MRHeroCard>
+      <Text style={[text.caption, { marginBottom: spacing.sm, fontWeight: '600' }]}>System status</Text>
       <View style={flowStyles.cardStack}>
         {overviewDiagnosticRows.map((row) => {
-          const needsAttention = row.value === 'Needs attention';
+          const needsAttention = !row.ok;
           return (
             <MRCard key={row.label} style={[flowStyles.diagnosticCard, { minHeight: 52, paddingVertical: spacing.sm }]}>
               <View style={flowStyles.diagnosticLeft}>
@@ -1867,10 +2040,22 @@ export function ProtectionAlertScreen() {
           );
         })}
       </View>
+      {permissionMissing ? (
+        <MRStatusPanel
+          tone="info"
+          message="Open Settings → MileRecover → Location → Always, then return here to confirm."
+        />
+      ) : null}
       <MRPrimaryButton
-        label="Run diagnostics"
-        onPress={primaryAction.action !== 'none' ? runPrimaryAction : startGuidedRepair}
-        accessibilityLabel="Run diagnostics"
+        label={overviewPrimaryLabel}
+        onPress={
+          permissionMissing
+            ? () => void openSystemSettings()
+            : primaryAction.action !== 'none'
+              ? runPrimaryAction
+              : startGuidedRepair
+        }
+        accessibilityLabel={overviewPrimaryLabel}
       />
     </ScrollScreen>
   );

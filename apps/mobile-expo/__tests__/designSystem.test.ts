@@ -13,7 +13,7 @@ import {
 describe('Figma-locked design tokens', () => {
   it('keeps Production Design Lock primary values', () => {
     expect(colors.forest[900]).toBe('#0B3D2E');
-    expect(colors.forest[700]).toBe('#1F8A5B');
+    expect(colors.forest[700]).toBe('#1C8054');
     expect(colors.background.canvas).toBe('#FAFAF8');
     expect(lightSemantic.canvas).toBe('#FAFAF8');
     expect(lightSemantic.surfaceSelected).toBe('#E5F5EC');
