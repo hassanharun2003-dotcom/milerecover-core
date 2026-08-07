@@ -3,38 +3,60 @@
 ## Identity
 
 - versionName: `0.2.11`
+- versionCode: `47` (first local build); rebuild may auto-increment
 - runtimeVersion / channel: `0.2.11` / `preview-foundation-0.2.11`
 - package: `com.milerecover.app`
-- signing: same preview keystore, v1+v2+v3, proper DN (foundation preserved)
+- signing: same preview keystore DN `CN=MileRecover Preview, OU=Engineering, O=MileRecover, L=London, ST=England, C=GB`
+- SHA-1: `E6:62:40:AA:E7:FA:4B:B7:37:51:44:1E:16:04:80:D9:67:24:1F:31`
+- APK (signed): `/opt/cursor/artifacts/apk/MileRecover-preview-0.2.11.apk`
+- SHA-256 (first signed build): `fdb4c89f025bbd59de9c6b3f763a15d3d1e0e61d61c900ee477c457cf272bf11`
 
-## Material production UI changes (mounted navigator screens)
+## Emulator acceptance screenshots
 
-| Screen | Component | Change |
-|---|---|---|
-| Welcome | `OnboardingFlow` | Real logo + benefit rows with Ionicons + supporting copy; Automatic tracking |
-| Purpose | `OnboardingFlow` | Compact selected cards + icons + Personal label |
-| Profile | `ProfileScreen` | Compact settings rows; Switch to MileRecover |
-| Vehicles | `VehicleSetupScreen` | Search + popular chips + compact results |
-| Add drive | `ManualTripScreen` | Tighter density; branded discard dialog; dirty-state fix |
-| Protection | `ProtectionAlertScreen` | Compact rows + per-issue Fix |
-| Missing drives | `MissingDrivesIntroScreen` | CarRouteHero + trust copy |
-| Proof | `ProofScreen` | Period chrome + zero metrics (not empty-only cut) |
-| Import | `BringExistingMileageScreen` | Switch to MileRecover + competitor format tags |
+Directory: `/opt/cursor/artifacts/screenshots/0.2.11/`
 
-## Product functionality
+| File | Result |
+|---|---|
+| `01-welcome.png` | Matches crop: logo, 3 icon benefits, Automatic tracking, Get started |
+| `03-purpose.png` | Compact icon cards + Personal |
+| `04-region.png` | Flag + dollar rate UX |
+| `05-protection.png` | Compact benefits + Turn on / I'll add drives manually |
+| `06-ready.png` | You’re all set summary |
+| `07-home.png` | Ready to protect your first drive (zero-state), 3 metrics, Next up, CTAs |
+| `08-review.png` | Needs review / Done chrome |
+| `09-proof.png` | Period segments + zero metrics + chart (not empty-only cut) |
+| `10-profile.png` | Compact rows + Switch to MileRecover + Version 0.2.11 |
+| `11-vehicles.png` | Search + popular chips (no giant make cards) |
+| `12-import.png` | Switch to MileRecover + competitor tags |
+| `13-add-drive.png` | Manual/From other app, human date, More details |
+| `14-missing.png` | Find the miles you missed + trust checks |
+| `15-protection-center.png` | Compact hero + Fix rows + Run diagnostics |
+
+## Material production UI changes
+
+Mounted navigator components only — not unused fixtures.
+
+## Product
 
 - Competitor CSV detection (MileIQ / Everlance / Driversnote / TripLog / Stride / generic)
-- Import preview summary: found / ready / duplicates / need attention
-- Satisfaction-gated store review prompt (`expo-store-review`) on positive moments only
-- Historical rate notes preserved from exports when present
+- Import preview: found / ready / duplicates / need attention
+- Satisfaction-gated store review on positive moments
+- Rate labels in dollars (`$0.70 / mile`), never cents
 
-## Still external (cannot invent)
+## Foundation preserved
 
-- Google OAuth client IDs + SHA-1/256 of preview signing cert in Google Cloud
-- Google Maps API key for full native maps (truthful Route unavailable fallback remains)
-- RevenueCat / Play Billing live products
+- v1+v2+v3 resign path unchanged
+- `checkAutomatically: NEVER`
+- Four tabs unchanged
+- Google CTA hidden when OAuth secrets absent
+- Trial does not auto-start
 
-## Acceptance
+## Still external
 
-Physical Samsung / emulator screenshots must be compared to `docs/design/reference-crops/`.
-Typecheck/unit tests alone are not acceptance.
+1. Google Cloud OAuth Android + Web clients with preview signing SHA-1/256
+2. `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` / Android client ID secrets on EAS
+3. Optional Maps API key + RevenueCat live products
+
+## PR
+
+https://github.com/hassanharun2003-dotcom/milerecover-core/pull/21

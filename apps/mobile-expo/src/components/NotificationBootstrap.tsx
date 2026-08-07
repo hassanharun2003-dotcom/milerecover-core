@@ -27,7 +27,12 @@ export function NotificationBootstrap({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (product.onboarding.completedAt == null) return;
     let cancelled = false;
-    void (async () => {
+    // Defer OS permission prompt so it never races Ready → Home finish
+    // (which previously left “One moment…” under the system dialog and could ANR).
+    const timer = setTimeout(() => {
+      void (async () => {
+      if (cancelled) return;
+      if (!product.notificationPreferences.enabled) return;
       const permission = await requestNotificationPermission();
       if (cancelled || permission !== 'granted') return;
       const prefs = product.notificationPreferences;
@@ -95,9 +100,11 @@ export function NotificationBootstrap({ children }: { children: React.ReactNode 
           permission,
         });
       }
-    })();
+      })();
+    }, 2500);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [
     automaticCaptureAvailable,

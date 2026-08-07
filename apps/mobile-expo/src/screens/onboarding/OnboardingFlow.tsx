@@ -277,6 +277,8 @@ export function OnboardingFlow() {
         finishOnboarding();
       } catch {
         setPersistError('Couldn’t save your setup. Check storage and try again.');
+      } finally {
+        // Always clear so Ready never sticks on “One moment…” after a hang/cancel.
         setFinishing(false);
       }
     })();
