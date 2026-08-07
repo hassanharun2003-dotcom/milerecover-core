@@ -3,13 +3,13 @@
 ## Identity
 
 - versionName: `0.2.11`
-- versionCode: `47` (first local build); rebuild may auto-increment
+- versionCode: `49` (final signed candidate; EAS autoIncrement)
 - runtimeVersion / channel: `0.2.11` / `preview-foundation-0.2.11`
 - package: `com.milerecover.app`
 - signing: same preview keystore DN `CN=MileRecover Preview, OU=Engineering, O=MileRecover, L=London, ST=England, C=GB`
 - SHA-1: `E6:62:40:AA:E7:FA:4B:B7:37:51:44:1E:16:04:80:D9:67:24:1F:31`
 - APK (signed): `/opt/cursor/artifacts/apk/MileRecover-preview-0.2.11.apk`
-- SHA-256 (first signed build): `fdb4c89f025bbd59de9c6b3f763a15d3d1e0e61d61c900ee477c457cf272bf11`
+- SHA-256 (first signed build): `b5a30c61a08203bbb0577894a624183322937a0507b931cdde7c21d09ff459cd`
 
 ## Emulator acceptance screenshots
 
