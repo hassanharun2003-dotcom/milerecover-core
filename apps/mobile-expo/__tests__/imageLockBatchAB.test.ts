@@ -121,7 +121,7 @@ describe('Image lock Batch A/B foundations', () => {
       path.join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(welcome).toMatch(/Get started →/);
+    expect(welcome).toMatch(/Continue with Google|Continue without an account/);
     expect(welcome).not.toMatch(/I already use a mileage app/);
   });
 });

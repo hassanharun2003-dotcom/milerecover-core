@@ -42,9 +42,9 @@ export function createInitialAppState(now: number = Date.now()): MileRecoverAppS
     tripsTodayCount: 0,
     periodConfirmedBusinessMiles: 0,
     reportingPeriod: {
-      id: `ytd-${year}`,
-      label: `${year} year to date`,
-      startAt: new Date(year, 0, 1).getTime(),
+      id: 'this_month',
+      label: 'This month',
+      startAt: new Date(year, new Date(now).getMonth(), 1).getTime(),
       endAt: now,
     },
     mileageRate: null,

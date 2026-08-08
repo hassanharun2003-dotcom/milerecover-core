@@ -35,7 +35,9 @@ import type { RootStackParamList, RootTabParamList } from '../../navigation/type
 import { selectProductExperience } from '../../product/selectors';
 import { useProduct } from '../../product/ProductContext';
 import type { ReviewDecision, ReviewHistoryEntry } from '../../product/types';
+import { EmptyReviewArt } from '../../components/ProductArt';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
+import { hapticSelection } from '../../services/haptics';
 import { useApp } from '../../store/AppContext';
 
 type ReviewNav = CompositeNavigationProp<
@@ -267,6 +269,9 @@ export function ReviewScreen() {
       decision,
       kind: item.kind,
     });
+    if (decision === 'work' || decision === 'personal') {
+      void hapticSelection();
+    }
 
     if (item.kind === 'possible_missing_trip') {
       const candidate = state.recoveryCandidates.find((recovery) => recovery.id === item.recoveryCandidateId);
@@ -431,15 +436,17 @@ export function ReviewScreen() {
       {segment === 'needs' ? (
         pending.length === 0 ? (
           <>
+            <EmptyReviewArt />
             <EmptyState
               title="You’re caught up"
-              body="No drives need classification."
+              body="No drives need classification right now. Recovered candidates will show evidence and confidence before anything is added."
             />
             <MRSecondaryButton
-              label="Add drive"
-              onPress={() => navigation.navigate('ManualTrip')}
+              label="Check for missed drives"
+              onPress={checkMissedDrives}
+              accessibilityLabel="Check for missed drives"
             />
-            <TertiaryButton label="Check for missed drives" onPress={checkMissedDrives} />
+            <TertiaryButton label="Add a drive" onPress={() => navigation.navigate('ManualTrip')} />
           </>
         ) : (
           <>
@@ -540,7 +547,11 @@ export function ReviewScreen() {
       )}
 
       {segment === 'needs' && pending.length > 0 ? (
-        <TertiaryButton label="Add a drive" onPress={() => navigation.navigate('ManualTrip')} />
+        <MRSecondaryButton
+          label="Check for missed drives"
+          onPress={checkMissedDrives}
+          accessibilityLabel="Check for missed drives"
+        />
       ) : null}
 
       {undoItem ? (

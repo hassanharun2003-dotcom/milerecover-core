@@ -33,6 +33,7 @@ import {
   useAppTheme,
 } from '../../design-system';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
+import { EmptyProofArt } from '../../components/ProductArt';
 import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
 import { useProduct } from '../../product/ProductContext';
 import {
@@ -85,13 +86,6 @@ function chartBarsForPeriod(
   return Array.from(buckets.entries())
     .slice(0, 8)
     .map(([label, value]) => ({ label, value }));
-}
-
-function periodFromState(period: { id: string; label: string; startAt: number; endAt: number }): ReportPeriod {
-  const kind = PERIOD_OPTIONS.some((option) => option.value === period.id)
-    ? (period.id as ReportPeriodKind)
-    : 'custom';
-  return { kind, label: period.label, startAt: period.startAt, endAt: period.endAt };
 }
 
 function vehicleLookup(vehicles: { id: string; nickname: string; make: string; model: string }[]): Record<string, string> {
@@ -153,15 +147,22 @@ function fixItemsLabel(count: number): string {
   return count === 1 ? 'Fix 1 item' : `Fix ${count} items`;
 }
 
+function normalizePeriodKind(id: string | undefined | null): ReportPeriodKind {
+  if (id && PERIOD_OPTIONS.some((option) => option.value === id)) {
+    return id as ReportPeriodKind;
+  }
+  // Legacy ids like `ytd-2026` must not leave Month selected with a YTD label.
+  if (typeof id === 'string' && id.startsWith('ytd')) return 'ytd';
+  return 'this_month';
+}
+
 export function ProofScreen() {
   const navigation = useNavigation<Nav>();
   const { palette } = useAppTheme();
   const { state, setReportingPeriod } = useApp();
   const { product, markFirstExport, markFirstReportPreview } = useProduct();
-  const [periodKind, setPeriodKind] = useState<ReportPeriodKind>(
-    PERIOD_OPTIONS.some((option) => option.value === state.reportingPeriod.id)
-      ? (state.reportingPeriod.id as ReportPeriodKind)
-      : 'this_month',
+  const [periodKind, setPeriodKind] = useState<ReportPeriodKind>(() =>
+    normalizePeriodKind(state.reportingPeriod.id),
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -171,8 +172,34 @@ export function ProofScreen() {
 
   useEffect(() => subscribeShareInFlight(setShareBusy), []);
 
+  useEffect(() => {
+    const resolved = resolveReportPeriod(periodKind);
+    if (
+      state.reportingPeriod.id !== periodKind ||
+      state.reportingPeriod.label !== resolved.label ||
+      state.reportingPeriod.startAt !== resolved.startAt
+    ) {
+      setReportingPeriod({
+        id: periodKind,
+        label: resolved.label,
+        startAt: resolved.startAt,
+        endAt: resolved.endAt,
+      });
+    }
+    // Keep the selected control and stored period label/data in lockstep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodKind]);
+
   const capabilities = capabilitiesForEntitlement(product.entitlement);
-  const period = periodFromState(state.reportingPeriod);
+  const period = useMemo(() => {
+    const resolved = resolveReportPeriod(periodKind);
+    return {
+      kind: periodKind,
+      label: resolved.label,
+      startAt: resolved.startAt,
+      endAt: resolved.endAt,
+    };
+  }, [periodKind]);
   const tripsForProof = product.demoModeEnabled
     ? DEMO_SCENARIOS[product.demoScenario]?.trips ?? state.trips
     : state.trips;
@@ -412,6 +439,9 @@ export function ProofScreen() {
 
       {report.tripCount === 0 ? (
         <>
+          <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
+            <EmptyProofArt />
+          </View>
           <Text
             style={{
               color: palette.text.primary,
@@ -420,20 +450,25 @@ export function ProofScreen() {
               marginBottom: spacing.xs,
             }}
           >
-            No work drives yet
+            No work drives in {period.label.toLowerCase()}
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Confirm work drives and your reports will build automatically.
+            Work-classified drives populate reports. Confirm Work on Review or add a drive to start.
           </Text>
           <MRStatusPanel
             tone="info"
             message="Only drives you confirm as Work appear in reports."
           />
-          <View style={{ marginTop: spacing.md }}>
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
             <MRPrimaryButton
               label="Add a drive"
               onPress={() => navigation.navigate('ManualTrip')}
               accessibilityLabel="Add a drive"
+            />
+            <MRSecondaryButton
+              label="Check for missed drives"
+              onPress={() => navigation.navigate('MissingDrivesIntro')}
+              accessibilityLabel="Check for missed drives"
             />
           </View>
         </>

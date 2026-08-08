@@ -491,8 +491,10 @@ class TrackingControllerImpl implements TrackingController {
 
     const start = nextTrip.routePreview?.[0] ?? null;
     const end = nextTrip.routePreview?.[nextTrip.routePreview.length - 1] ?? null;
-    // Emit immediately so Review is not blocked by network geocoding.
+    // Persist locally first so temporary network loss cannot drop a closed drive.
+    // Geocode enrichment is best-effort and must never be required for survival.
     this.closedTrips = [nextTrip, ...this.closedTrips].slice(0, 50);
+    await enqueuePendingTrip(nextTrip);
     if (nextTrip.source === 'auto_detected') {
       const closedAt = Date.now();
       this.lastSuccessfulAutomaticTripAt = closedAt;
@@ -500,6 +502,9 @@ class TrackingControllerImpl implements TrackingController {
       void persistLastSuccessfulAutomaticTripAt(closedAt);
     }
     this.options.onTripClosed(nextTrip);
+    // Remove from durable queue only after the in-memory app store accepted it.
+    const remaining = (await loadPendingTrips()).filter((item) => item.id !== nextTrip.id);
+    await persistPendingTrips(remaining);
 
     void enrichTripEndpoints({ start, end }).then(({ startLabel, endLabel }) => {
       if (!startLabel && !endLabel) return;

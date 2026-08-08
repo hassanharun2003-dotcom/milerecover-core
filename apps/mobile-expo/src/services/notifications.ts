@@ -104,6 +104,21 @@ export function clearNotificationDedupeForTests(): void {
   RECENT_KEYS.clear();
 }
 
+export async function getNotificationPermission(): Promise<PermissionState> {
+  try {
+    // Lazy require keeps unit tests and environments without the native module usable.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+    const existing = await Notifications.getPermissionsAsync();
+    if (existing.granted) return 'granted';
+    if (existing.status === 'denied' && !existing.canAskAgain) return 'restricted';
+    if (existing.status === 'denied') return 'denied';
+    return existing.granted ? 'granted' : 'denied';
+  } catch {
+    return 'denied';
+  }
+}
+
 export async function requestNotificationPermission(): Promise<PermissionState> {
   try {
     // Lazy require keeps unit tests and environments without the native module usable.
@@ -117,6 +132,17 @@ export async function requestNotificationPermission(): Promise<PermissionState> 
     return requested.canAskAgain ? 'denied' : 'restricted';
   } catch {
     return 'denied';
+  }
+}
+
+/** Opens OS app settings so the user can restore notification permission. */
+export async function openNotificationSettings(): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Linking = require('react-native').Linking as typeof import('react-native').Linking;
+    await Linking.openSettings();
+  } catch {
+    // Best-effort.
   }
 }
 

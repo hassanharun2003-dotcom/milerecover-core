@@ -863,8 +863,18 @@ export function ListRow({
   );
 }
 
-export function SelectionCard({ title, body, selected, onPress }: {
-  title: string; body?: string; selected: boolean; onPress: () => void;
+export function SelectionCard({
+  title,
+  body,
+  selected,
+  onPress,
+  leading,
+}: {
+  title: string;
+  body?: string;
+  selected: boolean;
+  onPress: () => void;
+  leading?: React.ReactNode;
 }) {
   const { palette } = useAppTheme();
   return (
@@ -884,8 +894,15 @@ export function SelectionCard({ title, body, selected, onPress }: {
       accessibilityState={{ selected }}
       accessibilityLabel={title}
     >
-      <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
-      {body ? <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{body}</Text> : null}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+        {leading ? <View style={{ marginTop: 2 }}>{leading}</View> : null}
+        <View style={{ flex: 1 }}>
+          <Text style={[text.subtitle, themedText(palette)]}>{title}</Text>
+          {body ? (
+            <Text style={[text.body, themedText(palette, 'secondary'), { marginTop: spacing.xs }]}>{body}</Text>
+          ) : null}
+        </View>
+      </View>
     </Pressable>
   );
 }

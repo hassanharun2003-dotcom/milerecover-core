@@ -64,18 +64,13 @@ export function BringExistingMileageScreen() {
     <ScrollScreen>
       <StatusCard
         variant="info"
-        title="Switch to MileRecover"
-        body="Bring your mileage history with you. Keep past trips together without starting from scratch."
+        title="Bring your mileage with you"
+        body="Choose an export or CSV from your current mileage app. We’ll identify the source after you pick a file — never invent miles."
         emphasis="hero"
       />
       <ImportOptionCard
-        title="Import a CSV"
-        subtitle="Choose a mileage file from your phone or email."
-        onPress={() => void pickCsv()}
-      />
-      <ImportOptionCard
-        title="Import from another mileage app"
-        subtitle="Upload an export. We’ll detect the format when we can."
+        title="Choose an export or CSV"
+        subtitle="Pick a file from your phone, email, or downloads."
         onPress={() => void pickCsv()}
       />
       <ImportOptionCard
@@ -84,8 +79,7 @@ export function BringExistingMileageScreen() {
         onPress={() => navigation.navigate('ManualTrip')}
       />
       <Text style={[text.caption, { color: palette.text.secondary, marginTop: spacing.sm }]}>
-        Supported formats appear after you choose a file. Competitor names only show if we detect that
-        export.
+        Source detection happens only after file selection. Known formats are named only when detected.
       </Text>
       <View style={styles.tertiary}>
         <TertiaryButton label="Start fresh instead" onPress={() => navigation.goBack()} />

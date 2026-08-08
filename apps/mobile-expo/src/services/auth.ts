@@ -100,22 +100,64 @@ type AuthExtra = {
   googleAndroidClientId?: string;
 };
 
+let authExtraOverrideForTests: AuthExtra | null = null;
+
+function normalizeClientId(value: string | undefined | null): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function authExtra(): AuthExtra {
+  if (authExtraOverrideForTests) return { ...authExtraOverrideForTests };
   const extra = (Constants.expoConfig?.extra ?? {}) as AuthExtra;
   return {
-    googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? extra.googleWebClientId,
-    googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? extra.googleIosClientId,
-    googleAndroidClientId:
+    googleWebClientId: normalizeClientId(
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? extra.googleWebClientId,
+    ),
+    googleIosClientId: normalizeClientId(
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? extra.googleIosClientId,
+    ),
+    googleAndroidClientId: normalizeClientId(
       process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? extra.googleAndroidClientId,
+    ),
   };
 }
 
-function googleConfigured(): boolean {
+/**
+ * Android requires BOTH:
+ * - Web client ID → GoogleSignin `webClientId` / idToken exchange
+ * - Android client ID → package + signing SHA registered in Google Cloud
+ * Never treat the Web client ID as the Android client ID.
+ */
+export function googleConfigured(): boolean {
   const extra = authExtra();
-  if (Platform.OS === 'ios') return Boolean(extra.googleIosClientId || extra.googleWebClientId);
-  // Android native picker needs a Web client ID for token exchange, or an Android client ID
-  // registered for this package + signing certificate SHA-1.
-  return Boolean(extra.googleWebClientId || extra.googleAndroidClientId);
+  const web = extra.googleWebClientId;
+  const android = extra.googleAndroidClientId;
+  if (Platform.OS === 'ios') {
+    return Boolean(extra.googleIosClientId || web);
+  }
+  if (!web || !android) return false;
+  // Distinct client IDs — substituting Web for Android is a configuration error.
+  if (web === android) return false;
+  return true;
+}
+
+/** Test-only injection for Google client ID availability checks. */
+export function setGoogleAuthExtraForTests(extra: AuthExtra | null): void {
+  authExtraOverrideForTests = extra;
+}
+
+export function getGoogleAuthClientIdsForDiagnostics(): {
+  hasWebClientId: boolean;
+  hasAndroidClientId: boolean;
+  hasIosClientId: boolean;
+} {
+  const extra = authExtra();
+  return {
+    hasWebClientId: Boolean(extra.googleWebClientId),
+    hasAndroidClientId: Boolean(extra.googleAndroidClientId),
+    hasIosClientId: Boolean(extra.googleIosClientId),
+  };
 }
 
 export function shouldShowAccountPreviewCopy(variant?: string): boolean {
@@ -222,9 +264,11 @@ export class ProductionAuthPort implements AuthPort {
       };
       const { GoogleSignin, statusCodes } = mod;
       const extra = authExtra();
-      // Opens the native Google account picker on Android / iOS.
+      // Web client ID is required by the library for idToken. Android package identity
+      // is validated by Google against the separate Android OAuth client (SHA-1 + package).
+      // Never pass the Android client ID as webClientId.
       GoogleSignin.configure({
-        webClientId: extra.googleWebClientId || undefined,
+        webClientId: extra.googleWebClientId,
         iosClientId: extra.googleIosClientId || undefined,
         offlineAccess: false,
         forceCodeForRefreshToken: false,

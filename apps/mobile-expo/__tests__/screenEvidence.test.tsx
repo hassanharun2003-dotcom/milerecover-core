@@ -23,7 +23,7 @@ describe('Screen render evidence', () => {
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-welcome']).toMatch(/Protect every mile|Welcome to MileRecover|MileRecover/i);
+    expect(manifest['onboarding-welcome']).toMatch(/Never lose a work mile|Welcome to MileRecover|MileRecover/i);
     expect(manifest['onboarding-account']).toMatch(/Continue with Google|Continue without an account/i);
     expect(manifest['onboarding-purpose']).toMatch(
       /Employee reimbursement|Self-employed \/ [Bb]usiness|Delivery or gig work|Personal|What do you use your mileage for|What's your main reason/i,
@@ -129,7 +129,7 @@ describe('Screen render evidence', () => {
   it('captures empty Proof, demo Proof, empty Profile, and safe-area shell markers', async () => {
     const emptyProof = await renderTab('new_user', 'Proof', { demoModeEnabled: false });
     expect(emptyProof.copy).toMatch(
-      /No trips yet|No confirmed work drives in this period|No work drives yet|No confirmed drives/i,
+      /No trips yet|No confirmed work drives in this period|No work drives yet|No work drives in|No confirmed drives|Work-classified drives populate reports/i,
     );
     expect(emptyProof.copy).not.toMatch(/report is ready/i);
 
