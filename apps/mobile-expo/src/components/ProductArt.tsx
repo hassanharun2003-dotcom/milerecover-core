@@ -129,7 +129,11 @@ export function ProtectionArt({ style }: { style?: ViewStyle }) {
 
 export function WelcomeArt({ style }: { style?: ViewStyle }) {
   return (
-    <Frame height={160} label="MileRecover welcome protection artwork" style={[{ marginVertical: spacing.md }, style]}>
+    <Frame
+      height={160}
+      label="MileRecover welcome protection artwork"
+      style={{ marginVertical: spacing.md, ...(style ?? {}) }}
+    >
       <View style={styles.welcomeCircle} />
       <View style={styles.shieldLarge}>
         <Text style={styles.shieldCheckLarge}>✓</Text>

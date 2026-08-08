@@ -82,8 +82,10 @@ describe('0.2.13 real-device correction regressions', () => {
     expect(home).toMatch(/Protection is on/);
     expect(home).toMatch(/Waiting for your first drive/);
     // Hero must open Protection Center, not Missing Drives.
-    expect(home).toMatch(/onPress=\{openProtection\}/);
-    expect(home).not.toMatch(/MRHeroCard[\s\S]*MissingDrivesIntro/);
+    const heroBlock = home.match(/<MRHeroCard[\s\S]*?<\/MRHeroCard>/)?.[0] ?? '';
+    expect(heroBlock).toContain('onPress={openProtection}');
+    expect(heroBlock).not.toContain('MissingDrivesIntro');
+    expect(home).toMatch(/const openProtection = \(\) => \{[\s\S]*ProtectionAlert/);
   });
 
   it('Import stays competitor-neutral before file detection', () => {

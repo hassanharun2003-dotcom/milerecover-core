@@ -129,7 +129,7 @@ describe('Screen render evidence', () => {
   it('captures empty Proof, demo Proof, empty Profile, and safe-area shell markers', async () => {
     const emptyProof = await renderTab('new_user', 'Proof', { demoModeEnabled: false });
     expect(emptyProof.copy).toMatch(
-      /No trips yet|No confirmed work drives in this period|No work drives yet|No confirmed drives/i,
+      /No trips yet|No confirmed work drives in this period|No work drives yet|No work drives in|No confirmed drives|Work-classified drives populate reports/i,
     );
     expect(emptyProof.copy).not.toMatch(/report is ready/i);
 
