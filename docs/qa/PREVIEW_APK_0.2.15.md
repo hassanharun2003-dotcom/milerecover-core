@@ -26,7 +26,7 @@ Compared actual GitHub Release assets:
 
 **PackageManager upgrade rules:** published 0.2.14 is a valid upgrade of published GitHub 0.2.13 (same package + same signing cert + higher versionCode).
 
-**Samsung “App not installed” cause:** Android rejected the update because the installed package on-device is not update-compatible with the APK being installed. The published 0.2.13↔0.2.14 pair itself is not the incompatibility. During the 0.2.13 recovery cycle, EAS cloud builds used remote credentials `8D9HztdVix` (signer family `8D:78:7A:C8…`), while GitHub preview APKs use the recovered preview keystore (`E6:62:40:…`). A device still carrying an EAS-signed (or any non-preview) `com.milerecover.app` install will fail Samsung PackageInstaller update with generic **“App not installed”** (signature mismatch / `UPDATE_INCOMPATIBLE`). Uninstall is only required if the installed signer is not `E6:62:40:…`.
+**Samsung “App not installed” cause:** `INSTALL_FAILED_VERSION_DOWNGRADE` / same-`versionCode` rejection. Multiple 0.2.13 preview candidates were produced during keystore recovery — including a preferred full-gate build at **versionCode 60** — while published GitHub **0.2.14 is also versionCode 60**. An in-place update requires a strictly higher `versionCode`; installing 0.2.14 over a vc60 0.2.13 install fails with Samsung’s generic **“App not installed”** even though package ID and preview signer match. Published GitHub 0.2.13 is vc56 (would upgrade), but device-QA docs and recovery agents also shipped vc59/vc60 0.2.13 builds. **0.2.15 uses versionCode 70** to clear all of those.
 
 ## Corrected identity (0.2.15)
 
