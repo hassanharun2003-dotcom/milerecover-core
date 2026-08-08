@@ -1,30 +1,19 @@
-# Current preview delivery — 0.2.13 real-device correction
+# Current preview delivery — 0.2.15 install/update fix
 
 | Field | Value |
 |---|---|
-| Candidate version | `0.2.13` |
-| Working branch | `cursor/mile-recover-0.2.13-0cd3` |
-| Baseline (QA only) | `0.2.12` — do **not** publish as production |
-| Runtime / channel | `0.2.13` / `preview-foundation-0.2.13` |
-| Build label | `0.2.13-device-qa.1` |
-| Pricing SoT | `apps/mobile-expo/src/constants/pricing.ts` |
+| Candidate version | `0.2.15` |
+| Working branch | `cursor/mile-recover-0.2.14-install-fix-03e0` |
+| Baseline | `0.2.14` UX simplification — do **not** publish as production |
+| Runtime / channel | `0.2.15` / `preview-foundation-0.2.15` |
+| Build label | `0.2.15-install-fix.1` |
+| versionCode | `70` |
 
 ## Status
 
-**Device-QA candidate with Google OAuth IDs configured in EAS.** Protected preview keystore must be present to sign the APK. Samsung checklist required before any wider release. **Do not publish production.**
+**Device-QA candidate signed with recovered preview keystore only.** Intended as an in-place update over installed preview builds that share signer `E6:62:40:…`. **Do not publish production.**
 
 ## Docs
 
-- `docs/qa/DEVICE_CORRECTION_0.2.13.md`
-- `docs/qa/DEVICE_QA_0.2.13_SAMSUNG.md`
-- Google OAuth: `docs/qa/GOOGLE_SIGNIN_0.2.13.md` (EAS env configured; no client secret in app)
-
-## Build
-
-```bash
-cd apps/mobile-expo
-npx eas-cli build --profile preview --platform android
-# optional: npm run sign:android-apk / npm run gate:android-apk
-```
-
-Prior 0.2.12 delivery notes remain in `docs/qa/DESIGN_LOCK_0.2.12.md` as historical baseline only.
+- `docs/qa/PREVIEW_APK_0.2.15.md`
+- Prior UX notes: `docs/qa/PREVIEW_APK_0.2.14.md`

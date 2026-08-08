@@ -13,7 +13,7 @@
     "deps:validate": "npx expo install --check",
     "config:validate": "expo config --type public",
     "export:validate": "expo export --platform android --output-dir .expo-export-check",
-    "update:preview": "APP_VARIANT=preview npx --yes eas-cli@latest update --channel preview-foundation-0.2.14 --environment preview --message \"preview OTA (APP_VARIANT=preview)\" --non-interactive",
+    "update:preview": "APP_VARIANT=preview npx --yes eas-cli@latest update --channel preview-foundation-0.2.15 --environment preview --message \"preview OTA (APP_VARIANT=preview)\" --non-interactive",
     "smoke:android-launch": "bash ./scripts/android-launch-smoke.sh",
     "gate:android-apk": "bash ./scripts/android-apk-release-gate.sh",
     "sign:android-apk": "bash ./scripts/sign-android-apk.sh",
