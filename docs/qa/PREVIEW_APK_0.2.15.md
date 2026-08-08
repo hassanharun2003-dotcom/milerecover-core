@@ -72,3 +72,12 @@ Compared actual GitHub Release assets:
 - No new signing key created
 - No production publish
 - 0.2.14 UX simplification preserved
+
+## GitHub prerelease
+
+| Field | Value |
+|---|---|
+| Tag / release | [`android-preview-0.2.15`](https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.2.15) |
+| Direct APK | https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.15/MileRecover-preview-0.2.15.apk |
+| Asset digest | `sha256:badf90b15cca73c4b5654bfabb9c98c48a7b057f6195f44bb3f76df9582439be` |
+| Prerelease | yes (not production) |
