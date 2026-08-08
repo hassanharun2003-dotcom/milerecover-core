@@ -1,7 +1,7 @@
 # MileRecover Design Bible
 
-**Status:** Foundational  
-**Last Updated:** July 2026  
+**Status:** Locked for Expo product UI (four-tab, forest green)  
+**Last Updated:** August 2026  
 **Owner:** Design
 
 ---
@@ -57,8 +57,8 @@ Users should feel:
 
 **Aesthetic:** Refined utility — think Linear meets Apple Wallet meets professional tax software.
 
-- **Color:** Deep navy trust anchor, proof green for confirmed, amber for review (see Color System)
-- **Typography:** SF Pro / Roboto system stack, tabular figures for numbers
+- **Color:** Deep **forest green** trust anchor, proof green for confirmed, amber for review (see Color System; implemented in `packages/config/src/tokens.ts`)
+- **Typography:** System stack (SF Pro / Roboto), tabular figures for miles and scores
 - **Spacing:** Generous whitespace; density in data tables only
 - **Motion:** Purposeful, restrained (see Motion)
 
@@ -68,19 +68,21 @@ Full specs: [Design System.md](./Design%20System.md)
 
 ## Information Architecture (App)
 
+**Locked four-tab IA** (see Apple HIG / Android Material references):
+
 ```
-Home (Period Summary)
-├── Review Queue          ← primary action surface
-├── Trips (All)
-│   └── Trip Detail
-├── Recovery
-│   └── Suggested Entries
-├── Export
-└── Settings
-    ├── Tracking
-    ├── Automation Level
-    ├── Permissions
-    └── Account
+Home · Review · Proof · Profile
+├── Home — protection status + week summary (not a metric dashboard)
+├── Review — needs-review queue + undo (primary action surface)
+├── Proof — export readiness / blocked honesty
+└── Profile — membership, vehicles, locations, help, about
+
+Supporting stack (not tabs):
+├── Manual trip
+├── Trip details / missing-trip recovery
+├── Tracking status (honest stub until engine)
+├── Import / export / plans
+└── Coming-later honesty for unshipped settings
 ```
 
 **Home is not a dashboard of miles.** Home is a **status of account completeness**.
