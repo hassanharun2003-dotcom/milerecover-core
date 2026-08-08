@@ -252,7 +252,8 @@ export function createInitialProductUiState(): ProductUiState {
 }
 
 /**
- * Image-lock onboarding — Welcome → Account → Purpose → Region → Protection → Ready.
+ * Onboarding machine order — Welcome/auth is unnumbered in UI.
+ * Visible questionnaire: Purpose (1) → Region (2) → Protect (3) → Ready (4).
  */
 export const ONBOARDING_STEP_ORDER: ProductOnboardingStep[] = [
   'welcome',

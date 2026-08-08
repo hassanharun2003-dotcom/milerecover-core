@@ -145,9 +145,9 @@ describe('Onboarding honesty', () => {
       path.join(__dirname, '../src/screens/onboarding/OnboardingFlow.tsx'),
       'utf8',
     );
-    expect(onboarding).toMatch(/Drive normally|Protect your drives|Keep your drives protected|Protect future drives/);
-    expect(onboarding).toMatch(/Set up tracking|Allow when prompted|Turn on drive protection|Enable drive protection|Set up protection/);
-    expect(onboarding).toMatch(/I.ll add drives manually|Not now|Skip for now|Set up later/);
+    expect(onboarding).toMatch(/Protect my drives|Allow location so MileRecover can detect drives automatically/);
+    expect(onboarding).toMatch(/Turn on automatic tracking/);
+    expect(onboarding).toMatch(/Use manual logging for now/);
     expect(onboarding).not.toMatch(/Your drives are protected/);
     expect(onboarding).not.toMatch(/On or ready to confirm/);
     expect(ONBOARDING_STEP_ORDER).toEqual([

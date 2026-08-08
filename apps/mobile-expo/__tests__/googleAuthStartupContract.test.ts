@@ -199,9 +199,12 @@ describe('Google auth + startup contract (0.2.13)', () => {
     expect(onboarding).toMatch(/Set your region and mileage rate|Where do you drive|Country/);
   });
 
-  it('defers notification permission until after Home unlock', () => {
+  it('asks notification permission after location setup, not before Google auth', () => {
     const onboarding = read('src/screens/onboarding/OnboardingFlow.tsx');
-    expect(onboarding).not.toMatch(/requestNotificationPermission/);
-    expect(onboarding).toMatch(/Notification permission is asked later/);
+    expect(onboarding).toMatch(/requestNotificationPermission/);
+    expect(onboarding).toMatch(/continueAfterProtection/);
+    // Welcome/auth path must not request notifications before Google.
+    const welcomeBlock = onboarding.match(/step === 'welcome'[\s\S]*?step === 'purpose'/)?.[0] ?? '';
+    expect(welcomeBlock).not.toMatch(/requestNotificationPermission/);
   });
 });

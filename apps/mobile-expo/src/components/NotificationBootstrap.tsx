@@ -3,7 +3,7 @@ import { selectPendingReviewCount, selectProtectionView } from '../product/prese
 import { useProduct } from '../product/ProductContext';
 import { useApp } from '../store/AppContext';
 import {
-  requestNotificationPermission,
+  getNotificationPermission,
   scheduleLocalNotification,
 } from '../services/notifications';
 import { attachNotificationResponseHandlers } from '../services/notificationRouter';
@@ -12,6 +12,8 @@ import { attachNotificationResponseHandlers } from '../services/notificationRout
  * Schedules calm, deduped local notifications from real product state.
  * Never claims a drive/recovery that did not happen.
  * Does not auto-start a Pro trial.
+ * Notification OS permission is requested during onboarding when possible —
+ * this bootstrap never re-nags after the user already answered.
  */
 export function NotificationBootstrap({ children }: { children: React.ReactNode }) {
   const { state, permissions, automaticCaptureAvailable } = useApp();
@@ -28,13 +30,12 @@ export function NotificationBootstrap({ children }: { children: React.ReactNode 
     // Wait until Home is unlocked — never prompt during Ready finish.
     if (!state.onboardingComplete || product.onboarding.completedAt == null) return;
     let cancelled = false;
-    // Defer OS permission prompt so it never races Ready → Home finish
-    // (which previously left “One moment…” under the system dialog and could ANR).
     const timer = setTimeout(() => {
       void (async () => {
       if (cancelled) return;
       if (!product.notificationPreferences.enabled) return;
-      const permission = await requestNotificationPermission();
+      // Do not re-request — onboarding already asked; Profile is the fix path.
+      const permission = await getNotificationPermission();
       if (cancelled || permission !== 'granted') return;
       const prefs = product.notificationPreferences;
       const pending = selectPendingReviewCount(

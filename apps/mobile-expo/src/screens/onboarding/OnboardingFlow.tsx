@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Platform, Pressable, Text, View } from 'react-native';
 import type { ComponentProps } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { layout, spacing, typography } from '@milerecover/config';
@@ -47,9 +47,15 @@ import { useProduct } from '../../product/ProductContext';
 import { ANALYTICS_EVENTS, logEvent } from '../../services/analytics';
 import {
   AUTH_GENERIC_FAILURE_MESSAGE,
+  AUTH_SLOW_MESSAGE,
   getAuthPort,
+  logAuthTiming,
+  warmGoogleSignIn,
   type AuthProviderId,
+  type GoogleAuthPhase,
 } from '../../services/auth';
+import { openAppSettings } from '../../services/locationPermissions';
+import { requestNotificationPermission } from '../../services/notifications';
 
 const PURPOSE_ICONS: Record<string, ComponentProps<typeof Ionicons>['name']> = {
   employee_reimbursement: 'briefcase-outline',
@@ -58,11 +64,13 @@ const PURPOSE_ICONS: Record<string, ComponentProps<typeof Ionicons>['name']> = {
   mixed: 'person-outline',
 };
 
-const PROTECTION_BENEFITS = [
-  'Detects when a drive starts and ends',
-  'Uses motion to reduce unnecessary GPS use',
-  'You stay in control of Work vs Personal',
-] as const;
+/** Customer-visible questionnaire steps — Welcome/auth is not numbered. */
+const VISIBLE_ONBOARDING_STEPS: ProductOnboardingStep[] = [
+  'purpose',
+  'locale_setup',
+  'protect_drives',
+  'ready',
+];
 
 const KM_PER_MILE = 1.609344;
 
@@ -118,7 +126,13 @@ function formatDisplayRate(dollarsText: string, unit: DistanceUnit): string {
 
 export function OnboardingFlow() {
   const { palette } = useAppTheme();
-  const { finishOnboarding, requestLocationPermission, requestBackgroundPermission } = useApp();
+  const {
+    finishOnboarding,
+    requestLocationPermission,
+    requestBackgroundPermission,
+    refreshPermissions,
+    permissions,
+  } = useApp();
   const {
     product,
     advanceOnboarding,
@@ -139,12 +153,19 @@ export function OnboardingFlow() {
   const appleAvailable = Platform.OS === 'ios' && authPort.isProviderAvailable('apple');
   const [finishing, setFinishing] = useState(false);
   const [permissionBusy, setPermissionBusy] = useState(false);
-  const [authBusy, setAuthBusy] = useState(false);
+  const [permissionPhase, setPermissionPhase] = useState<
+    'idle' | 'checking_location' | 'background_settings' | 'notifications'
+  >('idle');
+  const [authPhase, setAuthPhase] = useState<GoogleAuthPhase>('idle');
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [legalSheet, setLegalSheet] = useState<'privacy' | 'terms' | null>(null);
   const [countrySheetOpen, setCountrySheetOpen] = useState(false);
   const [rateEditing, setRateEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
+  const [backgroundPromptVisible, setBackgroundPromptVisible] = useState(false);
+  const [manualSkipped, setManualSkipped] = useState(false);
+  const [notificationSkipped, setNotificationSkipped] = useState(false);
+  const authTapGuard = useRef(false);
   const recommendedCountry = recommendCountryFromLocale(
     typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined,
   );
@@ -161,21 +182,28 @@ export function OnboardingFlow() {
       product.localeProfile.distanceUnit,
     ) || '0.70',
   );
-  /** Figma: Tracking Education → Permission Education within protect_drives. */
-  const [protectionPhase, setProtectionPhase] = useState<'tracking' | 'permission'>('tracking');
 
   const step = remapStep(product.onboardingStep);
   const stepIndex = Math.max(0, ONBOARDING_STEP_ORDER.indexOf(step));
-  /** Collage progress is 1–5 excluding Welcome (Purpose shows “2 of 5”). */
-  const progressSteps = ONBOARDING_STEP_ORDER.filter((s) => s !== 'welcome');
+  /** Purpose = 1 of 4 … Ready = 4 of 4. Welcome/auth is not numbered. */
+  const progressSteps = VISIBLE_ONBOARDING_STEPS;
   const progressIndex = Math.max(
     0,
     progressSteps.findIndex((s) => s === step),
   );
-  const protectionConfigured =
-    product.trackingEnabled ||
-    product.protectionSetupState === 'configured' ||
-    product.protectionSetupState === 'healthy';
+  const foregroundGranted = permissions.location === 'granted';
+  const backgroundGranted =
+    permissions.backgroundLocation === 'granted' ||
+    permissions.backgroundLocation === 'not_applicable';
+  const automaticProtectionOn =
+    product.trackingEnabled && foregroundGranted && backgroundGranted && !manualSkipped;
+  const authBusy = authPhase !== 'idle';
+  const googleLoadingLabel =
+    authPhase === 'opening_google'
+      ? 'Opening Google…'
+      : authPhase === 'signing_in'
+        ? 'Signing you in…'
+        : undefined;
 
   useEffect(() => {
     if (product.onboardingStep !== step) setOnboardingStep(step);
@@ -188,6 +216,22 @@ export function OnboardingFlow() {
   useEffect(() => {
     logEvent(ANALYTICS_EVENTS.onboardingStepViewed, { step });
   }, [step]);
+
+  // Warm Google Sign-In so CTA → chooser is not blocked by first configure/Play Services.
+  useEffect(() => {
+    if (step !== 'welcome' && step !== 'account') return;
+    void warmGoogleSignIn();
+  }, [step]);
+
+  // Re-check OS permissions when returning from Android background settings.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && (step === 'protect_drives' || backgroundPromptVisible)) {
+        void refreshPermissions();
+      }
+    });
+    return () => sub.remove();
+  }, [backgroundPromptVisible, refreshPermissions, step]);
 
   const saveLocale = () => {
     const centsPerMile = displayDollarsToCentsPerMile(rateDollars, unitDraft);
@@ -206,6 +250,7 @@ export function OnboardingFlow() {
   const enterOnboardingAfterAuth = () => {
     patchOnboarding({ accountStepAcknowledged: true });
     setOnboardingStep('purpose');
+    logAuthTiming('onboarding_rendered');
   };
 
   const acknowledgeAccountAndContinue = () => {
@@ -213,22 +258,25 @@ export function OnboardingFlow() {
   };
 
   const tryAuth = async (provider: AuthProviderId) => {
-    if (authBusy) return;
+    if (authBusy || authTapGuard.current) return;
     if (!authPort.isProviderAvailable(provider)) {
       // Never show a silent no-op button — callers hide unavailable providers.
       return;
     }
-    setAuthBusy(true);
+    authTapGuard.current = true;
+    logAuthTiming('cta_tap', { provider });
+    setAuthPhase(provider === 'google' ? 'opening_google' : 'signing_in');
     setAuthNotice(null);
     try {
       const result = await authPort.signIn(provider);
       if (result.ok) {
+        setAuthPhase('signing_in');
         if (result.displayName) {
           const first = result.displayName.trim().split(/\s+/)[0] ?? result.displayName;
           setPreferredName(first);
           setNameDraft(first);
         }
-        // Real provider success → onboarding purpose (not Home).
+        // Commit auth state then navigate immediately — persistence already done in auth port.
         enterOnboardingAfterAuth();
         return;
       }
@@ -238,7 +286,108 @@ export function OnboardingFlow() {
       }
       setAuthNotice(result.message || AUTH_GENERIC_FAILURE_MESSAGE);
     } finally {
-      setAuthBusy(false);
+      setAuthPhase('idle');
+      authTapGuard.current = false;
+    }
+  };
+
+  const continueAfterProtection = async (_opts: {
+    automatic: boolean;
+    skippedBackground?: boolean;
+  }) => {
+    setPermissionPhase('notifications');
+    setPermissionBusy(true);
+    try {
+      // requestNotificationPermission short-circuits if already granted / can't ask again.
+      try {
+        const next = await requestNotificationPermission();
+        if (next !== 'granted') setNotificationSkipped(true);
+      } catch {
+        setNotificationSkipped(true);
+      }
+      patchOnboarding({
+        protectionEducationAcknowledged: true,
+        permissionsEducationAcknowledged: true,
+      });
+      advanceOnboarding();
+    } finally {
+      setPermissionBusy(false);
+      setPermissionPhase('idle');
+      setBackgroundPromptVisible(false);
+    }
+  };
+
+  const runAutomaticTrackingSetup = async () => {
+    if (permissionBusy) return;
+    setPermissionBusy(true);
+    setPermissionPhase('checking_location');
+    setManualSkipped(false);
+    logEvent(ANALYTICS_EVENTS.protectionSetupStarted, {});
+    try {
+      const fg = await requestLocationPermission();
+      if (fg.location !== 'granted') {
+        setTrackingEnabled(false);
+        setProtectionSetupState('not_started');
+        setManualSkipped(true);
+        await continueAfterProtection({ automatic: false });
+        return;
+      }
+      const bg = await requestBackgroundPermission();
+      const bgOk =
+        bg.backgroundLocation === 'granted' || bg.backgroundLocation === 'not_applicable';
+      if (!bgOk && Platform.OS === 'android') {
+        setBackgroundPromptVisible(true);
+        setPermissionPhase('background_settings');
+        setPermissionBusy(false);
+        return;
+      }
+      if (bgOk) {
+        setTrackingEnabled(true);
+        setProtectionSetupState('configured');
+      } else {
+        setTrackingEnabled(true);
+        setProtectionSetupState('educated');
+      }
+      await continueAfterProtection({ automatic: bgOk, skippedBackground: !bgOk });
+    } finally {
+      setPermissionBusy(false);
+      if (permissionPhase !== 'background_settings') setPermissionPhase('idle');
+    }
+  };
+
+  const finishBackgroundSetup = async (accepted: boolean) => {
+    if (accepted) {
+      await openAppSettings();
+      // User returns via AppState; they tap Continue after allowing.
+      return;
+    }
+    setManualSkipped(false);
+    setTrackingEnabled(true);
+    setProtectionSetupState('educated');
+    await continueAfterProtection({ automatic: false, skippedBackground: true });
+  };
+
+  const confirmBackgroundAfterSettings = async () => {
+    setPermissionBusy(true);
+    setPermissionPhase('checking_location');
+    try {
+      const snap = await refreshPermissions();
+      const bgOk =
+        snap.backgroundLocation === 'granted' || snap.backgroundLocation === 'not_applicable';
+      const fgOk = snap.location === 'granted';
+      if (fgOk && bgOk) {
+        setTrackingEnabled(true);
+        setProtectionSetupState('configured');
+        setManualSkipped(false);
+        await continueAfterProtection({ automatic: true });
+        return;
+      }
+      setTrackingEnabled(fgOk);
+      setProtectionSetupState(fgOk ? 'educated' : 'not_started');
+      await continueAfterProtection({ automatic: false, skippedBackground: true });
+    } finally {
+      setPermissionBusy(false);
+      setPermissionPhase('idle');
     }
   };
 
@@ -246,7 +395,14 @@ export function OnboardingFlow() {
     <View style={{ gap: spacing.sm }}>
       {authNotice ? (
         <Text
-          style={[text.caption, { color: palette.text.secondary, textAlign: 'center' }]}
+          style={[
+            text.caption,
+            {
+              color:
+                authNotice === AUTH_SLOW_MESSAGE ? palette.review[600] : palette.text.secondary,
+              textAlign: 'center',
+            },
+          ]}
           accessibilityRole="text"
         >
           {authNotice}
@@ -254,7 +410,8 @@ export function OnboardingFlow() {
       ) : null}
       {googleAvailable ? (
         <MRPrimaryButton
-          label={authBusy ? 'Signing in…' : 'Continue with Google'}
+          label="Continue with Google"
+          loadingLabel={googleLoadingLabel}
           onPress={() => void tryAuth('google')}
           disabled={authBusy}
           loading={authBusy}
@@ -272,6 +429,7 @@ export function OnboardingFlow() {
       <MRTertiaryButton
         label="Continue without an account"
         onPress={() => {
+          if (authBusy) return;
           setAuthNotice(null);
           acknowledgeAccountAndContinue();
         }}
@@ -316,7 +474,7 @@ export function OnboardingFlow() {
         ? 'add_first_drive'
         : route === 'BringExistingMileage'
           ? 'import_mileage'
-          : protectionConfigured
+          : automaticProtectionOn
             ? 'start_protection'
             : 'add_first_drive';
     void (async () => {
@@ -335,7 +493,7 @@ export function OnboardingFlow() {
       } catch {
         setPersistError('Couldn’t save your setup. Check storage and try again.');
       } finally {
-        // Always clear so Ready never sticks on “One moment…” after a hang/cancel.
+        // Always clear so Ready never sticks on a loading label after a hang/cancel.
         setFinishing(false);
       }
     })();
@@ -375,8 +533,32 @@ export function OnboardingFlow() {
 
   const purposeLabel =
     PRIMARY_GOAL_OPTIONS.find((option) => option.id === product.primaryGoal)?.label ?? 'Not set';
-  const showProgress = step !== 'welcome' && step !== 'ready';
-  const showBack = stepIndex > 0 && step !== 'ready';
+  /** Number Purpose → Region → Protect (Ready has no counter chrome). */
+  const showProgress = step === 'purpose' || step === 'locale_setup' || step === 'protect_drives';
+  const showBack = stepIndex > 0 && step !== 'ready' && step !== 'welcome' && step !== 'account';
+  const permissionLoadingLabel =
+    permissionPhase === 'checking_location'
+      ? 'Checking location access…'
+      : permissionPhase === 'notifications'
+        ? 'Almost done…'
+        : permissionPhase === 'background_settings'
+          ? 'Waiting for settings…'
+          : undefined;
+  const readyHeadline = automaticProtectionOn
+    ? 'Automatic protection is on.'
+    : manualSkipped || !product.trackingEnabled
+      ? 'Setup complete — manual logging is ready.'
+      : foregroundGranted && !backgroundGranted
+        ? 'Setup complete — background location still needed.'
+        : 'Setup complete — manual logging is ready.';
+  const readyBody = automaticProtectionOn
+    ? 'Drive normally. MileRecover will detect trips for you to confirm.'
+    : 'You can add drives anytime. Turn on automatic tracking later from Tracking health.';
+  const readyProtectionLabel = automaticProtectionOn
+    ? 'Automatic protection on'
+    : foregroundGranted && !backgroundGranted
+      ? 'Needs background location'
+      : 'Manual logging ready';
 
   return (
     <OnboardingScreen
@@ -385,7 +567,7 @@ export function OnboardingFlow() {
           authFooter
         ) : step === 'purpose' ? (
           <MRPrimaryButton
-            label="Continue →"
+            label="Continue"
             onPress={() => {
               if (!product.primaryGoal) return;
               setPreferredName(nameDraft.trim() || null);
@@ -396,69 +578,49 @@ export function OnboardingFlow() {
           />
         ) : step === 'locale_setup' ? (
           <MRPrimaryButton
-            label="Continue →"
+            label="Continue"
             onPress={() => {
               saveLocale();
               advanceOnboarding();
             }}
             accessibilityLabel="Continue to drive protection"
           />
-        ) : step === 'protect_drives' && protectionPhase === 'tracking' ? (
-          <MRPrimaryButton
-            label="Set up tracking"
-            onPress={() => {
-              logEvent(ANALYTICS_EVENTS.protectionSetupStarted, {});
-              setProtectionSetupState('educated');
-              patchOnboarding({ protectionEducationAcknowledged: true });
-              setProtectionPhase('permission');
-            }}
-            accessibilityLabel="Set up tracking"
-          />
+        ) : step === 'protect_drives' && backgroundPromptVisible ? (
+          <View style={{ gap: spacing.sm }}>
+            <MRPrimaryButton
+              label="Open location settings"
+              onPress={() => void finishBackgroundSetup(true)}
+              accessibilityLabel="Open location settings"
+            />
+            <MRPrimaryButton
+              label="I’ve allowed all the time"
+              loading={permissionBusy}
+              loadingLabel={permissionLoadingLabel}
+              onPress={() => void confirmBackgroundAfterSettings()}
+              accessibilityLabel="I’ve allowed all the time"
+            />
+            <MRTertiaryButton
+              label="Continue with limited tracking"
+              onPress={() => void finishBackgroundSetup(false)}
+            />
+          </View>
         ) : step === 'protect_drives' ? (
           <View style={{ gap: spacing.sm }}>
             <MRPrimaryButton
-              label="Allow when prompted"
+              label="Turn on automatic tracking"
               loading={permissionBusy}
-              onPress={() => {
-                if (permissionBusy) return;
-                setPermissionBusy(true);
-                void (async () => {
-                  try {
-                    const fg = await requestLocationPermission();
-                    if (fg.location === 'granted') {
-                      await requestBackgroundPermission();
-                      setTrackingEnabled(true);
-                      setProtectionSetupState('configured');
-                      patchOnboarding({
-                        protectionEducationAcknowledged: true,
-                        permissionsEducationAcknowledged: true,
-                      });
-                    } else {
-                      patchOnboarding({
-                        protectionEducationAcknowledged: true,
-                        permissionsEducationAcknowledged: true,
-                      });
-                    }
-                  } finally {
-                    setPermissionBusy(false);
-                    setProtectionPhase('tracking');
-                    advanceOnboarding();
-                  }
-                })();
-              }}
-              accessibilityLabel="Allow location when prompted"
+              loadingLabel={permissionLoadingLabel}
+              onPress={() => void runAutomaticTrackingSetup()}
+              accessibilityLabel="Turn on automatic tracking"
             />
             <MRTertiaryButton
-              label="Set up later"
+              label="Use manual logging for now"
               onPress={() => {
+                if (permissionBusy) return;
                 setTrackingEnabled(false);
                 setProtectionSetupState('not_started');
-                patchOnboarding({
-                  protectionEducationAcknowledged: true,
-                  permissionsEducationAcknowledged: true,
-                });
-                setProtectionPhase('tracking');
-                advanceOnboarding();
+                setManualSkipped(true);
+                void continueAfterProtection({ automatic: false });
               }}
             />
           </View>
@@ -753,45 +915,45 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
-      {step === 'protect_drives' && protectionPhase === 'tracking' ? (
+      {step === 'protect_drives' ? (
         <View>
           <TrackingArt />
-          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Drive normally. MileRecover does the remembering.
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            MileRecover uses motion and location signals to detect likely drives while protecting your
-            privacy.
-          </Text>
-          <View style={{ gap: spacing.sm }}>
-            {PROTECTION_BENEFITS.map((label) => (
-              <ChecklistRow key={label} label={label} status="ready" />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {step === 'protect_drives' && protectionPhase === 'permission' ? (
-        <View>
-          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Allow location for automatic tracking
-          </Text>
-          <MRStatusPanel
-            tone="info"
-            message="Location helps detect drives while the app is closed. Motion helps reduce battery use. You choose what becomes Work or Personal."
-          />
-          <View style={{ gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.md }}>
-            {[
-              'Detect drives automatically',
-              'Keep tracking when the app is closed',
-              'Reduce missed work mileage',
-            ].map((label) => (
-              <ChecklistRow key={label} label={label} status="ready" />
-            ))}
-          </View>
-          <Text style={[text.caption]}>
-            You'll stay in control. Sensitive route details won't appear on lock-screen notifications.
-          </Text>
+          {backgroundPromptVisible ? (
+            <>
+              <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+                Allow location all the time
+              </Text>
+              <Text style={[text.body, { marginBottom: spacing.md }]}>
+                Android needs background location so MileRecover can detect drives when the app is
+                closed.
+              </Text>
+              <MRStatusPanel
+                tone="info"
+                message="In Location → Allow all the time, then return here."
+              />
+            </>
+          ) : (
+            <>
+              <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
+                Protect my drives
+              </Text>
+              <Text style={[text.body, { marginBottom: spacing.md }]}>
+                Allow location so MileRecover can detect drives automatically.
+              </Text>
+              <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+                {[
+                  'Detects when a drive starts and ends',
+                  'Keeps working when the app is closed',
+                  'You choose Work vs Personal',
+                ].map((label) => (
+                  <ChecklistRow key={label} label={label} status="ready" />
+                ))}
+              </View>
+              <Text style={[text.caption, { color: palette.text.secondary }]}>
+                Get alerts when a drive needs your attention — we’ll ask after location setup.
+              </Text>
+            </>
+          )}
         </View>
       ) : null}
 
@@ -802,10 +964,10 @@ export function OnboardingFlow() {
             style={[text.headline, { marginBottom: spacing.sm, textAlign: 'center' }]}
             accessibilityRole="header"
           >
-            You're ready.
+            {readyHeadline}
           </Text>
           <Text style={[text.body, { marginBottom: spacing.lg, textAlign: 'center' }]}>
-            Automatic tracking is prepared. Take your first drive and MileRecover will handle the rest.
+            {readyBody}
           </Text>
           <View
             style={{
@@ -828,8 +990,13 @@ export function OnboardingFlow() {
               Rate · {formatDisplayRate(rateDollars, unitDraft)}
             </Text>
             <Text style={[text.body, { color: palette.text.primary }]}>
-              Protection · {protectionConfigured ? 'On' : 'Manual for now'}
+              Protection · {readyProtectionLabel}
             </Text>
+            {notificationSkipped ? (
+              <Text style={[text.caption, { color: palette.text.secondary }]}>
+                Notifications off — turn on anytime in Profile.
+              </Text>
+            ) : null}
           </View>
           {persistError ? (
             <Text
@@ -845,6 +1012,7 @@ export function OnboardingFlow() {
           <View style={{ width: '100%', gap: spacing.sm }}>
             <MRPrimaryButton
               label="Go to Home"
+              loadingLabel="Saving your setup…"
               onPress={() => finish(null)}
               disabled={finishing}
               loading={finishing}
@@ -855,9 +1023,6 @@ export function OnboardingFlow() {
               onPress={() => finish('ManualTrip')}
               disabled={finishing}
             />
-            <Text style={[text.caption, { textAlign: 'center', color: palette.text.secondary }]}>
-              Notification permission is asked later, after Home.
-            </Text>
           </View>
         </View>
       ) : null}

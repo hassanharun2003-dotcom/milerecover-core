@@ -27,13 +27,13 @@ import {
   MRSecondaryButton,
   MRSegmentedControl,
   MRStatusPanel,
+  MRTertiaryButton,
   SimpleBarChart,
   TabScreen,
   text,
   useAppTheme,
 } from '../../design-system';
 import type { RootStackParamList, RootTabParamList } from '../../navigation/types';
-import { EmptyProofArt } from '../../components/ProductArt';
 import { DEMO_SCENARIOS } from '../../fixtures/scenarios';
 import { useProduct } from '../../product/ProductContext';
 import {
@@ -433,15 +433,14 @@ export function ProofScreen() {
         />
       </View>
 
-      <MRCard style={{ marginBottom: layout.section, paddingVertical: spacing.md }}>
-        <SimpleBarChart bars={bars} accessibilityLabel="Work miles chart for selected period" />
-      </MRCard>
+      {report.tripCount > 0 ? (
+        <MRCard style={{ marginBottom: layout.section, paddingVertical: spacing.md }}>
+          <SimpleBarChart bars={bars} accessibilityLabel="Work miles chart for selected period" />
+        </MRCard>
+      ) : null}
 
       {report.tripCount === 0 ? (
         <>
-          <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
-            <EmptyProofArt />
-          </View>
           <Text
             style={{
               color: palette.text.primary,
@@ -453,19 +452,15 @@ export function ProofScreen() {
             No work drives in {period.label.toLowerCase()}
           </Text>
           <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Work-classified drives populate reports. Confirm Work on Review or add a drive to start.
+            Work drives you confirm will appear here.
           </Text>
-          <MRStatusPanel
-            tone="info"
-            message="Only drives you confirm as Work appear in reports."
-          />
-          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+          <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
             <MRPrimaryButton
               label="Add a drive"
               onPress={() => navigation.navigate('ManualTrip')}
               accessibilityLabel="Add a drive"
             />
-            <MRSecondaryButton
+            <MRTertiaryButton
               label="Check for missed drives"
               onPress={() => navigation.navigate('MissingDrivesIntro')}
               accessibilityLabel="Check for missed drives"

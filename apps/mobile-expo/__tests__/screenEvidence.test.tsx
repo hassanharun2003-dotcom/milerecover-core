@@ -30,10 +30,10 @@ describe('Screen render evidence', () => {
     );
     expect(manifest['onboarding-locale_setup']).toMatch(/Country|region and mileage rate|Update rate|Miles|Kilometers/i);
     expect(manifest['onboarding-protect_drives']).toMatch(
-      /Drive normally|Keep your drives protected|Protect future drives|Turn on drive protection|Enable drive protection|Set up protection|Set up tracking|Allow when prompted|Not now|Skip for now|Set up later/i,
+      /Protect my drives|Turn on automatic tracking|Use manual logging for now|Allow location so MileRecover can detect drives automatically/i,
     );
     expect(manifest['onboarding-ready']).toMatch(
-      /You’re all set|You're all set|You’re ready|You're ready|Go to dashboard|Go to Home|Add my first drive/i,
+      /Automatic protection is on|manual logging is ready|Go to Home|Add my first drive/i,
     );
 
     for (const goal of ['employee_reimbursement', 'gig_delivery', 'self_employed_business', 'mixed'] as const) {

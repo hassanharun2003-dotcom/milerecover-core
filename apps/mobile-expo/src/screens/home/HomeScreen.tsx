@@ -18,8 +18,7 @@ import {
   MRHeroCard,
   MRMetricTile,
   MRPrimaryButton,
-  MRSecondaryButton,
-  MRStatusPanel,
+  MRTertiaryButton,
   SkeletonBlock,
   SoftPanel,
   TabScreen,
@@ -62,56 +61,56 @@ function compactProtection(input: ProtectionStatusView): {
       return {
         kind: 'protected',
         sentence: input.lastCheckLabel ?? 'Protection is on.',
-        actionLabel: 'View',
+        actionLabel: 'View tracking health',
         action: 'protection',
       };
     case 'CONFIGURED_WAITING':
       return {
         kind: 'configured_waiting',
         sentence: 'Waiting for your first drive.',
-        actionLabel: 'View',
+        actionLabel: 'View tracking health',
         action: 'protection',
       };
     case 'CHECKING':
       return {
         kind: 'checking',
-        sentence: 'Automatic protection is checking status.',
+        sentence: 'Checking protection status…',
         actionLabel: input.primaryAction.label,
         action: 'protection',
       };
     case 'BATTERY_LIMITED':
       return {
         kind: 'battery_limited',
-        sentence: 'Battery settings may prevent some drives from being captured.',
-        actionLabel: input.primaryAction.label,
+        sentence: 'Battery settings may block some drives.',
+        actionLabel: 'Fix tracking',
         action: 'protection',
       };
     case 'OFF':
       return {
         kind: 'off',
         sentence: 'Drive protection is paused.',
-        actionLabel: input.primaryAction.label,
+        actionLabel: 'Fix tracking',
         action: 'protection',
       };
     case 'MANUAL_ONLY':
       return {
         kind: 'manual_mode',
-        sentence: 'Manual tracking is active. Set up automatic protection when you’re ready.',
+        sentence: 'Manual logging is ready.',
         actionLabel: input.primaryAction.label,
         action: input.primaryAction.action === 'see_plans' ? 'plans' : 'none',
       };
     case 'STALE':
       return {
         kind: 'stale',
-        sentence: 'Protection needs a fresh check before we call it current.',
-        actionLabel: input.primaryAction.label,
+        sentence: 'Protection needs a fresh check.',
+        actionLabel: 'Fix tracking',
         action: 'protection',
       };
     case 'ERROR':
       return {
         kind: 'error',
         sentence: input.message,
-        actionLabel: input.primaryAction.action === 'none' ? '' : input.primaryAction.label,
+        actionLabel: input.primaryAction.action === 'none' ? '' : 'Fix tracking',
         action: input.primaryAction.action === 'none' ? 'none' : 'protection',
       };
     case 'NEEDS_PERMISSION':
@@ -119,7 +118,7 @@ function compactProtection(input: ProtectionStatusView): {
       return {
         kind: 'needs_permission',
         sentence: input.message,
-        actionLabel: input.primaryAction.label,
+        actionLabel: 'Fix tracking',
         action: 'protection',
       };
   }
@@ -142,10 +141,14 @@ type NextBestAction =
   | {
       label: string;
       run: () => void;
+      secondaryLabel?: string;
+      secondaryRun?: () => void;
     }
   | {
       label: string;
       run: null;
+      secondaryLabel?: string;
+      secondaryRun?: () => void;
     };
 
 export function HomeScreen() {
@@ -184,12 +187,7 @@ export function HomeScreen() {
       compact.kind === 'battery_limited' ||
       compact.kind === 'stale' ||
       compact.kind === 'error');
-  const showProtectionAction =
-    compact.kind === 'configured_waiting' ||
-    compact.kind === 'checking' ||
-    compact.action === 'plans' ||
-    protectionNeedsAction;
-  const openProtection = () => {
+  const openTrackingHealth = () => {
     if (protectionNeedsAction) {
       logEvent(ANALYTICS_EVENTS.protectionDegradedViewed, {});
     }
@@ -220,11 +218,10 @@ export function HomeScreen() {
   const nextBest = useMemo<NextBestAction>(() => {
     if (protectionNeedsAction) {
       return {
-        label: compact.actionLabel || 'Fix protection',
-        run: () => {
-          if (compact.action === 'plans') navigation.navigate('PlanSelection', { source: 'upgrade' });
-          else navigation.navigate('ProtectionAlert');
-        },
+        label: 'Fix tracking',
+        run: () => openTrackingHealth(),
+        secondaryLabel: 'Add a drive manually',
+        secondaryRun: () => navigation.navigate('ManualTrip'),
       };
     }
     if (pendingReviewCount > 0) {
@@ -264,15 +261,19 @@ export function HomeScreen() {
       return {
         label: 'Add your first drive',
         run: () => navigation.navigate('ManualTrip'),
+        secondaryLabel: 'Check for missed drives',
+        secondaryRun: () => navigation.navigate('MissingDrivesIntro'),
       };
     }
     return {
       label: 'You’re all caught up',
       run: null,
+      secondaryLabel: 'Check for missed drives',
+      secondaryRun: () => navigation.navigate('MissingDrivesIntro'),
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     compact.action,
-    compact.actionLabel,
     confirmedCount,
     experience.activeReviewItems,
     locale.activeRateNeedsReview,
@@ -359,27 +360,37 @@ export function HomeScreen() {
 
   if (!homeReady) return <HomeSkeleton />;
 
-  /** Never show “You’ve protected $0.00” for a brand-new user — use a readiness state. */
+  const healthy =
+    compact.kind === 'protected' || compact.kind === 'configured_waiting';
   const showHeroMoney =
     confirmedCount > 0 &&
     compact.kind === 'protected' &&
     yearSummary.estimatedValueCents != null &&
     yearSummary.estimatedValueCents > 0 &&
     yearSummary.estimatedValueLabel !== 'Review rate';
-  const heroTitle =
-    compact.kind === 'configured_waiting' || confirmedCount === 0
-      ? 'Protection is on'
-      : compact.kind === 'protected'
-        ? 'Protection is on'
-        : yearSummary.estimatedValueLabel === 'Review rate'
-          ? 'Add or confirm a mileage rate'
-          : 'Protection needs attention';
-  const heroSupporting =
-    compact.kind === 'configured_waiting' || confirmedCount === 0
-      ? 'Waiting for your first drive.'
-      : yearSummary.estimatedValueLabel === 'Review rate'
-        ? 'Add or confirm a mileage rate to estimate value.'
+
+  let heroTitle = 'Protection needs attention';
+  let heroSupporting = compact.sentence;
+  if (compact.kind === 'manual_mode') {
+    heroTitle = 'Manual mode';
+    heroSupporting = 'Add drives yourself — automatic tracking is off.';
+  } else if (compact.kind === 'configured_waiting' || (healthy && confirmedCount === 0)) {
+    heroTitle = 'Protection is on';
+    heroSupporting = 'Waiting for your first drive.';
+  } else if (compact.kind === 'protected') {
+    heroTitle = 'Protection is on';
+    heroSupporting = compact.sentence;
+  } else if (yearSummary.estimatedValueLabel === 'Review rate') {
+    heroTitle = 'Add or confirm a mileage rate';
+    heroSupporting = 'Needed to estimate value.';
+  } else if (compact.kind === 'needs_permission') {
+    heroTitle = 'Protection needs attention';
+    heroSupporting =
+      permissions.location === 'granted' && permissions.backgroundLocation !== 'granted'
+        ? 'Background location is off.'
         : compact.sentence;
+  }
+
   const workMilesValue = milesToDisplay(monthSummary.workMiles, locale.distanceUnit).toLocaleString(
     locale.localeTag,
     {
@@ -387,20 +398,12 @@ export function HomeScreen() {
       minimumFractionDigits: 0,
     },
   );
-  const bannerTone: 'ok' | 'attention' | 'info' = protectionNeedsAction
-    ? 'attention'
-    : compact.kind === 'protected' || compact.kind === 'configured_waiting'
-      ? 'ok'
-      : 'info';
-  const bannerMessage = protectionNeedsAction
-    ? compact.sentence
-    : compact.kind === 'protected'
-      ? 'Protection is on'
-      : compact.kind === 'configured_waiting'
-        ? 'Protection is on — waiting for your first drive.'
-      : compact.kind === 'manual_mode'
-        ? 'Manual tracking selected. Automatic protection is off.'
-        : compact.sentence;
+
+  const trackingLinkLabel = protectionNeedsAction
+    ? 'Fix tracking'
+    : compact.action === 'plans'
+      ? compact.actionLabel
+      : 'View tracking health';
 
   return (
     <TabScreen>
@@ -445,12 +448,12 @@ export function HomeScreen() {
         {greeting}
       </Text>
 
+      {/* Status hero — not secret navigation. Explicit tracking-health link below. */}
       <MRHeroCard
-        onPress={openProtection}
         accessibilityLabel={
           showHeroMoney
-            ? `Protection is on. You've protected ${yearSummary.estimatedValueLabel} this year. Opens Protection Center.`
-            : `${heroTitle}. ${heroSupporting} Opens Protection Center.`
+            ? `Protection is on. You've protected ${yearSummary.estimatedValueLabel} this year.`
+            : `${heroTitle}. ${heroSupporting}`
         }
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -516,9 +519,33 @@ export function HomeScreen() {
             }}
             accessibilityElementsHidden
           >
-            <Ionicons name="shield-checkmark" size={22} color={palette.text.inverse} />
+            <Ionicons
+              name={protectionNeedsAction ? 'shield-outline' : 'shield-checkmark'}
+              size={22}
+              color={palette.text.inverse}
+            />
           </View>
         </View>
+        {compact.action !== 'none' ? (
+          <Pressable
+            onPress={openTrackingHealth}
+            accessibilityRole="button"
+            accessibilityLabel={trackingLinkLabel}
+            style={{ marginTop: spacing.md }}
+            hitSlop={8}
+          >
+            <Text
+              style={{
+                color: palette.text.inverse,
+                fontWeight: '700',
+                fontSize: typography.size.caption,
+                textDecorationLine: 'underline',
+              }}
+            >
+              {trackingLinkLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </MRHeroCard>
 
       <View
@@ -545,27 +572,14 @@ export function HomeScreen() {
         />
       </View>
 
-      <MRStatusPanel
-        tone={bannerTone}
-        message={bannerMessage}
-        onPress={protectionNeedsAction || showProtectionAction ? openProtection : undefined}
-      />
-
+      {/* Single next action — no duplicate protection status banner. */}
       <Text style={[text.subtitle, { marginBottom: spacing.sm }]}>Next up</Text>
       <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
         {nextBest.run ? (
           <MRPrimaryButton
-            label={
-              confirmedCount === 0 && nextBest.label === 'Add your first drive'
-                ? 'Add your first drive'
-                : nextBest.label
-            }
+            label={nextBest.label}
             onPress={nextBest.run}
-            accessibilityLabel={
-              confirmedCount === 0 && nextBest.label === 'Add your first drive'
-                ? 'Add your first drive'
-                : nextBest.label
-            }
+            accessibilityLabel={nextBest.label}
           />
         ) : (
           <MRCard
@@ -589,11 +603,11 @@ export function HomeScreen() {
             </Text>
           </MRCard>
         )}
-        {nextBest.label !== 'Check for missed drives' ? (
-          <MRSecondaryButton
-            label="Check for missed drives"
-            onPress={() => navigation.navigate('MissingDrivesIntro')}
-            accessibilityLabel="Check for missed drives"
+        {nextBest.secondaryLabel && nextBest.secondaryRun ? (
+          <MRTertiaryButton
+            label={nextBest.secondaryLabel}
+            onPress={nextBest.secondaryRun}
+            accessibilityLabel={nextBest.secondaryLabel}
           />
         ) : null}
       </View>

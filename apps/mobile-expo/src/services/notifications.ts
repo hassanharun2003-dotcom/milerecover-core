@@ -111,9 +111,10 @@ export async function getNotificationPermission(): Promise<PermissionState> {
     const Notifications = require('expo-notifications') as typeof import('expo-notifications');
     const existing = await Notifications.getPermissionsAsync();
     if (existing.granted) return 'granted';
+    if (existing.status === 'undetermined') return 'not_determined';
     if (existing.status === 'denied' && !existing.canAskAgain) return 'restricted';
     if (existing.status === 'denied') return 'denied';
-    return existing.granted ? 'granted' : 'denied';
+    return existing.granted ? 'granted' : 'not_determined';
   } catch {
     return 'denied';
   }

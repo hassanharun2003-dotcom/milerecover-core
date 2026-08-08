@@ -5,27 +5,27 @@
   },
   "onboarding-account": {
     "file": "onboarding-account-actual.png",
-    "copyPreview": "‹ 1 of 5 ✓ MileRecover Never lose a work mile. Protect your mileage, recover what was missed, and keep proof ready. Continue without an account to set up MileRecover on this device. Continue with Apple Continue without an account Privacy Te"
+    "copyPreview": "✓ MileRecover Never lose a work mile. Protect your mileage, recover what was missed, and keep proof ready. Continue without an account to set up MileRecover on this device. Continue with Apple Continue without an account Privacy Terms"
   },
   "onboarding-purpose": {
     "file": "onboarding-purpose-actual.png",
-    "copyPreview": "‹ 2 of 5 What do you use your mileage for? We'll personalize MileRecover around the way you drive.  Employee reimbursement Get paid back for work mileage  Self-employed / business Keep mileage ready for deductions  Delivery or gig work T"
+    "copyPreview": "‹ 1 of 4 What do you use your mileage for? We'll personalize MileRecover around the way you drive.  Employee reimbursement Get paid back for work mileage  Self-employed / business Keep mileage ready for deductions  Delivery or gig work T"
   },
   "onboarding-locale_setup": {
     "file": "onboarding-locale_setup-actual.png",
-    "copyPreview": "‹ 3 of 5 Set your region and mileage rate Country United States Change country Mileage rate $0.70 / mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue →"
+    "copyPreview": "‹ 2 of 4 Set your region and mileage rate Country United States Change country Mileage rate $0.70 / mile Update rate ✓ This is your chosen estimate. You can change it anytime. Continue"
   },
   "onboarding-protect_drives": {
     "file": "onboarding-protect_drives-actual.png",
-    "copyPreview": "‹ 4 of 5 Drive normally. MileRecover does the remembering. MileRecover uses motion and location signals to detect likely drives while protecting your privacy. ✓ Detects when a drive starts and ends ✓ Uses motion to reduce unnecessary GPS us"
+    "copyPreview": "‹ 3 of 4 Protect my drives Allow location so MileRecover can detect drives automatically. ✓ Detects when a drive starts and ends ✓ Keeps working when the app is closed ✓ You choose Work vs Personal Get alerts when a drive needs your attenti"
   },
   "onboarding-ready": {
     "file": "onboarding-ready-actual.png",
-    "copyPreview": "✓ You're ready. Automatic tracking is prepared. Take your first drive and MileRecover will handle the rest. Your setup Purpose · Not set Region · United States · Miles Rate · $0.70 / mile Protection · Manual for now Go to Home Add my first "
+    "copyPreview": "✓ Setup complete — manual logging is ready. You can add drives anytime. Turn on automatic tracking later from Tracking health. Your setup Purpose · Not set Region · United States · Miles Rate · $0.70 / mile Protection · Manual logging ready"
   },
   "home-live": {
     "file": "home-live-actual.png",
-    "copyPreview": "≡ MileRecover  Good morning Protection is on Waiting for your first drive.  0 Work miles 0 Work drives $0.00 This month ! Drive protection is paused. Next up Turn on protection Check for missed drives ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Pro"
+    "copyPreview": "≡ MileRecover  Good evening Protection needs attention Drive protection is paused.  Fix tracking 0 Work miles 0 Work drives $0.00 This month Next up Fix tracking Add a drive manually ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Profile"
   },
   "review-pending": {
     "file": "review-pending-actual.png",
@@ -57,7 +57,7 @@
   },
   "subscription": {
     "file": "subscription-actual.png",
-    "copyPreview": "Choose your plan Free stays useful. Upgrade only when you need more automation or reporting. Monthly Yearly · Save 20% Store unavailable Purchases aren’t available in this preview build. Your Free plan remains active. Current plan: Free Fre"
+    "copyPreview": "Plans Free stays useful. Upgrade only when you need more. Monthly Yearly · Save 20% Purchases unavailable in this preview. Purchases are disabled in this preview. Current plan: Free Free stays usable with manual logging, capped automatic tr"
   },
   "import": {
     "file": "import-actual.png",
@@ -69,7 +69,7 @@
   },
   "about": {
     "file": "about-actual.png",
-    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.13 Build 0.2.13-device-qa.1 SUPPORT AND LEGAL Support › Privacy › Terms ›"
+    "copyPreview": "About MileRecover Quietly protecting your work miles We help you keep every legitimate work mile—and show it clearly when you need to. APP Version 0.2.14 Build 0.2.14-device-qa.1 SUPPORT AND LEGAL Support › Privacy › Terms ›"
   },
   "terms": {
     "file": "terms-actual.png",
@@ -77,7 +77,7 @@
   },
   "missing-drives": {
     "file": "missing-drives-actual.png",
-    "copyPreview": "Find the miles you missed Uses evidence from recent movement to suggest likely missing drives. Nothing is added without your confirmation. ✓ Recover unprotected trips Catch drives that slipped through automatic tracking. ✓ Review before the"
+    "copyPreview": "Find the miles you missed Uses evidence from recent movement to suggest likely missing drives. Nothing is added without your confirmation. Check for missed drives Free plan includes 1 scan per month"
   },
   "manual-trip-start-end": {
     "file": "manual-trip-start-end-actual.png",

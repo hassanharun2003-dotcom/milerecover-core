@@ -128,17 +128,52 @@ export function ProtectionArt({ style }: { style?: ViewStyle }) {
 }
 
 export function WelcomeArt({ style }: { style?: ViewStyle }) {
+  const reduceMotion = useReduceMotion();
+  const travel = useRef(new Animated.Value(0)).current;
+  const routeDraw = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduceMotion) {
+      travel.setValue(1);
+      routeDraw.setValue(1);
+      return;
+    }
+    travel.setValue(0);
+    routeDraw.setValue(0);
+    const anim = Animated.parallel([
+      Animated.timing(routeDraw, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(travel, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [reduceMotion, routeDraw, travel]);
+  const carX = travel.interpolate({ inputRange: [0, 1], outputRange: [28, 0] });
+  const routeOpacity = routeDraw.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] });
+
   return (
     <Frame
       height={160}
       label="MileRecover welcome protection artwork"
       style={{ marginVertical: spacing.md, ...(style ?? {}) }}
     >
-      <View style={styles.welcomeCircle} />
+      <Animated.View style={[styles.welcomeCircle, { opacity: routeOpacity }]} />
       <View style={styles.shieldLarge}>
         <Text style={styles.shieldCheckLarge}>✓</Text>
       </View>
-      <Car style={{ right: 28, bottom: 28, left: undefined }} />
+      <Animated.View
+        style={{ position: 'absolute', right: 28, bottom: 28, transform: [{ translateX: carX }] }}
+      >
+        <Car style={{ left: undefined, right: undefined, bottom: undefined }} />
+      </Animated.View>
     </Frame>
   );
 }
@@ -146,25 +181,39 @@ export function WelcomeArt({ style }: { style?: ViewStyle }) {
 export function TrackingArt({ style }: { style?: ViewStyle }) {
   const reduceMotion = useReduceMotion();
   const drift = useRef(new Animated.Value(0)).current;
+  const routeDraw = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (reduceMotion) {
-      drift.setValue(0.4);
+      drift.setValue(1);
+      routeDraw.setValue(1);
       return;
     }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(drift, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(drift, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [drift, reduceMotion]);
-  const tx = drift.interpolate({ inputRange: [0, 1], outputRange: [0, 36] });
+    drift.setValue(0);
+    routeDraw.setValue(0);
+    // One-shot entry motion — not an aggressive loop.
+    const anim = Animated.parallel([
+      Animated.timing(routeDraw, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drift, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [drift, reduceMotion, routeDraw]);
+  const tx = drift.interpolate({ inputRange: [0, 1], outputRange: [-12, 36] });
+  const roadOpacity = routeDraw.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
 
   return (
     <Frame height={140} label="Car tracking along a protected route" style={style}>
-      <View style={styles.trackRoad} />
+      <Animated.View style={[styles.trackRoad, { opacity: roadOpacity }]} />
       <View style={[styles.pin, { left: 24, top: 42 }]} />
       <View style={[styles.pin, { right: 36, top: 54 }]} />
       <Animated.View style={{ position: 'absolute', left: 48, bottom: 34, transform: [{ translateX: tx }] }}>
@@ -175,12 +224,40 @@ export function TrackingArt({ style }: { style?: ViewStyle }) {
 }
 
 export function ReadyArt({ style }: { style?: ViewStyle }) {
+  const reduceMotion = useReduceMotion();
+  const pop = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduceMotion) {
+      pop.setValue(1);
+      return;
+    }
+    pop.setValue(0);
+    const anim = Animated.sequence([
+      Animated.timing(pop, {
+        toValue: 1.08,
+        duration: 420,
+        easing: Easing.out(Easing.back(1.4)),
+        useNativeDriver: true,
+      }),
+      Animated.timing(pop, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [pop, reduceMotion]);
+  const scale = pop.interpolate({ inputRange: [0, 1, 1.08], outputRange: [0.72, 1, 1.08] });
+  const opacity = pop.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] });
+
   return (
     <Frame height={140} label="Ready success artwork" style={style}>
       <View style={styles.readyRing} />
-      <View style={styles.readyInner}>
+      <Animated.View style={[styles.readyInner, { transform: [{ scale }], opacity }]}>
         <Text style={styles.readyCheck}>✓</Text>
-      </View>
+      </Animated.View>
     </Frame>
   );
 }
@@ -223,7 +300,8 @@ const styles = StyleSheet.create({
   frame: {
     width: '100%',
     borderRadius: radii.xl,
-    backgroundColor: colors.background.mist,
+    // Neutral surface — green reserved for accents / positive status, not every card.
+    backgroundColor: colors.background.card,
     overflow: 'hidden',
     marginBottom: spacing.md,
     borderWidth: 1,

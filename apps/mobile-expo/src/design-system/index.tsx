@@ -226,31 +226,41 @@ export function Badge({ label, variant = 'neutral' }: { label: string; variant?:
   );
 }
 
-export function PrimaryButton({ label, onPress, disabled, loading, accessibilityLabel }: {
-  label: string; onPress: () => void; disabled?: boolean; loading?: boolean; accessibilityLabel?: string;
+export function PrimaryButton({
+  label,
+  onPress,
+  disabled,
+  loading,
+  loadingLabel,
+  accessibilityLabel,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  loadingLabel?: string;
+  accessibilityLabel?: string;
 }) {
   const { palette } = useAppTheme();
   const blocked = Boolean(disabled || loading);
+  const surface = disabled && !loading ? palette.action.disabledSurface : palette.action.primary;
+  const ink = disabled && !loading ? palette.action.disabledText : palette.action.primaryText;
+  const displayLabel = loading ? loadingLabel ?? label : label;
   return (
     <Pressable
       style={({ pressed }) => [
         styles.primaryBtn,
-        { backgroundColor: palette.action.primary },
-        blocked && {
-          backgroundColor: palette.action.disabledSurface,
-          borderColor: palette.action.disabledSurface,
-        },
+        { backgroundColor: surface },
         pressed && !disabled && !loading && styles.btnPressed,
+        loading && { opacity: 0.92 },
       ]}
       onPress={onPress}
       disabled={blocked}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: blocked, busy: loading }}
+      accessibilityLabel={accessibilityLabel ?? displayLabel}
+      accessibilityState={{ disabled: blocked, busy: Boolean(loading) }}
     >
-      <Text style={[styles.primaryBtnText, { color: blocked ? palette.action.disabledText : palette.action.primaryText }]}>
-        {loading ? 'One moment…' : label}
-      </Text>
+      <Text style={[styles.primaryBtnText, { color: ink }]}>{displayLabel}</Text>
     </Pressable>
   );
 }

@@ -100,9 +100,9 @@ describe('Figma production lock regressions (retained + 0.2.13)', () => {
     expect(productArt).toMatch(/MissingDrivesArt|WelcomeArt|ProtectionArt|ReadyArt/);
     const onboarding = read('src/screens/onboarding/OnboardingFlow.tsx');
     expect(onboarding).toMatch(/MileRecover|Never lose a work mile/);
-    expect(onboarding).toMatch(/You're ready|You're ready/);
-    expect(onboarding).toMatch(/Notification permission is asked later/);
-    expect(onboarding).toMatch(/Allow when prompted/);
+    expect(onboarding).toMatch(/Automatic protection is on|manual logging is ready/);
+    expect(onboarding).toMatch(/Turn on automatic tracking/);
+    expect(onboarding).toMatch(/requestNotificationPermission/);
   });
 
   it('requires confirmation before missing-drive recovery creates records', () => {
@@ -110,7 +110,7 @@ describe('Figma production lock regressions (retained + 0.2.13)', () => {
     expect(recovery).toMatch(/Confirm work drive/);
     expect(recovery).toMatch(/confirmRecovery\(/);
     expect(recovery).toMatch(/Miles recovered/);
-    expect(recovery).toMatch(/nothing is saved until you confirm/i);
+    expect(recovery).toMatch(/Nothing is added without your/i);
   });
 
   it('supports Review batch classification for similar drives', () => {
@@ -120,10 +120,10 @@ describe('Figma production lock regressions (retained + 0.2.13)', () => {
     expect(review).toMatch(/Mark several similar drives at once/);
   });
 
-  it('keeps notification permission request out of early onboarding', () => {
+  it('requests notification permission after location setup in onboarding', () => {
     const onboarding = read('src/screens/onboarding/OnboardingFlow.tsx');
-    expect(onboarding).toMatch(/Notification permission is asked later/);
-    expect(onboarding).not.toMatch(/requestNotificationPermission/);
+    expect(onboarding).toMatch(/requestNotificationPermission/);
+    expect(onboarding).toMatch(/Get alerts when a drive needs your attention/);
   });
 
   it('keeps review-prompt cooldown at 90 days and gates on positive events', () => {

@@ -81,11 +81,13 @@ describe('0.2.13 real-device correction regressions', () => {
     expect(home).toMatch(/navigate\('ProtectionAlert'\)/);
     expect(home).toMatch(/Protection is on/);
     expect(home).toMatch(/Waiting for your first drive/);
-    // Hero must open Protection Center, not Missing Drives.
+    // Hero is status; explicit tracking-health link opens Protection Center.
     const heroBlock = home.match(/<MRHeroCard[\s\S]*?<\/MRHeroCard>/)?.[0] ?? '';
-    expect(heroBlock).toContain('onPress={openProtection}');
+    expect(heroBlock).toContain('trackingLinkLabel');
+    expect(heroBlock).toContain('openTrackingHealth');
     expect(heroBlock).not.toContain('MissingDrivesIntro');
-    expect(home).toMatch(/const openProtection = \(\) => \{[\s\S]*ProtectionAlert/);
+    expect(home).toMatch(/View tracking health/);
+    expect(home).toMatch(/openTrackingHealth/);
   });
 
   it('Import stays competitor-neutral before file detection', () => {
@@ -108,7 +110,7 @@ describe('0.2.13 real-device correction regressions', () => {
 
     const proof = read('src/screens/proof/ProofScreen.tsx');
     expect(proof).toMatch(/normalizePeriodKind/);
-    expect(proof).toMatch(/Work-classified drives populate reports/);
+    expect(proof).toMatch(/Work drives you confirm will appear here/);
 
     const initial = createInitialAppState();
     expect(initial.reportingPeriod.id).toBe('this_month');
@@ -116,13 +118,13 @@ describe('0.2.13 real-device correction regressions', () => {
     expect(initial.reportingPeriod.label.toLowerCase()).not.toContain('year to date');
   });
 
-  it('build version metadata is 0.2.13 and matches app config', () => {
-    expect(APP_VERSION).toBe('0.2.13');
-    expect(APP_RUNTIME_VERSION).toBe('0.2.13');
-    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.13');
+  it('build version metadata is 0.2.14 and matches app config', () => {
+    expect(APP_VERSION).toBe('0.2.14');
+    expect(APP_RUNTIME_VERSION).toBe('0.2.14');
+    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.14');
     const config = read('app.config.ts');
-    expect(config).toMatch(/version: '0.2.13'/);
-    expect(config).toMatch(/runtimeVersion: '0.2.13'/);
+    expect(config).toMatch(/version: '0.2.14'/);
+    expect(config).toMatch(/runtimeVersion: '0.2.14'/);
     const about = read('src/screens/about/AboutScreen.tsx');
     const profile = read('src/screens/profile/ProfileScreen.tsx');
     expect(about).toMatch(/APP_VERSION/);
@@ -145,7 +147,7 @@ describe('0.2.13 real-device correction regressions', () => {
     expect(PLAN_FIXTURES.find((p) => p.id === 'plus')?.annualPrice).toBe(catalogAnnualLabel('plus'));
     const plansUi = read('src/screens/flows/SupportingScreens.tsx');
     expect(plansUi).toMatch(/yearlySavingsLabel/);
-    expect(plansUi).toMatch(/Store unavailable/);
+    expect(plansUi).toMatch(/Purchases unavailable in this preview|Store unavailable|Unavailable in preview/);
     const nav = read('src/navigation/RootNavigator.tsx');
     expect(nav).toMatch(/title: 'Plans'/);
     expect(nav).not.toMatch(/Go Pro/);
@@ -179,8 +181,9 @@ describe('0.2.13 real-device correction regressions', () => {
     expect(screen).toMatch(/Open Settings/);
     expect(screen).toMatch(/osBlocked/);
     expect(service).toMatch(/openNotificationSettings/);
+    // 0.2.14 requests notifications once during onboarding after location setup.
     const onboarding = read('src/screens/onboarding/OnboardingFlow.tsx');
-    expect(onboarding).not.toMatch(/requestNotificationPermission/);
+    expect(onboarding).toMatch(/requestNotificationPermission/);
   });
 
   it('onboarding country selection uses ISO-driven CountryFlag badges', () => {

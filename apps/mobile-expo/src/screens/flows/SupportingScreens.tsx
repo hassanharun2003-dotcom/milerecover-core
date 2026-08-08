@@ -1477,19 +1477,41 @@ export function MissingDrivesIntroScreen() {
   }
 
   if (phase === 'free_limit') {
+    const monthLabel = new Date().toLocaleString(undefined, { month: 'long' });
+    const previewBlocked = isPreviewBillingBuild();
     return (
       <ScrollScreen>
         <Text style={[flowStyles.lockedTitle, { marginBottom: spacing.sm }]} accessibilityRole="header">
-          You've used this month's free scan
+          Free scan used for {monthLabel}.
         </Text>
         <Text style={[flowStyles.lockedBody, { marginBottom: spacing.lg }]}>
-          Upgrade for unlimited missed-drive scans and keep recovering unprotected miles every month.
+          {previewBlocked
+            ? 'Unlimited scans are available with Plus when purchases are enabled.'
+            : 'Upgrade for unlimited missed-drive scans this month.'}
         </Text>
-        <MRPrimaryButton
-          label="See upgrade options"
-          onPress={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
-        />
-        <MRSecondaryButton label="Not now" onPress={() => setPhase('intro')} />
+        {previewBlocked ? (
+          <>
+            <MRPrimaryButton
+              label="Back to Review"
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })}
+            />
+            <MRSecondaryButton
+              label="View plans"
+              onPress={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+            />
+          </>
+        ) : (
+          <>
+            <MRPrimaryButton
+              label="Upgrade for unlimited scans"
+              onPress={() => navigation.navigate('PlanSelection', { source: 'upgrade' })}
+            />
+            <MRSecondaryButton
+              label="Back to Review"
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Review' })}
+            />
+          </>
+        )}
       </ScrollScreen>
     );
   }
@@ -1504,39 +1526,14 @@ export function MissingDrivesIntroScreen() {
         Uses evidence from recent movement to suggest likely missing drives. Nothing is added without your
         confirmation.
       </Text>
-      <View style={flowStyles.trustStack}>
-        {[
-          {
-            title: 'Recover unprotected trips',
-            body: 'Catch drives that slipped through automatic tracking.',
-          },
-          {
-            title: 'Review before they count',
-            body: 'Classify Work, Personal, or Ignore — nothing is saved until you confirm.',
-          },
-          {
-            title: 'Keep your records complete',
-            body: 'Close gaps so tax and reimbursement proof stay accurate.',
-          },
-        ].map((item) => (
-          <View key={item.title} style={flowStyles.trustRow}>
-            <MRIconCircle glyph="✓" accessibilityLabel="Included" />
-            <View style={{ flex: 1 }}>
-              <Text style={[flowStyles.trustText, { color: colors.forest[700], fontWeight: '700' }]}>
-                {item.title}
-              </Text>
-              <Text style={[text.caption, { color: colors.text.secondary, marginTop: 2 }]}>{item.body}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
       <MRPrimaryButton
         label="Check for missed drives"
         loading={busy}
+        loadingLabel="Scanning…"
         onPress={runCheck}
         accessibilityLabel="Check for missed drives"
       />
-      <Text style={flowStyles.centerCaption}>Takes about 1 minute</Text>
+      <Text style={flowStyles.centerCaption}>Free plan includes 1 scan per month</Text>
     </ScrollScreen>
   );
 }
@@ -3249,18 +3246,19 @@ export function PlanSelectionScreen() {
   const plusCta = trialEligible ? 'Start free 7-day trial' : 'Start Plus';
   const proCta = trialEligible ? 'Start free 7-day trial' : 'Start Pro';
 
+  const previewStore = !billingAvailable;
+  const plusCtaLabel = previewStore ? 'Unavailable in preview' : plusCta;
+  const proCtaLabel = previewStore ? 'Unavailable in preview' : proCta;
+
   return (
     <FixedHeaderScrollScreen
       scrollKey={annual ? 'annual' : 'monthly'}
       header={
         <View>
-          <Text style={flowStyles.lockedTitle}>Choose your plan</Text>
+          <Text style={flowStyles.lockedTitle}>Plans</Text>
           <Text style={[flowStyles.lockedBody, { marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-            Free stays useful. Upgrade only when you need more automation or reporting.
+            Free stays useful. Upgrade only when you need more.
           </Text>
-          {valueProof ? (
-            <Text style={[text.caption, { marginBottom: spacing.sm }]}>{valueProof}</Text>
-          ) : null}
           <MRSegmentedControl
             value={annual ? 'annual' : 'monthly'}
             onChange={(value) => setAnnual(value === 'annual')}
@@ -3272,39 +3270,46 @@ export function PlanSelectionScreen() {
         </View>
       }
     >
-      {!billingAvailable ? (
+      {previewStore ? (
         <StatusCard
-          variant="warning"
-          title="Store unavailable"
-          body={STORE_UNAVAILABLE_MESSAGE}
+          variant="info"
+          title="Purchases unavailable in this preview."
+          body={isPreviewBillingBuild() ? PREVIEW_BILLING_NOTICE : STORE_UNAVAILABLE_MESSAGE}
           emphasis="subtle"
         />
       ) : null}
-      {notice && !(isPreviewBillingBuild() && notice === STORE_UNAVAILABLE_MESSAGE) ? (
+      {notice && !(previewStore && notice === STORE_UNAVAILABLE_MESSAGE) ? (
         <StatusCard variant="info" title="Update" body={notice} emphasis="subtle" />
       ) : null}
 
-      <StatusCard
-        variant="info"
-        title={`Current plan: ${currentPlanLabel}`}
-        body={currentPlanBody}
-        emphasis="subtle"
-      />
+      <Text
+        style={[text.body, { fontWeight: '700', marginBottom: spacing.sm, color: colors.text.primary }]}
+        accessibilityRole="text"
+      >
+        Current plan: {currentPlanLabel}
+      </Text>
+      {valueProof ? (
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>{valueProof}</Text>
+      ) : (
+        <Text style={[text.caption, { marginBottom: spacing.sm }]}>{currentPlanBody}</Text>
+      )}
 
-      <View style={flowStyles.cardStack}>
-        <MRCard selected={entitlement.planId === 'free'} style={{ overflow: 'visible' }}>
+      <View style={[flowStyles.cardStack, { gap: spacing.sm }]}>
+        <MRCard selected={entitlement.planId === 'free'} style={{ overflow: 'visible', paddingVertical: spacing.sm }}>
           <Text style={flowStyles.planName}>{freeFixture.name}</Text>
-          <Text style={flowStyles.planPrice}>{freeFixture.monthlyPrice}</Text>
-          {freeFeatures.map((feature) => (
+          <Text style={flowStyles.planPrice}>$0</Text>
+          {freeFeatures.slice(0, 3).map((feature) => (
             <View key={feature} style={flowStyles.featureRow}>
               <Text style={flowStyles.checkText}>•</Text>
               <Text style={flowStyles.featureText}>{feature}</Text>
             </View>
           ))}
-          <MRSecondaryButton label="Continue with Free" onPress={selectFree} />
+          {entitlement.planId !== 'free' ? (
+            <MRSecondaryButton label="Continue with Free" onPress={selectFree} />
+          ) : null}
         </MRCard>
 
-        <MRCard selected={entitlement.planId === 'plus'} style={{ overflow: 'visible' }}>
+        <MRCard selected={entitlement.planId === 'plus'} style={{ overflow: 'visible', paddingVertical: spacing.sm }}>
           <Text style={[flowStyles.proBadge, { alignSelf: 'flex-start', marginBottom: spacing.xs }]}>
             Recommended
           </Text>
@@ -3319,9 +3324,9 @@ export function PlanSelectionScreen() {
             </View>
           ))}
           <MRPrimaryButton
-            label={plusCta}
+            label={plusCtaLabel}
             loading={purchaseBusy}
-            disabled={purchaseBusy || !billingAvailable}
+            disabled={purchaseBusy || previewStore}
             onPress={() =>
               void handlePurchase('plus', () =>
                 trialEligible
@@ -3329,46 +3334,41 @@ export function PlanSelectionScreen() {
                   : purchasePort.purchasePlus(period),
               )
             }
-            accessibilityLabel={plusCta}
+            accessibilityLabel={plusCtaLabel}
           />
         </MRCard>
 
-        <MRCard selected={entitlement.planId === 'pro'} style={{ overflow: 'visible' }}>
+        <MRCard selected={entitlement.planId === 'pro'} style={{ overflow: 'visible', paddingVertical: spacing.sm }}>
           <Text style={flowStyles.planName}>{proFixture.name}</Text>
           <Text style={flowStyles.planPrice}>
             {proPrice}/{annual ? 'yr' : 'mo'}
           </Text>
-          {proFixture.features.map((feature) => (
+          {proFixture.features.slice(0, 4).map((feature) => (
             <View key={feature} style={flowStyles.featureRow}>
               <Text style={flowStyles.checkText}>•</Text>
               <Text style={flowStyles.featureText}>{feature}</Text>
             </View>
           ))}
           <MRSecondaryButton
-            label={proCta}
-            disabled={purchaseBusy || !billingAvailable}
+            label={proCtaLabel}
+            disabled={purchaseBusy || previewStore}
             onPress={() => void handlePurchase('pro', () => purchasePort.purchasePro(period))}
           />
         </MRCard>
       </View>
 
       <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-        <MRTertiaryButton
-          label="Restore purchases"
-          onPress={() => {
-            if (!billingAvailable || purchaseBusy) {
-              setNotice(STORE_UNAVAILABLE_MESSAGE);
-              return;
-            }
-            void handlePurchase('plus', () => purchasePort.restore());
-          }}
-        />
-        <MRTertiaryButton
-          label="Need to recover older mileage instead?"
-          onPress={() => navigation.navigate('RescueProducts')}
-        />
+        {billingAvailable ? (
+          <MRTertiaryButton
+            label="Restore purchases"
+            onPress={() => {
+              if (purchaseBusy) return;
+              void handlePurchase('plus', () => purchasePort.restore());
+            }}
+          />
+        ) : null}
         <Text style={text.caption}>
-          Current plan: Free. No fake urgency. Cancel anytime in your store account.{' '}
+          Cancel anytime in your store account.{' '}
           <Text style={text.caption} onPress={() => navigation.navigate('Terms')}>
             Terms
           </Text>

@@ -85,8 +85,151 @@ export const AUTH_NO_ACCOUNT_MESSAGE =
 export const AUTH_PLAY_SERVICES_MESSAGE =
   'Google Play Services is required for Google sign-in. Update Play Services, or continue without an account.';
 
+/** Shown when native Google takes longer than AUTH_SIGNIN_TIMEOUT_MS. */
+export const AUTH_SLOW_MESSAGE = 'Google is taking longer than expected. Try again.';
+
+/** Soft timeout for the critical path — never strand the user indefinitely. */
+export const AUTH_SIGNIN_TIMEOUT_MS = 25_000;
+
 /** @deprecated Use AUTH_GENERIC_FAILURE_MESSAGE — kept for tests that import the old name. */
 export const AUTH_UNAVAILABLE_MESSAGE = AUTH_GENERIC_FAILURE_MESSAGE;
+
+export type GoogleAuthPhase = 'idle' | 'opening_google' | 'signing_in';
+
+export type AuthTimingMark =
+  | 'cta_tap'
+  | 'signin_call'
+  | 'chooser_or_native_response'
+  | 'result_returned'
+  | 'session_committed'
+  | 'onboarding_rendered';
+
+/** Internal latency marks — never log tokens or PII. */
+export function logAuthTiming(mark: AuthTimingMark, meta?: Record<string, string | number | boolean>): void {
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    // eslint-disable-next-line no-console
+    console.info('[auth-timing]', mark, meta ?? {});
+  }
+}
+
+let googleConfiguredOnce = false;
+
+function loadGoogleSigninModule(): {
+  GoogleSignin: {
+    configure: (opts: Record<string, unknown>) => void;
+    hasPlayServices: (opts: { showPlayServicesUpdateDialog: boolean }) => Promise<boolean>;
+    signIn: () => Promise<{
+      type?: string;
+      data?: {
+        user?: {
+          id?: string;
+          email?: string | null;
+          name?: string | null;
+          photo?: string | null;
+        };
+        idToken?: string | null;
+      };
+      user?: {
+        id?: string;
+        email?: string | null;
+        name?: string | null;
+        photo?: string | null;
+      };
+    }>;
+    getTokens?: () => Promise<{ idToken?: string | null; accessToken?: string | null }>;
+  };
+  statusCodes: {
+    SIGN_IN_CANCELLED?: string;
+    IN_PROGRESS?: string;
+    PLAY_SERVICES_NOT_AVAILABLE?: string;
+  };
+} | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('@react-native-google-signin/google-signin') as {
+      GoogleSignin: {
+        configure: (opts: Record<string, unknown>) => void;
+        hasPlayServices: (opts: { showPlayServicesUpdateDialog: boolean }) => Promise<boolean>;
+        signIn: () => Promise<{
+          type?: string;
+          data?: {
+            user?: {
+              id?: string;
+              email?: string | null;
+              name?: string | null;
+              photo?: string | null;
+            };
+            idToken?: string | null;
+          };
+          user?: {
+            id?: string;
+            email?: string | null;
+            name?: string | null;
+            photo?: string | null;
+          };
+        }>;
+        getTokens?: () => Promise<{ idToken?: string | null; accessToken?: string | null }>;
+      };
+      statusCodes: {
+        SIGN_IN_CANCELLED?: string;
+        IN_PROGRESS?: string;
+        PLAY_SERVICES_NOT_AVAILABLE?: string;
+      };
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Warm Google Sign-In configure + Play Services check before the CTA tap. */
+export async function warmGoogleSignIn(): Promise<void> {
+  if (!googleConfigured()) return;
+  const mod = loadGoogleSigninModule();
+  if (!mod) return;
+  const { GoogleSignin } = mod;
+  const extra = authExtra();
+  try {
+    if (!googleConfiguredOnce) {
+      GoogleSignin.configure({
+        webClientId: extra.googleWebClientId,
+        iosClientId: extra.googleIosClientId || undefined,
+        offlineAccess: false,
+        forceCodeForRefreshToken: false,
+      });
+      googleConfiguredOnce = true;
+    }
+    if (Platform.OS === 'android') {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: false });
+    }
+  } catch {
+    // Warming is best-effort — sign-in path still handles failures.
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(Object.assign(new Error('AUTH_TIMEOUT'), { code: 'AUTH_TIMEOUT' }));
+    }, ms);
+    void promise.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 export const AUTH_EMAIL_PENDING_MESSAGE =
   'Email sign-in isn’t available yet. Continue without an account for now.';
@@ -230,57 +373,37 @@ export class ProductionAuthPort implements AuthPort {
     if (!googleConfigured()) {
       return { ok: false, reason: 'not_configured', message: AUTH_GENERIC_FAILURE_MESSAGE };
     }
+    const startedAt = Date.now();
+    logAuthTiming('signin_call', { t: 0 });
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require('@react-native-google-signin/google-signin') as {
-        GoogleSignin: {
-          configure: (opts: Record<string, unknown>) => void;
-          hasPlayServices: (opts: { showPlayServicesUpdateDialog: boolean }) => Promise<boolean>;
-          signIn: () => Promise<{
-            type?: string;
-            data?: {
-              user?: {
-                id?: string;
-                email?: string | null;
-                name?: string | null;
-                photo?: string | null;
-              };
-              idToken?: string | null;
-            };
-            user?: {
-              id?: string;
-              email?: string | null;
-              name?: string | null;
-              photo?: string | null;
-            };
-          }>;
-          getTokens?: () => Promise<{ idToken?: string | null; accessToken?: string | null }>;
-        };
-        statusCodes: {
-          SIGN_IN_CANCELLED?: string;
-          IN_PROGRESS?: string;
-          PLAY_SERVICES_NOT_AVAILABLE?: string;
-        };
-      };
+      const mod = loadGoogleSigninModule();
+      if (!mod) {
+        return { ok: false, reason: 'unavailable', message: AUTH_GENERIC_FAILURE_MESSAGE };
+      }
       const { GoogleSignin, statusCodes } = mod;
       const extra = authExtra();
       // Web client ID is required by the library for idToken. Android package identity
       // is validated by Google against the separate Android OAuth client (SHA-1 + package).
       // Never pass the Android client ID as webClientId.
-      GoogleSignin.configure({
-        webClientId: extra.googleWebClientId,
-        iosClientId: extra.googleIosClientId || undefined,
-        offlineAccess: false,
-        forceCodeForRefreshToken: false,
-      });
+      if (!googleConfiguredOnce) {
+        GoogleSignin.configure({
+          webClientId: extra.googleWebClientId,
+          iosClientId: extra.googleIosClientId || undefined,
+          offlineAccess: false,
+          forceCodeForRefreshToken: false,
+        });
+        googleConfiguredOnce = true;
+      }
       if (Platform.OS === 'android') {
         try {
+          // Prefer silent check — update dialog was already offered during warm if needed.
           await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
         } catch {
           return { ok: false, reason: 'unavailable', message: AUTH_PLAY_SERVICES_MESSAGE };
         }
       }
-      const response = await GoogleSignin.signIn();
+      const response = await withTimeout(GoogleSignin.signIn(), AUTH_SIGNIN_TIMEOUT_MS);
+      logAuthTiming('chooser_or_native_response', { ms: Date.now() - startedAt });
       if (response?.type === 'cancelled') {
         return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };
       }
@@ -288,11 +411,11 @@ export class ProductionAuthPort implements AuthPort {
       if (!user?.id) {
         return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };
       }
-      try {
-        await GoogleSignin.getTokens?.();
-      } catch {
+      logAuthTiming('result_returned', { ms: Date.now() - startedAt });
+      // Tokens are not required for local identity commit — fetch after navigation.
+      void GoogleSignin.getTokens?.().catch(() => {
         // Profile-only responses are still valid provider identities.
-      }
+      });
       const session: AuthSession = {
         userId: `google:${user.id}`,
         email: user.email ?? null,
@@ -302,23 +425,22 @@ export class ProductionAuthPort implements AuthPort {
         backendLinked: AUTH_BACKEND_CONNECTED,
       };
       await persistSession(session);
+      logAuthTiming('session_committed', { ms: Date.now() - startedAt });
       return { ok: true, ...session };
     } catch (error) {
       const code = String((error as { code?: string } | undefined)?.code ?? '');
       const message = String((error as { message?: string } | undefined)?.message ?? error ?? '');
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       let cancelledCode = 'SIGN_IN_CANCELLED';
       let playServicesCode = 'PLAY_SERVICES_NOT_AVAILABLE';
       try {
-        const codes = (
-          require('@react-native-google-signin/google-signin') as {
-            statusCodes?: { SIGN_IN_CANCELLED?: string; PLAY_SERVICES_NOT_AVAILABLE?: string };
-          }
-        ).statusCodes;
+        const codes = loadGoogleSigninModule()?.statusCodes;
         cancelledCode = codes?.SIGN_IN_CANCELLED ?? cancelledCode;
         playServicesCode = codes?.PLAY_SERVICES_NOT_AVAILABLE ?? playServicesCode;
       } catch {
         // keep defaults
+      }
+      if (code === 'AUTH_TIMEOUT' || /AUTH_TIMEOUT/i.test(message)) {
+        return { ok: false, reason: 'failed', message: AUTH_SLOW_MESSAGE };
       }
       if (code === cancelledCode || /cancel/i.test(code) || /cancel/i.test(message)) {
         return { ok: false, reason: 'cancelled', message: AUTH_CANCELLED_MESSAGE };

@@ -5,6 +5,7 @@
  */
 import React from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -168,36 +169,40 @@ export function MRPrimaryButton({
   onPress,
   disabled,
   loading,
+  loadingLabel,
   accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
+  /** Honest phase copy while busy — never fake percentages. */
+  loadingLabel?: string;
   accessibilityLabel?: string;
 }) {
   const { palette } = useAppTheme();
   const blocked = Boolean(disabled || loading);
+  // Keep primary green while loading so the CTA stays recognizable.
+  const surface = disabled && !loading ? palette.action.disabledSurface : palette.action.primary;
+  const ink = disabled && !loading ? palette.action.disabledText : palette.action.primaryText;
+  const displayLabel = loading ? loadingLabel ?? label : label;
   return (
     <Pressable
       style={({ pressed }) => [
         styles.primaryBtn,
-        { backgroundColor: blocked ? palette.action.disabledSurface : palette.action.primary },
+        { backgroundColor: surface, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
         pressed && !blocked && styles.pressed,
+        loading && { opacity: 0.92 },
       ]}
       onPress={onPress}
       disabled={blocked}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: blocked, busy: loading }}
+      accessibilityLabel={accessibilityLabel ?? displayLabel}
+      accessibilityState={{ disabled: blocked, busy: Boolean(loading) }}
     >
-      <Text
-        style={[
-          styles.primaryBtnText,
-          { color: blocked ? palette.action.disabledText : palette.action.primaryText },
-        ]}
-      >
-        {loading ? 'One moment…' : label}
+      {loading ? <ActivityIndicator color={ink} size="small" /> : null}
+      <Text style={[styles.primaryBtnText, { color: ink }]} numberOfLines={1}>
+        {displayLabel}
       </Text>
     </Pressable>
   );
