@@ -37,7 +37,6 @@ import {
   MRSegmentedControl,
   MRStatusPanel,
   MRTertiaryButton,
-  MRWelcomeDots,
   OnboardingScreen,
   SelectionCard,
   text,
@@ -51,23 +50,6 @@ import {
   getAuthPort,
   type AuthProviderId,
 } from '../../services/auth';
-const WELCOME_BENEFITS = [
-  {
-    icon: 'navigate-outline' as const,
-    label: 'Automatic tracking',
-    body: 'Detects drives while you focus on the road.',
-  },
-  {
-    icon: 'search-outline' as const,
-    label: 'Find missed mileage',
-    body: 'Recover trips that slipped through automatic tracking.',
-  },
-  {
-    icon: 'document-text-outline' as const,
-    label: 'Reports you can trust',
-    body: 'Keep proof ready for tax and reimbursement.',
-  },
-] as const;
 
 const PURPOSE_ICONS: Record<string, ComponentProps<typeof Ionicons>['name']> = {
   employee_reimbursement: 'briefcase-outline',
@@ -159,6 +141,7 @@ export function OnboardingFlow() {
   const [permissionBusy, setPermissionBusy] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [legalSheet, setLegalSheet] = useState<'privacy' | 'terms' | null>(null);
   const [countrySheetOpen, setCountrySheetOpen] = useState(false);
   const [rateEditing, setRateEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState(product.preferredName ?? '');
@@ -219,9 +202,14 @@ export function OnboardingFlow() {
     logEvent(ANALYTICS_EVENTS.countrySelected, { country: countryDraft });
   };
 
-  const acknowledgeAccountAndContinue = () => {
+  /** After Google/guest auth, enter purpose onboarding — never Home. */
+  const enterOnboardingAfterAuth = () => {
     patchOnboarding({ accountStepAcknowledged: true });
-    advanceOnboarding();
+    setOnboardingStep('purpose');
+  };
+
+  const acknowledgeAccountAndContinue = () => {
+    enterOnboardingAfterAuth();
   };
 
   const tryAuth = async (provider: AuthProviderId) => {
@@ -240,7 +228,8 @@ export function OnboardingFlow() {
           setPreferredName(first);
           setNameDraft(first);
         }
-        acknowledgeAccountAndContinue();
+        // Real provider success → onboarding purpose (not Home).
+        enterOnboardingAfterAuth();
         return;
       }
       if (result.reason === 'cancelled') {
@@ -252,6 +241,69 @@ export function OnboardingFlow() {
       setAuthBusy(false);
     }
   };
+
+  const authFooter = (
+    <View style={{ gap: spacing.sm }}>
+      {authNotice ? (
+        <Text
+          style={[text.caption, { color: palette.text.secondary, textAlign: 'center' }]}
+          accessibilityRole="text"
+        >
+          {authNotice}
+        </Text>
+      ) : null}
+      {googleAvailable ? (
+        <MRPrimaryButton
+          label={authBusy ? 'Signing in…' : 'Continue with Google'}
+          onPress={() => void tryAuth('google')}
+          disabled={authBusy}
+          loading={authBusy}
+          accessibilityLabel="Continue with Google"
+        />
+      ) : null}
+      {appleAvailable ? (
+        <MRSecondaryButton
+          label="Continue with Apple"
+          onPress={() => void tryAuth('apple')}
+          disabled={authBusy}
+          accessibilityLabel="Continue with Apple"
+        />
+      ) : null}
+      <MRTertiaryButton
+        label="Continue without an account"
+        onPress={() => {
+          setAuthNotice(null);
+          acknowledgeAccountAndContinue();
+        }}
+        accessibilityLabel="Continue without an account"
+      />
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'center',
+          gap: spacing.md,
+          marginTop: spacing.xs,
+        }}
+      >
+        <Pressable
+          onPress={() => setLegalSheet('privacy')}
+          accessibilityRole="link"
+          accessibilityLabel="Privacy"
+          hitSlop={8}
+        >
+          <Text style={[text.caption, { color: palette.text.secondary }]}>Privacy</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setLegalSheet('terms')}
+          accessibilityRole="link"
+          accessibilityLabel="Terms"
+          hitSlop={8}
+        >
+          <Text style={[text.caption, { color: palette.text.secondary }]}>Terms</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 
   const [persistError, setPersistError] = useState<string | null>(null);
 
@@ -329,43 +381,8 @@ export function OnboardingFlow() {
   return (
     <OnboardingScreen
       footer={
-        step === 'welcome' ? (
-          <View style={{ gap: spacing.sm }}>
-            <MRWelcomeDots activeIndex={0} total={4} />
-            <MRPrimaryButton
-              label="Get started →"
-              onPress={() => advanceOnboarding()}
-              accessibilityLabel="Get started"
-            />
-          </View>
-        ) : step === 'account' ? (
-          <View style={{ gap: spacing.sm }}>
-            {googleAvailable ? (
-              <MRPrimaryButton
-                label={authBusy ? 'Signing in…' : 'Continue with Google'}
-                onPress={() => void tryAuth('google')}
-                disabled={authBusy}
-                loading={authBusy}
-                accessibilityLabel="Continue with Google"
-              />
-            ) : null}
-            {appleAvailable ? (
-              <MRSecondaryButton
-                label="Continue with Apple"
-                onPress={() => void tryAuth('apple')}
-                disabled={authBusy}
-                accessibilityLabel="Continue with Apple"
-              />
-            ) : null}
-            <MRTertiaryButton
-              label="Continue without an account"
-              onPress={() => {
-                setAuthNotice(null);
-                acknowledgeAccountAndContinue();
-              }}
-              accessibilityLabel="Continue without an account"
-            />
-          </View>
+        step === 'welcome' || step === 'account' ? (
+          authFooter
         ) : step === 'purpose' ? (
           <MRPrimaryButton
             label="Continue →"
@@ -448,22 +465,6 @@ export function OnboardingFlow() {
         ) : null
       }
     >
-      {step === 'welcome' ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.sm }}>
-          <Pressable
-            onPress={() => advanceOnboarding()}
-            accessibilityRole="button"
-            accessibilityLabel="Skip welcome"
-            hitSlop={8}
-            style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.xs }}
-          >
-            <Text style={{ color: palette.text.secondary, fontWeight: '500', fontSize: typography.size.body }}>
-              Skip
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
-
       {showProgress ? (
         <View style={{ marginBottom: spacing.sm }}>
           {showBack ? (
@@ -488,21 +489,33 @@ export function OnboardingFlow() {
         </View>
       ) : null}
 
-      {step === 'welcome' ? (
+      {step === 'welcome' || step === 'account' ? (
         <View style={{ alignItems: 'center', marginTop: spacing.md }}>
-          <WelcomeArt style={{ width: '100%', marginBottom: spacing.lg }} />
+          <WelcomeArt style={{ width: '100%', marginBottom: spacing.md }} />
           <Text
             style={{
               fontSize: typography.size.display,
               lineHeight: typography.lineHeight.display,
-              fontWeight: '700',
+              fontWeight: '800',
               color: palette.text.primary,
               textAlign: 'center',
               marginBottom: spacing.sm,
             }}
             accessibilityRole="header"
           >
-            Protect every mile.
+            MileRecover
+          </Text>
+          <Text
+            style={{
+              fontSize: typography.size.title,
+              lineHeight: typography.lineHeight.title,
+              fontWeight: '700',
+              color: palette.text.primary,
+              textAlign: 'center',
+              marginBottom: spacing.sm,
+            }}
+          >
+            Never lose a work mile.
           </Text>
           <Text
             style={{
@@ -510,65 +523,34 @@ export function OnboardingFlow() {
               lineHeight: typography.lineHeight.body,
               color: palette.text.secondary,
               textAlign: 'center',
-              marginBottom: spacing.lg,
+              marginBottom: spacing.md,
               paddingHorizontal: spacing.sm,
             }}
           >
-            Track work mileage automatically, recover trips you missed, and keep proof ready when you
-            need it.
+            Protect your mileage, recover what was missed, and keep proof ready.
           </Text>
-          <View style={{ width: '100%', gap: spacing.md }}>
-            {WELCOME_BENEFITS.map((benefit) => (
-              <View
-                key={benefit.label}
-                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.smMd }}
-              >
-                <MRIconCircle icon={benefit.icon} accessibilityLabel={benefit.label} />
-                <View style={{ flex: 1, paddingTop: 2 }}>
-                  <Text
-                    style={{
-                      fontSize: typography.size.body,
-                      lineHeight: typography.lineHeight.body,
-                      fontWeight: '600',
-                      color: palette.text.primary,
-                    }}
-                  >
-                    {benefit.label}
-                  </Text>
-                  <Text
-                    style={{
-                      marginTop: 2,
-                      fontSize: typography.size.caption,
-                      lineHeight: typography.lineHeight.caption,
-                      color: palette.text.secondary,
-                    }}
-                  >
-                    {benefit.body}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {step === 'account' ? (
-        <View>
-          <Text style={[text.headline, { marginBottom: spacing.sm }]} accessibilityRole="header">
-            Save your progress
-          </Text>
-          <Text style={[text.body, { marginBottom: spacing.md }]}>
-            Sign in so your preferences are easier to restore later — or continue without an account.
-            Your miles stay on this device.
-          </Text>
-          {authNotice ? (
+          {!googleAvailable ? (
             <Text
-              style={[text.caption, { color: palette.text.secondary, marginBottom: spacing.sm }]}
-              accessibilityRole="text"
+              style={[
+                text.caption,
+                { color: palette.text.secondary, textAlign: 'center', marginBottom: spacing.sm },
+              ]}
             >
-              {authNotice}
+              Continue without an account to set up MileRecover on this device.
             </Text>
           ) : null}
+          <BottomSheet
+            visible={legalSheet != null}
+            title={legalSheet === 'terms' ? 'Terms' : 'Privacy'}
+            onClose={() => setLegalSheet(null)}
+          >
+            <Text style={[text.body, { marginBottom: spacing.md }]}>
+              {legalSheet === 'terms'
+                ? 'MileRecover helps you log and organize work mileage on this device. Store purchases are managed by Google Play or the App Store. Contact support@milerecover.com for account questions.'
+                : 'Your drives and setup stay on this device unless you export them. MileRecover does not show sensitive route details on lock-screen notifications. You control location permissions in system settings.'}
+            </Text>
+            <MRTertiaryButton label="Close" onPress={() => setLegalSheet(null)} />
+          </BottomSheet>
         </View>
       ) : null}
 

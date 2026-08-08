@@ -11,13 +11,13 @@
 
 ## Status
 
-**Device-QA candidate.** Automated tests + correction pass complete. Samsung checklist required before any wider release. **Do not publish production.**
+**Device-QA candidate with Google OAuth IDs configured in EAS.** Protected preview keystore must be present to sign the APK. Samsung checklist required before any wider release. **Do not publish production.**
 
 ## Docs
 
 - `docs/qa/DEVICE_CORRECTION_0.2.13.md`
 - `docs/qa/DEVICE_QA_0.2.13_SAMSUNG.md`
-- Google OAuth credentials: still external — see `docs/qa/GOOGLE_SIGNIN_0.2.9.md`
+- Google OAuth: `docs/qa/GOOGLE_SIGNIN_0.2.13.md` (EAS env configured; no client secret in app)
 
 ## Build
 

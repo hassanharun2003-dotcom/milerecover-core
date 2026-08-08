@@ -99,7 +99,7 @@ describe('Figma production lock regressions (retained + 0.2.13)', () => {
     const productArt = read('src/components/ProductArt.tsx');
     expect(productArt).toMatch(/MissingDrivesArt|WelcomeArt|ProtectionArt|ReadyArt/);
     const onboarding = read('src/screens/onboarding/OnboardingFlow.tsx');
-    expect(onboarding).toMatch(/Protect every mile/);
+    expect(onboarding).toMatch(/MileRecover|Never lose a work mile/);
     expect(onboarding).toMatch(/You're ready|You're ready/);
     expect(onboarding).toMatch(/Notification permission is asked later/);
     expect(onboarding).toMatch(/Allow when prompted/);

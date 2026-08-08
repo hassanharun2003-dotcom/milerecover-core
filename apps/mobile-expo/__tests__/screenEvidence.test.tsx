@@ -23,7 +23,7 @@ describe('Screen render evidence', () => {
       manifest[`onboarding-${step}`] = copy.slice(0, 500);
       expect(copy.length).toBeGreaterThan(20);
     }
-    expect(manifest['onboarding-welcome']).toMatch(/Protect every mile|Welcome to MileRecover|MileRecover/i);
+    expect(manifest['onboarding-welcome']).toMatch(/Never lose a work mile|Welcome to MileRecover|MileRecover/i);
     expect(manifest['onboarding-account']).toMatch(/Continue with Google|Continue without an account/i);
     expect(manifest['onboarding-purpose']).toMatch(
       /Employee reimbursement|Self-employed \/ [Bb]usiness|Delivery or gig work|Personal|What do you use your mileage for|What's your main reason/i,

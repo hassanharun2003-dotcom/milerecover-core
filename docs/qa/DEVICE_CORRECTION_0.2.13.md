@@ -16,13 +16,11 @@ Treat 0.2.12 as a Samsung QA baseline only. Do **not** publish 0.2.12 or 0.2.13 
 
 ## Google OAuth
 
-**BLOCKED** without external credentials:
+Configured in EAS (preview/production/development) — see `docs/qa/GOOGLE_SIGNIN_0.2.13.md`.
 
-- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
-- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
-- (iOS later) `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, `GOOGLE_IOS_URL_SCHEME`
-
-Code never fakes a successful Google login. CTA hidden when unconfigured.
+- Android requires both Web + Android client IDs (distinct)
+- No client secret in the mobile app
+- CTA hidden when unconfigured; never fakes success
 
 ## Device checklist
 

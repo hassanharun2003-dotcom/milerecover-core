@@ -1,12 +1,12 @@
 {
   "onboarding-welcome-light": {
     "file": "onboarding-welcome-light.png",
-    "copyPreview": "Skip ✓ Protect every mile. Track work mileage automatically, recover trips you missed, and keep proof ready when you need it.  Automatic tracking Detects drives while you focus on the road.  Find missed mileage Recover trips that slipped ",
+    "copyPreview": "✓ MileRecover Never lose a work mile. Protect your mileage, recover what was missed, and keep proof ready. Continue without an account to set up MileRecover on this device. Continue with Apple Continue without an account Privacy Terms",
     "failures": []
   },
   "onboarding-account-light": {
     "file": "onboarding-account-light.png",
-    "copyPreview": "‹ 1 of 5 Save your progress Sign in so your preferences are easier to restore later — or continue without an account. Your miles stay on this device. Continue with Apple Continue without an account",
+    "copyPreview": "‹ 1 of 5 ✓ MileRecover Never lose a work mile. Protect your mileage, recover what was missed, and keep proof ready. Continue without an account to set up MileRecover on this device. Continue with Apple Continue without an account Privacy Te",
     "failures": []
   },
   "onboarding-purpose-light": {
@@ -31,7 +31,7 @@
   },
   "home-live-light": {
     "file": "home-live-light.png",
-    "copyPreview": "≡ MileRecover  Good evening Protection is on Waiting for your first drive.  0 Work miles 0 Work drives $0.00 This month ! Drive protection is paused. Next up Turn on protection Check for missed drives ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Pro",
+    "copyPreview": "≡ MileRecover  Good morning Protection is on Waiting for your first drive.  0 Work miles 0 Work drives $0.00 This month ! Drive protection is paused. Next up Turn on protection Check for missed drives ⏷ ⏷ Home ⏷ ⏷ Review ⏷ ⏷ Proof ⏷ ⏷ Pro",
     "failures": []
   },
   "review-pending-light": {
@@ -46,12 +46,12 @@
   },
   "profile-light": {
     "file": "profile-light.png",
-    "copyPreview": "M Your profile Not set · United States Account  Account Email & sign-in ›  Work information Not set ›  Mileage rate $0.70 / mile ›  Vehicles Add a vehicle › Tracking  Tracking health Paused ›  Notifications Manage alerts ›  Frequent ",
+    "copyPreview": "M Your profile Not set · United States Account  Profile Guest on this device ›  Work information Not set ›  Region & rate United States · $0.70 / mile › Tracking  Vehicles Add a vehicle ›  Tracking health Paused ›  Notifications Manag",
     "failures": []
   },
   "manual-trip-light": {
     "file": "manual-trip-light.png",
-    "copyPreview": "Manual entry Import mileage Classification Work Personal Date Aug 7, 2026 Start address End address Distance (mi) More details Save drive Kept on this device. Receipts and notes stay private unless you export them.",
+    "copyPreview": "Manual entry Import mileage Classification Work Personal Date Aug 8, 2026 Start address End address Distance (mi) More details Save drive Kept on this device. Receipts and notes stay private unless you export them.",
     "failures": []
   },
   "protection-light": {
@@ -106,12 +106,12 @@
   },
   "fixture-brand_new_install-light": {
     "file": "fixture-brand_new_install-light.png",
-    "copyPreview": "Skip ✓ Protect every mile. Track work mileage automatically, recover trips you missed, and keep proof ready when you need it.  Automatic tracking Detects drives while you focus on the road.  Find missed mileage Recover trips that slipped ",
+    "copyPreview": "✓ MileRecover Never lose a work mile. Protect your mileage, recover what was missed, and keep proof ready. Continue without an account to set up MileRecover on this device. Continue with Apple Continue without an account Privacy Terms",
     "failures": []
   },
   "fixture-onboarding_welcome-light": {
     "file": "fixture-onboarding_welcome-light.png",
-    "copyPreview": "Skip ✓ Protect every mile. Track work mileage automatically, recover trips you missed, and keep proof ready when you need it.  Automatic tracking Detects drives while you focus on the road.  Find missed mileage Recover trips that slipped ",
+    "copyPreview": "✓ MileRecover Never lose a work mile. Protect your mileage, recover what was missed, and keep proof ready. Continue without an account to set up MileRecover on this device. Continue with Apple Continue without an account Privacy Terms",
     "failures": []
   },
   "fixture-onboarding_purpose-light": {

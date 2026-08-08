@@ -203,8 +203,8 @@ export function ProfileScreen() {
       <SectionLabel label="Account" />
       <SettingsRow
         icon="person-outline"
-        label="Account"
-        value={authSession?.email ?? 'Email & sign-in'}
+        label="Profile"
+        value={authSession?.email ?? (authSession ? 'Signed in' : 'Guest on this device')}
         onPress={() => (authSession ? setConfirmSignOutVisible(true) : navigation.navigate('EditSetup'))}
       />
       <SettingsRow
@@ -214,11 +214,13 @@ export function ProfileScreen() {
         onPress={() => navigation.navigate('EditSetup')}
       />
       <SettingsRow
-        icon="cash-outline"
-        label="Mileage rate"
-        value={rateLabel}
+        icon="globe-outline"
+        label="Region & rate"
+        value={`${product.localeProfile.countryDisplayName} · ${rateLabel}`}
         onPress={() => navigation.navigate('EditSetup')}
       />
+
+      <SectionLabel label="Tracking" />
       <SettingsRow
         icon="car-outline"
         label="Vehicles"
@@ -229,8 +231,6 @@ export function ProfileScreen() {
         }
         onPress={() => navigation.navigate('VehicleSetup')}
       />
-
-      <SectionLabel label="Tracking" />
       <SettingsRow
         icon="shield-checkmark-outline"
         label="Tracking health"
@@ -249,18 +249,12 @@ export function ProfileScreen() {
         value={product.notificationPreferences.enabled ? 'Manage alerts' : 'Off'}
         onPress={() => navigation.navigate('Notifications')}
       />
-      <SettingsRow
-        icon="location-outline"
-        label="Frequent drives"
-        value="Named work places"
-        onPress={() => navigation.navigate('WorkLocationSetup')}
-      />
 
       <SectionLabel label="Data" />
       <SettingsRow
         icon="swap-horizontal-outline"
-        label="Import mileage"
-        value="Bring your trips with you"
+        label="Import / switch"
+        value="Bring a mileage export"
         onPress={() => navigation.navigate('BringExistingMileage')}
       />
       <SettingsRow
@@ -280,11 +274,6 @@ export function ProfileScreen() {
 
       <SectionLabel label="Support" />
       <SettingsRow
-        icon="help-circle-outline"
-        label="Help & support"
-        onPress={() => navigation.navigate('HelpSupport')}
-      />
-      <SettingsRow
         icon="shield-outline"
         label="Privacy"
         onPress={() => navigation.navigate('Privacy')}
@@ -295,8 +284,13 @@ export function ProfileScreen() {
         onPress={() => navigation.navigate('Terms')}
       />
       <SettingsRow
+        icon="help-circle-outline"
+        label="Help & support"
+        onPress={() => navigation.navigate('HelpSupport')}
+      />
+      <SettingsRow
         icon="information-circle-outline"
-        label="About MileRecover"
+        label="About"
         value={`Version ${APP_VERSION}`}
         onPress={() => navigation.navigate('About')}
       />
