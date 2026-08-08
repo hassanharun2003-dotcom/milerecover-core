@@ -52,6 +52,11 @@
       "mayImportFrom": ["packages/domain", "packages/contracts", "packages/config"],
       "mustNotImportFrom": ["prototypes/"]
     },
+    "mobile-expo": {
+      "path": "apps/mobile-expo",
+      "mayImportFrom": ["packages/domain", "packages/contracts", "packages/config"],
+      "mustNotImportFrom": ["prototypes/"]
+    },
     "backend": {
       "path": "apps/backend",
       "mayImportFrom": ["packages/domain", "packages/contracts", "packages/config"],
