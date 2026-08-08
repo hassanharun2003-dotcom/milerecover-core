@@ -55,3 +55,12 @@ Evidence: `/opt/cursor/artifacts/gate/0.2.13/` and `/opt/cursor/artifacts/apk/Mi
 ## Next device step
 
 Install the signed APK on Samsung hardware per `docs/qa/DEVICE_QA_0.2.13_SAMSUNG.md`. Stop before production publication.
+
+
+## Direct download (Samsung QA)
+
+- Release: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.2.13
+- APK: https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.13/MileRecover-preview-0.2.13.apk
+- SHA-256: `0a8d7ecb55845141096bc0eca9c588e56f7277d82b0593c0d3b03a1b6495a0bb`
+- Signer SHA-1: `E6:62:40:AA:E7:FA:4B:B7:37:51:44:1E:16:04:80:D9:67:24:1F:31`
+- Cursor agent artifacts path: `/opt/cursor/artifacts/apk/MileRecover-preview-0.2.13.apk`
