@@ -46,8 +46,18 @@ Both client IDs are embedded in the APK extras. No credential rotation.
 
 Evidence: `/opt/cursor/artifacts/gate/0.2.14/` and `/opt/cursor/artifacts/apk/MileRecover-preview-0.2.14.apk`.
 
+## GitHub prerelease
+
+| Field | Value |
+|---|---|
+| Tag / release | [`android-preview-0.2.14`](https://github.com/hassanharun2003-dotcom/milerecover-core/releases/tag/android-preview-0.2.14) |
+| Direct APK | https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.2.14/MileRecover-preview-0.2.14.apk |
+| Asset digest | `sha256:612bf1ad886d2eb928ad468b1d83aa73c3214c7cbff1ea0e5f8f6fa185dbabbb` |
+| Prerelease | yes (not production) |
+
 ## Confirmations
 
 - No new signing key created
 - No production publish
 - Real Google auth retained (not mocked)
+- GitHub upload used the existing signed APK (no rebuild / resign)
