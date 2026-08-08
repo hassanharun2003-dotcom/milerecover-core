@@ -90,9 +90,20 @@ if [[ "$REQUIRE_LAUNCH" == "1" ]]; then
   PID2=$("$ADB" shell pidof "$EXPECT_PACKAGE" | tr -d '\r' || true)
   [[ "$PID" == "$PID2" ]] || fail "process died within ${ALIVE_SECS}s (before=$PID after=$PID2)"
   ok "alive ${ALIVE_SECS}s pid=$PID2"
-  "$ADB" shell uiautomator dump /sdcard/ui-gate.xml >/dev/null
-  "$ADB" pull /sdcard/ui-gate.xml "$OUT_DIR/ui.xml" >/dev/null
-  rg -q "Welcome to MileRecover|Get started" "$OUT_DIR/ui.xml" || fail "Welcome not visible"
+  # Poll for welcome UI — cold start can linger on "Checking your MileRecover setup…"
+  # especially on software-accelerated emulators before the auth-first welcome paints.
+  WELCOME_RE='Welcome to MileRecover|Get started|Never lose a work mile|Continue without an account'
+  WELCOME_OK=0
+  for _try in $(seq 1 12); do
+    "$ADB" shell uiautomator dump /sdcard/ui-gate.xml >/dev/null 2>&1 || true
+    "$ADB" pull /sdcard/ui-gate.xml "$OUT_DIR/ui.xml" >/dev/null 2>&1 || true
+    if [[ -f "$OUT_DIR/ui.xml" ]] && rg -q "$WELCOME_RE" "$OUT_DIR/ui.xml"; then
+      WELCOME_OK=1
+      break
+    fi
+    sleep 10
+  done
+  [[ "$WELCOME_OK" == "1" ]] || fail "Welcome not visible"
   ok "Welcome visible"
 fi
 
