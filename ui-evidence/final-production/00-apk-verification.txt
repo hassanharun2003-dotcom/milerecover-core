@@ -1,0 +1,16 @@
+MileRecover preview APK 0.1.7-final.1 verification
+
+Direct install:
+https://github.com/hassanharun2003-dotcom/milerecover-core/releases/download/android-preview-0.1.7/MileRecover-preview-0.1.7.apk
+
+EAS build: 8b28bed1-c747-42b6-bcb3-e8afc0e1f908
+versionName: 0.1.7
+versionCode: 17
+SHA-256: f72fcf92d52a76bf215ef95f5b928586a12a1938377f2b829b80e94b8641b68a
+updates.enabled: true
+appVariant: preview
+expo-dev-client plugin: absent
+runtimeVersion policy: appVersion
+
+Physical-device screenshots pending local install (no KVM in this agent).
+Follow checklist in ui-evidence/final-production/README.md.

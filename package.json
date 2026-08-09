@@ -3,12 +3,25 @@
   "version": "0.0.0-phase0",
   "private": true,
   "description": "MileRecover monorepo — Phase 0 engineering foundations. No production application builds yet.",
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/mobile-expo",
+    "packages/domain",
+    "packages/config"
+  ],
   "scripts": {
     "check:docs": "node tooling/scripts/check-required-files.js",
     "check:boundaries": "node tooling/scripts/check-boundaries.js",
     "check:sensitive-files": "node tooling/scripts/check-sensitive-files.js",
     "check:links": "node tooling/scripts/check-doc-links.js",
-    "check:all": "node tooling/scripts/check-all.js"
+    "check:all": "node tooling/scripts/check-all.js",
+    "test:domain": "npm --prefix packages/domain test",
+    "typecheck:domain": "npm --prefix packages/domain run typecheck",
+    "typecheck:mobile": "npm --prefix apps/mobile run typecheck",
+    "typecheck:mobile-expo": "npm --prefix apps/mobile-expo run typecheck",
+    "test:mobile-expo": "npm --prefix apps/mobile-expo test",
+    "test:persistence": "npm --prefix packages/domain test -- --testPathPattern=package-3-persistence",
+    "android:assemble": "npm --prefix apps/mobile run android:assemble"
   },
   "engines": {
     "node": ">=20.0.0"
