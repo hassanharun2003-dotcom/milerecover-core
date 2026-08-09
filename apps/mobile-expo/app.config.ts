@@ -36,7 +36,7 @@ const config = {
   slug: 'milerecover',
   owner: 'milerecover',
   scheme: 'milerecover',
-  version: '0.2.16',
+  version: '0.2.17',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   icon: './assets/icon.png',
@@ -59,7 +59,7 @@ const config = {
   },
   android: {
     package: 'com.milerecover.app',
-    versionCode: 71,
+    versionCode: 72,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
@@ -79,6 +79,7 @@ const config = {
     },
   },
   plugins: [
+    './plugins/withPreviewReleaseSigning',
     ...(IS_DEV_CLIENT ? ['expo-dev-client'] : []),
     [
       'expo-build-properties',
@@ -119,8 +120,8 @@ const config = {
       },
     ],
   ],
-  // Explicit runtime — isolates 0.2.16 from prior preview OTA/runtime.
-  runtimeVersion: '0.2.16',
+  // Explicit runtime — isolates 0.2.17 from prior preview OTA/runtime.
+  runtimeVersion: '0.2.17',
   updates: {
     url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
     // Standalone preview/production binaries keep updates enabled.
@@ -143,9 +144,9 @@ const config = {
       process.env.EAS_BUILD_CREATED_AT ??
       process.env.EXPO_PUBLIC_BUILD_TIMESTAMP ??
       new Date().toISOString(),
-    runtimeVersion: '0.2.16',
+    runtimeVersion: '0.2.17',
     updateChannel: process.env.EAS_BUILD_PROFILE === 'preview' || process.env.APP_VARIANT === 'preview'
-      ? 'preview-foundation-0.2.16'
+      ? 'preview-foundation-0.2.17'
       : process.env.APP_VARIANT === 'production'
         ? 'production'
         : 'development',

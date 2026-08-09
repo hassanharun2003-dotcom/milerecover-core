@@ -38,21 +38,23 @@ describe('Production MVP build configuration', () => {
     };
   };
 
-  it('ships package com.milerecover.app and isolated runtime 0.2.16', () => {
+  it('ships package com.milerecover.app and isolated runtime 0.2.17', () => {
     expect(APP_PACKAGE_ID).toBe('com.milerecover.app');
-    expect(APP_VERSION).toBe('0.2.16');
-    expect(APP_RUNTIME_VERSION).toBe('0.2.16');
-    expect(APP_BUILD_LABEL).toBe('0.2.16-samsung-zip-fix.1');
-    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.16');
+    expect(APP_VERSION).toBe('0.2.17');
+    expect(APP_RUNTIME_VERSION).toBe('0.2.17');
+    expect(APP_BUILD_LABEL).toBe('0.2.17-agp-native.1');
+    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.17');
     expect(appConfigSource).toContain("package: 'com.milerecover.app'");
     expect(appConfigSource).toContain("bundleIdentifier: 'com.milerecover.app'");
-    expect(appConfigSource).toContain("version: '0.2.16'");
-    expect(appConfigSource).toContain('versionCode: 71');
-    expect(appConfigSource).toContain("runtimeVersion: '0.2.16'");
+    expect(appConfigSource).toContain("version: '0.2.17'");
+    expect(appConfigSource).toContain('versionCode: 72');
+    expect(appConfigSource).toContain("runtimeVersion: '0.2.17'");
     expect(appConfigSource).not.toContain("policy: 'appVersion'");
     expect(appConfigSource).toContain("checkAutomatically: 'NEVER'");
     expect(appConfigSource).not.toContain("checkAutomatically: 'ON_LOAD'");
     expect(appConfigSource).toContain('useLegacyPackaging: true');
+    expect(appConfigSource).toContain('./plugins/withPreviewReleaseSigning');
+    expect(appConfigSource).toContain('versionCode: 72');
     expect(appConfigSource).toContain('expo-location');
     expect(appConfigSource).toContain('@react-native-community/datetimepicker');
     expect(appConfigSource).toContain('@react-native-google-signin/google-signin');
@@ -61,15 +63,15 @@ describe('Production MVP build configuration', () => {
 
   it('uses isolated preview-foundation channel so prior OTAs cannot replace UI', () => {
     expect(eas.build.preview.autoIncrement).toBe(true);
-    expect(eas.build.preview.channel).toBe('preview-foundation-0.2.16');
+    expect(eas.build.preview.channel).toBe('preview-foundation-0.2.17');
     expect(eas.build.preview.env?.APP_VARIANT).toBe('preview');
     expect(isStandaloneBuild('preview')).toBe(true);
-    expect(isStandaloneUpdateChannel('preview-foundation-0.2.16')).toBe(true);
+    expect(isStandaloneUpdateChannel('preview-foundation-0.2.17')).toBe(true);
     expect(isStandaloneUpdateChannel('preview')).toBe(true);
     expect(isStandaloneUpdateChannel('development')).toBe(false);
     expect(appConfigSource).toContain("'expo-dev-client'");
     expect(appConfigSource).toContain('enabled: !IS_DEV_CLIENT');
-    expect(packageJson.scripts?.['update:preview']).toContain('preview-foundation-0.2.16');
+    expect(packageJson.scripts?.['update:preview']).toContain('preview-foundation-0.2.17');
   });
 
   it('forces APP_VARIANT when publishing OTA so preview updates stay standalone', () => {
@@ -115,3 +117,4 @@ describe('Production MVP build configuration', () => {
     expect(crash).toMatch(/checkAutomatically/);
   });
 });
+
