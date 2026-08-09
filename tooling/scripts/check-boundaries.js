@@ -34,6 +34,7 @@ function detectPackage(relPath) {
   if (relPath.startsWith('packages/contracts/')) return 'contracts';
   if (relPath.startsWith('packages/config/')) return 'config';
   if (relPath.startsWith('packages/testing/')) return 'testing';
+  if (relPath.startsWith('apps/mobile-expo/')) return 'mobile-expo';
   if (relPath.startsWith('apps/mobile/')) return 'mobile';
   if (relPath.startsWith('apps/backend/')) return 'backend';
   if (relPath.startsWith('prototypes/')) return 'prototype';
