@@ -118,13 +118,13 @@ describe('0.2.13 real-device correction regressions', () => {
     expect(initial.reportingPeriod.label.toLowerCase()).not.toContain('year to date');
   });
 
-  it('build version metadata is 0.2.15 and matches app config', () => {
-    expect(APP_VERSION).toBe('0.2.15');
-    expect(APP_RUNTIME_VERSION).toBe('0.2.15');
-    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.15');
+  it('build version metadata is 0.2.16 and matches app config', () => {
+    expect(APP_VERSION).toBe('0.2.16');
+    expect(APP_RUNTIME_VERSION).toBe('0.2.16');
+    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.16');
     const config = read('app.config.ts');
-    expect(config).toMatch(/version: '0.2.15'/);
-    expect(config).toMatch(/runtimeVersion: '0.2.15'/);
+    expect(config).toMatch(/version: '0.2.16'/);
+    expect(config).toMatch(/runtimeVersion: '0.2.16'/);
     const about = read('src/screens/about/AboutScreen.tsx');
     const profile = read('src/screens/profile/ProfileScreen.tsx');
     expect(about).toMatch(/APP_VERSION/);

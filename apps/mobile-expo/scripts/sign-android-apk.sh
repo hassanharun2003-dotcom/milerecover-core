@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # Re-sign a release APK with v1+v2+v3 and a proper certificate DN.
-# Strips prior signatures via unpack/repack (preserving Stored entries such as
-# resources.arsc), jarsigner (v1), zipalign -f -v 4, then apksigner (v1+v2+v3).
+#
+# CRITICAL (Samsung PackageInstaller):
+# Do NOT unpack/repack the APK with Python zipfile. That rewrite injects ZIP
+# data-descriptor flags (0x08) on ~all entries. Those APKs can still pass
+# apksigner/zipalign/aapt static gates but fail Samsung's install-time parse
+# with: "Can't install app / There's a problem with the app file".
+#
+# Instead: strip prior JAR signatures with Info-ZIP `zip -d` (preserves /
+# normalizes entry framing without data descriptors), zipalign, then apksigner.
+#
 # Usage: IN_APK=... OUT_APK=... bash scripts/sign-android-apk.sh
 set -euo pipefail
 
@@ -24,8 +32,8 @@ if [[ ! -f "$KEYSTORE" ]]; then
   echo "Missing keystore: $KEYSTORE" >&2
   exit 2
 fi
-if ! command -v jarsigner >/dev/null 2>&1; then
-  echo "jarsigner not found on PATH" >&2
+if ! command -v zip >/dev/null 2>&1; then
+  echo "Info-ZIP 'zip' required (apt install zip)" >&2
   exit 2
 fi
 if ! command -v python3 >/dev/null 2>&1; then
@@ -35,62 +43,37 @@ fi
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
-UNSIGNED="$TMP_DIR/stripped.apk"
-V1_SIGNED="$TMP_DIR/v1-signed.apk"
+STRIPPED="$TMP_DIR/stripped.apk"
 ALIGNED="$TMP_DIR/aligned.apk"
 
-# Strip META-INF / APK Signing Block by copying zip entries and dropping
-# signature members. Preserve each entry's compress_type so resources.arsc
-# stays Stored (required for targetSdk 30+ / install error -124).
-python3 - "$IN_APK" "$UNSIGNED" <<'PY'
-import sys, zipfile
-from pathlib import Path
-src, dst = Path(sys.argv[1]), Path(sys.argv[2])
-skip_prefixes = ("META-INF/",)
-skip_exact = {
-    "META-INF/MANIFEST.MF",
-}
-with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(dst, "w") as zout:
-    for info in zin.infolist():
-        name = info.filename
-        if name.endswith("/"):
-            continue
-        upper = name.upper()
-        if upper.startswith("META-INF/") and (
-            upper.endswith(".SF")
-            or upper.endswith(".RSA")
-            or upper.endswith(".DSA")
-            or upper.endswith(".EC")
-            or upper.endswith("MANIFEST.MF")
-            or upper.endswith(".MF")
-        ):
-            continue
-        data = zin.read(info.filename)
-        out = zipfile.ZipInfo(filename=info.filename)
-        out.compress_type = info.compress_type
-        out.date_time = info.date_time
-        out.external_attr = info.external_attr
-        out.create_system = 0  # FAT — avoid POSIX attr JAR warnings
-        zout.writestr(out, data)
-print(f"stripped -> {dst} ({dst.stat().st_size} bytes)")
-PY
+cp -f "$IN_APK" "$STRIPPED"
 
-# JAR / v1 signing with SHA-256
-jarsigner \
-  -keystore "$KEYSTORE" \
-  -storepass "$STORE_PASS" \
-  -keypass "$KEY_PASS" \
-  -sigalg SHA256withRSA \
-  -digestalg SHA-256 \
-  -signedjar "$V1_SIGNED" \
-  "$UNSIGNED" \
-  "$KEY_ALIAS"
+# Remove only JAR signature members. `zip -d` rewrites the archive using
+# standard local headers (no data descriptors) without Python zipfile.
+# Ignore "name not matched" when the input was already unsigned.
+set +e
+zip -d "$STRIPPED" \
+  'META-INF/*.SF' \
+  'META-INF/*.RSA' \
+  'META-INF/*.DSA' \
+  'META-INF/*.EC' \
+  'META-INF/MANIFEST.MF' \
+  'META-INF/*.MF' \
+  >"$TMP_DIR/zip-d.txt" 2>&1
+ZIP_RC=$?
+set -e
+# zip returns 12 when some patterns matched nothing; 0 on full success.
+if [[ "$ZIP_RC" -ne 0 && "$ZIP_RC" -ne 12 ]]; then
+  cat "$TMP_DIR/zip-d.txt" >&2
+  echo "zip -d failed rc=$ZIP_RC" >&2
+  exit 3
+fi
+echo "stripped signatures -> $STRIPPED ($(wc -c <"$STRIPPED") bytes)"
 
-# 4-byte zip alignment after v1 signing and before apksigner.
+# 4-byte zip alignment before apksigner.
 # With useLegacyPackaging, .so files are compressed so 16KB page-align (-P)
-# does not apply; use zipalign -f -v 4 (not incompatible -p / -P 16).
-# zipalign after jarsigner invalidates v1 digests; apksigner regenerates v1.
-"$ZIPALIGN" -f -v 4 "$V1_SIGNED" "$ALIGNED"
+# does not apply; use zipalign -f -v 4.
+"$ZIPALIGN" -f -v 4 "$STRIPPED" "$ALIGNED" >"$TMP_DIR/zipalign-out.txt"
 
 "$APKSIGNER" sign \
   --ks "$KEYSTORE" \
@@ -110,11 +93,13 @@ jarsigner \
 "$ZIPALIGN" -c -v 4 "$OUT_APK" >/tmp/milerecover-zipalign-verify.txt
 unzip -v "$OUT_APK" >"$TMP_DIR/unzip-v.txt"
 unzip -l "$OUT_APK" >"$TMP_DIR/unzip-l.txt"
+
 # resources.arsc must remain Stored for targetSdk 30+.
 rg -q 'Stored .+ resources\.arsc' "$TMP_DIR/unzip-v.txt" || {
   echo "resources.arsc must be Stored (uncompressed) for R+ installs" >&2
   exit 3
 }
+
 # If any .so is Stored, also enforce 16KB page alignment.
 if rg -q 'Stored .+ lib/.+\.so' "$TMP_DIR/unzip-v.txt"; then
   "$ZIPALIGN" -c -P 16 -v 4 "$OUT_APK" >>/tmp/milerecover-zipalign-verify.txt
@@ -144,5 +129,19 @@ rg -q "Signer #1 certificate DN: CN=.+" /tmp/milerecover-apksigner-verify.txt ||
   echo "certificate DN empty/missing" >&2
   exit 3
 }
+
+# Hard gate: zero ZIP data-descriptor flags (Samsung install compatibility).
+python3 - "$OUT_APK" <<'PY'
+import sys, zipfile
+from pathlib import Path
+apk = Path(sys.argv[1])
+with zipfile.ZipFile(apk) as z:
+    dd = sum(1 for i in z.infolist() if i.flag_bits & 0x08)
+if dd != 0:
+    print(f"FAIL: {dd} ZIP entries still carry data-descriptor flag 0x08", file=sys.stderr)
+    print("Samsung PackageInstaller can reject these as 'problem with the app file'.", file=sys.stderr)
+    sys.exit(4)
+print(f"OK: data_descriptor_entries=0")
+PY
 
 echo "Signed OK -> $OUT_APK"

@@ -4,7 +4,7 @@ import { updatesEnabled } from '../src/updates/appUpdates';
 describe('Preview update workflow constants', () => {
   it('exposes build label and optional preview marker', () => {
     expect(APP_BUILD_LABEL).toMatch(
-      /mvp|preview|final|product-lock|product-recovery|continuous-pass|blueprint-lock|premium-ui|image-lock|foundation|startup|launch|figma-lock|device-qa|install-fix/,
+      /mvp|preview|final|product-lock|product-recovery|continuous-pass|blueprint-lock|premium-ui|image-lock|foundation|startup|launch|figma-lock|device-qa|install-fix|samsung-zip-fix/,
     );
     expect(typeof PREVIEW_CHANNEL_MARKER).toBe('string');
   });

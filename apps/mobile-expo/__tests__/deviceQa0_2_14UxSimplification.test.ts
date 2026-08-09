@@ -287,13 +287,13 @@ describe('0.2.14 real-device UX simplification', () => {
     expect(tracking).toMatch(/One-shot entry motion|duration: 1000/);
   });
 
-  it('build version metadata is 0.2.15', () => {
-    expect(APP_VERSION).toBe('0.2.15');
-    expect(APP_RUNTIME_VERSION).toBe('0.2.15');
-    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.15');
-    expect(APP_BUILD_LABEL).toMatch(/^0\.2\.15/);
+  it('build version metadata is 0.2.16', () => {
+    expect(APP_VERSION).toBe('0.2.16');
+    expect(APP_RUNTIME_VERSION).toBe('0.2.16');
+    expect(APP_UPDATE_CHANNEL).toBe('preview-foundation-0.2.16');
+    expect(APP_BUILD_LABEL).toMatch(/^0\.2\.16/);
     const config = read('app.config.ts');
-    expect(config).toMatch(/version: '0\.2\.15'/);
-    expect(config).toMatch(/runtimeVersion: '0\.2\.15'/);
+    expect(config).toMatch(/version: '0\.2\.16'/);
+    expect(config).toMatch(/runtimeVersion: '0\.2\.16'/);
   });
 });

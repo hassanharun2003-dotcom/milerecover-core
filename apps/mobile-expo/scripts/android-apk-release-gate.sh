@@ -68,6 +68,23 @@ ok "arm64-v8a present"
 rg -q 'Stored .+ resources\.arsc' "$OUT_DIR/unzip-v.txt" || fail "resources.arsc not Stored (R+ requires uncompressed+aligned)"
 ok "resources.arsc Stored"
 
+# Samsung PackageInstaller rejects Python-zipfile rewrites that inject ZIP
+# data-descriptor flags even when apksigner/zipalign pass.
+python3 - "$APK" "$OUT_DIR/zip-data-descriptors.txt" <<'PY' || fail "ZIP data-descriptor check failed"
+import sys, zipfile
+from pathlib import Path
+apk, out = Path(sys.argv[1]), Path(sys.argv[2])
+with zipfile.ZipFile(apk) as z:
+    dd = [(i.filename, hex(i.flag_bits)) for i in z.infolist() if i.flag_bits & 0x08]
+out.write_text(f"data_descriptor_entries={len(dd)}\n")
+if dd:
+    out.write_text(out.read_text() + "\n".join(f"{n} {f}" for n,f in dd[:30]) + "\n")
+    print(f"FAIL: {len(dd)} entries have ZIP data-descriptor flag 0x08", file=sys.stderr)
+    sys.exit(1)
+print("OK: data_descriptor_entries=0")
+PY
+ok "no ZIP data-descriptor flags"
+
 # adb install proof
 "$ADB" devices | tee "$OUT_DIR/adb-devices.txt"
 "$ADB" uninstall "$EXPECT_PACKAGE" >/dev/null 2>&1 || true
