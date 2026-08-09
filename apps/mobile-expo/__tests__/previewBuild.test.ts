@@ -26,6 +26,7 @@ describe('Production MVP build configuration', () => {
       'update:production'?: string;
       'gate:android-apk'?: string;
       'sign:android-apk'?: string;
+      'build:android-apk'?: string;
     };
   };
   const eas = readJson('eas.json') as {
@@ -82,8 +83,51 @@ describe('Production MVP build configuration', () => {
   it('requires android APK sign + release gate scripts', () => {
     expect(packageJson.scripts?.['gate:android-apk']).toContain('android-apk-release-gate.sh');
     expect(packageJson.scripts?.['sign:android-apk']).toContain('sign-android-apk.sh');
+    expect(packageJson.scripts?.['build:android-apk']).toContain('build-agp-release-apk.sh');
     expect(fs.existsSync(path.join(root, 'scripts/android-apk-release-gate.sh'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'scripts/sign-android-apk.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'scripts/build-agp-release-apk.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'plugins/withPreviewReleaseSigning.js'))).toBe(true);
+  });
+
+  it('disables post-build APK mutation and requires AGP-native signing plugin', () => {
+    const resign = fs.readFileSync(path.join(root, 'scripts/sign-android-apk.sh'), 'utf8');
+    expect(resign).toMatch(/DISABLED|AGP-native only/);
+    expect(resign).toMatch(/exit 2/);
+    // Stub must refuse immediately — no executable mutation pipeline remains.
+    const resignCode = resign
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('#'))
+      .join('\n');
+    expect(resignCode).not.toMatch(/zipfile|zip -d|apksigner sign|jarsigner/);
+    const gate = fs.readFileSync(path.join(root, 'scripts/android-apk-release-gate.sh'), 'utf8');
+    expect(gate).toMatch(/VERIFY-ONLY|Must NOT mutate/);
+    expect(gate).toMatch(/EXPECT_GRADLE_SHA256/);
+    expect(gate).toMatch(/data_descriptor_entries/);
+    // Gate/build may mention historical mutation tools in comments; code must not invoke them.
+    const nonComment = (src: string) =>
+      src
+        .split('\n')
+        .filter((line) => !line.trimStart().startsWith('#'))
+        .join('\n');
+    const gateCode = nonComment(gate);
+    expect(gateCode).not.toMatch(/apksigner\s+sign\b/);
+    expect(gateCode).not.toMatch(/\bzip\s+-d\b/);
+    expect(gateCode).not.toMatch(/ZipFile\([^)]+,\s*['\"]w['\"]/);
+    const build = fs.readFileSync(path.join(root, 'scripts/build-agp-release-apk.sh'), 'utf8');
+    expect(build).toMatch(/assembleRelease/);
+    expect(build).toMatch(/ZERO post-build APK mutation/);
+    expect(build).toMatch(/cp -f/);
+    const buildCode = nonComment(build);
+    expect(buildCode).not.toMatch(/apksigner\s+sign\b/);
+    expect(buildCode).not.toMatch(/\bzip\s+-d\b/);
+    expect(buildCode).not.toMatch(/ZipFile\([^)]+,\s*['\"]w['\"]/);
+    const plugin = fs.readFileSync(path.join(root, 'plugins/withPreviewReleaseSigning.js'), 'utf8');
+    expect(plugin).toMatch(/signingConfigs\.release/);
+    expect(plugin).toMatch(/MR_PREVIEW_STORE_FILE/);
+    expect(plugin).toMatch(/enableV1Signing true/);
+    expect(plugin).toMatch(/enableV2Signing true/);
+    expect(plugin).toMatch(/enableV3Signing true/);
   });
 
   it('excludes expo-dev-client native modules from autolinking for standalone variants', () => {
